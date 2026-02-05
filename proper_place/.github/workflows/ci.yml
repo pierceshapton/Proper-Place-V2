@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  web:
+    name: Web build (Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install web deps
+        run: |
+          cd Proper_Place_Base44_Version_1
+          npm ci
+      - name: Lint
+        run: cd Proper_Place_Base44_Version_1 && npm run lint
+      - name: Build web
+        run: cd Proper_Place_Base44_Version_1 && npm run build
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: Proper_Place_Base44_Version_1/dist
+
+  flutter-test:
+    name: Flutter tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+      - name: Install Flutter deps
+        run: |
+          cd proper_place
+          flutter pub get
+      - name: Run tests
+        run: |
+          cd proper_place
+          flutter test --no-pub
+
+  ios-build:
+    name: iOS (macOS) build preparation
+    needs: [ web, flutter-test ]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install web deps and build
+        run: |
+          cd Proper_Place_Base44_Version_1
+          npm ci
+          npm run build
+      - name: Install Capacitor (local) and sync
+        run: |
+          cd Proper_Place_Base44_Version_1
+          npm install @capacitor/cli @capacitor/core --no-save
+          npx cap sync --web-dir=dist || true
+      - name: CocoaPods install (if present)
+        run: |
+          if [ -d "ios/App" ]; then
+            cd ios/App
+            pod install || true
+          fi
+      - name: Xcode build (placeholder)
+        run: |
+          echo "Add Xcode build steps here (xcodebuild or fastlane). This job prepares iOS project files and dependencies."

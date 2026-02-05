@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: proper_user
+      POSTGRES_PASSWORD: proper_password
+      POSTGRES_DB: proper_place
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  backend:
+    build: .
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: proper_user
+      DB_PASSWORD: proper_password
+      DB_NAME: proper_place
+      JWT_SECRET: change_me
+    ports:
+      - "3001:3001"
+volumes:
+  postgres_data:
