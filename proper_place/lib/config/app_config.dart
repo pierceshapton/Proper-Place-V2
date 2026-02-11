@@ -10,7 +10,7 @@ class AppConfig {
 
   static const String base44BackendUrl = String.fromEnvironment(
     'BASE44_BACKEND_URL',
-    defaultValue: 'http://localhost:3001',
+    defaultValue: 'http://192.168.1.114:3001',
   );
 
   // For debugging

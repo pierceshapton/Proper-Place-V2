@@ -51,88 +51,59 @@ class _AdminHostRequestsScreenState extends State<AdminHostRequestsScreen> {
       ),
       body: Column(
         children: [
-          // Simple header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Host Requests',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Review and approve new host applications',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),          const SizedBox(height: 16),
-
-          // Filter tabs
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+          // Filter Tabs
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
               child: Row(
                 children: _filters.map((filter) {
                   final isSelected = _selectedFilter == filter;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (filter == 'Pending')
-                            const Padding(
-                              padding: EdgeInsets.only(right: 6),
-                              child: Icon(Icons.schedule, size: 16),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedFilter = filter),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFF3B82F6) : Colors.grey[100],
+                          border: isSelected ? null : Border.all(color: const Color(0xFFE2E8F0), width: 1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (filter == 'Pending')
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Icon(Icons.schedule, size: 16, color: isSelected ? Colors.white : Colors.black),
+                              ),
+                            if (filter == 'Approved')
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Icon(Icons.check_circle, size: 16, color: isSelected ? Colors.white : Colors.black),
+                              ),
+                            if (filter == 'Rejected')
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Icon(Icons.cancel, size: 16, color: isSelected ? Colors.white : Colors.black),
+                              ),
+                            Text(
+                              filter,
+                              style: TextStyle(
+                                color: isSelected ? Colors.white : Colors.grey[700],
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                              ),
                             ),
-                          if (filter == 'Approved')
-                            const Padding(
-                              padding: EdgeInsets.only(right: 6),
-                              child: Icon(Icons.check_circle, size: 16),
-                            ),
-                          if (filter == 'Rejected')
-                            const Padding(
-                              padding: EdgeInsets.only(right: 6),
-                              child: Icon(Icons.cancel, size: 16),
-                            ),
-                          Text(filter),
-                        ],
+                          ],
+                        ),
                       ),
-                      backgroundColor: isSelected ? const Color(0xFF3B82F6) : Colors.white,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      side: BorderSide(
-                        color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0),
-                      ),
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedFilter = filter;
-                        });
-                      },
                     ),
                   );
                 }).toList(),
               ),
             ),
           ),
-
-          const SizedBox(height: 16),
-
           // Content
           Expanded(
             child: filteredRequests.isEmpty
@@ -443,6 +414,7 @@ class _AdminHostRequestsScreenState extends State<AdminHostRequestsScreen> {
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'Enter reason for rejection...',
+                hintStyle: TextStyle(color: Colors.grey[700]),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

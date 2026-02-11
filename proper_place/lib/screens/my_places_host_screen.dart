@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'host_create_site_screen.dart';
 
 class MyPlacesHostScreen extends StatefulWidget {
   const MyPlacesHostScreen({super.key});
@@ -27,6 +28,40 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
           'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
       'status': 'Pending',
       'statusColor': const Color(0xFFF59E0B),
+    },
+  ];
+
+  // Sample reviews data
+  final List<Map<String, dynamic>> allReviews = [
+    {
+      'id': '1',
+      'guestName': 'Alice Johnson',
+      'placeName': 'Avalon',
+      'rating': 5,
+      'date': '6 Feb 2026',
+      'reviewText': 'Absolutely amazing place! The views were stunning and hosts were very welcoming.',
+      'hasResponse': true,
+      'response': 'Thank you so much Alice! We loved having you stay with us.',
+    },
+    {
+      'id': '2',
+      'guestName': 'Bob Wilson',
+      'placeName': 'Coastal Haven',
+      'rating': 4,
+      'date': '4 Feb 2026',
+      'reviewText': 'Great location and comfortable accommodations. Minor issue with WiFi but overall excellent.',
+      'hasResponse': false,
+      'response': '',
+    },
+    {
+      'id': '3',
+      'guestName': 'Carol Davis',
+      'placeName': 'Avalon',
+      'rating': 5,
+      'date': '2 Feb 2026',
+      'reviewText': 'Perfect weekend getaway! Everything was clean and well-organized.',
+      'hasResponse': false,
+      'response': '',
     },
   ];
 
@@ -60,6 +95,45 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
             ],
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HostCreateSiteScreen(),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 18, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text(
+                        'Add Site',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -89,8 +163,277 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Place cards
-          ...hostPlaces.map((place) => _buildPlaceCard(place)),
+          // Empty state or Place cards
+          if (hostPlaces.isEmpty)
+            _buildEmptyState()
+          else
+            ...hostPlaces.map((place) => _buildPlaceCard(place)),
+          
+          const SizedBox(height: 32),
+
+          // Reviews Section
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Reviews',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${allReviews.length} reviews from guests',
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF08A),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.star, size: 16, color: Color(0xFFF59E0B)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_calculateAverageRating().toStringAsFixed(1)}',
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+          
+          // Reviews list
+          ...allReviews.map((review) => _buildReviewCard(review)),
+        ],
+      ),
+    );
+  }
+
+  double _calculateAverageRating() {
+    if (allReviews.isEmpty) return 0;
+    final total = allReviews.fold<int>(0, (sum, review) => sum + (review['rating'] as int));
+    return total / allReviews.length;
+  }
+
+  Widget _buildReviewCard(Map<String, dynamic> review) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Guest name and rating
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    review['guestName'],
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    review['placeName'],
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: List.generate(5, (index) {
+                  final filled = index < review['rating'];
+                  return Icon(
+                    filled ? Icons.star : Icons.star_outline,
+                    size: 16,
+                    color: const Color(0xFFF59E0B),
+                  );
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Date
+          Text(
+            'Stayed ${review['date']}',
+            style: const TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Review text
+          Text(
+            review['reviewText'],
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Response section or respond button
+          if (review['hasResponse'])
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F9FF),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Your response:',
+                    style: TextStyle(
+                      color: Color(0xFF1E40AF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    review['response'],
+                    style: const TextStyle(
+                      color: Color(0xFF1E3A8A),
+                      fontSize: 12,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: () {
+                _showReplyDialog(review);
+              },
+              icon: const Icon(Icons.reply, size: 16),
+              label: const Text('Respond to Review'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF7BA7D8),
+                side: const BorderSide(color: Color(0xFF7BA7D8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showReplyDialog(Map<String, dynamic> review) {
+    final TextEditingController responseController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Respond to Review'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'From: ${review['guestName']}',
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                review['reviewText'],
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: responseController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Type your response...',
+                hintStyle: TextStyle(color: Colors.grey[700]),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (responseController.text.trim().isNotEmpty) {
+                setState(() {
+                  review['hasResponse'] = true;
+                  review['response'] = responseController.text;
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Response posted!')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7BA7D8),
+            ),
+            child: const Text('Post Response'),
+          ),
         ],
       ),
     );
@@ -259,6 +602,59 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        children: [
+          const SizedBox(height: 48),
+          Icon(
+            Icons.home_work_outlined,
+            size: 80,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No Sites Listed Yet',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Start earning by adding your first site to Proper Place',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HostCreateSiteScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.add, size: 20),
+            label: const Text('Create Your First Site'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3B82F6),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          const SizedBox(height: 48),
         ],
       ),
     );

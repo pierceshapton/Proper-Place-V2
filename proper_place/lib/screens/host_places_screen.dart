@@ -32,12 +32,10 @@ class _HostPlacesScreenState extends State<HostPlacesScreen> {
         return;
       }
 
-      final response = await Uri.parse('${AppConfig.baseUrl}/places?host=true')
-          .resolve('')
-          .resolveProxy(token);
-
+      // TODO: Replace with real API call when endpoint is ready
+      // final response = await http.get(Uri.parse('${AppConfig.baseUrl}/places?host=true'));
+      
       // For now, use mock data since we don't have the actual endpoint
-      // In production, replace with real API call
       setState(() {
         places = [
           {

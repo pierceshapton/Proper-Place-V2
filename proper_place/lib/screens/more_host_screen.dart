@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'welcome_screen.dart';
 
 class MoreHostScreen extends StatefulWidget {
   const MoreHostScreen({super.key});
@@ -11,11 +12,29 @@ class MoreHostScreen extends StatefulWidget {
 class _MoreHostScreenState extends State<MoreHostScreen> {
   Map<String, dynamic>? user;
   bool isLoading = true;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     _loadUserData();
+  }
+
+  void _onScroll() {
+    // Limit scroll to stop when logout section is visible
+    // Allow more scrolling to show logout section prominently
+    final maxScroll = _scrollController.position.maxScrollExtent - 115;
+    if (_scrollController.offset > maxScroll) {
+      _scrollController.jumpTo(maxScroll);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -73,7 +92,11 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
   Future<void> _logout() async {
     await StorageService.clearUserData();
     if (mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -117,6 +140,7 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
         ),
       ),
       body: ListView(
+        controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
           // Header section
@@ -454,6 +478,26 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
           ),
           const SizedBox(height: 24),
 
+          // Help & Support (moved above Settings)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: _buildSettingButton(
+              icon: Icons.help_outline,
+              title: 'Help & Support',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Opening Help & Support')),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+
           // Settings
           Container(
             decoration: BoxDecoration(
@@ -480,16 +524,6 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Opening Account Settings')),
-                    );
-                  },
-                ),
-                const Divider(color: Color(0xFFE2E8F0), height: 1),
-                _buildSettingButton(
-                  icon: Icons.help_outline,
-                  title: 'Help & Support',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Opening Help & Support')),
                     );
                   },
                 ),

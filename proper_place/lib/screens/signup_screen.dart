@@ -73,6 +73,7 @@ class _SignupScreenState extends State<SignupScreen> {
       
       // Save token and user data
       await StorageService.saveToken(token);
+      await StorageService.saveUserName(name);
       if (response['user_id'] != null) {
         await StorageService.saveUserId(response['user_id']);
       }
@@ -176,6 +177,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             controller: _nameController,
                             decoration: InputDecoration(
                               hintText: 'Enter your full name',
+                              hintStyle: TextStyle(color: Colors.grey[700]),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
@@ -222,6 +224,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             controller: _emailController,
                             decoration: InputDecoration(
                               hintText: 'Enter your email',
+                              hintStyle: TextStyle(color: Colors.grey[700]),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
@@ -270,6 +273,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             obscureText: true,
                             decoration: InputDecoration(
                               hintText: 'At least 8 characters',
+                              hintStyle: TextStyle(color: Colors.grey[700]),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
@@ -317,6 +321,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             obscureText: true,
                             decoration: InputDecoration(
                               hintText: 'Confirm your password',
+                              hintStyle: TextStyle(color: Colors.grey[700]),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(

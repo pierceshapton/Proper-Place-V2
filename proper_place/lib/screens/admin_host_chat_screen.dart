@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:proper_place/services/chat_service.dart';
+import 'package:proper_place/widgets/swipe_action_card.dart';
 
 class AdminHostChatScreen extends StatefulWidget {
   const AdminHostChatScreen({super.key});
@@ -10,11 +12,15 @@ class AdminHostChatScreen extends StatefulWidget {
 class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
   int _selectedChatIndex = -1;
   late TextEditingController _messageController;
+  String selectedCategory = 'hosts'; // 'hosts' or 'users'
+  bool _isClosedChatsExpanded = false; // Closed conversations collapsed by default
 
   // Sample conversations data
   final List<Map<String, dynamic>> _conversations = [
     {
       'id': '1',
+      'category': 'hosts',
+      'closed': false,
       'hostName': 'John Smith',
       'guestName': 'Alice Johnson',
       'hostAvatar': 'JS',
@@ -48,6 +54,8 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
     },
     {
       'id': '2',
+      'category': 'users',
+      'closed': false,
       'hostName': 'Sarah Johnson',
       'guestName': 'Bob Wilson',
       'hostAvatar': 'SJ',
@@ -71,6 +79,8 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
     },
     {
       'id': '3',
+      'category': 'hosts',
+      'closed': false,
       'hostName': 'Michael Chen',
       'guestName': 'Carol Davis',
       'hostAvatar': 'MC',
@@ -120,6 +130,19 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
         _selectedChatIndex = index;
         _conversations[index]['unread'] = 0;
       }
+    });
+  }
+
+  void _closeChat(int index) {
+    setState(() {
+      _conversations[index]['closed'] = true;
+      _selectedChatIndex = -1;
+    });
+  }
+
+  void _reopenChat(int index) {
+    setState(() {
+      _conversations[index]['closed'] = false;
     });
   }
 
@@ -201,38 +224,32 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
   }
 
   Widget _buildChatList() {
-    int totalUnread =
-        _conversations.fold(0, (sum, c) => sum + (c['unread'] as int));
+    final filteredConversations = _conversations
+        .where((c) => c['category'] == selectedCategory && c['closed'] == false)
+        .toList();
+    final closedConversations = _conversations
+        .where((c) => c['category'] == selectedCategory && c['closed'] == true)
+        .toList();
+    int totalUnread = filteredConversations.fold(
+        0, (sum, c) => sum + (c['unread'] as int));
 
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Simple header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Message Center',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Monitor all conversations between hosts and guests',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+          // Category tabs (Host Chats vs User Chats)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  _buildCategoryTab('hosts', 'Host Chats', Icons.business),
+                  const SizedBox(width: 8),
+                  _buildCategoryTab('users', 'User Chats', Icons.person),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
           // Active Chats Section
           Padding(
             padding: const EdgeInsets.all(16),
@@ -248,7 +265,7 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Active Chats (${_conversations.length})',
+                      'Active Chats (${filteredConversations.length})',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -279,7 +296,7 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
                 ),
                 const SizedBox(height: 16),
                 // Conversation List
-                if (_conversations.isEmpty)
+                if (filteredConversations.isEmpty)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(40),
@@ -309,148 +326,261 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
                   ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _conversations.length,
+                    itemCount: filteredConversations.length,
                     itemBuilder: (context, index) {
-                      final conv = _conversations[index];
-                      return _buildConversationCard(conv, index);
+                      final conv = filteredConversations[index];
+                      final originalIndex = _conversations.indexOf(conv);
+                      return _buildConversationCard(conv, originalIndex);
                     },
                   ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConversationCard(Map<String, dynamic> conversation, int index) {
-    final unread = conversation['unread'] as int;
-    return GestureDetector(
-      onTap: () => _openChat(index),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Avatars
-              Stack(
+          // Closed Chats Section
+          if (closedConversations.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      conversation['hostAvatar'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              // Chat Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isClosedChatsExpanded = !_isClosedChatsExpanded;
+                      });
+                    },
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: Text(
-                            '${conversation['hostName']} & ${conversation['guestName']}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Icon(
+                          Icons.lock_outline,
+                          size: 20,
+                          color: Colors.grey[600],
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          conversation['timestamp'],
+                          'Closed Chats (${closedConversations.length})',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const Spacer(),
+                        Transform.rotate(
+                          angle: _isClosedChatsExpanded ? 1.5708 : 0, // 90 degrees when expanded
+                          child: Icon(
+                            Icons.chevron_right,
                             color: Colors.grey[600],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            conversation['lastMessage'],
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[700],
-                              fontWeight: unread > 0
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (unread > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '$unread',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
+                  ),
+                  if (_isClosedChatsExpanded) ...[
+                    const SizedBox(height: 16),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: closedConversations.length,
+                      itemBuilder: (context, index) {
+                        final conv = closedConversations[index];
+                        final originalIndex = _conversations.indexOf(conv);
+                        return _buildConversationCard(conv, originalIndex, isClosed: true);
+                      },
                     ),
                   ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConversationCard(Map<String, dynamic> conversation, int index, {bool isClosed = false}) {
+    final unread = conversation['unread'] as int;
+    final conversationId = conversation['id'].toString();
+
+    return SwipeActionCard(
+      conversationId: conversationId,
+      onMarkUnread: () async {
+        try {
+          await ChatService().markContactAsUnread(conversationId);
+          setState(() {
+            conversation['unread'] = 1;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Marked as unread')),
+            );
+          }
+        } catch (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: $error')),
+            );
+          }
+        }
+      },
+      onDelete: () async {
+        try {
+          await ChatService().deleteContact(conversationId);
+          setState(() {
+            _conversations.removeWhere((c) => int.tryParse(c['id'].toString()) == conversationId);
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Conversation deleted')),
+            );
+          }
+        } catch (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: $error')),
+            );
+          }
+        }
+      },
+      child: GestureDetector(
+        onTap: isClosed ? null : () => _openChat(index),
+        child: Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: isClosed ? Colors.grey[100] : Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                // Avatars
+                Stack(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isClosed ? Colors.grey[400] : const Color(0xFF3B82F6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        conversation['hostAvatar'],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    if (!isClosed)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right,
-                color: Colors.grey,
-              ),
-            ],
+                const SizedBox(width: 12),
+                // Chat Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${conversation['hostName']} & ${conversation['guestName']}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: isClosed ? Colors.grey[600] : Colors.black,
+                                decoration: isClosed ? TextDecoration.lineThrough : null,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            conversation['timestamp'],
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              conversation['lastMessage'],
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isClosed ? Colors.grey[500] : Colors.grey[700],
+                                fontWeight: (unread > 0 && !isClosed)
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (unread > 0 && !isClosed)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$unread',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (isClosed)
+                  IconButton(
+                    onPressed: () => _reopenChat(index),
+                    icon: const Icon(Icons.redo, color: Colors.grey),
+                    tooltip: 'Reopen chat',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  )
+                else
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -502,6 +632,11 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                onPressed: () => _closeChat(index),
+                icon: const Icon(Icons.close, color: Colors.white),
+                tooltip: 'Close chat',
               ),
             ],
           ),
@@ -575,6 +710,7 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
                   controller: _messageController,
                   decoration: InputDecoration(
                     hintText: 'Type a message...',
+                    hintStyle: TextStyle(color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
                       borderSide: BorderSide(color: Colors.grey[300]!),
@@ -598,4 +734,34 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
       ],
     );
   }
+
+  Widget _buildCategoryTab(String categoryValue, String label, IconData icon) {
+    final isSelected = selectedCategory == categoryValue;
+    return GestureDetector(
+      onTap: () => setState(() => selectedCategory = categoryValue),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF3B82F6) : Colors.grey[100],
+          border: isSelected ? null : Border.all(color: const Color(0xFFE2E8F0), width: 1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.black),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey[700],
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+

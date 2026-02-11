@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:proper_place/models/place.dart';
+import 'package:proper_place/screens/chat_screen.dart';
 
 class BookingDetailScreen extends StatelessWidget {
   final Map<String, dynamic> booking;
@@ -14,7 +15,10 @@ class BookingDetailScreen extends StatelessWidget {
     required this.place,
   }) : super(key: key);
 
-  String _formatDate(String dateString) {
+  String _formatDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) {
+      return 'N/A';
+    }
     try {
       final date = DateTime.parse(dateString);
       return '${date.day} ${_monthName(date.month)} ${date.year}';
@@ -92,7 +96,7 @@ class BookingDetailScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildInfoRow(String label, String? value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -105,7 +109,7 @@ class BookingDetailScreen extends StatelessWidget {
           ),
         ),
         Text(
-          value,
+          value ?? 'N/A',
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
@@ -147,7 +151,10 @@ class BookingDetailScreen extends StatelessWidget {
     }
   }
 
-  bool _canCancelBooking(String checkInStr) {
+  bool _canCancelBooking(String? checkInStr) {
+    if (checkInStr == null || checkInStr.isEmpty) {
+      return false;
+    }
     try {
       final checkIn = DateTime.parse(checkInStr);
       // Add 12 hours to check-in to get the midday check-in time
@@ -164,7 +171,10 @@ class BookingDetailScreen extends StatelessWidget {
     }
   }
 
-  String _getCancellationDeadline(String checkInStr) {
+  String _getCancellationDeadline(String? checkInStr) {
+    if (checkInStr == null || checkInStr.isEmpty) {
+      return 'N/A';
+    }
     try {
       final checkIn = DateTime.parse(checkInStr);
       final checkInMidday = checkIn.add(const Duration(hours: 12));
@@ -184,10 +194,17 @@ class BookingDetailScreen extends StatelessWidget {
   }
 
   Future<void> _openChat(BuildContext context) async {
-    final bookingId = booking['booking_id'] ?? '';
-    final placeId = booking['place_id'] ?? '';
+    debugPrint('DEBUG: _openChat called');
+    
+    // Convert to strings first to avoid isEmpty issues with ints
+    final bookingIdStr = (booking['booking_id'] ?? '').toString();
+    final placeIdStr = (booking['place_id'] ?? '').toString();
+    final hostName = place.hostName ?? 'Host';
 
-    if (bookingId.isEmpty || placeId.isEmpty) {
+    debugPrint('DEBUG: bookingIdStr=$bookingIdStr, placeIdStr=$placeIdStr, hostName=$hostName');
+
+    if (bookingIdStr.isEmpty || placeIdStr.isEmpty) {
+      debugPrint('DEBUG: Missing booking or place information');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text(
@@ -196,13 +213,32 @@ class BookingDetailScreen extends StatelessWidget {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Opening chat for booking ${bookingId.toString().substring(0, 8).toUpperCase()}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // Convert placeId to int
+    final placeIdInt = int.tryParse(placeIdStr) ?? 0;
+
+    debugPrint('DEBUG: Parsed placeIdInt=$placeIdInt, bookingIdStr=$bookingIdStr');
+    debugPrint('DEBUG: Attempting to navigate to ChatScreen');
+
+    try {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            bookingId: bookingIdStr,
+            placeId: placeIdInt,
+            hostName: hostName,
+          ),
+        ),
+      ).then((_) {
+        debugPrint('DEBUG: Returned from ChatScreen');
+      });
+    } catch (e) {
+      debugPrint('DEBUG: Error navigating to chat: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening chat: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _cancelBooking(BuildContext context) async {
@@ -251,7 +287,7 @@ class BookingDetailScreen extends StatelessWidget {
                 
                 // Call backend API to cancel booking
                 final response = await http.post(
-                  Uri.parse('http://localhost:3001/bookings/$bookingId/cancel'),
+                  Uri.parse('http://192.168.1.114:3001/bookings/$bookingId/cancel'),
                   headers: {'Content-Type': 'application/json'},
                 );
                 
@@ -315,8 +351,10 @@ class BookingDetailScreen extends StatelessWidget {
     final checkIn = _formatDate(booking['check_in']);
     final checkOut = _formatDate(booking['check_out']);
     final nights = _calculateNights();
-    final bookingId =
-        (booking['booking_id'] as String).substring(0, 8).toUpperCase();
+    final bookingIdRaw = booking['booking_id']?.toString() ?? '';
+    final bookingId = bookingIdRaw.length >= 8 
+        ? bookingIdRaw.substring(0, 8).toUpperCase() 
+        : bookingIdRaw.toUpperCase();
     final status = booking['status'] ?? 'confirmed';
 
     return Scaffold(
@@ -455,7 +493,7 @@ class BookingDetailScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _buildInfoRow(
                     'Total Price:',
-                    '£${double.tryParse(booking['total_price'].toString())?.toStringAsFixed(2) ?? booking['total_price']}',
+                    '£${double.tryParse(booking['total_price']?.toString() ?? '')?.toStringAsFixed(2) ?? '0.00'}',
                   ),
                 ],
               ),
@@ -550,8 +588,8 @@ class BookingDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Chat button - appears for confirmed bookings within 72 hours
-                  if (booking['status']?.toLowerCase() == 'confirmed' &&
+                  // Chat button - appears for confirmed/pending bookings within 72 hours
+                  if ((booking['status']?.toLowerCase() == 'confirmed' || booking['status']?.toLowerCase() == 'pending') &&
                       _isChatAvailable(
                           booking['check_in'], booking['check_out']))
                     ...[
@@ -567,8 +605,8 @@ class BookingDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                     ],
-                  // Cancel button - appears for upcoming confirmed bookings
-                  if (booking['status']?.toLowerCase() == 'confirmed' &&
+                  // Cancel button - appears for upcoming confirmed/pending bookings
+                  if ((booking['status']?.toLowerCase() == 'confirmed' || booking['status']?.toLowerCase() == 'pending') &&
                       _isUpcoming(booking['check_out']))
                     ...[
                       ElevatedButton(

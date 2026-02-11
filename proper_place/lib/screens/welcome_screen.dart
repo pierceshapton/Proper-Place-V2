@@ -17,21 +17,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: Scaffold(
         body: Stack(
         children: [
-          // Background Image
+          // Background Gradient (instant load, no network dependency)
           Container(
             decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: NetworkImage(
-                  'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69136d0530f4f20055bf3802/3ba659ed7_IMG_1650.jpg',
-                ),
-                fit: BoxFit.cover,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF4A90D9),
+                  Color(0xFF7BA7D8),
+                  Color(0xFF6B96C8),
+                  Color(0xFF3B7BC0),
+                ],
+                stops: [0.0, 0.3, 0.7, 1.0],
               ),
             ),
-          ),
-
-          // Subtle Overlay
-          Container(
-            color: Colors.black.withValues(alpha: 0.1),
           ),
 
           // Content

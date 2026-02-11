@@ -2,10 +2,41 @@ const db = require('../config/database');
 const logger = require('../utils/logger');
 
 /**
+ * Auto-complete bookings that have passed checkout at midday
+ */
+async function autoCompleteBookings() {
+  try {
+    const now = new Date();
+    
+    // Find bookings past their checkout date at 12:00 PM (noon)
+    const result = await db.query(
+      `UPDATE bookings 
+       SET status = 'Completed', updated_at = NOW()
+       WHERE status != 'Cancelled' 
+         AND status != 'Completed'
+         AND check_out_date < $1
+       RETURNING id, status`,
+      [now]
+    );
+    
+    if (result.rows.length > 0) {
+      logger.info('Auto-completed bookings', { count: result.rows.length, ids: result.rows.map(r => r.id) });
+    }
+    
+    return result.rows;
+  } catch (error) {
+    logger.error('Auto-complete bookings error', { error: error.message });
+  }
+}
+
+/**
  * GET /bookings
  */
 async function getBookings(req, res, next) {
   try {
+    // Auto-complete bookings first
+    await autoCompleteBookings();
+    
     const userId = req.user.userId;
     const { page = 1, limit = 20, status } = req.query;
     const offset = (page - 1) * limit;
@@ -251,4 +282,5 @@ module.exports = {
   createBooking,
   updateBooking,
   deleteBooking,
+  autoCompleteBookings,
 };

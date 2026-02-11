@@ -23,11 +23,68 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
   double? _longitude;
   bool _isSubmitting = false;
   bool _isLoadingLocation = false;
+  List<String> _addressSuggestions = [];
+  bool _showAddressSuggestions = false;
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
+    _addressController.addListener(_onAddressChanged);
+  }
+
+  void _onAddressChanged() {
+    if (_addressController.text.length > 2) {
+      _generateAddressSuggestions(_addressController.text);
+    } else {
+      setState(() {
+        _showAddressSuggestions = false;
+        _addressSuggestions = [];
+      });
+    }
+  }
+
+  void _generateAddressSuggestions(String input) {
+    final suggestions = <String>{};
+    final commonLocations = [
+      'London, UK',
+      'Manchester, UK',
+      'Liverpool, UK',
+      'Birmingham, UK',
+      'Leeds, UK',
+      'Glasgow, UK',
+      'Edinburgh, UK',
+      'Bristol, UK',
+      'Cambridge, UK',
+      'Oxford, UK',
+    ];
+    
+    final lowerInput = input.toLowerCase();
+    for (var location in commonLocations) {
+      if (location.toLowerCase().contains(lowerInput)) {
+        suggestions.add(location);
+      }
+    }
+    
+    if (suggestions.isEmpty && input.isNotEmpty) {
+      suggestions.addAll([
+        '$input, UK',
+        '$input, England',
+      ]);
+    }
+    
+    setState(() {
+      _addressSuggestions = suggestions.toList().take(4).toList();
+      _showAddressSuggestions = _addressSuggestions.isNotEmpty;
+    });
+  }
+
+  void _selectAddress(String address) {
+    setState(() {
+      _addressController.text = address;
+      _showAddressSuggestions = false;
+      _addressSuggestions = [];
+    });
   }
 
   Future<void> _getCurrentLocation() async {
@@ -154,6 +211,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                   controller: _contactNameController,
                   decoration: InputDecoration(
                     hintText: 'Your full name',
+                    hintStyle: TextStyle(color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -178,6 +236,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     hintText: 'your.email@example.com',
+                    hintStyle: TextStyle(color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -205,6 +264,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
                     hintText: '+44 1234 567890',
+                    hintStyle: TextStyle(color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -266,6 +326,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     hintText: 'e.g., 5',
+                    hintStyle: TextStyle(color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -292,6 +353,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                   controller: _businessDescriptionController,
                   decoration: InputDecoration(
                     hintText: 'Describe your property, amenities, and what makes it special',
+                    hintStyle: TextStyle(color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -315,22 +377,66 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _addressController,
-                  decoration: InputDecoration(
-                    hintText: 'Full address of your property',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: _addressController,
+                      decoration: InputDecoration(
+                        hintText: 'Start typing city or address...',
+                        hintStyle: TextStyle(color: Colors.grey[700]),
+                        prefixIcon: const Icon(Icons.location_on),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      keyboardType: TextInputType.streetAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: (value) {
+                        if (value?.isEmpty ?? true) {
+                          return 'Address is required';
+                        }
+                        if ((value?.length ?? 0) < 5) {
+                          return 'Please enter a valid address';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) {
-                      return 'Address is required';
-                    }
-                    return null;
-                  },
+                    if (_showAddressSuggestions && _addressSuggestions.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: _addressSuggestions.map((suggestion) {
+                            return InkWell(
+                              onTap: () => _selectAddress(suggestion),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.location_on, size: 18, color: Colors.grey[600]),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: Text(suggestion)),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 8),
                 if (_isLoadingLocation)
                   const Padding(
                     padding: EdgeInsets.all(8.0),
@@ -339,11 +445,6 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  )
-                else if (_latitude != null && _longitude != null)
-                  Text(
-                    'Location: $_latitude, $_longitude',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 const SizedBox(height: 24),
 

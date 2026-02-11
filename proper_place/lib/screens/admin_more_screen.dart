@@ -14,11 +14,28 @@ class _AdminMoreScreenState extends State<AdminMoreScreen> {
   String adminEmail = 'pierce.shapton@proper-place.co.uk';
   String adminRole = 'Administrator';
   String adminSince = 'November 11, 2025';
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     _loadAdminInfo();
+  }
+
+  void _onScroll() {
+    // Limit scroll to stop when logout section is visible
+    final maxScroll = _scrollController.position.maxScrollExtent - 115;
+    if (_scrollController.offset > maxScroll) {
+      _scrollController.jumpTo(maxScroll);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAdminInfo() async {
@@ -143,6 +160,8 @@ class _AdminMoreScreenState extends State<AdminMoreScreen> {
     );
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,6 +195,7 @@ class _AdminMoreScreenState extends State<AdminMoreScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          controller: _scrollController,
           child: Column(
             children: [
               // Admin Profile Card
@@ -386,6 +406,7 @@ class _AdminMoreScreenState extends State<AdminMoreScreen> {
                         ),
                       ),
                     ),
+
                   ],
                 ),
               ),

@@ -45,18 +45,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final token = response['access_token'];
       print('[Login] Response data: $response');
-      print('[Login] Role from login: ${response['role']}');
       
-      // Save token and user data
+      // Save token
       await StorageService.saveToken(token);
-      if (response['user_id'] != null) {
-        await StorageService.saveUserId(response['user_id']);
-      }
-      if (response['email'] != null) {
-        await StorageService.saveUserEmail(response['email']);
-      }
-      if (response['role'] != null) {
-        await StorageService.saveUserRole(response['role']);
+      
+      // Extract user data from nested 'user' object
+      final user = response['user'];
+      if (user != null) {
+        print('[Login] User object: $user');
+        if (user['id'] != null) {
+          await StorageService.saveUserId(user['id'].toString());
+        }
+        if (user['email'] != null) {
+          await StorageService.saveUserEmail(user['email']);
+        }
+        if (user['name'] != null) {
+          await StorageService.saveUserName(user['name']);
+        }
+        if (user['role'] != null) {
+          await StorageService.saveUserRole(user['role']);
+          print('[Login] Saved role: ${user['role']}');
+        }
       }
       
       if (!mounted) return;
@@ -152,6 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _emailController,
                             decoration: InputDecoration(
                               hintText: 'Enter your email',
+                              hintStyle: TextStyle(color: Colors.grey[700]),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
@@ -200,6 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             obscureText: true,
                             decoration: InputDecoration(
                               hintText: 'Enter your password',
+                              hintStyle: TextStyle(color: Colors.grey[700]),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(

@@ -69,6 +69,7 @@ class _AdminPlaceApprovalScreenState extends State<AdminPlaceApprovalScreen> {
           maxLines: 3,
           decoration: const InputDecoration(
             hintText: 'Reason for rejection...',
+            hintStyle: TextStyle(color: Color(0xFF57575D)),
             border: OutlineInputBorder(),
           ),
         ),

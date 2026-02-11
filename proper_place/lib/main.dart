@@ -7,6 +7,7 @@ import 'package:proper_place/screens/home_screen.dart';
 import 'package:proper_place/screens/host_submit_place_screen.dart';
 import 'package:proper_place/screens/admin_place_approval_screen.dart';
 import 'package:proper_place/screens/my_bookings_screen.dart';
+import 'package:proper_place/screens/booking_detail_screen.dart';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/config/app_constants.dart';
 import 'package:proper_place/services/storage_service.dart';
@@ -25,10 +26,10 @@ Future<void> main() async {
 
   // Initialize Stripe payment service
   try {
-    await PaymentService.initialize();
-    debugPrint('✅ Payment service initialized');
+    // await PaymentService.initialize();
+    // debugPrint('✅ Payment service initialized');
   } catch (e) {
-    debugPrint('⚠️ Warning: Stripe initialization failed: $e');
+    // debugPrint('⚠️ Warning: Stripe initialization failed: $e');
   }
 
   // Print config on startup (for debugging)
@@ -137,7 +138,7 @@ class MyApp extends StatelessWidget {
           thickness: 1,
         ),
       ),
-      home: const AuthWrapper(),
+      home: const AuthCheckWrapper(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
@@ -150,50 +151,58 @@ class MyApp extends StatelessWidget {
         },
         '/admin_place_approval': (context) => const AdminPlaceApprovalScreen(),
         '/my_bookings': (context) => const MyBookingsScreen(),
+        '/booking-detail': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>?;
+          if (args == null) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Booking details not available'),
+              ),
+            );
+          }
+          return BookingDetailScreen(
+            booking: args['booking'] as Map<String, dynamic>,
+            place: args['place'],
+          );
+        },
       },
     );
   }
 }
 
-/// AuthWrapper checks if user is authenticated on startup
-class AuthWrapper extends StatefulWidget {
-  const AuthWrapper({super.key});
+/// AuthCheckWrapper - Shows welcome screen immediately, checks auth in background
+class AuthCheckWrapper extends StatefulWidget {
+  const AuthCheckWrapper({super.key});
 
   @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
+  State<AuthCheckWrapper> createState() => _AuthCheckWrapperState();
 }
 
-class _AuthWrapperState extends State<AuthWrapper> {
-  late Future<bool> _isAuthenticatedFuture;
-
+class _AuthCheckWrapperState extends State<AuthCheckWrapper> {
   @override
   void initState() {
     super.initState();
-    _isAuthenticatedFuture = StorageService.isAuthenticated();
+    // Check auth status in background after UI renders
+    Future.delayed(const Duration(milliseconds: 500), _checkAuthStatus);
+  }
+
+  Future<void> _checkAuthStatus() async {
+    try {
+      final isAuthenticated = await StorageService.isAuthenticated()
+          .timeout(const Duration(seconds: 3), onTimeout: () => false);
+      
+      if (isAuthenticated && mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } catch (e) {
+      debugPrint('Auth check failed: $e');
+      // Stay on welcome screen if auth fails
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _isAuthenticatedFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF7BA7D8),
-              ),
-            ),
-          );
-        }
-
-        // If user is authenticated, go to home; otherwise go to welcome
-        if (snapshot.hasData && snapshot.data == true) {
-          return const HomeScreen();
-        } else {
-          return const WelcomeScreen();
-        }
-      },
-    );
+    return const WelcomeScreen();
   }
 }

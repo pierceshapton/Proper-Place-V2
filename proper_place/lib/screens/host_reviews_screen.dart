@@ -284,15 +284,18 @@ class _HostReviewsScreenState extends State<HostReviewsScreen> {
             child: FilterChip(
               label: Text(labels[i]),
               selected: filterRating == ratings[i],
+              backgroundColor: filterRating == ratings[i] ? const Color(0xFF7BA7D8) : Colors.grey[100],
               onSelected: (selected) {
                 setState(() {
                   filterRating = ratings[i];
                 });
               },
-              selectedColor: const Color(0xFF7BA7D8),
               labelStyle: TextStyle(
                 color:
                     filterRating == ratings[i] ? Colors.white : Colors.black,
+              ),
+              side: BorderSide(
+                color: filterRating == ratings[i] ? Colors.transparent : const Color(0xFFE2E8F0),
               ),
             ),
           ),

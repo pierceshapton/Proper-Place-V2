@@ -1,25 +1,64 @@
 services:
   postgres:
     image: postgres:15-alpine
+    container_name: proper_place_db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: proper_user
-      POSTGRES_PASSWORD: proper_password
-      POSTGRES_DB: proper_place
+      POSTGRES_USER: ${DB_USER:-proper_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-proper_password}
+      POSTGRES_DB: ${DB_NAME:-proper_place}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-proper_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - proper_place_network
+
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proper_place_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3001}
       DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: proper_user
-      DB_PASSWORD: proper_password
-      DB_NAME: proper_place
-      JWT_SECRET: change_me
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-proper_user}
+      DB_PASSWORD: ${DB_PASSWORD:-proper_password}
+      DB_NAME: ${DB_NAME:-proper_place}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_in_production}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
     ports:
-      - "3001:3001"
+      - "${PORT:-3001}:${PORT:-3001}"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - proper_place_network
+
 volumes:
   postgres_data:
+    driver: local
+
+networks:
+  proper_place_network:
+    driver: bridge

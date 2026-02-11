@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:proper_place/auth/auth_provider.dart';
+import 'package:proper_place/services/storage_service.dart';
+import 'welcome_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -9,7 +10,6 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  final _authProvider = Base44AuthProvider();
   Map<String, dynamic>? _user;
   bool _isLoading = true;
 
@@ -39,9 +39,13 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _handleLogout() async {
     try {
-      await _authProvider.logout();
+      await StorageService.clearUserData();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/');
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+          (route) => false,
+        );
       }
     } catch (e) {
       if (mounted) {

@@ -137,15 +137,15 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_places_owner_id ON places(owner_id);
-CREATE INDEX idx_places_approval_status ON places(approval_status);
-CREATE INDEX idx_places_location ON places(latitude, longitude);
-CREATE INDEX idx_pubs_location ON pubs(latitude, longitude);
-CREATE INDEX idx_bookings_user_id ON bookings(user_id);
-CREATE INDEX idx_bookings_place_id ON bookings(place_id);
-CREATE INDEX idx_bookings_status ON bookings(status);
-CREATE INDEX idx_reviews_user_id ON reviews(user_id);
-CREATE INDEX idx_messages_receiver_id ON messages(receiver_id);
-CREATE INDEX idx_messages_read ON messages(read);
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_places_owner_id ON places(owner_id);
+CREATE INDEX IF NOT EXISTS idx_places_approval_status ON places(approval_status);
+CREATE INDEX IF NOT EXISTS idx_places_location ON places(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_pubs_location ON pubs(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_place_id ON bookings(place_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_messages_read ON messages(read);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);

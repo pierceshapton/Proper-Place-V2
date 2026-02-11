@@ -443,8 +443,19 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
 
       debugPrint('✅ BOOKING: Booking created successfully');
 
+      // Extract the nested booking data and normalize field names
+      final bookingData = booking['booking'] ?? booking;
+      final normalizedBooking = {
+        'booking_id': bookingData['id']?.toString() ?? '',
+        'place_id': bookingData['place_id']?.toString() ?? '',
+        'check_in': bookingData['check_in_date'] ?? '',
+        'check_out': bookingData['check_out_date'] ?? '',
+        'status': bookingData['status'] ?? 'confirmed',
+        'total_price': bookingData['total_price'] ?? totalPrice,
+      };
+
       if (mounted) {
-        _showBookingSuccessDialog(booking);
+        _showBookingSuccessDialog(normalizedBooking);
       }
     } catch (e) {
       debugPrint('❌ BOOKING: Booking error: $e');
@@ -522,12 +533,14 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // Store target tab for MyBookingsScreen to use
-                StorageService.saveString('booking_tab_target', targetTab);
-                // Set the next tab to bookings (index 1)
-                HomeScreen.setNextTab(1);
-                // Pop back to home screen which will show bookings tab
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                // Navigate directly to booking detail screen
+                Navigator.of(context).pushReplacementNamed(
+                  '/booking-detail',
+                  arguments: {
+                    'booking': booking,
+                    'place': widget.place,
+                  },
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,

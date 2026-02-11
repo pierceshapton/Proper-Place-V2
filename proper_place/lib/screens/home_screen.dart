@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/services/notification_service.dart';
+import 'package:proper_place/widgets/notification_badge.dart';
 import 'map_places_screen_new.dart';
 import 'my_bookings_screen.dart';
 import 'favorites_screen.dart';
@@ -13,23 +17,27 @@ import 'my_places_host_screen.dart';
 import 'bookings_host_screen.dart';
 import 'reviews_host_screen.dart';
 import 'more_host_screen.dart';
+import 'chat_host_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_host_requests_screen.dart';
 import 'admin_approvals_screen.dart';
 import 'admin_host_chat_screen.dart';
+import 'admin_contact_messages_screen.dart';
 import 'admin_more_screen.dart';
 
 /// Reusable custom bottom navigation bar widget
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
-  final List<Map<String, dynamic>> items; // {icon: IconData, label: String}
+  final List<Map<String, dynamic>> items; // {icon: IconData, label: String, badge?: int}
+  final Map<int, int>? badgeCounts; // {tabIndex: count}
 
   const CustomBottomNavBar({
     Key? key,
     required this.currentIndex,
     required this.onTap,
     required this.items,
+    this.badgeCounts,
   }) : super(key: key);
 
   @override
@@ -61,6 +69,7 @@ class CustomBottomNavBar extends StatelessWidget {
               items[index]['label'] as String,
               index == currentIndex,
               () => onTap(index),
+              badgeCounts?[index] ?? 0,
             ),
           ),
         ),
@@ -74,6 +83,7 @@ class CustomBottomNavBar extends StatelessWidget {
     String label,
     bool isSelected,
     VoidCallback onTap,
+    int badgeCount,
   ) {
     return GestureDetector(
       onTap: onTap,
@@ -83,10 +93,26 @@ class CustomBottomNavBar extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 22,
-              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF9CA3AF),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  size: 22,
+                  color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF9CA3AF),
+                ),
+                if (badgeCount > 0)
+                  NotificationBadge(
+                    count: badgeCount,
+                    size: 18,
+                    backgroundColor: Colors.red,
+                    textStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 3),
             Text(
@@ -140,6 +166,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool isHostMode = false;
   bool isAdminMode = false;
   
+  // Notification counts
+  Map<int, int> _badgeCounts = {};
+  Timer? _notificationRefreshTimer;
+  final NotificationService _notificationService = NotificationService();
+  
   /// Call this to set the tab index for the next time HomeScreen appears
   static void setNextTab(int tabIndex) {
     _nextTabIndex = tabIndex;
@@ -149,13 +180,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadUserRole();
-    _loadHostMode();
-    _loadAdminMode();
-    _loadPlaces();
     
-    // Handle navigation with selectedTab argument or static variable
+    // Setup notification timer immediately (non-blocking)
+    _notificationRefreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _loadNotificationCounts(),
+    );
+    
+    // Defer ALL data loading to after UI renders to prevent blocking
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(Duration.zero, () {
+        _loadUserRole();
+        _loadHostMode();
+        _loadAdminMode();
+        _loadPlaces();
+        _loadNotificationCounts();
+      });
+      
+      // Handle navigation with selectedTab argument or static variable
       int? tabToSet;
       
       // Check if a static tab index was set (from booking confirmation)
@@ -180,6 +222,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _notificationRefreshTimer?.cancel(); // Cancel the notification refresh timer
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -190,62 +233,121 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // Refresh host mode and admin mode when app is resumed
       _loadHostMode();
       _loadAdminMode();
+      _loadNotificationCounts(); // Refresh notifications when app is resumed
     }
   }
 
   Future<void> _loadUserRole() async {
     try {
-      final role = await StorageService.getUserRole();
-      print('[App] Loaded role from storage: $role');
-      setState(() {
-        userRole = role ?? 'normal_user'; // Default to normal_user
-        // Host mode will be loaded separately by _loadHostMode()
-        // Don't override it here, let the storage preference take precedence
-      });
+      final role = await Future.any([
+        StorageService.getUserRole(),
+        Future.delayed(const Duration(seconds: 3), () => null),
+      ]);
+      if (mounted) {
+        setState(() {
+          userRole = role ?? 'normal_user';
+        });
+      }
     } catch (e) {
-      print('[App] Error loading role: $e');
-      setState(() {
-        userRole = 'normal_user';
-      });
+      debugPrint('[App] Error loading role: $e');
+      if (mounted) {
+        setState(() {
+          userRole = 'normal_user';
+        });
+      }
     }
   }
 
   Future<void> _loadHostMode() async {
     try {
-      final hostMode = await StorageService.getHostMode();
-      // For admin/host users without a saved preference, default to true
-      bool modeToSet = hostMode;
-      if (!hostMode && (userRole == 'admin' || userRole == 'host')) {
-        // Check if this is the first load (no preference set) vs deliberate false
-        final prefs = await SharedPreferences.getInstance();
-        final hasHostModeKey = prefs.containsKey('host_mode');
-        if (!hasHostModeKey) {
-          modeToSet = true; // First load for admin/host: default to true
+      final hostMode = await Future.any([
+        StorageService.getHostMode(),
+        Future.delayed(const Duration(seconds: 3), () => false),
+      ]);
+      
+      bool modeToSet = hostMode ?? false;
+      if (!(hostMode ?? false) && (userRole == 'admin' || userRole == 'host')) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final hasHostModeKey = prefs.containsKey('host_mode');
+          if (!hasHostModeKey) {
+            modeToSet = true;
+          }
+        } catch (e) {
+          debugPrint('Error checking SharedPreferences: $e');
         }
       }
-      setState(() {
-        isHostMode = modeToSet;
-        _currentIndex = 0; // Reset to first tab when mode changes
-      });
+      
+      if (mounted) {
+        setState(() {
+          isHostMode = modeToSet;
+          _currentIndex = 0;
+        });
+      }
     } catch (e) {
-      // On error, set sensible defaults
-      setState(() {
-        isHostMode = (userRole == 'admin' || userRole == 'host') ? true : false;
-        _currentIndex = 0; // Reset to first tab when mode changes
-      });
+      debugPrint('[App] Error loading host mode: $e');
+      if (mounted) {
+        setState(() {
+          isHostMode = (userRole == 'admin' || userRole == 'host') ? true : false;
+          _currentIndex = 0;
+        });
+      }
     }
   }
 
   Future<void> _loadAdminMode() async {
     try {
-      final adminMode = await StorageService.getAdminMode();
-      setState(() {
-        isAdminMode = adminMode;
-      });
+      final adminMode = await Future.any([
+        StorageService.getAdminMode(),
+        Future.delayed(const Duration(seconds: 3), () => false),
+      ]);
+      if (mounted) {
+        setState(() {
+          isAdminMode = adminMode ?? false;
+        });
+      }
     } catch (e) {
+      debugPrint('[App] Error loading admin mode: $e');
+      if (mounted) {
+        setState(() {
+          isAdminMode = false;
+        });
+      }
+    }
+  }
+
+  /// Load notification counts from API
+  Future<void> _loadNotificationCounts() async {
+    try {
+      final counts = await _notificationService.getNotificationCounts().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => <String, int>{},
+      );
+      
+      if (!mounted) return;
+      
       setState(() {
-        isAdminMode = false;
+        _badgeCounts = {};
+        
+        // Map API counts to tab indices based on current mode
+        if (userRole == 'admin' && isAdminMode) {
+          // Admin mode: Dashboard (0), Requests (1), Approvals (2), Chat (3), More (4)
+          _badgeCounts[1] = counts['pendingHostApplications'] ?? 0; // Requests tab
+          _badgeCounts[2] = counts['pendingApprovals'] ?? 0; // Approvals tab
+          _badgeCounts[3] = counts['unreadMessages'] ?? 0; // Chat tab
+        } else if (isHostMode) {
+          // Host mode: Dashboard (0), Sites (1), Bookings (2), Chat (3), More (4)
+          _badgeCounts[2] = counts['pendingBookings'] ?? 0; // Bookings tab
+          _badgeCounts[3] = counts['unreadMessages'] ?? 0; // Chat tab
+          _badgeCounts[1] = counts['siteSubmissions'] ?? 0; // Sites tab - pending approvals
+        } else {
+          // User mode: Map (0), Bookings (1), Saved (2), More (3)
+          _badgeCounts[1] = counts['pendingBookings'] ?? 0; // Bookings tab
+        }
       });
+    } catch (error) {
+      debugPrint('[HomeScreen] Error loading notification counts: $error');
+      // Silently fail - notifications are not critical
     }
   }
 
@@ -263,10 +365,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     // Host mode
     if (isHostMode) {
+      final placesLabel = places.length == 1 ? 'My site' : 'Sites';
       return [
         {'icon': CupertinoIcons.house, 'label': 'Dashboard'},
-        {'icon': CupertinoIcons.person_2, 'label': 'Requests'},
-        {'icon': CupertinoIcons.checkmark_shield, 'label': 'Approvals'},
+        {'icon': Icons.directions_bus, 'label': placesLabel},
+        {'icon': CupertinoIcons.calendar, 'label': 'Bookings'},
         {'icon': CupertinoIcons.chat_bubble, 'label': 'Chat'},
         {'icon': CupertinoIcons.ellipsis, 'label': 'More'},
       ];
@@ -310,6 +413,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           backgroundColor: Color(0xFF3B82F6),
         ),
         BottomNavigationBarItem(
+          icon: Icon(Icons.mail_outlined),
+          activeIcon: Icon(Icons.mail),
+          label: 'User Messages',
+          backgroundColor: Color(0xFF3B82F6),
+        ),
+        BottomNavigationBarItem(
           icon: Icon(Icons.more_horiz),
           label: 'More',
           backgroundColor: Color(0xFF3B82F6),
@@ -332,9 +441,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           backgroundColor: const Color(0xFF7BA7D8),
         ),
         BottomNavigationBarItem(
-          icon: const Icon(Icons.shield_outlined),
-          activeIcon: const Icon(Icons.shield),
-          label: 'Approvals',
+          icon: const Icon(Icons.calendar_today_outlined),
+          activeIcon: const Icon(Icons.calendar_today),
+          label: 'Bookings',
           backgroundColor: const Color(0xFF7BA7D8),
         ),
         BottomNavigationBarItem(
@@ -395,7 +504,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return index == 0
           ? DashboardScreen(
               onTabChanged: (tabIndex) {
-                // Handle dashboard tab changes
+                setState(() {
+                  _currentIndex = tabIndex;
+                });
               },
             )
           : index == 1
@@ -403,7 +514,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               : index == 2
                   ? const BookingsHostScreen()
                   : index == 3
-                      ? const ReviewsHostScreen()
+                      ? const ChatHostScreen()
                       : const MoreHostScreen();
     } else {
       // Normal user mode (or admin/host in user mode)
@@ -498,7 +609,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadPlaces() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3001/places'),
+        Uri.parse('${AppConfig.base44BackendUrl}/places'),
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw TimeoutException('Places API timeout'),
       );
 
       if (!mounted) return;
@@ -508,19 +622,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final placesFromApi =
             List<Map<String, dynamic>>.from(data['places'] ?? []);
 
-        setState(() {
-          // Use API data if available, otherwise use test data
-          places = placesFromApi.isNotEmpty ? placesFromApi : _getTestPlaces();
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            // Use API data if available, otherwise use test data
+            places = placesFromApi.isNotEmpty ? placesFromApi : _getTestPlaces();
+            isLoading = false;
+          });
+        }
       } else {
         // Use test data if API fails
-        setState(() {
-          places = _getTestPlaces();
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            places = _getTestPlaces();
+            isLoading = false;
+          });
+        }
       }
     } catch (e) {
+      debugPrint('Error loading places: $e');
       if (mounted) {
         // Use test data as fallback
         setState(() {
@@ -580,6 +699,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             });
           },
           items: _getNavItems(),
+          badgeCounts: _badgeCounts,
         ),
       ),
     );

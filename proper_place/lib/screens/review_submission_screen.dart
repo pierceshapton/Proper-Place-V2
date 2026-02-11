@@ -152,6 +152,7 @@ class _ReviewSubmissionScreenState extends State<ReviewSubmissionScreen> {
               maxLines: 6,
               decoration: InputDecoration(
                 hintText: 'Share your experience with other travelers...',
+                hintStyle: TextStyle(color: Colors.grey[700]),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(color: Colors.grey[300]!),

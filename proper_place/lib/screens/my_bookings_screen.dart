@@ -55,7 +55,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     }
   }
 
-  String _formatDate(String dateString) {
+  String _formatDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) {
+      return 'N/A';
+    }
     try {
       final date = DateTime.parse(dateString);
       return '${date.day} ${_monthName(date.month)} ${date.year}';
@@ -95,7 +98,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     }
   }
 
-  bool _isUpcoming(String checkOutDate) {
+  bool _isUpcoming(String? checkOutDate) {
+    if (checkOutDate == null || checkOutDate.isEmpty) {
+      return false;
+    }
     try {
       final date = DateTime.parse(checkOutDate);
       return date.isAfter(DateTime.now());
@@ -313,7 +319,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF7BA7D8) : Colors.grey[200],
+          color: isSelected ? const Color(0xFF7BA7D8) : Colors.grey[100],
+          border: isSelected ? null : Border.all(color: const Color(0xFFE2E8F0), width: 1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -368,18 +375,28 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
   Widget _buildBookingCard(Map<String, dynamic> booking) {
     final bookingId = booking['booking_id'] ?? 'N/A';
-    final bookingIdShort = bookingId.toString().substring(0, 8).toUpperCase();
+    final bookingIdStr = bookingId.toString();
+    final bookingIdShort = bookingIdStr.length >= 8 
+        ? bookingIdStr.substring(0, 8).toUpperCase()
+        : bookingIdStr.toUpperCase();
     final status = booking['status'] ?? 'unknown';
     final checkIn = _formatDate(booking['check_in']);
     final checkOut = _formatDate(booking['check_out']);
     final totalPrice = booking['total_price'] ?? '0';
     final isUpcoming = _isUpcoming(booking['check_out']);
     final placeId = booking['place_id'] ?? '';
+    
+    debugPrint('DEBUG: Building booking card - booking_id=$bookingId, place_id=$placeId, status=$status');
 
-    return GestureDetector(
-      onTap: () => _openBookingDetails(placeId, booking),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: InkWell(
+        onTap: () {
+          // Convert placeId to String if it's an int
+          final placeIdStr = placeId is int ? placeId.toString() : placeId as String;
+          debugPrint('DEBUG: Booking card tapped - place_id=$placeIdStr');
+          _openBookingDetails(placeIdStr, booking);
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -475,11 +492,41 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
   Future<void> _openBookingDetails(String placeId, Map<String, dynamic> booking) async {
     try {
+      debugPrint('DEBUG: Opening booking details for place_id=$placeId');
+      
+      // Validate placeId
+      if (placeId.isEmpty) {
+        debugPrint('DEBUG: Error - placeId is empty!');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error: Place ID is missing'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+      
       // Fetch place details
+      debugPrint('DEBUG: Fetching place details for place_id=$placeId');
       final placeData = await ApiService.getPlaceById(placeId: placeId);
-      final place = Place.fromJson(placeData['place'] ?? placeData);
+      debugPrint('DEBUG: Place data received: $placeData');
+      debugPrint('DEBUG: Place data keys: ${placeData.keys}');
+      debugPrint('DEBUG: Place data is empty: ${placeData.isEmpty}');
+      
+      if (placeData.isEmpty) {
+        debugPrint('DEBUG: WARNING - Place data is empty!');
+      }
+      
+      // placeData is already the place object (getPlaceById extracts it)
+      debugPrint('DEBUG: Creating Place object from data...');
+      final place = Place.fromJson(placeData.isEmpty ? {} : placeData);
+      debugPrint('DEBUG: Place parsed - name=${place.name}, placeId=${place.placeId}');
+      debugPrint('DEBUG: About to navigate to detail screen for place ${place.name}');
       
       if (mounted) {
+        debugPrint('DEBUG: Widget is mounted, proceeding with navigation');
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
@@ -489,28 +536,38 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
             ),
           ),
         );
+        debugPrint('DEBUG: Returned from detail screen with result=$result');
         
         // If a booking was cancelled (result == true), refresh the list and show cancelled tab
         if (result == true && mounted) {
+          debugPrint('DEBUG: Booking was cancelled, refreshing list');
           setState(() {
             bookingsFuture = ApiService.getGuestBookings(guestId: guestId);
             selectedTab = 'cancelled'; // Switch to cancelled tab to show the cancelled booking
           });
         }
+      } else {
+        debugPrint('DEBUG: Widget not mounted, cannot navigate');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('DEBUG: Error opening booking details: $e');
+      debugPrint('DEBUG: Stack trace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading place details: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
     }
   }
 
-  bool _isChatAvailable(String checkInStr, String checkOutStr) {
+  bool _isChatAvailable(String? checkInStr, String? checkOutStr) {
+    if (checkInStr == null || checkOutStr == null || checkInStr.isEmpty || checkOutStr.isEmpty) {
+      return false;
+    }
     try {
       final checkIn = DateTime.parse(checkInStr);
       final checkOut = DateTime.parse(checkOutStr);

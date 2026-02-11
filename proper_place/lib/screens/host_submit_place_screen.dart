@@ -26,6 +26,8 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
   double? longitude;
   bool isSubmitting = false;
   late bool isEditing;
+  List<String> addressSuggestions = [];
+  bool showAddressSuggestions = false;
 
   final List<String> placeTypes = [
     'Grassland',
@@ -42,12 +44,67 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
   void initState() {
     super.initState();
     isEditing = widget.placeToEdit != null;
+    addressController.addListener(_onAddressChanged);
 
     // Pre-fill form if editing
     if (isEditing) {
       nameController.text = widget.placeToEdit!['name'] as String? ?? '';
       addressController.text = widget.placeToEdit!['address'] as String? ?? '';
     }
+  }
+
+  void _onAddressChanged() {
+    if (addressController.text.length > 2) {
+      _generateAddressSuggestions(addressController.text);
+    } else {
+      setState(() {
+        showAddressSuggestions = false;
+        addressSuggestions = [];
+      });
+    }
+  }
+
+  void _generateAddressSuggestions(String input) {
+    final suggestions = <String>{};
+    final commonLocations = [
+      'London, UK',
+      'Manchester, UK',
+      'Liverpool, UK',
+      'Birmingham, UK',
+      'Leeds, UK',
+      'Glasgow, UK',
+      'Edinburgh, UK',
+      'Bristol, UK',
+      'Cambridge, UK',
+      'Oxford, UK',
+    ];
+    
+    final lowerInput = input.toLowerCase();
+    for (var location in commonLocations) {
+      if (location.toLowerCase().contains(lowerInput)) {
+        suggestions.add(location);
+      }
+    }
+    
+    if (suggestions.isEmpty && input.isNotEmpty) {
+      suggestions.addAll([
+        '$input, UK',
+        '$input, England',
+      ]);
+    }
+    
+    setState(() {
+      addressSuggestions = suggestions.toList().take(4).toList();
+      showAddressSuggestions = addressSuggestions.isNotEmpty;
+    });
+  }
+
+  void _selectAddress(String address) {
+    setState(() {
+      addressController.text = address;
+      showAddressSuggestions = false;
+      addressSuggestions = [];
+    });
   }
 
   Future<void> _pickImage() async {
@@ -216,6 +273,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
                 controller: nameController,
                 decoration: InputDecoration(
                   hintText: 'e.g. Avalon Grassland',
+                  hintStyle: TextStyle(color: Colors.grey[700]),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -242,6 +300,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
                 maxLines: 3,
                 decoration: InputDecoration(
                   hintText: 'Describe your place in detail...',
+                  hintStyle: TextStyle(color: Colors.grey[700]),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -263,20 +322,65 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              TextFormField(
-                controller: addressController,
-                decoration: InputDecoration(
-                  hintText: 'Full address',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: addressController,
+                    decoration: InputDecoration(
+                      hintText: 'Start typing city or address...',
+                      hintStyle: TextStyle(color: Colors.grey[700]),
+                      prefixIcon: const Icon(Icons.location_on),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    keyboardType: TextInputType.streetAddress,
+                    textInputAction: TextInputAction.next,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter an address';
+                      }
+                      if (value.length < 5) {
+                        return 'Please enter a valid address';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter an address';
-                  }
-                  return null;
-                },
+                  if (showAddressSuggestions && addressSuggestions.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: addressSuggestions.map((suggestion) {
+                          return InkWell(
+                            onTap: () => _selectAddress(suggestion),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.location_on, size: 18, color: Colors.grey[600]),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(suggestion)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 16),
               // Location button
@@ -352,6 +456,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   hintText: '10',
+                  hintStyle: TextStyle(color: Colors.grey[700]),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -381,6 +486,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
                 maxLines: 2,
                 decoration: InputDecoration(
                   hintText: 'e.g. Water, Electric, WiFi',
+                  hintStyle: TextStyle(color: Colors.grey[700]),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),

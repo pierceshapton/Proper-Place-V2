@@ -28,17 +28,29 @@ class ApiService {
   }) async {
     try {
       final url = Uri.parse(_buildUrl(endpoint));
+      
+      // Fetch token and add to headers for authenticated endpoints
+      final token = await StorageService.getToken();
+      print('[ApiService._request] Endpoint: $endpoint, Token present: ${token != null}');
+      
       final defaultHeaders = {
         'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer ${token.substring(0, 20)}...',
         ...?headers,
       };
+      
+      print('[ApiService._request] Headers: $defaultHeaders');
 
       late http.Response response;
 
       if (method == 'POST') {
         response = await http.post(
           url,
-          headers: defaultHeaders,
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+            ...?headers,
+          },
           body: body != null ? jsonEncode(body) : null,
         ).timeout(
           const Duration(seconds: 30),
@@ -47,7 +59,11 @@ class ApiService {
       } else if (method == 'GET') {
         response = await http.get(
           url,
-          headers: defaultHeaders,
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+            ...?headers,
+          },
         ).timeout(
           const Duration(seconds: 30),
           onTimeout: () => throw TimeoutException('Request timeout after 30 seconds'),
@@ -279,11 +295,9 @@ class ApiService {
       method: 'POST',
       endpoint: '/bookings',
       body: {
-        'placeId': placeId,
-        'guestId': guestId,
-        'checkIn': checkIn,
-        'checkOut': checkOut,
-        'totalPrice': totalPrice,
+        'place_id': int.tryParse(placeId) ?? placeId,
+        'check_in_date': checkIn,
+        'check_out_date': checkOut,
       },
     );
   }
@@ -306,11 +320,35 @@ class ApiService {
     required String guestId,
   }) async {
     try {
+      // Use the authenticated /bookings endpoint which returns current user's bookings
+      // The guestId parameter is ignored since the backend uses the authenticated user
       final response = await _request(
         method: 'GET',
-        endpoint: '/bookings/guest/$guestId',
+        endpoint: '/bookings',
       );
-      final bookings = response['bookings'] ?? [];
+      final rawBookings = response['bookings'] ?? [];
+      
+      // Normalize booking field names to match UI expectations
+      final bookings = rawBookings.map((booking) {
+        return {
+          'booking_id': booking['id'],
+          'user_id': booking['user_id'],
+          'place_id': booking['place_id'],
+          'pub_id': booking['pub_id'],
+          'check_in': booking['check_in_date'],
+          'check_out': booking['check_out_date'],
+          'check_in_date': booking['check_in_date'], // Keep original for compatibility
+          'check_out_date': booking['check_out_date'], // Keep original for compatibility
+          'number_of_nights': booking['number_of_nights'],
+          'total_price': booking['total_price'],
+          'status': booking['status'],
+          'van_registration': booking['van_registration'],
+          'contact_phone': booking['contact_phone'],
+          'special_requests': booking['special_requests'],
+          'created_at': booking['created_at'],
+          'updated_at': booking['updated_at'],
+        };
+      }).toList();
       
       // Cache the bookings for offline use
       await StorageService.cacheBookings(jsonEncode(bookings));
@@ -425,6 +463,66 @@ class ApiService {
     return _request(
       method: 'GET',
       endpoint: '/host-applications/$userId',
+    );
+  }
+
+  /// Submit contact message
+  static Future<Map<String, dynamic>> submitContact({
+    required int userId,
+    required String userEmail,
+    required String category,
+    required String subject,
+    required String message,
+  }) async {
+    return _request(
+      method: 'POST',
+      endpoint: '/contacts/submit',
+      body: {
+        'userId': userId,
+        'userEmail': userEmail,
+        'category': category,
+        'subject': subject,
+        'message': message,
+      },
+    );
+  }
+
+  /// Get all contact messages (admin only)
+  static Future<Map<String, dynamic>> getContacts({
+    String status = 'new',
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    return _request(
+      method: 'GET',
+      endpoint: '/contacts?status=$status&limit=$limit&offset=$offset',
+    );
+  }
+
+  /// Get single contact message (admin only)
+  static Future<Map<String, dynamic>> getContact({
+    required String contactId,
+  }) async {
+    return _request(
+      method: 'GET',
+      endpoint: '/contacts/$contactId',
+    );
+  }
+
+  /// Update contact message (admin only)
+  static Future<Map<String, dynamic>> updateContact({
+    required String contactId,
+    String? status,
+    String? adminNotes,
+  }) async {
+    final body = <String, dynamic>{};
+    if (status != null) body['status'] = status;
+    if (adminNotes != null) body['adminNotes'] = adminNotes;
+    
+    return _request(
+      method: 'PATCH',
+      endpoint: '/contacts/$contactId',
+      body: body,
     );
   }
 

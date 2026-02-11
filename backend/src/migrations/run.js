@@ -9,12 +9,20 @@ const pool = new Pool({
 
 async function runMigrations() {
   try {
-    const migrationFile = path.join(__dirname, '001_init.sql');
-    const sql = fs.readFileSync(migrationFile, 'utf8');
-
-    console.log('Running migrations...');
-    await pool.query(sql);
-    console.log('✅ Migrations completed successfully');
+    // Run all migration files in order
+    const migrationFiles = ['001_init.sql', '002_contacts_table.sql'];
+    
+    for (const file of migrationFiles) {
+      const migrationFile = path.join(__dirname, file);
+      if (fs.existsSync(migrationFile)) {
+        const sql = fs.readFileSync(migrationFile, 'utf8');
+        console.log(`Running migration: ${file}...`);
+        await pool.query(sql);
+        console.log(`✅ ${file} completed`);
+      }
+    }
+    
+    console.log('✅ All migrations completed successfully');
     process.exit(0);
   } catch (error) {
     console.error('❌ Migration error:', error);

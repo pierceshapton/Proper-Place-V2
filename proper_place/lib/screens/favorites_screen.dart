@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../services/storage_service.dart';
+import 'place_detail_screen.dart';
+import 'map_places_screen_new.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -10,56 +14,115 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   String _selectedFilter = 'Stayed';
   final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _allPlaces = [];
+  List<dynamic> _stavedPlaces = []; // Places from bookings
+  bool _isLoading = false;
+  bool _hasLoadedOnce = false;
 
-  // Sample favorites data
-  final List<Map<String, dynamic>> _allFavorites = [
-    {
-      'id': '1',
-      'name': 'Test pub',
-      'address': '164a Westbury Road',
-      'description': 'Best pub in town',
-      'price': '£10',
-      'image': 'https://images.unsplash.com/photo-1527004760902-dba85c82d5eb?w=400&h=300&fit=crop',
-      'isFavorite': true,
-      'stayed': true,
-    },
-    {
-      'id': '2',
-      'name': 'Mountain Lodge',
-      'address': '45 Alpine Drive',
-      'description': 'Cozy mountain retreat with great views',
-      'price': '£85',
-      'image': 'https://images.unsplash.com/photo-1520763185298-1b434c919abe?w=400&h=300&fit=crop',
-      'isFavorite': true,
-      'stayed': false,
-    },
-    {
-      'id': '3',
-      'name': 'Beach House',
-      'address': '12 Seaside Road',
-      'description': 'Right on the beach, perfect for families',
-      'price': '£120',
-      'image': 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&h=300&fit=crop',
-      'isFavorite': true,
-      'stayed': true,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Don't block UI - just mark as ready to load when user sees the screen
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Load once when screen becomes visible
+    if (!_hasLoadedOnce) {
+      _hasLoadedOnce = true;
+      _loadPlaces();
+    }
+  }
+
+  Future<void> _loadPlaces() async {
+    try {
+      // Mark loading
+      if (mounted) {
+        setState(() => _isLoading = true);
+      }
+
+      // Load places with timeout - don't wait forever
+      List<dynamic> places = [];
+      try {
+        final placesResult = await Future.any([
+          ApiService.getApprovedPlaces(),
+          Future.delayed(const Duration(seconds: 8), () => <dynamic>[]),
+        ]);
+        places = placesResult ?? [];
+      } catch (e) {
+        debugPrint('Places load error: $e');
+        places = [];
+      }
+
+      // Load bookings separately with timeout
+      List<dynamic> bookings = [];
+      final guestId = await StorageService.getUserId();
+      if (guestId != null) {
+        try {
+          final bookingsResult = await Future.any([
+            ApiService.getGuestBookings(guestId: guestId),
+            Future.delayed(const Duration(seconds: 8), () => <dynamic>[]),
+          ]);
+          bookings = bookingsResult ?? [];
+        } catch (e) {
+          debugPrint('Bookings load error: $e');
+          bookings = [];
+        }
+      }
+
+      // Extract place IDs from completed bookings
+      final stavedPlaceIds = <int>{};
+      for (var booking in bookings) {
+        try {
+          if ((booking['status'] ?? '').toLowerCase() == 'completed') {
+            final placeId = booking['place_id'];
+            if (placeId != null) {
+              stavedPlaceIds.add(placeId is int ? placeId : int.tryParse(placeId.toString()) ?? 0);
+            }
+          }
+        } catch (e) {
+          debugPrint('Booking parsing error: $e');
+        }
+      }
+
+      // Update UI
+      if (mounted) {
+        setState(() {
+          _allPlaces = places;
+          _stavedPlaces = places.where((p) {
+            try {
+              final id = p['id'] is int ? p['id'] : int.tryParse(p['id'].toString()) ?? 0;
+              return stavedPlaceIds.contains(id);
+            } catch (e) {
+              return false;
+            }
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Fatal error loading places: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   List<Map<String, dynamic>> get _filteredFavorites {
-    if (_selectedFilter == 'All') {
-      return _allFavorites;
-    }
-    return _allFavorites.where((f) => f['stayed'] == true).toList();
+    final places = _selectedFilter == 'All' ? _allPlaces : _stavedPlaces;
+    return places.cast<Map<String, dynamic>>();
   }
 
   List<Map<String, dynamic>> get _searchedFavorites {
+    final filtered = _filteredFavorites;
     if (_searchController.text.isEmpty) {
-      return _filteredFavorites;
+      return filtered;
     }
-    return _filteredFavorites
+    return filtered
         .where((f) =>
-            f['name'].toLowerCase().contains(_searchController.text.toLowerCase()) ||
-            f['address'].toLowerCase().contains(_searchController.text.toLowerCase()))
+            (f['name'] ?? '').toLowerCase().contains(_searchController.text.toLowerCase()) ||
+            (f['address'] ?? '').toLowerCase().contains(_searchController.text.toLowerCase()))
         .toList();
   }
 
@@ -73,21 +136,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: const SizedBox.shrink(),
-        titleSpacing: 0,
-        title: const Padding(
-          padding: EdgeInsets.all(16),
-          child: Text(
-            'Stayed',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        title: const Text('Stayed'),
+        backgroundColor: const Color(0xFF7BA7D8),
       ),
       body: Column(
         children: [
@@ -113,7 +163,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     onChanged: (value) => setState(() {}),
                     decoration: InputDecoration(
                       hintText: 'Search places...',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      hintStyle: TextStyle(color: Colors.grey[700]),
                       prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -128,13 +178,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(12),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _loadPlaces();
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.refresh, color: Colors.grey[600], size: 20),
                   ),
-                  child: Icon(Icons.filter_list, color: Colors.grey[600], size: 20),
                 ),
               ],
             ),
@@ -154,46 +211,56 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               ),
             ),
           ),
-          // Favorites grid
+          // Favorites list
           Expanded(
-            child: _searchedFavorites.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.favorite_outline,
-                          size: 64,
-                          color: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No favorites yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Save places to find them later',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7BA7D8)),
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: _searchedFavorites.length,
-                    itemBuilder: (context, index) {
-                      final place = _searchedFavorites[index];
-                      return _buildFavoriteCard(place);
-                    },
-                  ),
+                : _searchedFavorites.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.favorite_outline,
+                              size: 64,
+                              color: Colors.grey[300],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _selectedFilter == 'Stayed'
+                                  ? 'No stayed places yet'
+                                  : 'No places available',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _selectedFilter == 'Stayed'
+                                  ? 'Complete a booking to see it here'
+                                  : 'Start exploring places',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: _searchedFavorites.length,
+                        itemBuilder: (context, index) {
+                          final place = _searchedFavorites[index];
+                          return _buildFavoriteCard(place);
+                        },
+                      ),
           ),
         ],
       ),
@@ -210,7 +277,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF7BA7D8) : Colors.grey[200],
+          color: isSelected ? const Color(0xFF7BA7D8) : Colors.grey[100],
+          border: isSelected ? null : Border.all(color: const Color(0xFFE2E8F0), width: 1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -225,123 +293,173 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Widget _buildFavoriteCard(Map<String, dynamic> place) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image with price and heart
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-                child: Image.network(
-                  place['image'],
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 200,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.image, size: 48),
-                  ),
-                ),
-              ),
-              // Price badge
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3B82F6),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${place['price']}/night',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              // Heart button
-              Positioned(
-                bottom: 12,
-                right: 12,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      place['isFavorite'] = !place['isFavorite'];
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      place['isFavorite'] ? Icons.favorite : Icons.favorite_outline,
-                      color: Colors.red,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+    final imageUrl = place['main_photo_url'] ?? place['image'] ?? '';
+    final price = place['price_per_night'] ?? place['price'] ?? '0';
+    
+    return GestureDetector(
+      onTap: () {
+        // Navigate to place details
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlaceDetailScreen(place: place),
           ),
-          // Place details
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image with price and action buttons
+            Stack(
               children: [
-                Text(
-                  place['name'],
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Color(0xFF7BA7D8)),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        place['address'],
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              height: 200,
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7BA7D8)),
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 200,
+                            color: Colors.grey[300],
+                            child: Center(
+                              child: Icon(Icons.image, size: 48, color: Colors.grey[400]),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          height: 200,
+                          color: Colors.grey[300],
+                          child: Center(
+                            child: Icon(Icons.image, size: 48, color: Colors.grey[400]),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                ),
+                // Price badge
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '£$price/night',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  place['description'],
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[700],
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                ),
+                // Show on Map button
+                Positioned(
+                  bottom: 12,
+                  right: 12,
+                  child: GestureDetector(
+                    onTap: () {
+                      // Navigate to map with this place
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MapPlacesScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.map, color: Color(0xFF7BA7D8), size: 16),
+                          SizedBox(width: 4),
+                          Text(
+                            'Show on Map',
+                            style: TextStyle(
+                              color: Color(0xFF7BA7D8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            // Place details
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    place['name'] ?? 'Unknown Place',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 16, color: Color(0xFF7BA7D8)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          place['address'] ?? 'No address',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    place['description'] ?? 'No description',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[700],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

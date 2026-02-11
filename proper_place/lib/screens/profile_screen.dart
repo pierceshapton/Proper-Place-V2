@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'settings_screen.dart';
 
@@ -38,7 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final token = await StorageService.getToken();
       final response = await http.get(
-        Uri.parse('http://localhost:3001/auth/me'),
+        Uri.parse('${AppConfig.base44BackendUrl}/auth/me'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -69,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final token = await StorageService.getToken();
       final response = await http.patch(
-        Uri.parse('http://localhost:3001/users/${user?['id']}'),
+        Uri.parse('${AppConfig.base44BackendUrl}/users/${user?['id']}'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',

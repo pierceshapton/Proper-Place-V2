@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
 import 'host_application_form_screen.dart';
+import 'contact_us_form_screen.dart';
+import 'profile_screen.dart';
+import 'welcome_screen.dart';
 
 class MoreUserScreen extends StatefulWidget {
   const MoreUserScreen({super.key});
@@ -10,35 +13,61 @@ class MoreUserScreen extends StatefulWidget {
 }
 
 class _MoreUserScreenState extends State<MoreUserScreen> {
-  String? _userEmail;
-  String? _userRole;
+  String? _userName = 'User';
+  String? _userRole = 'user';
   bool _isHostMode = false;
   bool _isOfflineMode = false;
   bool _isHowThisWorksExpanded = false;
+  bool _isContactUsExpanded = false;
   String? _hostApplicationStatus;
-  bool _isLoading = true;
+  bool _isLoading = false;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+    // Load data in background after UI renders
+    Future.microtask(() {
+      _loadUserData();
+    });
   }
 
   Future<void> _loadUserData() async {
-    final email = await StorageService.getUserEmail();
-    final role = await StorageService.getUserRole();
-    final hostMode = await StorageService.getHostMode();
-    final offlineMode = await StorageService.getOfflineMode();
-    final hostAppStatus = await StorageService.getHostApplicationStatus();
+    try {
+      final name = await StorageService.getUserName();
+      final role = await StorageService.getUserRole();
+      final hostMode = await StorageService.getHostMode();
+      final offlineMode = await StorageService.getOfflineMode();
+      final hostAppStatus = await StorageService.getHostApplicationStatus();
 
-    setState(() {
-      _userEmail = email;
-      _userRole = role;
-      _isHostMode = hostMode;
-      _isOfflineMode = offlineMode;
-      _hostApplicationStatus = hostAppStatus;
-      _isLoading = false;
-    });
+      if (mounted) {
+        setState(() {
+          _userName = name ?? 'User';
+          _userRole = role ?? 'user';
+          _isHostMode = hostMode;
+          _isOfflineMode = offlineMode;
+          _hostApplicationStatus = hostAppStatus;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+    }
+  }
+
+  void _onScroll() {
+    // Limit scroll to stop when logout section is visible
+    final maxScroll = _scrollController.position.maxScrollExtent - 115;
+    if (_scrollController.offset > maxScroll) {
+      _scrollController.jumpTo(maxScroll);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _showLogoutConfirmation() {
@@ -68,7 +97,11 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
   Future<void> _logout() async {
     await StorageService.clearUserData();
     if (mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -131,31 +164,23 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: const SizedBox.shrink(),
-        titleSpacing: 0,
-        title: const Padding(
-          padding: EdgeInsets.all(16),
-          child: Text(
-            'More',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        title: const Text('More'),
+        backgroundColor: const Color(0xFF7BA7D8),
       ),
       body: ListView(
+        controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
           // Profile Section
           _buildProfileCard(),
           const SizedBox(height: 24),
 
-          // Settings Section
-          _buildSettingsSection(),
+          // Contact Us Section (Help & Support)
+          _buildContactUsSection(),
+          const SizedBox(height: 24),
+
+          // How This Works Section
+          _buildHowThisWorksSection(),
           const SizedBox(height: 24),
 
           // Become a Host Section (only if not already in host mode)
@@ -164,8 +189,8 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
             const SizedBox(height: 24),
           ],
 
-          // How This Works Section
-          _buildHowThisWorksSection(),
+          // Settings Section
+          _buildSettingsSection(),
           const SizedBox(height: 24),
 
           // Activate Host Mode (when approved but not yet in host mode)
@@ -216,8 +241,8 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    (_userEmail?.isNotEmpty ?? false)
-                        ? _userEmail![0].toUpperCase()
+                    (_userName?.isNotEmpty ?? false)
+                        ? _userName![0].toUpperCase()
                         : 'U',
                     style: const TextStyle(
                       color: Colors.white,
@@ -233,7 +258,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _userEmail ?? 'User',
+                      _userName ?? 'User',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -260,24 +285,59 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                   ],
                 ),
               ),
+              // Dropdown menu
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'view' || value == 'edit') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileScreen(),
+                      ),
+                    ).catchError((e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    });
+                  }
+                },
+                itemBuilder: (BuildContext context) {
+                  return [
+                    const PopupMenuItem<String>(
+                      value: 'view',
+                      child: Text('View Profile'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'edit',
+                      child: Text('Edit Details'),
+                    ),
+                  ];
+                },
+                icon: const Icon(Icons.expand_more),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           GestureDetector(
             onTap: () {
-              // Profile details action
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                ),
+              );
             },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Click to view profile details',
+                  'Tap to manage your account',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
                   ),
                 ),
-                Icon(Icons.expand_more, color: Colors.grey[400]),
+                Icon(Icons.chevron_right, color: Colors.grey[400]),
               ],
             ),
           ),
@@ -374,9 +434,9 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.purple[50],
+        color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple[200]!),
+        border: Border.all(color: Colors.grey[200]!),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -386,7 +446,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
             children: [
               Icon(
                 Icons.home_work,
-                color: Colors.purple[600],
+                color: const Color(0xFF7BA7D8),
                 size: 28,
               ),
               const SizedBox(width: 12),
@@ -394,9 +454,9 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Activate Host Mode',
-                      style: TextStyle(
+                    Text(
+                      _userRole == 'host' ? 'Activate Host Mode' : 'Apply to Become a Host',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -425,7 +485,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
               child: ElevatedButton(
                 onPressed: _switchToHostMode,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple[600],
+                  backgroundColor: const Color(0xFF7BA7D8),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -437,7 +497,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                     Icon(Icons.home_work, color: Colors.white),
                     SizedBox(width: 8),
                     Text(
-                      'Enter Host Mode',
+                      'Activate Host Mode',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -464,7 +524,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple[600],
+                  backgroundColor: const Color(0xFF7BA7D8),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -811,6 +871,128 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactUsSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isContactUsExpanded = !_isContactUsExpanded;
+              });
+            },
+            child: Row(
+              children: [
+                Icon(
+                  Icons.help,
+                  color: const Color(0xFF7BA7D8),
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Help & Support',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Icon(
+                  _isContactUsExpanded ? Icons.expand_less : Icons.expand_more,
+                  color: Colors.grey[400],
+                ),
+              ],
+            ),
+          ),
+          if (_isContactUsExpanded) ...[
+            const SizedBox(height: 16),
+            // FAQs Link
+            GestureDetector(
+              onTap: () {
+                // Open FAQs (can be a URL or a screen)
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('FAQs - Coming soon'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.question_answer, color: const Color(0xFF7BA7D8), size: 20),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Frequently Asked Questions',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.open_in_new, color: Colors.grey[400], size: 18),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Contact Form Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ContactUsFormScreen(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7BA7D8),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.mail_outline, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Send Us a Message',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

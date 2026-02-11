@@ -15,6 +15,11 @@ const pubsRoutes = require('./routes/pubs');
 const bookingsRoutes = require('./routes/bookings');
 const reviewsRoutes = require('./routes/reviews');
 const adminRoutes = require('./routes/admin');
+const paymentsRoutes = require('./routes/payments');
+const contactsRoutes = require('./routes/contacts');
+const notificationsRoutes = require('./routes/notifications');
+const chatRoutes = require('./routes/chat');
+const uploadRoutes = require('./routes/upload');
 
 // User controller for user endpoints
 const userController = require('./controllers/userController');
@@ -45,6 +50,10 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// Serve uploaded images as static files
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -55,8 +64,13 @@ app.use('/auth', authRoutes);
 app.use('/places', placesRoutes);
 app.use('/pubs', pubsRoutes);
 app.use('/bookings', authMiddleware, bookingsRoutes);
+app.use('/payments', authMiddleware, paymentsRoutes);
 app.use('/reviews', reviewsRoutes);
+app.use('/contacts', contactsRoutes);
+app.use('/notifications', notificationsRoutes);
+app.use('/chat', chatRoutes);
 app.use('/admin', adminRoutes);
+app.use('/upload', uploadRoutes);
 
 // User routes
 app.get('/users/:id', userController.getUserProfile);

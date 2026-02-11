@@ -5,6 +5,7 @@ class StorageService {
   static const String _tokenKey = 'access_token';
   static const String _userIdKey = 'user_id';
   static const String _userEmailKey = 'user_email';
+  static const String _userNameKey = 'user_name';
   static const String _userRoleKey = 'user_role';
   static const String _hostModeKey = 'host_mode';
   static const String _adminModeKey = 'admin_mode';
@@ -19,14 +20,18 @@ class StorageService {
 
   /// Save authentication token
   static Future<void> saveToken(String token) async {
+    print('[StorageService.saveToken] Saving token: ${token.substring(0, 20)}...');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
+    print('[StorageService.saveToken] Token saved successfully');
   }
 
   /// Load authentication token
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    final token = prefs.getString(_tokenKey);
+    print('[StorageService.getToken] Retrieved token: ${token?.substring(0, 20) ?? 'NULL'}...');
+    return token;
   }
 
   /// Save user ID
@@ -51,6 +56,18 @@ class StorageService {
   static Future<String?> getUserEmail() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_userEmailKey);
+  }
+
+  /// Save user name
+  static Future<void> saveUserName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userNameKey, name);
+  }
+
+  /// Load user name
+  static Future<String?> getUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userNameKey);
   }
 
   /// Save user role
@@ -101,6 +118,7 @@ class StorageService {
     await prefs.remove(_tokenKey);
     await prefs.remove(_userIdKey);
     await prefs.remove(_userEmailKey);
+    await prefs.remove(_userNameKey);
     await prefs.remove(_userRoleKey);
     await prefs.remove(_hostModeKey);
     await prefs.remove(_adminModeKey);

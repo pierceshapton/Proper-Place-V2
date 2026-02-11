@@ -136,6 +136,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                 maxLines: 3,
                 decoration: InputDecoration(
                   hintText: 'Optional: Reason for rejection',
+                  hintStyle: TextStyle(color: Colors.grey[700]),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -277,27 +278,26 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
 
   Widget _buildFilterTab(String label, int count) {
     final isSelected = _selectedFilter == label;
-    return Material(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedFilter = label),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF3B82F6) : Colors.grey[200],
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '$label ($count)',
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[700],
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                ),
+    return GestureDetector(
+      onTap: () => setState(() => _selectedFilter = label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF3B82F6) : Colors.grey[100],
+          border: isSelected ? null : Border.all(color: const Color(0xFFE2E8F0), width: 1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$label ($count)',
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey[700],
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -315,7 +315,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          // Place Image
+          // Place Image Placeholder
           Stack(
             children: [
               ClipRRect(
@@ -323,11 +323,19 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   topLeft: Radius.circular(12),
                   topRight: Radius.circular(12),
                 ),
-                child: Image.network(
-                  place['image'],
+                child: Container(
                   height: 200,
                   width: double.infinity,
-                  fit: BoxFit.cover,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.grey[300]!, Colors.grey[400]!],
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.image, size: 64, color: Colors.grey),
+                  ),
                 ),
               ),
               Positioned(

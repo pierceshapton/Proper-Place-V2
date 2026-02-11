@@ -44,20 +44,28 @@ class Place {
       images = [json['image_url']];
     }
     
+    // Helper to safely convert to String (handles List, String, or null)
+    String? toStringOrNull(dynamic value) {
+      if (value == null) return null;
+      if (value is String) return value;
+      if (value is List) return value.isNotEmpty ? value.join(', ') : null;
+      return value.toString();
+    }
+    
     return Place(
-      placeId: json['place_id'] ?? '',
+      placeId: (json['place_id'] ?? json['id'] ?? '').toString(),
       name: json['name'] ?? 'Unnamed',
       description: json['description'] ?? '',
-      locationLat: double.tryParse(json['location_lat'].toString()) ?? 0,
-      locationLng: double.tryParse(json['location_lng'].toString()) ?? 0,
+      locationLat: double.tryParse((json['location_lat'] ?? json['latitude'] ?? 0).toString()) ?? 0,
+      locationLng: double.tryParse((json['location_lng'] ?? json['longitude'] ?? 0).toString()) ?? 0,
       address: json['address'] ?? '',
       pricePerNight: double.tryParse(json['price_per_night'].toString()) ?? 0,
-      imageUrl: json['image_url'],
+      imageUrl: toStringOrNull(json['image_url']),
       imageUrls: images,
-      placeType: json['place_type'],
-      amenities: json['amenities'],
-      hostName: json['host_name'],
-      hostEmail: json['host_email'],
+      placeType: toStringOrNull(json['place_type']),
+      amenities: toStringOrNull(json['amenities']),
+      hostName: toStringOrNull(json['host_name']),
+      hostEmail: toStringOrNull(json['host_email']),
       approvalStatus: json['approval_status'] ?? 'pending',
       capacity: json['capacity'] ?? 1,
     );

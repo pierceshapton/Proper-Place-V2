@@ -10,14 +10,13 @@ class BookingsHostScreen extends StatefulWidget {
 class _BookingsHostScreenState extends State<BookingsHostScreen> {
   late DateTime _selectedDate;
   late DateTime _focusedDate;
-  String _selectedFilter = 'All';
+  String _selectedFilter = 'Confirmed';
 
   final List<String> _filters = [
-    'All',
-    'Pending',
     'Confirmed',
+    'Pending',
     'Completed',
-    'Cancelled'
+    'All'
   ];
 
   // Sample bookings data
@@ -93,15 +92,36 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
   }
 
   List<Map<String, dynamic>> get _bookingsForSelectedDate {
-    final bookings = _bookingsByDate[DateTime(
-            _selectedDate.year, _selectedDate.month, _selectedDate.day)] ??
-        [];
-
-    if (_selectedFilter == 'All') {
-      return bookings;
+    final allBookings = <Map<String, dynamic>>[];
+    final now = DateTime.now();
+    
+    print('\n📅 _bookingsForSelectedDate called at: $now');
+    
+    for (var dateBookings in _bookingsByDate.values) {
+      for (var booking in dateBookings) {
+        // Auto-complete bookings past checkout date at midday
+        final bookingCopy = Map<String, dynamic>.from(booking);
+        final checkOut = bookingCopy['checkOut'] as DateTime;
+        final checkOutAtNoon = DateTime(checkOut.year, checkOut.month, checkOut.day, 12, 0);
+        final bookingId = bookingCopy['id'] ?? 'unknown';
+        final currentStatus = bookingCopy['status'] as String;
+        
+        print('  Booking $bookingId: CheckOut=$checkOut, CheckOutAtNoon=$checkOutAtNoon, CurrentStatus=$currentStatus');
+        
+        if (now.isAfter(checkOutAtNoon) && bookingCopy['status'] != 'Cancelled') {
+          print('    → Auto-completing (now is after checkout noon)');
+          bookingCopy['status'] = 'Completed';
+        }
+        
+        allBookings.add(bookingCopy);
+      }
     }
 
-    return bookings.where((b) => b['status'] == _selectedFilter).toList();
+    if (_selectedFilter == 'All') {
+      return allBookings;
+    }
+
+    return allBookings.where((b) => b['status'] == _selectedFilter).toList();
   }
 
   bool _hasBooking(DateTime day) {
@@ -159,87 +179,6 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Calendar header with icon
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0E7FF),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: const Row(
-              children: [
-                Icon(Icons.event, color: Color(0xFF3B82F6), size: 24),
-                SizedBox(width: 12),
-                Text(
-                  'Select Date',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Calendar
-          _buildCalendar(),
-          const SizedBox(height: 24),
-
-          // Selected date info
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0E7FF),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Selected:',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatDate(_selectedDate),
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFBFDBFE),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Dates with bookings',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
           // Filter tabs
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -259,7 +198,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                     ),
                     backgroundColor: isSelected
                         ? const Color(0xFF4F46E5)
-                        : Colors.transparent,
+                        : Colors.grey[100],
                     side: BorderSide(
                       color: isSelected
                           ? Colors.transparent
@@ -283,7 +222,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 32),
                 child: Text(
-                  'No bookings for this date',
+                  'No bookings',
                   style: TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 14,
@@ -565,21 +504,22 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    _showCancelBookingDialog(booking);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFEF4444),
-                    side: const BorderSide(color: Color(0xFFEF4444)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              if (_canCancelBooking(booking))
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      _showCancelBookingDialog(booking);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: const BorderSide(color: Color(0xFFEF4444)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
+                    child: const Text('Cancel Booking'),
                   ),
-                  child: const Text('Cancel Booking'),
                 ),
-              ),
             ],
           ),
         ],
@@ -664,6 +604,39 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
         ),
       ),
     );
+  }
+
+  bool _canCancelBooking(Map<String, dynamic> booking) {
+    final status = booking['status'] as String;
+    final bookingId = booking['id'] ?? 'unknown';
+    final checkIn = booking['checkIn'] as DateTime?;
+    final checkOut = booking['checkOut'] as DateTime?;
+    
+    print('🔍 _canCancelBooking - ID: $bookingId, Status: $status, CheckIn: $checkIn, CheckOut: $checkOut');
+    
+    // Never allow cancel if Completed
+    if (status == 'Completed') {
+      print('  ✗ Status is Completed - hiding button');
+      return false;
+    }
+    
+    // For Confirmed bookings, check if within 24 hours of check-in
+    if (status == 'Confirmed') {
+      final checkInDate = booking['checkIn'] as DateTime;
+      final now = DateTime.now();
+      final hoursUntilCheckIn = checkInDate.difference(now).inHours;
+      
+      print('  Confirmed booking - hours until check-in: $hoursUntilCheckIn');
+      
+      // Hide cancel if check-in is within the next 24 hours
+      if (hoursUntilCheckIn <= 24 && hoursUntilCheckIn >= 0) {
+        print('  ✗ Within 24 hours of check-in - hiding button');
+        return false;
+      }
+    }
+    
+    print('  ✓ Showing cancel button');
+    return true;
   }
 
   void _showCancelBookingDialog(Map<String, dynamic> booking) {

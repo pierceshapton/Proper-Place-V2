@@ -24,6 +24,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   List<Place> places = [];
   double currentZoom = 6;
   Set<String> favoriteIds = {};
+  MapType mapType = MapType.normal; // Add map type control
   static const double MIN_ZOOM_FOR_MARKERS =
       11; // Show markers only when zoomed in to level 11+
 
@@ -481,6 +482,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
               controller: startController,
               decoration: InputDecoration(
                 hintText: 'e.g. London, Manchester',
+                hintStyle: TextStyle(color: Colors.grey[700]),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -496,6 +498,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
               controller: destinationController,
               decoration: InputDecoration(
                 hintText: 'e.g. Edinburgh, Cardiff',
+                hintStyle: TextStyle(color: Colors.grey[700]),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -615,6 +618,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                         zoom: 6,
                       ),
                       markers: markers,
+                      mapType: mapType,
                       myLocationEnabled: true,
                       myLocationButtonEnabled: false,
                       zoomControlsEnabled: false,
@@ -648,8 +652,47 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                         child: const Icon(Icons.person),
                       ),
                     ),
+                    // Top right - Map Layer buttons
+                    Positioned(
+                      top: 60,
+                      right: 16,
+                      child: Column(
+                        children: [
+                          _buildMapTypeButton('Map', MapType.normal),
+                          const SizedBox(height: 8),
+                          _buildMapTypeButton('Satellite', MapType.satellite),
+                          const SizedBox(height: 8),
+                          _buildMapTypeButton('Terrain', MapType.terrain),
+                          const SizedBox(height: 8),
+                          _buildMapTypeButton('Hybrid', MapType.hybrid),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
+    );
+  }
+
+  Widget _buildMapTypeButton(String label, MapType type) {
+    final isSelected = mapType == type;
+    return ElevatedButton(
+      onPressed: () {
+        setState(() {
+          mapType = type;
+        });
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isSelected ? Colors.blue : Colors.white,
+        foregroundColor: isSelected ? Colors.white : Colors.black,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+      ),
     );
   }
 
