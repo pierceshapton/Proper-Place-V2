@@ -16,8 +16,8 @@
     "pm2:setup": "pm2 startup && pm2 save",
     "pm2:delete": "pm2 delete all",
     "health": "curl -s http://localhost:3001/health | jq .",
-    "migrate": "node src/migrations/run.js",
-    "seed": "node src/seeds/seed.js",
+    "db:migrate": "node src/migrations/run.js",
+    "db:seed": "node src/seeds/seed.js",
     "test": "jest --detectOpenHandles",
     "lint": "eslint src"
   },
