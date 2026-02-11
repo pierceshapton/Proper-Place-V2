@@ -21,7 +21,7 @@ EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:3001/health || exit 1
 
-# Start the application
+# Start the application (skip migrations on cloud deployment)
 CMD ["node", "src/server.js"]
