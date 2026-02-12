@@ -96,10 +96,54 @@ app.use(notFoundHandler);
 // Error handler (last middleware)
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Auto-migration: Check if tables exist, if not run migrations
+async function initializeDatabase() {
+  try {
+    const db = require('./config/database');
+    console.log('[SERVER] Checking if database schema exists...');
+    
+    const result = await db.query(
+      "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'users')"
+    );
+    
+    const tableExists = result.rows[0].exists;
+    
+    if (!tableExists) {
+      console.log('[SERVER] ⚠️ Database schema not found. Running migrations...');
+      const fs = require('fs');
+      const migrationFiles = ['001_init.sql', '002_contacts_table.sql'];
+      
+      for (const file of migrationFiles) {
+        const migrationFile = require('path').join(__dirname, './migrations', file);
+        if (fs.existsSync(migrationFile)) {
+          const sql = fs.readFileSync(migrationFile, 'utf8');
+          console.log(`[SERVER] Running migration: ${file}...`);
+          await db.query(sql);
+          console.log(`[SERVER] ✅ ${file} completed`);
+        }
+      }
+      console.log('[SERVER] ✅ All migrations completed');
+    } else {
+      console.log('[SERVER] ✅ Database schema already exists');
+    }
+  } catch (error) {
+    console.error('[SERVER] Database initialization error:', error.message);
+    console.error('[SERVER] ⚠️ Continuing anyway - tables might already exist or will be created');
+  }
+}
 
-module.exports = app;
+// Start server
+async function start() {
+  try {
+    await initializeDatabase();
+    app.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+start();
