@@ -34,7 +34,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   Future<void> _loadReviews() async {
     try {
       final response = await http.get(
-        Uri.parse('${AppConfig.base44BackendUrl}/reviews?place_id=${widget.place['id']}'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/reviews?place_id=${widget.place['id']}'),
       );
 
       if (response.statusCode == 200) {

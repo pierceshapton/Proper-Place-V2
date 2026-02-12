@@ -21,7 +21,7 @@ class NotificationService {
       }
 
       final response = await http.get(
-        Uri.parse('${AppConfig.base44BackendUrl}/notifications/counts'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/notifications/counts'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -50,7 +50,7 @@ class NotificationService {
       }
 
       final response = await http.patch(
-        Uri.parse('${AppConfig.base44BackendUrl}/notifications/messages/$messageId/read'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/notifications/messages/$messageId/read'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -75,7 +75,7 @@ class NotificationService {
       }
 
       final response = await http.patch(
-        Uri.parse('${AppConfig.base44BackendUrl}/notifications/messages/read-all'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/notifications/messages/read-all'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

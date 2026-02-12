@@ -1,22 +1,22 @@
-/// App configuration matching React's app-params.js pattern
-/// Loads from environment variables (via flutter_app_secrets) or defaults
+/// App configuration
+/// Loads from environment variables or defaults
 library;
 
 class AppConfig {
-  static const String base44AppId = String.fromEnvironment(
-    'BASE44_APP_ID',
-    defaultValue: 'your-base44-app-id',
+  static const String properPlaceAppId = String.fromEnvironment(
+    'PROPER_PLACE_APP_ID',
+    defaultValue: 'com.properplace.ios',
   );
 
-  static const String base44BackendUrl = String.fromEnvironment(
-    'BASE44_BACKEND_URL',
-    defaultValue: 'http://192.168.1.114:3001',
+  static const String properPlaceBackendUrl = String.fromEnvironment(
+    'PROPER_PLACE_BACKEND_URL',
+    defaultValue: 'https://octopus-app-lxh2t.ondigitalocean.app',
   );
 
   // For debugging
   static void printConfig() {
     print('=== App Config ===');
-    print('App ID: $base44AppId');
-    print('Backend URL: $base44BackendUrl');
+    print('App ID: $properPlaceAppId');
+    print('Backend URL: $properPlaceBackendUrl');
   }
 }

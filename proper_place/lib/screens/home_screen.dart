@@ -609,7 +609,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadPlaces() async {
     try {
       final response = await http.get(
-        Uri.parse('${AppConfig.base44BackendUrl}/places'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/places'),
       ).timeout(
         const Duration(seconds: 5),
         onTimeout: () => throw TimeoutException('Places API timeout'),

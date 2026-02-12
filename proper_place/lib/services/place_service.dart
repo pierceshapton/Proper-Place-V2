@@ -5,7 +5,7 @@ import 'package:proper_place/config/app_config.dart';
 import 'storage_service.dart';
 
 class PlaceService {
-  static String get baseUrl => AppConfig.base44BackendUrl;
+  static String get baseUrl => AppConfig.properPlaceBackendUrl;
 
   /// Create a new site with address, description, etc.
   static Future<Map<String, dynamic>> createPlace(

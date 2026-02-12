@@ -26,7 +26,7 @@ class ChatService {
       }
 
       final response = await http.delete(
-        Uri.parse('${AppConfig.base44BackendUrl}/chat/contacts/$contactIdInt'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/contacts/$contactIdInt'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ class ChatService {
       }
 
       final response = await http.patch(
-        Uri.parse('${AppConfig.base44BackendUrl}/chat/contacts/$contactIdInt/unread'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/contacts/$contactIdInt/unread'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ class ChatService {
       }
 
       final response = await http.patch(
-        Uri.parse('${AppConfig.base44BackendUrl}/chat/contacts/$contactIdInt/read'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/contacts/$contactIdInt/read'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -134,7 +134,7 @@ class ChatService {
       }
 
       final response = await http.delete(
-        Uri.parse('${AppConfig.base44BackendUrl}/chat/messages/$messageIdInt'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/messages/$messageIdInt'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

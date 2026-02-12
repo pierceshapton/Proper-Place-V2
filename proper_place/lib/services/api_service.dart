@@ -12,7 +12,15 @@ class ApiService {
   static const String _authUserEndpoint = '/auth/user';
 
   /// Get the full API base URL from config
-  static String get _baseUrl => AppConfig.base44BackendUrl;
+  static String get _baseUrl {
+    final url = AppConfig.properPlaceBackendUrl;
+    // Verify URL is not empty or just "base"
+    if (url.isEmpty || url.length < 10 || !url.startsWith('http')) {
+      print('[ApiService] ⚠️ Invalid base URL: "$url", using hardcoded fallback');
+      return 'https://octopus-app-lxh2t.ondigitalocean.app';
+    }
+    return url;
+  }
 
   /// Build full endpoint URL
   static String _buildUrl(String endpoint) {
@@ -27,7 +35,10 @@ class ApiService {
     Map<String, String>? headers,
   }) async {
     try {
-      final url = Uri.parse(_buildUrl(endpoint));
+      final fullUrl = _buildUrl(endpoint);
+      print('[ApiService._request] [DEBUG] Base URL: $_baseUrl');
+      print('[ApiService._request] [DEBUG] Full URL: $fullUrl');
+      final url = Uri.parse(fullUrl);
       
       // Fetch token and add to headers for authenticated endpoints
       final token = await StorageService.getToken();
@@ -85,21 +96,27 @@ class ApiService {
         );
       }
     } on io.SocketException catch (e) {
+      print('[ApiService._request] [ERROR] SocketException: ${e.message}');
+      print('[ApiService._request] [ERROR] Attempted URL: $_baseUrl');
       throw ApiException(
         statusCode: 0,
         message: 'Network error: ${e.message}',
       );
     } on TimeoutException catch (e) {
+      print('[ApiService._request] [ERROR] TimeoutException: ${e.message}');
       throw ApiException(
         statusCode: 0,
         message: e.message,
       );
     } on FormatException catch (e) {
+      print('[ApiService._request] [ERROR] FormatException: ${e.message}');
       throw ApiException(
         statusCode: 0,
         message: 'Invalid response format: ${e.message}',
       );
     } catch (e) {
+      print('[ApiService._request] [ERROR] Unexpected error: $e');
+      print('[ApiService._request] [ERROR] Attempted base URL: $_baseUrl');
       throw ApiException(
         statusCode: 0,
         message: 'Unexpected error: ${e.toString()}',

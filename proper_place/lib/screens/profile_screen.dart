@@ -39,7 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final token = await StorageService.getToken();
       final response = await http.get(
-        Uri.parse('${AppConfig.base44BackendUrl}/auth/me'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/auth/me'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -70,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final token = await StorageService.getToken();
       final response = await http.patch(
-        Uri.parse('${AppConfig.base44BackendUrl}/users/${user?['id']}'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/users/${user?['id']}'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
