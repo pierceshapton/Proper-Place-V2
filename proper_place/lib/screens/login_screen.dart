@@ -95,18 +95,18 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF7BA7D8),
-              Color(0xFF6B96C8),
-            ],
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: const AssetImage('assets/images/login_background.png'),
+            fit: BoxFit.cover,
           ),
         ),
         child: Stack(
           children: [
+            // Dark overlay for better text readability
+            Container(
+              color: Colors.black.withOpacity(0.3),
+            ),
             Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
