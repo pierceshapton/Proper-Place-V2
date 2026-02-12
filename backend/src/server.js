@@ -1,11 +1,15 @@
 // Load environment variables from .env file (for local development)
 require('dotenv').config();
 
-// CRITICAL FIX: If DATABASE_URL not set, use DigitalOcean default
-// This handles the case where DigitalOcean app platform hasn't set env vars yet
-if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-  console.log('[SERVER] Setting DATABASE_URL for DigitalOcean...');
-  process.env.DATABASE_URL = 'postgresql://doadmin:AVNS_h5gAks_XqiZhRqSOX1T@db-postgresql-lon1-38562-properplace-do-user-33237375-0.g.db.ondigitalocean.com:25060/defaultdb?sslmode=require';
+// CRITICAL FIX: Ensure DATABASE_URL is set correctly
+// This handles DigitalOcean environment where .env files don't work
+const DIGITALOCEAN_DB_URL = 'postgresql://doadmin:AVNS_h5gAks_XqiZhRqSOX1T@db-postgresql-lon1-38562-properplace-do-user-33237375-0.g.db.ondigitalocean.com:25060/defaultdb?sslmode=require';
+
+if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('base') || process.env.DATABASE_URL.length < 20) {
+  console.log('[SERVER] ⚠️ DATABASE_URL invalid or missing, using DigitalOcean default...');
+  console.log('[SERVER] Old URL:', process.env.DATABASE_URL || 'NOT SET');
+  process.env.DATABASE_URL = DIGITALOCEAN_DB_URL;
+  console.log('[SERVER] ✅ DATABASE_URL set to DigitalOcean managed database');
 }
 
 const express = require('express');
