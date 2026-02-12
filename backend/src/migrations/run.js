@@ -3,9 +3,28 @@ const path = require('path');
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const pool = new Pool({
+// Build pool config with SSL support for DigitalOcean
+let poolConfig = {
   connectionString: process.env.DATABASE_URL,
-});
+};
+
+// Configure SSL for DigitalOcean databases
+if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('ondigitalocean')) {
+  console.log('[Migration] Configuring SSL for DigitalOcean...');
+  const url = new URL(process.env.DATABASE_URL);
+  poolConfig = {
+    user: url.username,
+    password: url.password,
+    host: url.hostname,
+    port: parseInt(url.port || '5432'),
+    database: url.pathname.slice(1),
+    ssl: {
+      rejectUnauthorized: false, // Accept DigitalOcean's self-signed certificate
+    },
+  };
+}
+
+const pool = new Pool(poolConfig);
 
 async function runMigrations() {
   try {
