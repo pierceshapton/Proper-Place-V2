@@ -109,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -122,27 +122,27 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.all(32.0),
+                  padding: const EdgeInsets.all(20.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
                         'Log In',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.grey[800],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Text(
                         'Welcome back to Proper Place',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: Colors.grey[600],
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
                       // Email Field
                       Column(
@@ -151,12 +151,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           Text(
                             'Email',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: Colors.grey[700],
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           TextField(
                             controller: _emailController,
                             decoration: InputDecoration(
@@ -182,15 +182,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
+                                horizontal: 14,
+                                vertical: 10,
                               ),
                             ),
                             keyboardType: TextInputType.emailAddress,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Password Field
                       Column(
@@ -199,12 +199,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           Text(
                             'Password',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: Colors.grey[700],
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           TextField(
                             controller: _passwordController,
                             obscureText: true,
@@ -231,19 +231,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
+                                horizontal: 14,
+                                vertical: 10,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Error Message
                       if (_errorMessage != null)
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.red[100],
                             border: Border.all(color: Colors.red[400]!),
@@ -253,26 +253,26 @@ class _LoginScreenState extends State<LoginScreen> {
                             _errorMessage!,
                             style: TextStyle(
                               color: Colors.red[700],
-                              fontSize: 14,
+                              fontSize: 12,
                             ),
                           ),
                         ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
                       // Login Button
                       ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF7BA7D8),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                         child: _isLoading
                             ? const SizedBox(
-                                height: 20,
-                                width: 20,
+                                height: 18,
+                                width: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
@@ -283,13 +283,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             : const Text(
                                 'Log In',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
                               ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Sign Up Link
                       Row(
@@ -298,7 +298,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const Text(
                             'Don\'t have an account? ',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               color: Colors.grey,
                             ),
                           ),
@@ -309,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: const Text(
                               'Sign Up',
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: Color(0xFF7BA7D8),
                                 decoration: TextDecoration.underline,
