@@ -296,7 +296,7 @@ async function initializeDatabase() {
 
     // Always try to seed admin user if it doesn't exist
     try {
-      const bcrypt = require('bcrypt');
+      const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
       const adminEmail = 'admin@properplace.com';
       
       // Check if admin user exists
@@ -307,7 +307,7 @@ async function initializeDatabase() {
       
       if (adminCheck.rows.length === 0) {
         const adminPassword = 'AdminPass123!';
-        const passwordHash = await bcrypt.hash(adminPassword, 10);
+        const passwordHash = await hashPassword(adminPassword);
         console.log('[SERVER] Seeding default admin user...');
         await db.query(
           'INSERT INTO users (email, password_hash, name, role, verified) VALUES ($1, $2, $3, $4, $5)',
