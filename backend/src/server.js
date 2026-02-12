@@ -1,4 +1,13 @@
+// Load environment variables from .env file (for local development)
 require('dotenv').config();
+
+// CRITICAL FIX: If DATABASE_URL not set, use DigitalOcean default
+// This handles the case where DigitalOcean app platform hasn't set env vars yet
+if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+  console.log('[SERVER] Setting DATABASE_URL for DigitalOcean...');
+  process.env.DATABASE_URL = 'postgresql://doadmin:AVNS_h5gAks_XqiZhRqSOX1T@db-postgresql-lon1-38562-properplace-do-user-33237375-0.g.db.ondigitalocean.com:25060/defaultdb?sslmode=require';
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
