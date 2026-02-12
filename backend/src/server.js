@@ -289,6 +289,28 @@ async function initializeDatabase() {
         console.error('[SERVER] Migration 2 error:', err.message);
       }
 
+      // Seed default admin user
+      try {
+        const bcrypt = require('bcrypt');
+        const adminEmail = 'admin@properplace.com';
+        const adminPassword = 'AdminPass123!';
+        const passwordHash = await bcrypt.hash(adminPassword, 10);
+
+        console.log('[SERVER] Seeding default admin user...');
+        await db.query(
+          'INSERT INTO users (email, password_hash, name, role, verified) VALUES ($1, $2, $3, $4, $5)',
+          [adminEmail, passwordHash, 'Admin', 'admin', true]
+        );
+        console.log('[SERVER] ✅ Admin user created: admin@properplace.com');
+      } catch (err) {
+        if (err.code === '23505') {
+          // Unique constraint violation - admin user already exists
+          console.log('[SERVER] ✅ Admin user already exists');
+        } else {
+          console.error('[SERVER] Admin user seeding error:', err.message);
+        }
+      }
+
       console.log('[SERVER] ✅ All migrations completed');
     } else {
       console.log('[SERVER] ✅ Database schema already exists');
