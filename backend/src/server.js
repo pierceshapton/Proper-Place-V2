@@ -300,31 +300,38 @@ async function initializeDatabase() {
       const adminEmail = 'admin@properplace.com';
       const adminPassword = 'AdminPass123!';
       const passwordHash = await hashPassword(adminPassword);
+      console.log('[SERVER] Admin password hash:', passwordHash.substring(0, 50) + '...');
       
       // Check if admin user exists
       const adminCheck = await db.query(
-        'SELECT id FROM users WHERE email = $1',
+        'SELECT id, password_hash FROM users WHERE email = $1',
         [adminEmail]
       );
       
+      console.log('[SERVER] Admin user query result:', adminCheck.rows.length > 0 ? 'EXISTS' : 'NOT_FOUND');
+      
       if (adminCheck.rows.length === 0) {
         console.log('[SERVER] Seeding default admin user...');
-        await db.query(
-          'INSERT INTO users (email, password_hash, name, role, verified) VALUES ($1, $2, $3, $4, $5)',
+        const insertResult = await db.query(
+          'INSERT INTO users (email, password_hash, name, role, verified) VALUES ($1, $2, $3, $4, $5) RETURNING id',
           [adminEmail, passwordHash, 'Admin', 'admin', true]
         );
-        console.log('[SERVER] ✅ Admin user created: admin@properplace.com');
+        console.log('[SERVER] ✅ Admin user created with ID:', insertResult.rows[0].id);
       } else {
         // Admin user exists - ensure it has correct password hash
-        console.log('[SERVER] Updating admin user password to ensure correct hash...');
-        await db.query(
-          'UPDATE users SET password_hash = $1, name = $2, role = $3, verified = $4 WHERE email = $5',
+        console.log('[SERVER] Updating admin user password...');
+        console.log('[SERVER] Current hash:', adminCheck.rows[0].password_hash.substring(0, 50) + '...');
+        console.log('[SERVER] New hash:', passwordHash.substring(0, 50) + '...');
+        
+        const updateResult = await db.query(
+          'UPDATE users SET password_hash = $1, name = $2, role = $3, verified = $4 WHERE email = $5 RETURNING id',
           [passwordHash, 'Admin', 'admin', true, adminEmail]
         );
-        console.log('[SERVER] ✅ Admin user password reset: admin@properplace.com');
+        console.log('[SERVER] ✅ Admin user password updated:', updateResult.rows.length > 0 ? 'SUCCESS' : 'FAILED');
       }
     } catch (err) {
       console.error('[SERVER] Admin user check/seeding error:', err.message);
+      console.error('[SERVER] Admin error stack:', err.stack);
     }
   } catch (error) {
     console.error('[SERVER] Database initialization error:', error.message);
