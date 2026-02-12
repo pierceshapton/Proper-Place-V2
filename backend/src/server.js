@@ -289,31 +289,36 @@ async function initializeDatabase() {
         console.error('[SERVER] Migration 2 error:', err.message);
       }
 
-      // Seed default admin user
-      try {
-        const bcrypt = require('bcrypt');
-        const adminEmail = 'admin@properplace.com';
+      console.log('[SERVER] ✅ All migrations completed');
+    } else {
+      console.log('[SERVER] ✅ Database schema already exists');
+    }
+
+    // Always try to seed admin user if it doesn't exist
+    try {
+      const bcrypt = require('bcrypt');
+      const adminEmail = 'admin@properplace.com';
+      
+      // Check if admin user exists
+      const adminCheck = await db.query(
+        'SELECT id FROM users WHERE email = $1',
+        [adminEmail]
+      );
+      
+      if (adminCheck.rows.length === 0) {
         const adminPassword = 'AdminPass123!';
         const passwordHash = await bcrypt.hash(adminPassword, 10);
-
         console.log('[SERVER] Seeding default admin user...');
         await db.query(
           'INSERT INTO users (email, password_hash, name, role, verified) VALUES ($1, $2, $3, $4, $5)',
           [adminEmail, passwordHash, 'Admin', 'admin', true]
         );
         console.log('[SERVER] ✅ Admin user created: admin@properplace.com');
-      } catch (err) {
-        if (err.code === '23505') {
-          // Unique constraint violation - admin user already exists
-          console.log('[SERVER] ✅ Admin user already exists');
-        } else {
-          console.error('[SERVER] Admin user seeding error:', err.message);
-        }
+      } else {
+        console.log('[SERVER] ✅ Admin user already exists');
       }
-
-      console.log('[SERVER] ✅ All migrations completed');
-    } else {
-      console.log('[SERVER] ✅ Database schema already exists');
+    } catch (err) {
+      console.error('[SERVER] Admin user check/seeding error:', err.message);
     }
   } catch (error) {
     console.error('[SERVER] Database initialization error:', error.message);
