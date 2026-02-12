@@ -14,12 +14,24 @@ if (DATABASE_URL) {
   console.error('[Database] Available env vars:', Object.keys(process.env).filter(k => k.includes('DATABASE') || k.includes('DB_')));
 }
 
-const pool = new Pool({
+// Configure pool with SSL handling for DigitalOcean
+const poolConfig = {
   connectionString: DATABASE_URL,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-});
+};
+
+// For DigitalOcean managed databases, we need to handle SSL certificates
+// DigitalOcean uses self-signed certificates that require special handling
+if (DATABASE_URL && DATABASE_URL.includes('ondigitalocean')) {
+  console.log('[Database] Configuring SSL for DigitalOcean managed database...');
+  poolConfig.ssl = {
+    rejectUnauthorized: false, // Accept DigitalOcean's self-signed certificate
+  };
+}
+
+const pool = new Pool(poolConfig);
 
 pool.on('error', (err) => {
   console.error('[Database] Unexpected error on idle client:', err.message);
