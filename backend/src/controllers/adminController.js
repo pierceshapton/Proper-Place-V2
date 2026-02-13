@@ -268,7 +268,7 @@ async function seedTestMessages(req, res, next) {
     if (hostResult.rows.length === 0) {
       // Create a test host user
       const newHost = await db.query(
-        `INSERT INTO users (email, name, role, password, verified)
+        `INSERT INTO users (email, name, role, password_hash, verified)
          VALUES ('host@example.com', 'Host User', 'host', '$2b$10$placeholder', true)
          ON CONFLICT (email) DO UPDATE SET role = 'host'
          RETURNING id`
