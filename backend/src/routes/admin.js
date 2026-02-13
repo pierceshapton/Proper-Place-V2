@@ -18,4 +18,7 @@ router.patch('/places/:id/reject', adminController.rejectPlace);
 router.get('/users', adminController.getUsers);
 router.patch('/users/:id/role', adminController.updateUserRole);
 
+// Seed test data (for demo/testing)
+router.post('/seed-test-messages', adminController.seedTestMessages);
+
 module.exports = router;

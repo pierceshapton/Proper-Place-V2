@@ -240,6 +240,74 @@ async function updateUserRole(req, res, next) {
   }
 }
 
+/**
+ * POST /admin/seed-test-messages
+ * Seed test messages for demo/testing purposes
+ */
+async function seedTestMessages(req, res, next) {
+  try {
+    const adminId = req.user.userId;
+
+    // Get admin user ID (should be 1)
+    const adminResult = await db.query(
+      `SELECT id FROM users WHERE role = 'admin' LIMIT 1`
+    );
+    
+    if (adminResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No admin user found' });
+    }
+    
+    const adminUserId = adminResult.rows[0].id;
+
+    // Check if we need to create a test host user
+    let hostUserId;
+    const hostResult = await db.query(
+      `SELECT id FROM users WHERE role = 'host' LIMIT 1`
+    );
+    
+    if (hostResult.rows.length === 0) {
+      // Create a test host user
+      const newHost = await db.query(
+        `INSERT INTO users (email, name, role, password, verified)
+         VALUES ('host@example.com', 'Host User', 'host', '$2b$10$placeholder', true)
+         ON CONFLICT (email) DO UPDATE SET role = 'host'
+         RETURNING id`
+      );
+      hostUserId = newHost.rows[0].id;
+    } else {
+      hostUserId = hostResult.rows[0].id;
+    }
+
+    // Insert test messages to admin (unread)
+    await db.query(
+      `INSERT INTO messages (sender_id, receiver_id, content, read, created_at)
+       VALUES 
+         ($1, $2, 'Hi, I have a question about my listing approval status?', false, NOW() - INTERVAL '2 hours'),
+         ($1, $2, 'Also, can you help me understand the pricing guidelines?', false, NOW() - INTERVAL '1 hour')
+       ON CONFLICT DO NOTHING`,
+      [hostUserId, adminUserId]
+    );
+
+    // Log admin action
+    await db.query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, details)
+       VALUES ($1, $2, $3, $4)`,
+      [adminId, 'seed_test_messages', 'messages', 'Test messages seeded for demo']
+    );
+
+    logger.info('Test messages seeded', { adminId });
+
+    res.json({
+      message: 'Test messages seeded successfully',
+      hostUserId,
+      adminUserId,
+    });
+  } catch (error) {
+    logger.error('Seed test messages error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getDashboard,
   getPlacesForModeration,
@@ -247,4 +315,5 @@ module.exports = {
   rejectPlace,
   getUsers,
   updateUserRole,
+  seedTestMessages,
 };
