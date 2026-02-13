@@ -17,20 +17,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: Scaffold(
         body: Stack(
         children: [
-          // Background Gradient (instant load, no network dependency)
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF4A90D9),
-                  Color(0xFF7BA7D8),
-                  Color(0xFF6B96C8),
-                  Color(0xFF3B7BC0),
-                ],
-                stops: [0.0, 0.3, 0.7, 1.0],
-              ),
+          // Background Image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/login_background.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+          // Dark overlay for better text readability
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.3),
             ),
           ),
 
@@ -44,20 +41,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   padding: const EdgeInsets.only(top: 32.0),
                   child: Column(
                     children: [
-                      // Logo Badge
+                      // Logo Badge - Van Image
                       Container(
-                        width: 56,
-                        height: 56,
+                        width: 120,
+                        height: 120,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFF7BA7D8),
-                              Color(0xFF6B96C8),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.3),
@@ -66,10 +55,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.place,
-                          color: Colors.white,
-                          size: 32,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: Image.asset(
+                            'assets/images/ios_180.png',
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),

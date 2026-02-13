@@ -31,3 +31,4 @@ flutter:
   assets:
     - .env
     - assets/images/
+    - assets/images/login_background.png

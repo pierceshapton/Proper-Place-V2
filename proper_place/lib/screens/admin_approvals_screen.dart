@@ -9,6 +9,7 @@ class AdminApprovalsScreen extends StatefulWidget {
 
 class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   String _selectedFilter = 'Pending';
+  final Set<String> _expandedApprovedPlaces = {}; // Track which approved places are expanded
 
   // Sample place submissions data
   final List<Map<String, dynamic>> _allPlaces = [
@@ -266,6 +267,10 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       itemCount: _filteredPlaces.length,
                       itemBuilder: (context, index) {
                         final place = _filteredPlaces[index];
+                        // Use collapsed card for approved places on Approved tab
+                        if (_selectedFilter == 'Approved' && place['status'] == 'Approved') {
+                          return _buildCollapsiblePlaceCard(place);
+                        }
                         return _buildPlaceCard(place);
                       },
                     ),
@@ -483,5 +488,194 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildCollapsiblePlaceCard(Map<String, dynamic> place) {
+    final isExpanded = _expandedApprovedPlaces.contains(place['id']);
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          // Header - always visible
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                if (isExpanded) {
+                  _expandedApprovedPlaces.remove(place['id']);
+                } else {
+                  _expandedApprovedPlaces.add(place['id']);
+                }
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: isExpanded 
+                    ? const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                      )
+                    : BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Approved',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          place['name'],
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          place['hostName'],
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Transform.rotate(
+                    angle: isExpanded ? 1.5708 : 0, // 90 degrees when expanded
+                    child: Icon(
+                      Icons.chevron_right,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Expanded content
+          if (isExpanded) ..._buildExpandedContent(place),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildExpandedContent(Map<String, dynamic> place) {
+    return [
+      // Place Image Placeholder
+      Container(
+        height: 200,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.grey[300]!, Colors.grey[400]!],
+          ),
+        ),
+        child: const Center(
+          child: Icon(Icons.image, size: 64, color: Colors.grey),
+        ),
+      ),
+      // Place Details
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    place['address'],
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Host: ${place['hostName']}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    place['hostEmail'],
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              place['description'],
+              style: TextStyle(color: Colors.grey[700], fontSize: 13),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: place['amenities']
+                  .map<Widget>(
+                    (amenity) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE0E7FF),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        amenity,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF4F46E5),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 }

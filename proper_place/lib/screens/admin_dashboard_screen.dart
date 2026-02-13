@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({super.key});
+  final Function(int)? onTabChanged;
+  final Map<int, int>? badgeCounts;
+  
+  const AdminDashboardScreen({super.key, this.onTabChanged, this.badgeCounts});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -80,10 +83,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop',
                   buttonLabel: 'Review Requests',
                   buttonColor: const Color(0xFFA855F7),
+                  badgeCount: widget.badgeCounts?[1] ?? 0,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Opening Host Requests')),
-                    );
+                    // Switch to Requests tab (index 1)
+                    widget.onTabChanged?.call(1);
                   },
                   textColor: Colors.black,
                 ),
@@ -96,10 +99,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   image: 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400&h=200&fit=crop',
                   buttonLabel: 'Manage Approvals',
                   buttonColor: const Color(0xFF3B82F6),
+                  badgeCount: widget.badgeCounts?[2] ?? 0,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Opening Approvals')),
-                    );
+                    // Switch to Approvals tab (index 2)
+                    widget.onTabChanged?.call(2);
                   },
                 ),
                 const SizedBox(height: 16),
@@ -111,10 +114,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop',
                   buttonLabel: 'Contact Hosts',
                   buttonColor: const Color(0xFF3B82F6),
+                  badgeCount: widget.badgeCounts?[3] ?? 0,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Opening Host Chat')),
-                    );
+                    // Switch to Chat tab (index 3)
+                    widget.onTabChanged?.call(3);
                   },
                 ),
                 const SizedBox(height: 16),
@@ -126,10 +129,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   image: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&h=200&fit=crop',
                   buttonLabel: 'Manage Invites',
                   buttonColor: const Color(0xFFA855F7),
+                  badgeCount: widget.badgeCounts?[4] ?? 0,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Opening Host Invites')),
-                    );
+                    // Switch to More tab (index 4)
+                    widget.onTabChanged?.call(4);
                   },
                 ),
 
@@ -150,6 +153,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required Color buttonColor,
     required VoidCallback onTap,
     Color? textColor,
+    int badgeCount = 0,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -162,13 +166,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: TextStyle(
-                color: textColor ?? Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: textColor ?? Colors.black,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (badgeCount > 0)
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      badgeCount > 99 ? '99+' : badgeCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(

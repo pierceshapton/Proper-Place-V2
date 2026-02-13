@@ -20,16 +20,7 @@ class _AdminMoreScreenState extends State<AdminMoreScreen> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
     _loadAdminInfo();
-  }
-
-  void _onScroll() {
-    // Limit scroll to stop when logout section is visible
-    final maxScroll = _scrollController.position.maxScrollExtent - 115;
-    if (_scrollController.offset > maxScroll) {
-      _scrollController.jumpTo(maxScroll);
-    }
   }
 
   @override

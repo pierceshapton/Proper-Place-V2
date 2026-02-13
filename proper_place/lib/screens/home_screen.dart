@@ -189,10 +189,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     
     // Defer ALL data loading to after UI renders to prevent blocking
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(Duration.zero, () {
-        _loadUserRole();
-        _loadHostMode();
-        _loadAdminMode();
+      Future.delayed(Duration.zero, () async {
+        // Load role and mode first - these are needed for badge count mapping
+        await Future.wait([
+          _loadUserRole(),
+          _loadHostMode(),
+          _loadAdminMode(),
+        ]);
+        // Now load places and notification counts
         _loadPlaces();
         _loadNotificationCounts();
       });
@@ -490,7 +494,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Admin in admin mode
     if (userRole == 'admin' && isAdminMode) {
       return index == 0
-          ? const AdminDashboardScreen()
+          ? AdminDashboardScreen(
+              onTabChanged: (tabIndex) {
+                setState(() {
+                  _currentIndex = tabIndex;
+                });
+              },
+              badgeCounts: _badgeCounts,
+            )
           : index == 1
               ? const AdminHostRequestsScreen()
               : index == 2
