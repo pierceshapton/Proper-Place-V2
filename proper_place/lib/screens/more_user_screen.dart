@@ -179,12 +179,14 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
           _buildContactUsSection(),
           const SizedBox(height: 24),
 
-          // How This Works Section
-          _buildHowThisWorksSection(),
-          const SizedBox(height: 24),
+          // How This Works Section (hide for admins)
+          if (_userRole != 'admin') ...[
+            _buildHowThisWorksSection(),
+            const SizedBox(height: 24),
+          ],
 
-          // Become a Host Section (only if not already in host mode)
-          if (!_isHostMode) ...[
+          // Become a Host Section (only if not already in host mode and not admin)
+          if (!_isHostMode && _userRole != 'admin') ...[
             _buildBecomeHostSection(),
             const SizedBox(height: 24),
           ],
@@ -220,128 +222,80 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
   }
 
   Widget _buildProfileCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF3B82F6),
-                  shape: BoxShape.circle,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProfileScreen(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: Color(0xFF3B82F6),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  (_userName?.isNotEmpty ?? false)
+                      ? _userName![0].toUpperCase()
+                      : 'U',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                child: Center(
-                  child: Text(
-                    (_userName?.isNotEmpty ?? false)
-                        ? _userName![0].toUpperCase()
-                        : 'U',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _userName ?? 'User',
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _userName ?? 'User',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.shield, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          _userRole?.replaceFirst(
-                                  _userRole![0], _userRole![0].toUpperCase()) ??
-                              'User',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.shield, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        _userRole?.replaceFirst(
+                                _userRole![0], _userRole![0].toUpperCase()) ??
+                            'User',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // Dropdown menu
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'view' || value == 'edit') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProfileScreen(),
                       ),
-                    ).catchError((e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
-                    });
-                  }
-                },
-                itemBuilder: (BuildContext context) {
-                  return [
-                    const PopupMenuItem<String>(
-                      value: 'view',
-                      child: Text('View Profile'),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'edit',
-                      child: Text('Edit Details'),
-                    ),
-                  ];
-                },
-                icon: const Icon(Icons.expand_more),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProfileScreen(),
-                ),
-              );
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Tap to manage your account',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
+                    ],
                   ),
-                ),
-                Icon(Icons.chevron_right, color: Colors.grey[400]),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            Icon(Icons.chevron_right, color: Colors.grey[400], size: 28),
+          ],
+        ),
       ),
     );
   }

@@ -136,7 +136,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stayed'),
+        title: const Text('Saved'),
         backgroundColor: const Color(0xFF7BA7D8),
       ),
       body: Column(

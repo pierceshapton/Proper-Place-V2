@@ -129,15 +129,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
           ),
           IconButton(
-            icon: Icon(isEditing ? Icons.check : Icons.edit),
+            icon: const Icon(Icons.edit),
             onPressed: () {
-              if (isEditing) {
-                _updateProfile();
-              } else {
-                setState(() {
-                  isEditing = true;
-                });
-              }
+              setState(() {
+                isEditing = true;
+              });
             },
           ),
         ],
@@ -329,6 +325,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
             const SizedBox(height: 24),
+            
+            // Save button (only visible when editing)
+            if (isEditing)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _updateProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7BA7D8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Save Changes',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
