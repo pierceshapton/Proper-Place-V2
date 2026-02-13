@@ -132,15 +132,41 @@ async function createBooking(req, res, next) {
       });
     }
 
+    // Default times to 12:00 (midday)
+    const checkInTime = data.check_in_time || '12:00';
+    const checkOutTime = data.check_out_time || '12:00';
+    
+    // Calculate early check-in and late check-out fees
+    // Early check-in is before 12:00, late check-out is after 12:00
+    let earlyCheckinFee = 0;
+    let lateCheckoutFee = 0;
+    
+    // Parse times for fee calculation
+    const [checkInHour] = checkInTime.split(':').map(Number);
+    const [checkOutHour] = checkOutTime.split(':').map(Number);
+    
+    // Fee rate: £5 per hour deviation from midday
+    const hourlyFeeRate = 5;
+    
+    if (checkInHour < 12) {
+      // Early check-in fee
+      earlyCheckinFee = (12 - checkInHour) * hourlyFeeRate;
+    }
+    
+    if (checkOutHour > 12) {
+      // Late check-out fee
+      lateCheckoutFee = (checkOutHour - 12) * hourlyFeeRate;
+    }
+
     // Get place/pub info for pricing
-    let totalPrice = 0;
+    let basePrice = 0;
     if (data.place_id) {
       const placeResult = await db.query(
         'SELECT price_per_night FROM places WHERE id = $1',
         [data.place_id]
       );
       if (placeResult.rows.length > 0) {
-        totalPrice = placeResult.rows[0].price_per_night * nights;
+        basePrice = placeResult.rows[0].price_per_night * nights;
       }
     } else if (data.pub_id) {
       const pubResult = await db.query(
@@ -148,15 +174,20 @@ async function createBooking(req, res, next) {
         [data.pub_id]
       );
       if (pubResult.rows.length > 0) {
-        totalPrice = pubResult.rows[0].price_per_night * nights;
+        basePrice = pubResult.rows[0].price_per_night * nights;
       }
     }
+    
+    // Total price includes base price + time-based fees
+    const totalPrice = basePrice + earlyCheckinFee + lateCheckoutFee;
 
     const result = await db.query(
       `INSERT INTO bookings (user_id, place_id, pub_id, check_in_date, check_out_date,
-                             number_of_nights, total_price, van_registration,
-                             contact_phone, special_requests)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                             check_in_time, check_out_time,
+                             number_of_nights, total_price, 
+                             early_checkin_fee, late_checkout_fee,
+                             van_registration, contact_phone, special_requests)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         userId,
@@ -164,8 +195,12 @@ async function createBooking(req, res, next) {
         data.pub_id || null,
         data.check_in_date,
         data.check_out_date,
+        checkInTime,
+        checkOutTime,
         nights,
         totalPrice,
+        earlyCheckinFee,
+        lateCheckoutFee,
         data.van_registration || null,
         data.contact_phone || null,
         data.special_requests || null,
@@ -276,6 +311,52 @@ async function deleteBooking(req, res, next) {
   }
 }
 
+/**
+ * GET /bookings/place/:placeId
+ * Get all bookings for a specific place (for availability checking)
+ */
+async function getPlaceBookings(req, res, next) {
+  try {
+    const { placeId } = req.params;
+    const { from_date, to_date } = req.query;
+    
+    let query = `
+      SELECT id, check_in_date, check_out_date, 
+             COALESCE(check_in_time, '12:00:00') as check_in_time,
+             COALESCE(check_out_time, '12:00:00') as check_out_time,
+             status
+      FROM bookings 
+      WHERE place_id = $1 
+        AND status NOT IN ('cancelled', 'Cancelled')
+    `;
+    const params = [placeId];
+    let paramCount = 2;
+    
+    // Filter by date range if provided
+    if (from_date) {
+      query += ` AND check_out_date >= $${paramCount}`;
+      params.push(from_date);
+      paramCount++;
+    }
+    if (to_date) {
+      query += ` AND check_in_date <= $${paramCount}`;
+      params.push(to_date);
+      paramCount++;
+    }
+    
+    query += ' ORDER BY check_in_date ASC';
+    
+    const result = await db.query(query, params);
+    
+    res.json({
+      bookings: result.rows,
+    });
+  } catch (error) {
+    logger.error('Get place bookings error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetail,
@@ -283,4 +364,5 @@ module.exports = {
   updateBooking,
   deleteBooking,
   autoCompleteBookings,
+  getPlaceBookings,
 };
