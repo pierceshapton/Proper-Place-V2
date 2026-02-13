@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/services/storage_service.dart';
 
@@ -21,14 +22,44 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   final int _currentImageIndex = 0;
   DateTime? _checkInDate;
   DateTime? _checkOutDate;
+  TimeOfDay _checkInTime = const TimeOfDay(hour: 12, minute: 0); // Default midday
+  TimeOfDay _checkOutTime = const TimeOfDay(hour: 12, minute: 0); // Default midday
   List<Map<String, dynamic>> reviews = [];
+  List<Map<String, dynamic>> existingBookings = [];
   bool isLoadingReviews = true;
+  bool isLoadingBookings = true;
+  
+  // Fee rate per hour for early/late times
+  static const double hourlyFeeRate = 5.0;
 
   @override
   void initState() {
     super.initState();
     _imageController = PageController();
     _loadReviews();
+    _loadExistingBookings();
+  }
+
+  Future<void> _loadExistingBookings() async {
+    try {
+      final placeId = widget.place['id'];
+      final response = await http.get(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/bookings/place/$placeId'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          existingBookings = List<Map<String, dynamic>>.from(data['bookings'] ?? []);
+          isLoadingBookings = false;
+        });
+      } else {
+        setState(() => isLoadingBookings = false);
+      }
+    } catch (e) {
+      print('Error loading bookings: $e');
+      setState(() => isLoadingBookings = false);
+    }
   }
 
   Future<void> _loadReviews() async {
@@ -57,10 +88,64 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     }
     return 0;
   }
+  
+  // Calculate early check-in fee (arriving before 12:00)
+  double get earlyCheckinFee {
+    if (_checkInTime.hour < 12) {
+      return (12 - _checkInTime.hour) * hourlyFeeRate;
+    }
+    return 0;
+  }
+  
+  // Calculate late check-out fee (leaving after 12:00)
+  double get lateCheckoutFee {
+    if (_checkOutTime.hour > 12) {
+      return (_checkOutTime.hour - 12) * hourlyFeeRate;
+    }
+    return 0;
+  }
+  
+  double get basePrice {
+    final priceRaw = widget.place['price_per_night'] ?? 0;
+    final price = priceRaw is String ? double.tryParse(priceRaw) ?? 0.0 : (priceRaw is num ? priceRaw.toDouble() : 0.0);
+    return price * nightsCount;
+  }
 
   double get totalPrice {
-    final price = widget.place['price_per_night'] ?? 0;
-    return price * nightsCount;
+    return basePrice + earlyCheckinFee + lateCheckoutFee;
+  }
+  
+  // Check if a date is booked (unavailable)
+  bool _isDateBooked(DateTime date) {
+    for (var booking in existingBookings) {
+      final checkIn = DateTime.parse(booking['check_in_date'].toString().substring(0, 10));
+      final checkOut = DateTime.parse(booking['check_out_date'].toString().substring(0, 10));
+      
+      // Date is booked if it falls within an existing booking
+      // A date is available if it's the checkout date (person leaves at midday)
+      if (date.isAfter(checkIn.subtract(const Duration(days: 1))) && 
+          date.isBefore(checkOut)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  // Check if selected date range conflicts with existing bookings
+  bool _hasConflict() {
+    if (_checkInDate == null || _checkOutDate == null) return false;
+    
+    for (var booking in existingBookings) {
+      final existingCheckIn = DateTime.parse(booking['check_in_date'].toString().substring(0, 10));
+      final existingCheckOut = DateTime.parse(booking['check_out_date'].toString().substring(0, 10));
+      
+      // Check for overlap
+      // New booking overlaps if: newCheckIn < existingCheckOut AND newCheckOut > existingCheckIn
+      if (_checkInDate!.isBefore(existingCheckOut) && _checkOutDate!.isAfter(existingCheckIn)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void _selectDate(BuildContext context, {required bool isCheckIn}) async {
@@ -69,14 +154,45 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      selectableDayPredicate: (DateTime day) {
+        // Don't allow selection of fully booked dates
+        return !_isDateBooked(day);
+      },
     );
 
     if (picked != null) {
       setState(() {
         if (isCheckIn) {
           _checkInDate = picked;
+          // Reset checkout if it's before or equal to checkin
+          if (_checkOutDate != null && !_checkOutDate!.isAfter(picked)) {
+            _checkOutDate = null;
+          }
         } else {
           _checkOutDate = picked;
+        }
+      });
+    }
+  }
+  
+  void _selectTime(BuildContext context, {required bool isCheckIn}) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: isCheckIn ? _checkInTime : _checkOutTime,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isCheckIn) {
+          _checkInTime = picked;
+        } else {
+          _checkOutTime = picked;
         }
       });
     }
@@ -89,11 +205,26 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       );
       return;
     }
+    
+    // Check for conflicts with existing bookings
+    if (_hasConflict()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selected dates conflict with an existing booking'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     try {
       final token = await StorageService.getToken();
+      // Format times as HH:mm
+      final checkInTimeStr = '${_checkInTime.hour.toString().padLeft(2, '0')}:${_checkInTime.minute.toString().padLeft(2, '0')}';
+      final checkOutTimeStr = '${_checkOutTime.hour.toString().padLeft(2, '0')}:${_checkOutTime.minute.toString().padLeft(2, '0')}';
+      
       final response = await http.post(
-        Uri.parse('http://localhost:3001/bookings'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/bookings'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -102,8 +233,10 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           'place_id': widget.place['id'],
           'check_in_date': _checkInDate!.toIso8601String(),
           'check_out_date': _checkOutDate!.toIso8601String(),
+          'check_in_time': checkInTimeStr,
+          'check_out_time': checkOutTimeStr,
           'total_price': totalPrice,
-          'status': 'confirmed',
+          'status': 'pending',
         }),
       );
 
@@ -112,12 +245,98 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           const SnackBar(content: Text('Booking created successfully!')),
         );
         Navigator.of(context).pop();
+      } else {
+        final error = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error['message'] ?? 'Error creating booking')),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error creating booking: $e')),
       );
     }
+  }
+
+  void _showOnMap(BuildContext context) {
+    // Get coordinates from place
+    final latRaw = widget.place['latitude'];
+    final lngRaw = widget.place['longitude'];
+    
+    final lat = latRaw is String ? double.tryParse(latRaw) : (latRaw is num ? latRaw.toDouble() : null);
+    final lng = lngRaw is String ? double.tryParse(lngRaw) : (lngRaw is num ? lngRaw.toDouble() : null);
+    
+    if (lat == null || lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location coordinates not available')),
+      );
+      return;
+    }
+    
+    final placeName = widget.place['name'] ?? 'Place';
+    final location = LatLng(lat, lng);
+    
+    // Show map dialog zoomed into the location
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: const Color(0xFF7BA7D8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          placeName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // Map
+                Expanded(
+                  child: GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: location,
+                      zoom: 15,
+                    ),
+                    markers: {
+                      Marker(
+                        markerId: MarkerId(widget.place['id'].toString()),
+                        position: location,
+                        infoWindow: InfoWindow(title: placeName),
+                      ),
+                    },
+                    zoomControlsEnabled: true,
+                    myLocationButtonEnabled: false,
+                    mapToolbarEnabled: false,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -189,11 +408,28 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                     children: [
                       const Icon(Icons.location_on, size: 16, color: Color(0xFF7BA7D8)),
                       const SizedBox(width: 6),
-                      Text(
-                        widget.place['address'] ?? 'Location',
-                        style: TextStyle(color: Colors.grey[600]),
+                      Expanded(
+                        child: Text(
+                          widget.place['address'] ?? 'Location',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Show on Map Button
+                  OutlinedButton.icon(
+                    onPressed: () => _showOnMap(context),
+                    icon: const Icon(Icons.map, size: 18),
+                    label: const Text('Show on Map'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF7BA7D8),
+                      side: const BorderSide(color: Color(0xFF7BA7D8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -252,64 +488,171 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Standard times are 12:00 (midday). Early arrival or late departure incurs additional fees.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
                         const SizedBox(height: 16),
 
-                        // Check-in Date
+                        // Check-in Date and Time Row
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('Check-in', style: TextStyle(fontWeight: FontWeight.w600)),
                             const SizedBox(height: 8),
-                            InkWell(
-                              onTap: () => _selectDate(context, isCheckIn: true),
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[300]!),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  _checkInDate != null
-                                      ? '${_checkInDate!.day}/${_checkInDate!.month}/${_checkInDate!.year}'
-                                      : 'Select date',
-                                  style: TextStyle(
-                                    color: _checkInDate != null
-                                        ? Colors.black
-                                        : Colors.grey[500],
+                            Row(
+                              children: [
+                                // Date picker
+                                Expanded(
+                                  flex: 2,
+                                  child: InkWell(
+                                    onTap: () => _selectDate(context, isCheckIn: true),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey[300]!),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.calendar_today, size: 16, color: Color(0xFF7BA7D8)),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            _checkInDate != null
+                                                ? '${_checkInDate!.day}/${_checkInDate!.month}/${_checkInDate!.year}'
+                                                : 'Select date',
+                                            style: TextStyle(
+                                              color: _checkInDate != null ? Colors.black : Colors.grey[500],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                // Time picker
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => _selectTime(context, isCheckIn: true),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: _checkInTime.hour < 12 ? Colors.orange : Colors.grey[300]!,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: _checkInTime.hour < 12 ? Colors.orange.withOpacity(0.1) : null,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.access_time, size: 16, color: Color(0xFF7BA7D8)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${_checkInTime.hour.toString().padLeft(2, '0')}:${_checkInTime.minute.toString().padLeft(2, '0')}',
+                                            style: TextStyle(
+                                              color: _checkInTime.hour < 12 ? Colors.orange[800] : Colors.black,
+                                              fontWeight: _checkInTime.hour < 12 ? FontWeight.w600 : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                            if (_checkInTime.hour < 12)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Early arrival +£${earlyCheckinFee.toStringAsFixed(0)}',
+                                  style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 16),
 
-                        // Check-out Date
+                        // Check-out Date and Time Row
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('Check-out', style: TextStyle(fontWeight: FontWeight.w600)),
                             const SizedBox(height: 8),
-                            InkWell(
-                              onTap: () => _selectDate(context, isCheckIn: false),
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[300]!),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  _checkOutDate != null
-                                      ? '${_checkOutDate!.day}/${_checkOutDate!.month}/${_checkOutDate!.year}'
-                                      : 'Select date',
-                                  style: TextStyle(
-                                    color: _checkOutDate != null
-                                        ? Colors.black
-                                        : Colors.grey[500],
+                            Row(
+                              children: [
+                                // Date picker
+                                Expanded(
+                                  flex: 2,
+                                  child: InkWell(
+                                    onTap: () => _selectDate(context, isCheckIn: false),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey[300]!),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.calendar_today, size: 16, color: Color(0xFF7BA7D8)),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            _checkOutDate != null
+                                                ? '${_checkOutDate!.day}/${_checkOutDate!.month}/${_checkOutDate!.year}'
+                                                : 'Select date',
+                                            style: TextStyle(
+                                              color: _checkOutDate != null ? Colors.black : Colors.grey[500],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                // Time picker
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => _selectTime(context, isCheckIn: false),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: _checkOutTime.hour > 12 ? Colors.orange : Colors.grey[300]!,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: _checkOutTime.hour > 12 ? Colors.orange.withOpacity(0.1) : null,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.access_time, size: 16, color: Color(0xFF7BA7D8)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${_checkOutTime.hour.toString().padLeft(2, '0')}:${_checkOutTime.minute.toString().padLeft(2, '0')}',
+                                            style: TextStyle(
+                                              color: _checkOutTime.hour > 12 ? Colors.orange[800] : Colors.black,
+                                              fontWeight: _checkOutTime.hour > 12 ? FontWeight.w600 : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                            if (_checkOutTime.hour > 12)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Late departure +£${lateCheckoutFee.toStringAsFixed(0)}',
+                                  style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -328,9 +671,31 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text('£$pricePerNight x $nightsCount nights'),
-                                  Text('£${(pricePerNight * nightsCount).toStringAsFixed(2)}'),
+                                  Text('£${basePrice.toStringAsFixed(2)}'),
                                 ],
                               ),
+                              if (earlyCheckinFee > 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Early check-in fee', style: TextStyle(color: Colors.orange[800])),
+                                      Text('£${earlyCheckinFee.toStringAsFixed(2)}', style: TextStyle(color: Colors.orange[800])),
+                                    ],
+                                  ),
+                                ),
+                              if (lateCheckoutFee > 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Late check-out fee', style: TextStyle(color: Colors.orange[800])),
+                                      Text('£${lateCheckoutFee.toStringAsFixed(2)}', style: TextStyle(color: Colors.orange[800])),
+                                    ],
+                                  ),
+                                ),
                               const Divider(),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -351,11 +716,36 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                         ),
                         const SizedBox(height: 16),
 
+                        // Conflict Warning
+                        if (_hasConflict())
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.warning, color: Colors.red, size: 20),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Selected dates conflict with existing booking',
+                                    style: TextStyle(color: Colors.red, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                         // Book Button
                         ElevatedButton(
-                          onPressed: _createBooking,
+                          onPressed: _hasConflict() ? null : _createBooking,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF7BA7D8),
+                            disabledBackgroundColor: Colors.grey[300],
                             minimumSize: const Size(double.infinity, 48),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),

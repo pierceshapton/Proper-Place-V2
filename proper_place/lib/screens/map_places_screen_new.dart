@@ -6,7 +6,7 @@ import 'dart:ui' as ui;
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/models/place.dart';
-import 'package:proper_place/screens/booking_confirmation_screen.dart';
+import 'package:proper_place/screens/place_detail_screen.dart';
 
 class MapPlacesScreen extends StatefulWidget {
   const MapPlacesScreen({Key? key}) : super(key: key);
@@ -16,7 +16,7 @@ class MapPlacesScreen extends StatefulWidget {
 }
 
 class _MapPlacesScreenState extends State<MapPlacesScreen> {
-  late GoogleMapController mapController;
+  GoogleMapController? mapController;
   Set<Marker> markers = {};
   LatLng? currentLocation;
   bool isLoading = true;
@@ -187,12 +187,31 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
           );
         });
         print('Updated location to: ${position.latitude}, ${position.longitude}');
+        
+        // Animate camera to current location
+        mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(
+            LatLng(position.latitude, position.longitude),
+            14,
+          ),
+        );
       } else {
         print('Detected simulator default location, keeping cached location');
+        // Still animate to cached location if available
+        if (currentLocation != null) {
+          mapController?.animateCamera(
+            CameraUpdate.newLatLngZoom(currentLocation!, 14),
+          );
+        }
       }
     } catch (e) {
       print('Error getting location: $e');
-      // Don't override cached location on error, just keep current
+      // On error, still try to animate to cached location
+      if (currentLocation != null) {
+        mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(currentLocation!, 14),
+        );
+      }
     }
   }
 
@@ -426,11 +445,26 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                     }
                   : () {
                       Navigator.pop(context);
+                      // Convert Place to Map with expected keys for PlaceDetailScreen
+                      final placeData = {
+                        'id': place.placeId,
+                        'name': place.name,
+                        'description': place.description,
+                        'address': place.address,
+                        'price_per_night': place.pricePerNight,
+                        'image_url': place.imageUrl ?? (place.imageUrls.isNotEmpty ? place.imageUrls.first : null),
+                        'latitude': place.locationLat,
+                        'longitude': place.locationLng,
+                        'place_type': place.placeType,
+                        'amenities': place.amenities,
+                        'host_name': place.hostName,
+                        'capacity': place.capacity,
+                      };
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              BookingConfirmationScreen(place: place),
+                              PlaceDetailScreen(place: placeData),
                         ),
                       );
                     },
@@ -452,22 +486,24 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   }
 
   void _showRouteForm() {
+    double localMaxTimeOffRoute = maxTimeOffRoute;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: 16,
-          right: 16,
-          top: 16,
-        ),
-        child: ListView(
-          shrinkWrap: true,
-          children: [
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
             const Text(
               'Plan Your Route',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -505,29 +541,64 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Text(
-              'Max Time Off Route: ${maxTimeOffRoute.toStringAsFixed(0)} min',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            const Text(
+              'Max Time Off Route',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Text('1 min'),
-                Expanded(
-                  child: Slider(
-                    value: maxTimeOffRoute,
-                    min: 1,
-                    max: 30,
-                    divisions: 29,
-                    onChanged: (value) {
-                      setState(() {
-                        maxTimeOffRoute = value;
-                      });
-                    },
+            const SizedBox(height: 4),
+            Text(
+              'How far off your route are you willing to travel?',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    '${localMaxTimeOffRoute.toStringAsFixed(0)} minutes',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
                   ),
-                ),
-                const Text('30 min'),
-              ],
+                  const SizedBox(height: 16),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: Colors.blue.shade400,
+                      inactiveTrackColor: Colors.blue.shade100,
+                      thumbColor: Colors.blue.shade600,
+                      overlayColor: Colors.blue.withOpacity(0.2),
+                      trackHeight: 8,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 14),
+                    ),
+                    child: Slider(
+                      value: localMaxTimeOffRoute,
+                      min: 1,
+                      max: 60,
+                      divisions: 59,
+                      onChanged: (value) {
+                        setModalState(() {
+                          localMaxTimeOffRoute = value;
+                        });
+                      },
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('1 min', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                      Text('60 min', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -550,11 +621,15 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                     );
                     return;
                   }
+                  // Save the local value to parent state
+                  setState(() {
+                    maxTimeOffRoute = localMaxTimeOffRoute;
+                  });
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Finding places within ${maxTimeOffRoute.toStringAsFixed(0)} min of your route...',
+                        'Finding places within ${localMaxTimeOffRoute.toStringAsFixed(0)} min of your route...',
                       ),
                     ),
                   );
@@ -578,6 +653,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -596,7 +672,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                         mapController = controller;
                         // Animate to current location after map is created
                         if (currentLocation != null) {
-                          mapController.animateCamera(
+                          mapController?.animateCamera(
                             CameraUpdate.newLatLngZoom(currentLocation!, 12),
                           );
                         }
@@ -658,13 +734,13 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                       right: 16,
                       child: Column(
                         children: [
-                          _buildMapTypeButton('Map', MapType.normal),
+                          _buildMapTypeButton(Icons.map_outlined, MapType.normal),
                           const SizedBox(height: 8),
-                          _buildMapTypeButton('Satellite', MapType.satellite),
+                          _buildMapTypeButton(Icons.satellite_alt, MapType.satellite),
                           const SizedBox(height: 8),
-                          _buildMapTypeButton('Terrain', MapType.terrain),
+                          _buildMapTypeButton(Icons.terrain, MapType.terrain),
                           const SizedBox(height: 8),
-                          _buildMapTypeButton('Hybrid', MapType.hybrid),
+                          _buildMapTypeButton(Icons.layers, MapType.hybrid),
                         ],
                       ),
                     ),
@@ -673,25 +749,33 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     );
   }
 
-  Widget _buildMapTypeButton(String label, MapType type) {
+  Widget _buildMapTypeButton(IconData icon, MapType type) {
     final isSelected = mapType == type;
-    return ElevatedButton(
-      onPressed: () {
+    return GestureDetector(
+      onTap: () {
         setState(() {
           mapType = type;
         });
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? Colors.blue : Colors.white,
-        foregroundColor: isSelected ? Colors.white : Colors.black,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        child: Icon(
+          icon,
+          size: 22,
+          color: isSelected ? Colors.white : Colors.black87,
+        ),
       ),
     );
   }
