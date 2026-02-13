@@ -288,19 +288,82 @@ async function seedTestMessages(req, res, next) {
       [hostUserId, adminUserId]
     );
 
+    // Insert test pending places (for Approvals badge)
+    const pendingPlacesResult = await db.query(
+      `INSERT INTO places (owner_id, name, description, address, city, country, latitude, longitude, price_per_night, capacity, approval_status)
+       VALUES 
+         ($1, 'The Green Valley Farm', 'Beautiful farm with stunning views', '123 Country Lane', 'Bristol', 'UK', 51.4545, -2.5879, 25.00, 4, 'pending'),
+         ($1, 'Riverside Meadow', 'Peaceful spot by the river', '45 River Road', 'Bath', 'UK', 51.3811, -2.3590, 30.00, 2, 'pending'),
+         ($1, 'Hilltop Haven', 'Quiet location with panoramic views', '78 Hill Street', 'Wells', 'UK', 51.2090, -2.6470, 20.00, 3, 'pending')
+       ON CONFLICT DO NOTHING
+       RETURNING id`,
+      [hostUserId]
+    );
+
+    // Create a test user for bookings if needed
+    let testUserId;
+    const testUserResult = await db.query(
+      `SELECT id FROM users WHERE email = 'testuser@example.com' LIMIT 1`
+    );
+    
+    if (testUserResult.rows.length === 0) {
+      const newTestUser = await db.query(
+        `INSERT INTO users (email, name, role, password_hash, verified)
+         VALUES ('testuser@example.com', 'Test User', 'user', '$2b$10$placeholder', true)
+         ON CONFLICT (email) DO UPDATE SET name = 'Test User'
+         RETURNING id`
+      );
+      testUserId = newTestUser.rows[0].id;
+    } else {
+      testUserId = testUserResult.rows[0].id;
+    }
+
+    // Get an approved place for bookings (or create one)
+    let approvedPlaceId;
+    const approvedPlaceResult = await db.query(
+      `SELECT id FROM places WHERE approval_status = 'approved' LIMIT 1`
+    );
+    
+    if (approvedPlaceResult.rows.length === 0) {
+      const newPlace = await db.query(
+        `INSERT INTO places (owner_id, name, description, address, city, country, latitude, longitude, price_per_night, capacity, approval_status)
+         VALUES ($1, 'Sunny Fields', 'Approved test place', '1 Test Road', 'London', 'UK', 51.5074, -0.1278, 35.00, 4, 'approved')
+         RETURNING id`,
+        [hostUserId]
+      );
+      approvedPlaceId = newPlace.rows[0].id;
+    } else {
+      approvedPlaceId = approvedPlaceResult.rows[0].id;
+    }
+
+    // Insert test pending bookings (for Bookings badge)
+    await db.query(
+      `INSERT INTO bookings (user_id, place_id, check_in_date, check_out_date, number_of_nights, total_price, status, van_registration)
+       VALUES 
+         ($1, $2, CURRENT_DATE + INTERVAL '7 days', CURRENT_DATE + INTERVAL '9 days', 2, 70.00, 'pending', 'AB12 CDE'),
+         ($1, $2, CURRENT_DATE + INTERVAL '14 days', CURRENT_DATE + INTERVAL '17 days', 3, 105.00, 'pending', 'XY34 FGH'),
+         ($1, $2, CURRENT_DATE + INTERVAL '21 days', CURRENT_DATE + INTERVAL '23 days', 2, 70.00, 'confirmed', 'JK56 LMN'),
+         ($1, $2, CURRENT_DATE + INTERVAL '28 days', CURRENT_DATE + INTERVAL '30 days', 2, 70.00, 'confirmed', 'PQ78 RST')
+       ON CONFLICT DO NOTHING`,
+      [testUserId, approvedPlaceId]
+    );
+
     // Log admin action
     await db.query(
       `INSERT INTO admin_logs (admin_id, action, entity_type, details)
        VALUES ($1, $2, $3, $4)`,
-      [adminId, 'seed_test_messages', 'messages', 'Test messages seeded for demo']
+      [adminId, 'seed_test_data', 'all', 'Test messages, places, and bookings seeded for demo']
     );
 
-    logger.info('Test messages seeded', { adminId });
+    logger.info('Test data seeded', { adminId });
 
     res.json({
-      message: 'Test messages seeded successfully',
+      message: 'Test data seeded successfully',
       hostUserId,
       adminUserId,
+      testUserId,
+      approvedPlaceId,
+      pendingPlacesCreated: pendingPlacesResult.rows.length,
     });
   } catch (error) {
     logger.error('Seed test messages error', { error: error.message });
