@@ -20,6 +20,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   late TextEditingController priceController;
   late TextEditingController websiteController;
   late TextEditingController businessNameController;
+  late TextEditingController foodMenuController;
 
   File? mainPhotoFile;
   List<File> supportingPhotos = [];
@@ -28,6 +29,32 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   double maxVehicleLength = 20.0; // Default 20ft
   bool isSavingDraft = false;
   bool isSubmitting = false;
+
+  // Location type and pub-specific fields
+  String selectedLocationType = 'private_land';
+  final List<String> locationTypes = [
+    'private_land',
+    'pub',
+    'farm',
+    'car_park',
+    'business',
+    'other',
+  ];
+  final Map<String, String> locationTypeLabels = {
+    'private_land': 'Private Land',
+    'pub': 'Pub / Restaurant',
+    'farm': 'Farm / Rural',
+    'car_park': 'Car Park',
+    'business': 'Business Parking',
+    'other': 'Other',
+  };
+
+  // Pub-specific fields
+  TimeOfDay? pubOpenTime;
+  TimeOfDay? pubCloseTime;
+  TimeOfDay? kitchenOpenTime;
+  TimeOfDay? kitchenCloseTime;
+  bool servesFood = true;
 
   // Address autocomplete
   List<PlacePrediction> addressSuggestions = [];
@@ -67,6 +94,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     priceController = TextEditingController();
     websiteController = TextEditingController();
     businessNameController = TextEditingController();
+    foodMenuController = TextEditingController();
 
     if (widget.siteToEdit != null) {
       _loadExistingSite();
@@ -132,7 +160,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   }
 
   Map<String, dynamic> _buildSiteData() {
-    return {
+    final data = {
       'name': businessNameController.text.isNotEmpty ? businessNameController.text : 'Site',
       'address': addressController.text,
       'description': descriptionController.text,
@@ -143,7 +171,32 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'longitude': longitude,
       'capacity': maxVehicleLength.toInt(),
       'amenities': selectedFacilities.entries.where((e) => e.value).map((e) => e.key).toList(),
+      'place_type': selectedLocationType,
     };
+
+    // Add pub-specific data if location type is pub
+    if (selectedLocationType == 'pub') {
+      data['opening_hours'] = _formatTimeRange(pubOpenTime, pubCloseTime);
+      data['kitchen_hours'] = _formatTimeRange(kitchenOpenTime, kitchenCloseTime);
+      data['food_menu_description'] = foodMenuController.text;
+      data['serves_food'] = servesFood;
+    }
+
+    return data;
+  }
+
+  String _formatTimeRange(TimeOfDay? start, TimeOfDay? end) {
+    if (start == null || end == null) return '';
+    String format(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    return '${format(start)} - ${format(end)}';
+  }
+
+  String _formatTime(TimeOfDay? time) {
+    if (time == null) return 'Not set';
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
   }
 
   Future<void> _submitSite() async {
@@ -231,6 +284,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     priceController.dispose();
     websiteController.dispose();
     businessNameController.dispose();
+    foodMenuController.dispose();
     super.dispose();
   }
 
@@ -283,6 +337,16 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               onRemovePhoto: (index) => setState(() => supportingPhotos.removeAt(index)),
             ),
             const SizedBox(height: 24),
+
+            // Location Type Selector
+            _buildLocationTypeSelector(),
+            const SizedBox(height: 24),
+
+            // Pub-Specific Fields (shown only when pub is selected)
+            if (selectedLocationType == 'pub') ...[
+              _buildPubSpecificSection(),
+              const SizedBox(height: 24),
+            ],
 
             // Address Autocomplete Field
             Text(
@@ -512,6 +576,309 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildLocationTypeSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Location Type *',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedLocationType,
+              isExpanded: true,
+              items: locationTypes.map((type) {
+                return DropdownMenuItem<String>(
+                  value: type,
+                  child: Row(
+                    children: [
+                      Icon(
+                        _getLocationTypeIcon(type),
+                        color: const Color(0xFF3B82F6),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(locationTypeLabels[type] ?? type),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => selectedLocationType = value);
+                }
+              },
+            ),
+          ),
+        ),
+        if (selectedLocationType == 'pub') ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFF59E0B)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Color(0xFFD97706), size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Pubs can attract more visitors! Add your opening times and food menu below to encourage guests to visit your establishment.',
+                    style: TextStyle(color: Colors.amber[900], fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  IconData _getLocationTypeIcon(String type) {
+    switch (type) {
+      case 'pub':
+        return Icons.sports_bar;
+      case 'farm':
+        return Icons.agriculture;
+      case 'car_park':
+        return Icons.local_parking;
+      case 'business':
+        return Icons.business;
+      case 'private_land':
+        return Icons.home;
+      default:
+        return Icons.place;
+    }
+  }
+
+  Widget _buildPubSpecificSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF97316)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.sports_bar, color: Color(0xFFF97316), size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Pub & Restaurant Details',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFC2410C)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Share your opening times and food offerings to encourage guests to visit your pub!',
+            style: TextStyle(fontSize: 13, color: Color(0xFF9A3412)),
+          ),
+          const SizedBox(height: 20),
+
+          // Opening Hours
+          const Text(
+            'Opening Hours',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF9A3412)),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTimePicker(
+                  label: 'Open',
+                  time: pubOpenTime,
+                  onTap: () => _selectTime((time) => setState(() => pubOpenTime = time)),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Text('to', style: TextStyle(fontWeight: FontWeight.w500)),
+              ),
+              Expanded(
+                child: _buildTimePicker(
+                  label: 'Close',
+                  time: pubCloseTime,
+                  onTap: () => _selectTime((time) => setState(() => pubCloseTime = time)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Food Toggle
+          Row(
+            children: [
+              const Text(
+                'Serve Food?',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF9A3412)),
+              ),
+              const Spacer(),
+              Switch(
+                value: servesFood,
+                onChanged: (value) => setState(() => servesFood = value),
+                activeColor: const Color(0xFFF97316),
+              ),
+            ],
+          ),
+
+          // Kitchen Hours (only if serves food)
+          if (servesFood) ...[
+            const Text(
+              'Kitchen Hours',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF9A3412)),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTimePicker(
+                    label: 'Open',
+                    time: kitchenOpenTime,
+                    onTap: () => _selectTime((time) => setState(() => kitchenOpenTime = time)),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('to', style: TextStyle(fontWeight: FontWeight.w500)),
+                ),
+                Expanded(
+                  child: _buildTimePicker(
+                    label: 'Close',
+                    time: kitchenCloseTime,
+                    onTap: () => _selectTime((time) => setState(() => kitchenCloseTime = time)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Food Menu Description
+            const Text(
+              'Food Menu Highlights',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF9A3412)),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'What food do you offer? This will encourage visitors!',
+              style: TextStyle(fontSize: 12, color: Color(0xFF9A3412)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: foodMenuController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'E.g., Traditional pub food, Sunday roasts, local ales, vegetarian options...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFF97316)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFF97316), width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 16),
+          // Encouragement message
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF22C55E).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF22C55E)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lightbulb, color: Color(0xFF22C55E), size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Tip: Guests who stay at pubs often become regular customers! Share your best offerings to make a great first impression.',
+                    style: TextStyle(color: Colors.green[800], fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimePicker({
+    required String label,
+    required TimeOfDay? time,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.white,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.access_time, size: 18, color: time != null ? const Color(0xFFF97316) : Colors.grey),
+            const SizedBox(width: 8),
+            Text(
+              time != null ? _formatTime(time) : label,
+              style: TextStyle(
+                color: time != null ? Colors.black : Colors.grey,
+                fontWeight: time != null ? FontWeight.w500 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectTime(Function(TimeOfDay) onTimeSelected) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFFF97316),
+              onPrimary: Colors.white,
+              secondary: Color(0xFFFED7AA),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      onTimeSelected(picked);
+    }
   }
 
   Widget _buildTextField({

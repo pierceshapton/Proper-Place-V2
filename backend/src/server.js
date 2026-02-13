@@ -152,6 +152,11 @@ async function initializeDatabase() {
           featured BOOLEAN DEFAULT false,
           rating DECIMAL(3,2),
           review_count INTEGER DEFAULT 0,
+          place_type VARCHAR(50) DEFAULT 'private_land',
+          opening_hours VARCHAR(100),
+          kitchen_hours VARCHAR(100),
+          food_menu_description TEXT,
+          serves_food BOOLEAN DEFAULT false,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           deleted_at TIMESTAMP
@@ -287,6 +292,23 @@ async function initializeDatabase() {
         console.log('[SERVER] ✅ Migration 2 completed');
       } catch (err) {
         console.error('[SERVER] Migration 2 error:', err.message);
+      }
+
+      // Migration 3: Add pub-specific fields to places table (for existing databases)
+      const migration3 = `
+        ALTER TABLE places ADD COLUMN IF NOT EXISTS place_type VARCHAR(50) DEFAULT 'private_land';
+        ALTER TABLE places ADD COLUMN IF NOT EXISTS opening_hours VARCHAR(100);
+        ALTER TABLE places ADD COLUMN IF NOT EXISTS kitchen_hours VARCHAR(100);
+        ALTER TABLE places ADD COLUMN IF NOT EXISTS food_menu_description TEXT;
+        ALTER TABLE places ADD COLUMN IF NOT EXISTS serves_food BOOLEAN DEFAULT false;
+      `;
+
+      try {
+        console.log('[SERVER] Running migration 3: pub fields...');
+        await db.query(migration3);
+        console.log('[SERVER] ✅ Migration 3 completed');
+      } catch (err) {
+        console.error('[SERVER] Migration 3 error:', err.message);
       }
 
       console.log('[SERVER] ✅ All migrations completed');

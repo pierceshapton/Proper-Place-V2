@@ -91,8 +91,9 @@ async function createPlace(req, res, next) {
     const result = await db.query(
       `INSERT INTO places (owner_id, name, description, address, city, country,
                            postal_code, latitude, longitude, price_per_night,
-                           capacity, amenities)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                           capacity, amenities, place_type, opening_hours, 
+                           kitchen_hours, food_menu_description, serves_food)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         userId,
@@ -107,6 +108,11 @@ async function createPlace(req, res, next) {
         data.price_per_night || null,
         data.capacity || null,
         data.amenities || null,
+        data.place_type || 'private_land',
+        data.opening_hours || null,
+        data.kitchen_hours || null,
+        data.food_menu_description || null,
+        data.serves_food || false,
       ]
     );
 
@@ -158,6 +164,7 @@ async function updatePlace(req, res, next) {
     const allowedFields = [
       'name', 'description', 'address', 'city', 'country', 'postal_code',
       'latitude', 'longitude', 'price_per_night', 'capacity', 'amenities',
+      'place_type', 'opening_hours', 'kitchen_hours', 'food_menu_description', 'serves_food',
     ];
 
     for (const field of allowedFields) {
