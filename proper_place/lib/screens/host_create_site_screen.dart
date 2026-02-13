@@ -54,7 +54,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   TimeOfDay? pubCloseTime;
   TimeOfDay? kitchenOpenTime;
   TimeOfDay? kitchenCloseTime;
-  bool servesFood = true;
 
   // Address autocomplete
   List<PlacePrediction> addressSuggestions = [];
@@ -179,7 +178,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       data['opening_hours'] = _formatTimeRange(pubOpenTime, pubCloseTime);
       data['kitchen_hours'] = _formatTimeRange(kitchenOpenTime, kitchenCloseTime);
       data['food_menu_description'] = foodMenuController.text;
-      data['serves_food'] = servesFood;
     }
 
     return data;
@@ -723,28 +721,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Food Toggle
-          Row(
-            children: [
-              const Text(
-                'Serve Food?',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF9A3412)),
-              ),
-              const Spacer(),
-              Switch(
-                value: servesFood,
-                onChanged: (value) => setState(() => servesFood = value),
-                activeColor: const Color(0xFFF97316),
-              ),
-            ],
+          // Kitchen Hours
+          const Text(
+            'Kitchen Hours',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF9A3412)),
           ),
-
-          // Kitchen Hours (only if serves food)
-          if (servesFood) ...[
-            const Text(
-              'Kitchen Hours',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF9A3412)),
-            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -798,7 +779,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 fillColor: Colors.white,
               ),
             ),
-          ],
 
           const SizedBox(height: 16),
           // Encouragement message
