@@ -4,7 +4,9 @@ import 'package:proper_place/services/chat_service.dart';
 import 'package:proper_place/widgets/swipe_action_card.dart';
 
 class ChatHostScreen extends StatefulWidget {
-  const ChatHostScreen({super.key});
+  final VoidCallback? onRefresh;
+  
+  const ChatHostScreen({super.key, this.onRefresh});
 
   @override
   State<ChatHostScreen> createState() => _ChatHostScreenState();
@@ -460,6 +462,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
             _selectedChatIndex = index;
           });
           NotificationManager().refresh();
+          widget.onRefresh?.call();
         },
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -621,6 +624,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
             _selectedChatIndex = index;
           });
           NotificationManager().refresh();
+          widget.onRefresh?.call();
         },
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),

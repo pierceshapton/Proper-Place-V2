@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class BookingsHostScreen extends StatefulWidget {
-  const BookingsHostScreen({super.key});
+  final VoidCallback? onRefresh;
+  
+  const BookingsHostScreen({super.key, this.onRefresh});
 
   @override
   State<BookingsHostScreen> createState() => _BookingsHostScreenState();
@@ -661,6 +663,8 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                   backgroundColor: Color(0xFFEF4444),
                 ),
               );
+              // Refresh notification counts after cancellation
+              widget.onRefresh?.call();
             },
             child: const Text('Cancel Booking',
                 style: TextStyle(color: Color(0xFFEF4444))),

@@ -5,7 +5,9 @@ import 'package:proper_place/screens/booking_detail_screen.dart';
 import 'package:proper_place/models/place.dart';
 
 class MyBookingsScreen extends StatefulWidget {
-  const MyBookingsScreen({Key? key}) : super(key: key);
+  final VoidCallback? onRefresh;
+  
+  const MyBookingsScreen({Key? key, this.onRefresh}) : super(key: key);
 
   @override
   State<MyBookingsScreen> createState() => _MyBookingsScreenState();
@@ -155,6 +157,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         setState(() {
           bookingsFuture = ApiService.getGuestBookings(guestId: guestId);
         });
+        
+        // Refresh notification counts
+        widget.onRefresh?.call();
         
         // Wait a brief moment for the UI to update, then ensure cancelled bookings are not shown
         await Future.delayed(const Duration(milliseconds: 500));

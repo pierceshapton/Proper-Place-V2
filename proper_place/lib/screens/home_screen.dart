@@ -524,16 +524,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           : index == 1
               ? const MyPlacesHostScreen()
               : index == 2
-                  ? const BookingsHostScreen()
+                  ? BookingsHostScreen(onRefresh: _loadNotificationCounts)
                   : index == 3
-                      ? const ChatHostScreen()
+                      ? ChatHostScreen(onRefresh: _loadNotificationCounts)
                       : const MoreHostScreen();
     } else {
       // Normal user mode (or admin/host in user mode)
       return index == 0
           ? _buildPlacesView()
           : index == 1
-              ? const MyBookingsScreen()
+              ? MyBookingsScreen(onRefresh: _loadNotificationCounts)
               : index == 2
                   ? const FavoritesScreen()
                   : const MoreUserScreen();
