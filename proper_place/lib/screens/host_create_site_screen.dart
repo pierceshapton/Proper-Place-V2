@@ -58,6 +58,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   // Address autocomplete
   List<PlacePrediction> addressSuggestions = [];
   bool showAddressSuggestions = false;
+  bool addressVerified = false; // Track if address was selected from Google Places
+  TextEditingController searchAddressController = TextEditingController(); // Separate controller for typing
   double latitude = 51.4545; // Default Bristol
   double longitude = -2.5879; // Default Bristol
   String city = 'Bristol';
@@ -199,9 +201,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
   Future<void> _submitSite() async {
     // Validate required fields
-    if (addressController.text.isEmpty) {
+    if (!addressVerified || addressController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the site address')),
+        const SnackBar(content: Text('Please select a valid address from the suggestions')),
       );
       return;
     }
@@ -283,6 +285,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     websiteController.dispose();
     businessNameController.dispose();
     foodMenuController.dispose();
+    searchAddressController.dispose();
     super.dispose();
   }
 
@@ -351,76 +354,143 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               'Site Address *',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Search and select your address from the suggestions',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
             const SizedBox(height: 8),
-            Stack(
-              children: [
-                TextField(
-                  controller: addressController,
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    hintText: 'Start typing your address...',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onChanged: (value) async {
-                    if (value.isNotEmpty) {
-                      final suggestions = await GooglePlacesService.searchPlaces(value);
-                      setState(() {
-                        addressSuggestions = suggestions;
-                        showAddressSuggestions = suggestions.isNotEmpty;
-                      });
-                    } else {
-                      setState(() {
-                        showAddressSuggestions = false;
-                      });
-                    }
-                  },
+            
+            // Selected Address Display (when verified)
+            if (addressVerified) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF22C55E)),
                 ),
-                if (showAddressSuggestions)
-                  Positioned(
-                    top: 60,
-                    left: 0,
-                    right: 0,
-                    child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        constraints: const BoxConstraints(maxHeight: 250),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: addressSuggestions.length,
-                          itemBuilder: (context, index) {
-                            final suggestion = addressSuggestions[index];
-                            return ListTile(
-                              leading: const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
-                              title: Text(suggestion.mainText, style: const TextStyle(fontWeight: FontWeight.w500)),
-                              subtitle: Text(suggestion.secondaryText, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                              onTap: () async {
-                                // Get full details
-                                final details = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
-                                if (details != null) {
-                                  setState(() {
-                                    addressController.text = details.formattedAddress;
-                                    latitude = details.latitude;
-                                    longitude = details.longitude;
-                                    city = details.city;
-                                    country = details.country;
-                                    showAddressSuggestions = false;
-                                  });
-                                }
-                              },
-                            );
-                          },
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Color(0xFF22C55E), size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Verified Address',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            addressController.text,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20, color: Color(0xFF3B82F6)),
+                      onPressed: () {
+                        setState(() {
+                          addressVerified = false;
+                          searchAddressController.text = '';
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              // Search field
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  TextField(
+                    controller: searchAddressController,
+                    decoration: InputDecoration(
+                      hintText: 'Search for your address...',
+                      prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    onChanged: (value) async {
+                      if (value.length >= 3) {
+                        final suggestions = await GooglePlacesService.searchPlaces(value);
+                        setState(() {
+                          addressSuggestions = suggestions;
+                          showAddressSuggestions = suggestions.isNotEmpty;
+                        });
+                      } else {
+                        setState(() {
+                          showAddressSuggestions = false;
+                        });
+                      }
+                    },
+                  ),
+                  if (showAddressSuggestions)
+                    Positioned(
+                      top: 56,
+                      left: 0,
+                      right: 0,
+                      child: Material(
+                        elevation: 8,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          constraints: const BoxConstraints(maxHeight: 250),
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            itemCount: addressSuggestions.length,
+                            itemBuilder: (context, index) {
+                              final suggestion = addressSuggestions[index];
+                              return ListTile(
+                                leading: const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                                title: Text(suggestion.mainText, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                subtitle: Text(suggestion.secondaryText, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                                onTap: () async {
+                                  // Get full details from Google Places
+                                  final details = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
+                                  if (details != null) {
+                                    setState(() {
+                                      addressController.text = details.formattedAddress;
+                                      latitude = details.latitude;
+                                      longitude = details.longitude;
+                                      city = details.city;
+                                      country = details.country;
+                                      addressVerified = true;
+                                      showAddressSuggestions = false;
+                                      searchAddressController.text = '';
+                                    });
+                                  }
+                                },
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: Colors.grey[500]),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Powered by Google Places for accurate location data',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   ),
-              ],
-            ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
 
             // Description Field
