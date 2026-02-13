@@ -506,9 +506,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           : index == 1
               ? const AdminHostRequestsScreen()
               : index == 2
-                  ? const AdminApprovalsScreen()
+                  ? AdminApprovalsScreen(onRefresh: _loadNotificationCounts)
                   : index == 3
-                      ? const AdminHostChatScreen()
+                      ? AdminHostChatScreen(onRefresh: _loadNotificationCounts)
                       : const AdminMoreScreen();
     }
     // Host in host mode (or admin user in host mode)

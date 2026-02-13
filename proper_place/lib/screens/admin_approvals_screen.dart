@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class AdminApprovalsScreen extends StatefulWidget {
-  const AdminApprovalsScreen({super.key});
+  final VoidCallback? onRefresh;
+  
+  const AdminApprovalsScreen({super.key, this.onRefresh});
 
   @override
   State<AdminApprovalsScreen> createState() => _AdminApprovalsScreenState();
@@ -106,6 +108,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Place approved successfully')),
               );
+              // Refresh notification counts after approval
+              widget.onRefresh?.call();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
@@ -160,6 +164,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Place rejected')),
               );
+              // Refresh notification counts after rejection
+              widget.onRefresh?.call();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,

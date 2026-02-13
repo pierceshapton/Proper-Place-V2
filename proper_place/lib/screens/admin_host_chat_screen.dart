@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:proper_place/services/chat_service.dart';
+import 'package:proper_place/services/notification_service.dart';
 import 'package:proper_place/widgets/swipe_action_card.dart';
 
 class AdminHostChatScreen extends StatefulWidget {
-  const AdminHostChatScreen({super.key});
+  final VoidCallback? onRefresh;
+  
+  const AdminHostChatScreen({super.key, this.onRefresh});
 
   @override
   State<AdminHostChatScreen> createState() => _AdminHostChatScreenState();
@@ -129,8 +132,21 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
       } else {
         _selectedChatIndex = index;
         _conversations[index]['unread'] = 0;
+        
+        // Mark messages as read and refresh notification counts
+        _markMessagesAsRead(index);
       }
     });
+  }
+  
+  Future<void> _markMessagesAsRead(int index) async {
+    try {
+      // For now with mock data, just refresh the notification counts
+      // When real API is connected, this will call the backend to mark as read
+      widget.onRefresh?.call();
+    } catch (e) {
+      debugPrint('[AdminHostChatScreen] Error marking messages as read: $e');
+    }
   }
 
   void _closeChat(int index) {
