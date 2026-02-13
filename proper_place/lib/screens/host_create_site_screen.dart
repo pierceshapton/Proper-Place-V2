@@ -380,35 +380,42 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                     top: 60,
                     left: 0,
                     right: 0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      constraints: const BoxConstraints(maxHeight: 250),
-                      child: ListView.builder(
-                        itemCount: addressSuggestions.length,
-                        itemBuilder: (context, index) {
-                          final suggestion = addressSuggestions[index];
-                          return ListTile(
-                            title: Text(suggestion.mainText),
-                            subtitle: Text(suggestion.secondaryText),
-                            onTap: () async {
-                              // Get full details
-                              final details = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
-                              if (details != null) {
-                                setState(() {
-                                  addressController.text = details.formattedAddress;
-                                  latitude = details.latitude;
-                                  longitude = details.longitude;
-                                  city = details.city;
-                                  country = details.country;
-                                  showAddressSuggestions = false;
-                                });
-                              }
-                            },
-                          );
-                        },
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        constraints: const BoxConstraints(maxHeight: 250),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: addressSuggestions.length,
+                          itemBuilder: (context, index) {
+                            final suggestion = addressSuggestions[index];
+                            return ListTile(
+                              leading: const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                              title: Text(suggestion.mainText, style: const TextStyle(fontWeight: FontWeight.w500)),
+                              subtitle: Text(suggestion.secondaryText, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                              onTap: () async {
+                                // Get full details
+                                final details = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
+                                if (details != null) {
+                                  setState(() {
+                                    addressController.text = details.formattedAddress;
+                                    latitude = details.latitude;
+                                    longitude = details.longitude;
+                                    city = details.city;
+                                    country = details.country;
+                                    showAddressSuggestions = false;
+                                  });
+                                }
+                              },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
