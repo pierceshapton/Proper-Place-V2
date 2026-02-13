@@ -336,9 +336,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // Map API counts to tab indices based on current mode
         if (userRole == 'admin' && isAdminMode) {
           // Admin mode: Dashboard (0), Requests (1), Approvals (2), Chat (3), More (4)
-          _badgeCounts[1] = counts['pendingHostApplications'] ?? 0; // Requests tab
+          _badgeCounts[1] = counts['pendingBookings'] ?? 0; // Requests tab - pending bookings
           _badgeCounts[2] = counts['pendingApprovals'] ?? 0; // Approvals tab
           _badgeCounts[3] = counts['unreadMessages'] ?? 0; // Chat tab
+          _badgeCounts[4] = counts['pendingHostApplications'] ?? 0; // More tab - host applications
         } else if (isHostMode) {
           // Host mode: Dashboard (0), Sites (1), Bookings (2), Chat (3), More (4)
           _badgeCounts[2] = counts['pendingBookings'] ?? 0; // Bookings tab
