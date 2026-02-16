@@ -373,7 +373,7 @@ async function seedTestMessages(req, res, next) {
 
 /**
  * DELETE /admin/cleanup-all
- * Delete all notifications, messages, places, and bookings (admin only)
+ * Delete all messages, bookings, reviews, and places (admin only)
  * WARNING: This is destructive and cannot be undone!
  */
 async function cleanupAllData(req, res, next) {
@@ -388,50 +388,35 @@ async function cleanupAllData(req, res, next) {
       });
     }
 
-    // Delete in order of dependencies
     console.log('[AdminController] Starting cleanup of all mock data...');
 
     const deletionResults = {};
 
-    // 1. Delete notifications (if table exists)
-    try {
-      await db.query('DELETE FROM notifications');
-      deletionResults.notifications = 'deleted';
-      console.log('[AdminController] ✅ Deleted all notifications');
-    } catch (err) {
-      if (err.message.includes('does not exist')) {
-        deletionResults.notifications = 'table_does_not_exist';
-        console.log('[AdminController] ℹ️ Notifications table does not exist');
-      } else {
-        throw err;
-      }
-    }
-
-    // 2. Delete messages
-    await db.query('DELETE FROM messages');
+    // Delete messages
+    const messagesResult = await db.query('DELETE FROM messages');
     deletionResults.messages = 'deleted';
     console.log('[AdminController] ✅ Deleted all messages');
 
-    // 3. Delete reviews
-    await db.query('DELETE FROM reviews');
+    // Delete reviews
+    const reviewsResult = await db.query('DELETE FROM reviews');
     deletionResults.reviews = 'deleted';
     console.log('[AdminController] ✅ Deleted all reviews');
 
-    // 4. Delete bookings
-    await db.query('DELETE FROM bookings');
+    // Delete bookings
+    const bookingsResult = await db.query('DELETE FROM bookings');
     deletionResults.bookings = 'deleted';
     console.log('[AdminController] ✅ Deleted all bookings');
 
-    // 5. Delete places
-    await db.query('DELETE FROM places WHERE deleted_at IS NULL');
+    // Delete places
+    const placesResult = await db.query('DELETE FROM places WHERE deleted_at IS NULL');
     deletionResults.places = 'deleted';
     console.log('[AdminController] ✅ Deleted all places');
 
-    // 6. Log the cleanup action
+    // Log the cleanup action
     await db.query(
       `INSERT INTO admin_logs (admin_id, action, entity_type, details)
        VALUES ($1, $2, $3, $4)`,
-      [adminId, 'cleanup_all_data', 'all', 'All mock notifications, messages, places, bookings deleted for fresh test data']
+      [adminId, 'cleanup_all_data', 'all', 'All mock messages, places, bookings, reviews deleted for fresh test data']
     );
 
     logger.info('All mock data cleaned up', { adminId });
@@ -443,7 +428,7 @@ async function cleanupAllData(req, res, next) {
       details: 'Messages, bookings, reviews, and places have been deleted. Ready for fresh test data.',
     });
   } catch (error) {
-    logger.error('Cleanup all data error', { error: error.message });
+    logger.error('Cleanup all data error', { error: error.message, stack: error.stack });
     next(error);
   }
 }
