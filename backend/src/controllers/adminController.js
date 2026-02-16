@@ -391,24 +391,40 @@ async function cleanupAllData(req, res, next) {
     // Delete in order of dependencies
     console.log('[AdminController] Starting cleanup of all mock data...');
 
-    // 1. Delete notifications
-    await db.query('DELETE FROM notifications');
-    console.log('[AdminController] ✅ Deleted all notifications');
+    const deletionResults = {};
+
+    // 1. Delete notifications (if table exists)
+    try {
+      await db.query('DELETE FROM notifications');
+      deletionResults.notifications = 'deleted';
+      console.log('[AdminController] ✅ Deleted all notifications');
+    } catch (err) {
+      if (err.message.includes('does not exist')) {
+        deletionResults.notifications = 'table_does_not_exist';
+        console.log('[AdminController] ℹ️ Notifications table does not exist');
+      } else {
+        throw err;
+      }
+    }
 
     // 2. Delete messages
     await db.query('DELETE FROM messages');
+    deletionResults.messages = 'deleted';
     console.log('[AdminController] ✅ Deleted all messages');
 
     // 3. Delete reviews
     await db.query('DELETE FROM reviews');
+    deletionResults.reviews = 'deleted';
     console.log('[AdminController] ✅ Deleted all reviews');
 
     // 4. Delete bookings
     await db.query('DELETE FROM bookings');
+    deletionResults.bookings = 'deleted';
     console.log('[AdminController] ✅ Deleted all bookings');
 
-    // 5. Delete places (except admin's own test places)
-    const placesResult = await db.query('DELETE FROM places WHERE deleted_at IS NULL RETURNING COUNT(*)');
+    // 5. Delete places
+    await db.query('DELETE FROM places WHERE deleted_at IS NULL');
+    deletionResults.places = 'deleted';
     console.log('[AdminController] ✅ Deleted all places');
 
     // 6. Log the cleanup action
@@ -423,7 +439,8 @@ async function cleanupAllData(req, res, next) {
     res.json({
       message: 'All mock data deleted successfully',
       status: 'cleaned',
-      details: 'Notifications, messages, reviews, bookings, and places have been deleted. Ready for fresh test data.',
+      deletions: deletionResults,
+      details: 'Messages, bookings, reviews, and places have been deleted. Ready for fresh test data.',
     });
   } catch (error) {
     logger.error('Cleanup all data error', { error: error.message });
