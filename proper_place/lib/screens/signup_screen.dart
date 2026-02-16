@@ -123,9 +123,10 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         child: Stack(
           children: [
-            Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -437,6 +438,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
+            ),
             ),
             // Back Button
             Positioned(

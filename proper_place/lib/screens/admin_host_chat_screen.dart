@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:proper_place/services/chat_service.dart';
-import 'package:proper_place/services/notification_service.dart';
-import 'package:proper_place/widgets/swipe_action_card.dart';
+import 'package:proper_place/services/storage_service.dart';
+import 'dart:async';
 
 class AdminHostChatScreen extends StatefulWidget {
   final VoidCallback? onRefresh;
@@ -13,192 +13,169 @@ class AdminHostChatScreen extends StatefulWidget {
 }
 
 class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
-  int _selectedChatIndex = -1;
+  int? _selectedPartnerId;
+  Map<String, dynamic>? _selectedConversation;
   late TextEditingController _messageController;
-  String selectedCategory = 'hosts'; // 'hosts' or 'users'
-  bool _isClosedChatsExpanded = false; // Closed conversations collapsed by default
 
-  // Sample conversations data
-  final List<Map<String, dynamic>> _conversations = [
-    {
-      'id': '1',
-      'category': 'hosts',
-      'closed': false,
-      'hostName': 'John Smith',
-      'guestName': 'Alice Johnson',
-      'hostAvatar': 'JS',
-      'guestAvatar': 'AJ',
-      'lastMessage': 'Great! I confirmed the booking for next weekend',
-      'timestamp': '2 min ago',
-      'unread': 2,
-      'messages': [
-        {
-          'sender': 'guest',
-          'text': 'Hi, is the place available for next weekend?',
-          'time': '15 min ago'
-        },
-        {
-          'sender': 'host',
-          'text': 'Yes it is! Would you like to book?',
-          'time': '14 min ago'
-        },
-        {
-          'sender': 'guest',
-          'text': 'Perfect! Can you confirm?',
-          'time': '3 min ago'
-        },
-        {
-          'sender': 'host',
-          'text': 'Great! I confirmed the booking for next weekend',
-          'time': '2 min ago'
-        },
-      ],
-      'isOpen': false,
-    },
-    {
-      'id': '2',
-      'category': 'users',
-      'closed': false,
-      'hostName': 'Sarah Johnson',
-      'guestName': 'Bob Wilson',
-      'hostAvatar': 'SJ',
-      'guestAvatar': 'BW',
-      'lastMessage': 'Check-in is at 3 PM',
-      'timestamp': '5 min ago',
-      'unread': 0,
-      'messages': [
-        {
-          'sender': 'host',
-          'text': 'Welcome! Check-in is at 3 PM',
-          'time': '5 min ago'
-        },
-        {
-          'sender': 'guest',
-          'text': 'Thanks! See you then',
-          'time': '4 min ago'
-        },
-      ],
-      'isOpen': false,
-    },
-    {
-      'id': '3',
-      'category': 'hosts',
-      'closed': false,
-      'hostName': 'Michael Chen',
-      'guestName': 'Carol Davis',
-      'hostAvatar': 'MC',
-      'guestAvatar': 'CD',
-      'lastMessage': 'Looking forward to your stay!',
-      'timestamp': '1 hour ago',
-      'unread': 0,
-      'messages': [
-        {
-          'sender': 'guest',
-          'text': 'Hi, do you have parking available?',
-          'time': '1 hour ago'
-        },
-        {
-          'sender': 'host',
-          'text': 'Yes, free parking in the garage!',
-          'time': '58 min ago'
-        },
-        {'sender': 'guest', 'text': 'Awesome, thanks!', 'time': '55 min ago'},
-        {
-          'sender': 'host',
-          'text': 'Looking forward to your stay!',
-          'time': '1 hour ago'
-        },
-      ],
-      'isOpen': false,
-    },
-  ];
+  List<Map<String, dynamic>> _conversations = [];
+  List<Map<String, dynamic>> _messages = [];
+  bool _isLoadingConversations = true;
+  bool _isLoadingMessages = false;
+  String? _error;
+  int? _currentUserId;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _messageController = TextEditingController();
+    _loadCurrentUser();
+    // Fetch conversations after a short delay to ensure token is loaded
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) _fetchConversations();
+    });
+    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _fetchConversations(showLoading: false);
+    });
   }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
-  void _openChat(int index) {
-    setState(() {
-      if (_selectedChatIndex == index) {
-        _selectedChatIndex = -1;
-      } else {
-        _selectedChatIndex = index;
-        _conversations[index]['unread'] = 0;
-        
-        // Mark messages as read and refresh notification counts
-        _markMessagesAsRead(index);
-      }
-    });
-  }
-  
-  Future<void> _markMessagesAsRead(int index) async {
-    try {
-      // For now with mock data, just refresh the notification counts
-      // When real API is connected, this will call the backend to mark as read
-      widget.onRefresh?.call();
-    } catch (e) {
-      debugPrint('[AdminHostChatScreen] Error marking messages as read: $e');
+  Future<void> _loadCurrentUser() async {
+    final userId = await StorageService.getUserId();
+    if (userId != null) {
+      setState(() {
+        _currentUserId = int.tryParse(userId);
+      });
     }
   }
 
-  void _closeChat(int index) {
-    setState(() {
-      _conversations[index]['closed'] = true;
-      _selectedChatIndex = -1;
-    });
-  }
-
-  void _reopenChat(int index) {
-    setState(() {
-      _conversations[index]['closed'] = false;
-    });
-  }
-
-  void _sendMessage(int chatIndex, String message) {
-    if (message.trim().isEmpty) return;
-
-    setState(() {
-      _conversations[chatIndex]['messages'].add({
-        'sender': 'admin',
-        'text': message,
-        'time': 'now',
+  Future<void> _fetchConversations({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoadingConversations = true;
+        _error = null;
       });
-      _conversations[chatIndex]['lastMessage'] = message;
-      _conversations[chatIndex]['timestamp'] = 'now';
-    });
-    _messageController.clear();
+    }
 
-    // Simulate instant reply
-    Future.delayed(const Duration(seconds: 1), () {
+    try {
+      print('[AdminChatScreen] Fetching conversations...');
+      final conversations = await ChatService().getConversations();
+      print('[AdminChatScreen] Successfully fetched ${conversations.length} conversations');
       if (mounted) {
         setState(() {
-          final replies = [
-            'Thanks for the message!',
-            'Will do!',
-            'Sounds good!',
-            'Got it, thanks!',
-            'Appreciate your help!',
-          ];
-          final randomReply =
-              replies[DateTime.now().millisecond % replies.length];
-          _conversations[chatIndex]['messages'].add({
-            'sender': 'host',
-            'text': randomReply,
-            'time': 'now',
-          });
-          _conversations[chatIndex]['lastMessage'] = randomReply;
-          _conversations[chatIndex]['timestamp'] = 'now';
+          _conversations = conversations;
+          _isLoadingConversations = false;
         });
       }
+    } catch (error) {
+      print('[AdminChatScreen] Error fetching conversations: $error');
+      if (mounted) {
+        setState(() {
+          _error = error.toString();
+          _isLoadingConversations = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchMessages(int otherUserId) async {
+    setState(() {
+      _isLoadingMessages = true;
     });
+
+    try {
+      await ChatService().markConversationAsRead(otherUserId);
+
+      final messages = await ChatService().getMessagesWithUser(otherUserId);
+      if (mounted) {
+        setState(() {
+          _messages = messages;
+          _isLoadingMessages = false;
+          for (var conv in _conversations) {
+            if (conv['partnerId'] == otherUserId) {
+              conv['unreadCount'] = 0;
+            }
+          }
+        });
+        widget.onRefresh?.call();
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isLoadingMessages = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading messages: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    if (_messageController.text.trim().isEmpty || _selectedPartnerId == null) return;
+
+    final content = _messageController.text.trim();
+    _messageController.clear();
+
+    try {
+      final sentMessage = await ChatService().sendMessage(
+        receiverId: _selectedPartnerId!,
+        content: content,
+        bookingId: _selectedConversation?['bookingId'] != null
+            ? int.tryParse(_selectedConversation!['bookingId'].toString())
+            : null,
+      );
+
+      if (mounted) {
+        setState(() {
+          _messages.add(sentMessage);
+          for (var conv in _conversations) {
+            if (conv['partnerId'] == _selectedPartnerId) {
+              conv['lastMessage'] = content;
+              conv['lastMessageAt'] = DateTime.now().toIso8601String();
+              conv['lastMessageSenderId'] = _currentUserId;
+            }
+          }
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send message: $error')),
+        );
+      }
+    }
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return '';
+    try {
+      final date = DateTime.parse(timestamp.toString()).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(date);
+
+      if (diff.inMinutes < 1) return 'now';
+      if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+      if (diff.inHours < 24) return '${diff.inHours} hour${diff.inHours > 1 ? 's' : ''} ago';
+      if (diff.inDays < 7) return '${diff.inDays} day${diff.inDays > 1 ? 's' : ''} ago';
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
   @override
@@ -232,379 +209,273 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
           ),
         ),
       ),
-      body: _selectedChatIndex == -1
+      body: _selectedPartnerId == null
           ? _buildChatList()
-          : _buildChatDetail(
-              _conversations[_selectedChatIndex], _selectedChatIndex),
+          : _buildChatDetail(),
     );
   }
 
   Widget _buildChatList() {
-    final filteredConversations = _conversations
-        .where((c) => c['category'] == selectedCategory && c['closed'] == false)
-        .toList();
-    final closedConversations = _conversations
-        .where((c) => c['category'] == selectedCategory && c['closed'] == true)
-        .toList();
-    int totalUnread = filteredConversations.fold(
-        0, (sum, c) => sum + (c['unread'] as int));
+    if (_isLoadingConversations) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // Category tabs (Host Chats vs User Chats)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  _buildCategoryTab('hosts', 'Host Chats', Icons.business),
-                  const SizedBox(width: 8),
-                  _buildCategoryTab('users', 'User Chats', Icons.person),
-                ],
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text('Failed to load conversations', style: TextStyle(color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
             ),
-          ),
-          // Active Chats Section
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.chat_bubble,
-                      size: 20,
-                      color: Color(0xFF3B82F6),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Active Chats (${filteredConversations.length})',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (totalUnread > 0) ...[
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '$totalUnread new',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Conversation List
-                if (filteredConversations.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(40),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No active conversations',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: filteredConversations.length,
-                    itemBuilder: (context, index) {
-                      final conv = filteredConversations[index];
-                      final originalIndex = _conversations.indexOf(conv);
-                      return _buildConversationCard(conv, originalIndex);
-                    },
-                  ),
-              ],
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _fetchConversations(),
+              child: const Text('Retry'),
             ),
-          ),
-          // Closed Chats Section
-          if (closedConversations.isNotEmpty)
+          ],
+        ),
+      );
+    }
+
+    int totalUnread = _conversations.fold(0, (sum, c) => sum + ((c['unreadCount'] ?? 0) as int));
+
+    return RefreshIndicator(
+      onRefresh: () => _fetchConversations(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isClosedChatsExpanded = !_isClosedChatsExpanded;
-                      });
-                    },
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.lock_outline,
-                          size: 20,
-                          color: Colors.grey[600],
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.chat_bubble,
+                        size: 20,
+                        color: Color(0xFF3B82F6),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'All Chats (${_conversations.length})',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Closed Chats (${closedConversations.length})',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                      ),
+                      if (totalUnread > 0) ...[
                         const Spacer(),
-                        Transform.rotate(
-                          angle: _isClosedChatsExpanded ? 1.5708 : 0, // 90 degrees when expanded
-                          child: Icon(
-                            Icons.chevron_right,
-                            color: Colors.grey[600],
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$totalUnread new',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
-                  if (_isClosedChatsExpanded) ...[
-                    const SizedBox(height: 16),
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: closedConversations.length,
-                      itemBuilder: (context, index) {
-                        final conv = closedConversations[index];
-                        final originalIndex = _conversations.indexOf(conv);
-                        return _buildConversationCard(conv, originalIndex, isClosed: true);
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConversationCard(Map<String, dynamic> conversation, int index, {bool isClosed = false}) {
-    final unread = conversation['unread'] as int;
-    final conversationId = conversation['id'].toString();
-
-    return SwipeActionCard(
-      conversationId: conversationId,
-      onMarkUnread: () async {
-        try {
-          await ChatService().markContactAsUnread(conversationId);
-          setState(() {
-            conversation['unread'] = 1;
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Marked as unread')),
-            );
-          }
-        } catch (error) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $error')),
-            );
-          }
-        }
-      },
-      onDelete: () async {
-        try {
-          await ChatService().deleteContact(conversationId);
-          setState(() {
-            _conversations.removeWhere((c) => int.tryParse(c['id'].toString()) == conversationId);
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Conversation deleted')),
-            );
-          }
-        } catch (error) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $error')),
-            );
-          }
-        }
-      },
-      child: GestureDetector(
-        onTap: isClosed ? null : () => _openChat(index),
-        child: Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          color: isClosed ? Colors.grey[100] : Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                // Avatars
-                Stack(
-                  children: [
+                  const SizedBox(height: 16),
+                  if (_conversations.isEmpty)
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(40),
                       decoration: BoxDecoration(
-                        color: isClosed ? Colors.grey[400] : const Color(0xFF3B82F6),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        conversation['hostAvatar'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    if (!isClosed)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                // Chat Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: Text(
-                              '${conversation['hostName']} & ${conversation['guestName']}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                color: isClosed ? Colors.grey[600] : Colors.black,
-                                decoration: isClosed ? TextDecoration.lineThrough : null,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 64,
+                            color: Colors.grey[400],
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(height: 16),
                           Text(
-                            conversation['timestamp'],
+                            'No conversations yet',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 16,
                               color: Colors.grey[600],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              conversation['lastMessage'],
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isClosed ? Colors.grey[500] : Colors.grey[700],
-                                fontWeight: (unread > 0 && !isClosed)
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          if (unread > 0 && !isClosed)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '$unread',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+                    )
+                  else
+                    ..._conversations.map((conversation) {
+                      return _buildConversationCard(conversation);
+                    }),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConversationCard(Map<String, dynamic> conversation) {
+    final partnerName = conversation['partnerName'] ?? 'Unknown';
+    final lastMessage = conversation['lastMessage'] ?? '';
+    final lastMessageAt = conversation['lastMessageAt'];
+    final unreadCount = conversation['unreadCount'] ?? 0;
+    final placeName = conversation['placeName'] ?? '';
+    final partnerId = conversation['partnerId'];
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedPartnerId = partnerId;
+          _selectedConversation = conversation;
+        });
+        _fetchMessages(partnerId);
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Center(
+                  child: Text(
+                    _getInitials(partnerName),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (isClosed)
-                  IconButton(
-                    onPressed: () => _reopenChat(index),
-                    icon: const Icon(Icons.redo, color: Colors.grey),
-                    tooltip: 'Reopen chat',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  )
-                else
-                  const Icon(
-                    Icons.chevron_right,
-                    color: Colors.grey,
-                  ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            partnerName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: Colors.black,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatTimestamp(lastMessageAt),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (placeName.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        placeName,
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            lastMessage,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[700],
+                              fontWeight: unreadCount > 0
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (unreadCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$unreadCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right,
+                color: Colors.grey,
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildChatDetail(Map<String, dynamic> conversation, int index) {
-    final messages = conversation['messages'] as List;
+  Widget _buildChatDetail() {
+    final partnerName = _selectedConversation?['partnerName'] ?? 'Unknown';
+    final placeName = _selectedConversation?['placeName'] ?? '';
 
     return Column(
       children: [
@@ -621,7 +492,14 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
           child: Row(
             children: [
               IconButton(
-                onPressed: () => _openChat(index),
+                onPressed: () {
+                  setState(() {
+                    _selectedPartnerId = null;
+                    _selectedConversation = null;
+                    _messages = [];
+                  });
+                  _fetchConversations(showLoading: false);
+                },
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
               ),
               Expanded(
@@ -629,7 +507,7 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${conversation['hostName']} & ${conversation['guestName']}',
+                      partnerName,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -638,77 +516,90 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Active now',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
+                    if (placeName.isNotEmpty)
+                      Text(
+                        placeName,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              ),
-              IconButton(
-                onPressed: () => _closeChat(index),
-                icon: const Icon(Icons.close, color: Colors.white),
-                tooltip: 'Close chat',
               ),
             ],
           ),
         ),
         // Messages
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: messages.length,
-            itemBuilder: (context, msgIndex) {
-              final msg = messages[msgIndex];
-              final isAdmin = msg['sender'] == 'admin';
-              final isHost = msg['sender'] == 'host';
+          child: _isLoadingMessages
+              ? const Center(child: CircularProgressIndicator())
+              : _messages.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey[300]),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No messages yet',
+                            style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, i) {
+                        final msg = _messages[i];
+                        final isMe = msg['sender_id'] == _currentUserId;
 
-              return Align(
-                alignment: isAdmin || isHost
-                    ? Alignment.centerRight
-                    : Alignment.centerLeft,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isAdmin || isHost
-                        ? const Color(0xFF3B82F6)
-                        : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        msg['text'],
-                        style: TextStyle(
-                          color:
-                              isAdmin || isHost ? Colors.white : Colors.black,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        msg['time'],
-                        style: TextStyle(
-                          color: isAdmin || isHost
-                              ? Colors.white70
-                              : Colors.grey[600],
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+                        return Align(
+                          alignment: isMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isMe
+                                  ? const Color(0xFF3B82F6)
+                                  : Colors.grey[200],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  msg['content'] ?? '',
+                                  style: TextStyle(
+                                    color: isMe ? Colors.white : Colors.black,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _formatTimestamp(msg['created_at']),
+                                  style: TextStyle(
+                                    color: isMe
+                                        ? Colors.white70
+                                        : Colors.grey[600],
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
         ),
         // Input
         Container(
@@ -719,65 +610,39 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
               top: BorderSide(color: Colors.grey[300]!),
             ),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  decoration: InputDecoration(
-                    hintText: 'Type a message...',
-                    hintStyle: TextStyle(color: Colors.grey[700]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Type a message...',
+                      hintStyle: TextStyle(color: Colors.grey[700]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
+                    maxLines: null,
+                    onSubmitted: (_) => _sendMessage(),
                   ),
-                  maxLines: null,
                 ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: () => _sendMessage(index, _messageController.text),
-                icon: const Icon(Icons.send, color: Color(0xFF3B82F6)),
-              ),
-            ],
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _sendMessage,
+                  icon: const Icon(Icons.send, color: Color(0xFF3B82F6)),
+                ),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
-
-  Widget _buildCategoryTab(String categoryValue, String label, IconData icon) {
-    final isSelected = selectedCategory == categoryValue;
-    return GestureDetector(
-      onTap: () => setState(() => selectedCategory = categoryValue),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF3B82F6) : Colors.grey[100],
-          border: isSelected ? null : Border.all(color: const Color(0xFFE2E8F0), width: 1),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.black),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey[700],
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
-

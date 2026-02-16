@@ -155,4 +155,142 @@ class ChatService {
       rethrow;
     }
   }
+
+  /// Fetch all conversations for the current user
+  Future<List<Map<String, dynamic>>> getConversations() async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('No auth token found');
+      }
+
+      print('[ChatService] Fetching conversations from ${AppConfig.properPlaceBackendUrl}/chat/conversations');
+      final response = await http.get(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/conversations'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      print('[ChatService] Response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final conversations = List<Map<String, dynamic>>.from(data['conversations'] ?? []);
+        print('[ChatService] Successfully fetched ${conversations.length} conversations');
+        return conversations;
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized - Token may be expired');
+      } else {
+        print('[ChatService] Error response body: ${response.body}');
+        throw Exception('Failed to fetch conversations: ${response.statusCode} - ${response.body}');
+      }
+    } catch (error) {
+      print('[ChatService] Error fetching conversations: $error');
+      rethrow;
+    }
+  }
+
+  /// Fetch all messages with a specific user
+  Future<List<Map<String, dynamic>>> getMessagesWithUser(int otherUserId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('No auth token found');
+      }
+
+      final response = await http.get(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/conversations/$otherUserId/messages'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['messages'] ?? []);
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized');
+      } else {
+        throw Exception('Failed to fetch messages: ${response.statusCode}');
+      }
+    } catch (error) {
+      print('[ChatService] Error fetching messages: $error');
+      rethrow;
+    }
+  }
+
+  /// Send a message to another user
+  Future<Map<String, dynamic>> sendMessage({
+    required int receiverId,
+    required String content,
+    int? bookingId,
+    String? attachmentUrl,
+  }) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('No auth token found');
+      }
+
+      final body = {
+        'receiverId': receiverId,
+        'content': content,
+      };
+      if (bookingId != null) body['bookingId'] = bookingId;
+      if (attachmentUrl != null) body['attachmentUrl'] = attachmentUrl;
+
+      final response = await http.post(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/messages'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return Map<String, dynamic>.from(data['message']);
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized');
+      } else {
+        throw Exception('Failed to send message: ${response.statusCode}');
+      }
+    } catch (error) {
+      print('[ChatService] Error sending message: $error');
+      rethrow;
+    }
+  }
+
+  /// Mark all messages from a user as read
+  Future<void> markConversationAsRead(int otherUserId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('No auth token found');
+      }
+
+      final response = await http.put(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/conversations/$otherUserId/read'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return;
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized');
+      } else {
+        throw Exception('Failed to mark conversation as read: ${response.statusCode}');
+      }
+    } catch (error) {
+      print('[ChatService] Error marking conversation as read: $error');
+      rethrow;
+    }
+  }
 }

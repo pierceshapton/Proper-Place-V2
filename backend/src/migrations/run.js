@@ -29,7 +29,7 @@ const pool = new Pool(poolConfig);
 async function runMigrations() {
   try {
     // Run all migration files in order
-    const migrationFiles = ['001_init.sql', '002_contacts_table.sql'];
+    const migrationFiles = ['001_init.sql', '002_contacts_table.sql', '003_clear_test_messages.sql'];
     
     for (const file of migrationFiles) {
       const migrationFile = path.join(__dirname, file);

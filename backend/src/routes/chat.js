@@ -11,7 +11,14 @@ router.delete('/contacts/:id', chatController.deleteContact);
 router.patch('/contacts/:id/unread', chatController.markContactAsUnread);
 router.patch('/contacts/:id/read', chatController.markContactAsRead);
 
+// Conversation endpoints
+router.get('/conversations', chatController.getConversations);
+router.get('/conversations/:otherUserId/messages', chatController.getMessages);
+router.put('/conversations/:otherUserId/read', chatController.markConversationAsRead);
+
 // Message operations
+router.post('/messages', chatController.sendMessage);
 router.delete('/messages/:id', chatController.deleteMessage);
+router.delete('/messages/clear-all', chatController.clearAllMessages);
 
 module.exports = router;

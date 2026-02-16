@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/widgets/google_places_address_field.dart';
 import 'package:geolocator/geolocator.dart';
 
 class HostApplicationFormScreen extends StatefulWidget {
@@ -23,68 +24,11 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
   double? _longitude;
   bool _isSubmitting = false;
   bool _isLoadingLocation = false;
-  List<String> _addressSuggestions = [];
-  bool _showAddressSuggestions = false;
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
-    _addressController.addListener(_onAddressChanged);
-  }
-
-  void _onAddressChanged() {
-    if (_addressController.text.length > 2) {
-      _generateAddressSuggestions(_addressController.text);
-    } else {
-      setState(() {
-        _showAddressSuggestions = false;
-        _addressSuggestions = [];
-      });
-    }
-  }
-
-  void _generateAddressSuggestions(String input) {
-    final suggestions = <String>{};
-    final commonLocations = [
-      'London, UK',
-      'Manchester, UK',
-      'Liverpool, UK',
-      'Birmingham, UK',
-      'Leeds, UK',
-      'Glasgow, UK',
-      'Edinburgh, UK',
-      'Bristol, UK',
-      'Cambridge, UK',
-      'Oxford, UK',
-    ];
-    
-    final lowerInput = input.toLowerCase();
-    for (var location in commonLocations) {
-      if (location.toLowerCase().contains(lowerInput)) {
-        suggestions.add(location);
-      }
-    }
-    
-    if (suggestions.isEmpty && input.isNotEmpty) {
-      suggestions.addAll([
-        '$input, UK',
-        '$input, England',
-      ]);
-    }
-    
-    setState(() {
-      _addressSuggestions = suggestions.toList().take(4).toList();
-      _showAddressSuggestions = _addressSuggestions.isNotEmpty;
-    });
-  }
-
-  void _selectAddress(String address) {
-    setState(() {
-      _addressController.text = address;
-      _showAddressSuggestions = false;
-      _addressSuggestions = [];
-    });
   }
 
   Future<void> _getCurrentLocation() async {
@@ -176,23 +120,6 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
-                const Text(
-                  'Share Your Space',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Fill out this form to apply as a host. Your application will be reviewed by our team.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 24),
 
                 // Contact Information Header
                 const Text(
@@ -372,70 +299,22 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                 const SizedBox(height: 20),
 
                 // Address
-                const Text(
-                  'Location Address',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: InputDecoration(
-                        hintText: 'Start typing city or address...',
-                        hintStyle: TextStyle(color: Colors.grey[700]),
-                        prefixIcon: const Icon(Icons.location_on),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      keyboardType: TextInputType.streetAddress,
-                      textInputAction: TextInputAction.next,
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Address is required';
-                        }
-                        if ((value?.length ?? 0) < 5) {
-                          return 'Please enter a valid address';
-                        }
-                        return null;
-                      },
-                    ),
-                    if (_showAddressSuggestions && _addressSuggestions.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: _addressSuggestions.map((suggestion) {
-                            return InkWell(
-                              onTap: () => _selectAddress(suggestion),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.location_on, size: 18, color: Colors.grey[600]),
-                                    const SizedBox(width: 8),
-                                    Expanded(child: Text(suggestion)),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                  ],
+                GooglePlacesAddressField(
+                  controller: _addressController,
+                  label: 'Location Address',
+                  hint: 'Start typing city or address...',
+                  onAddressSelected: (address, lat, lng, city, country) {
+                    setState(() {
+                      _latitude = lat;
+                      _longitude = lng;
+                    });
+                  },
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'Address is required';
+                    }
+                    return null;
+                  },
                 ),
                 if (_isLoadingLocation)
                   const Padding(

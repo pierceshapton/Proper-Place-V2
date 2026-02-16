@@ -164,6 +164,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const SizedBox.shrink(),
         title: const Text('More'),
         backgroundColor: const Color(0xFF7BA7D8),
       ),

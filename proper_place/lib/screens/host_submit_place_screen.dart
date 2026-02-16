@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:proper_place/services/api_service.dart';
+import 'package:proper_place/widgets/google_places_address_field.dart';
 import 'dart:io';
 
 class HostSubmitPlaceScreen extends StatefulWidget {
@@ -22,12 +23,10 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
 
   String? selectedPlaceType;
   File? selectedImage;
-  double? latitude;
-  double? longitude;
+  double? locationLat;
+  double? locationLng;
   bool isSubmitting = false;
   late bool isEditing;
-  List<String> addressSuggestions = [];
-  bool showAddressSuggestions = false;
 
   final List<String> placeTypes = [
     'Grassland',
@@ -44,7 +43,6 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
   void initState() {
     super.initState();
     isEditing = widget.placeToEdit != null;
-    addressController.addListener(_onAddressChanged);
 
     // Pre-fill form if editing
     if (isEditing) {
@@ -53,59 +51,6 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
     }
   }
 
-  void _onAddressChanged() {
-    if (addressController.text.length > 2) {
-      _generateAddressSuggestions(addressController.text);
-    } else {
-      setState(() {
-        showAddressSuggestions = false;
-        addressSuggestions = [];
-      });
-    }
-  }
-
-  void _generateAddressSuggestions(String input) {
-    final suggestions = <String>{};
-    final commonLocations = [
-      'London, UK',
-      'Manchester, UK',
-      'Liverpool, UK',
-      'Birmingham, UK',
-      'Leeds, UK',
-      'Glasgow, UK',
-      'Edinburgh, UK',
-      'Bristol, UK',
-      'Cambridge, UK',
-      'Oxford, UK',
-    ];
-    
-    final lowerInput = input.toLowerCase();
-    for (var location in commonLocations) {
-      if (location.toLowerCase().contains(lowerInput)) {
-        suggestions.add(location);
-      }
-    }
-    
-    if (suggestions.isEmpty && input.isNotEmpty) {
-      suggestions.addAll([
-        '$input, UK',
-        '$input, England',
-      ]);
-    }
-    
-    setState(() {
-      addressSuggestions = suggestions.toList().take(4).toList();
-      showAddressSuggestions = addressSuggestions.isNotEmpty;
-    });
-  }
-
-  void _selectAddress(String address) {
-    setState(() {
-      addressController.text = address;
-      showAddressSuggestions = false;
-      addressSuggestions = [];
-    });
-  }
 
   Future<void> _pickImage() async {
     try {
@@ -131,8 +76,8 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
       // TODO: Integrate geolocator to get current location
       // For now, set dummy coordinates
       setState(() {
-        latitude = 51.5074;
-        longitude = -0.1278;
+        locationLat = 51.5074;
+        locationLng = -0.1278;
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -153,7 +98,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
       return;
     }
 
-    if (latitude == null || longitude == null) {
+    if (locationLat == null || locationLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please set location')),
       );
@@ -166,8 +111,8 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
       final result = await ApiService.submitPlace(
         name: nameController.text.trim(),
         description: descriptionController.text.trim(),
-        locationLat: latitude!,
-        locationLng: longitude!,
+        locationLat: locationLat!,
+        locationLng: locationLng!,
         address: addressController.text.trim(),
         pricePerNight: double.parse(priceController.text),
         placeType: selectedPlaceType!,
@@ -317,70 +262,22 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
               ),
               const SizedBox(height: 16),
               // Address
-              const Text(
-                'Address',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    controller: addressController,
-                    decoration: InputDecoration(
-                      hintText: 'Start typing city or address...',
-                      hintStyle: TextStyle(color: Colors.grey[700]),
-                      prefixIcon: const Icon(Icons.location_on),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    keyboardType: TextInputType.streetAddress,
-                    textInputAction: TextInputAction.next,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter an address';
-                      }
-                      if (value.length < 5) {
-                        return 'Please enter a valid address';
-                      }
-                      return null;
-                    },
-                  ),
-                  if (showAddressSuggestions && addressSuggestions.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: addressSuggestions.map((suggestion) {
-                          return InkWell(
-                            onTap: () => _selectAddress(suggestion),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.location_on, size: 18, color: Colors.grey[600]),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Text(suggestion)),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                ],
+              GooglePlacesAddressField(
+                controller: addressController,
+                label: 'Address',
+                hint: 'Start typing city or address...',
+                onAddressSelected: (address, lat, lng, city, country) {
+                  setState(() {
+                    locationLat = lat;
+                    locationLng = lng;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter an address';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               // Location button
@@ -397,7 +294,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (latitude != null && longitude != null)
+                  if (locationLat != null && locationLng != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,

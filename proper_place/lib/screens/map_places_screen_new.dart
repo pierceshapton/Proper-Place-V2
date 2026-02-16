@@ -7,6 +7,7 @@ import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/screens/place_detail_screen.dart';
+import 'package:proper_place/widgets/google_places_address_field.dart';
 
 class MapPlacesScreen extends StatefulWidget {
   const MapPlacesScreen({Key? key}) : super(key: key);
@@ -29,9 +30,11 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       11; // Show markers only when zoomed in to level 11+
 
   // Route planning
-  final TextEditingController startController = TextEditingController();
-  final TextEditingController destinationController = TextEditingController();
   double maxTimeOffRoute = 5.0;
+  String? startAddress;
+  String? destinationAddress;
+  double? startLat, startLng;
+  double? destLat, destLng;
 
   @override
   void initState() {
@@ -494,16 +497,23 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 16,
-          ),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
+        builder: (context, setModalState) => SafeArea(
+          maintainBottomViewPadding: true,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+              left: 16,
+              right: 16,
+              top: 16,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              child: SingleChildScrollView(
+              child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
             const Text(
               'Plan Your Route',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -514,15 +524,45 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: startController,
-              decoration: InputDecoration(
-                hintText: 'e.g. London, Manchester',
-                hintStyle: TextStyle(color: Colors.grey[700]),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+            Row(
+              children: [
+                Expanded(
+                  child: GooglePlacesAddressField(
+                    onAddressSelected: (address, lat, lng, city, country) {
+                      setModalState(() {
+                        startAddress = address;
+                        startLat = lat;
+                        startLng = lng;
+                      });
+                    },
+                    label: 'Starting Location',
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () async {
+                    if (currentLocation != null) {
+                      setModalState(() {
+                        startAddress = 'My Location';
+                        startLat = currentLocation!.latitude;
+                        startLng = currentLocation!.longitude;
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5B8DEE),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.my_location,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             const Text(
@@ -530,15 +570,15 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: destinationController,
-              decoration: InputDecoration(
-                hintText: 'e.g. Edinburgh, Cardiff',
-                hintStyle: TextStyle(color: Colors.grey[700]),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+            GooglePlacesAddressField(
+              onAddressSelected: (address, lat, lng, city, country) {
+                setModalState(() {
+                  destinationAddress = address;
+                  destLat = lat;
+                  destLng = lng;
+                });
+              },
+              label: 'Destination',
             ),
             const SizedBox(height: 20),
             const Text(
@@ -612,16 +652,16 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                   ),
                 ),
                 onPressed: () {
-                  if (startController.text.isEmpty ||
-                      destinationController.text.isEmpty) {
+                  if (startAddress == null || destinationAddress == null ||
+                      startLat == null || startLng == null ||
+                      destLat == null || destLng == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Please fill in all fields'),
+                        content: Text('Please select valid addresses'),
                       ),
                     );
                     return;
                   }
-                  // Save the local value to parent state
                   setState(() {
                     maxTimeOffRoute = localMaxTimeOffRoute;
                   });
@@ -651,9 +691,12 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
               ),
             ),
           ],
+              ),
+            ),
+            ),
+        ),
         ),
       ),
-    ),
     );
   }
 
@@ -782,8 +825,6 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
 
   @override
   void dispose() {
-    startController.dispose();
-    destinationController.dispose();
     super.dispose();
   }
 }

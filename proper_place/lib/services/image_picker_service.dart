@@ -49,7 +49,10 @@ class ImagePickerService {
             onPressed: () {
               Navigator.pop(context);
             },
-            child: const Text('Cancel'),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -59,7 +62,10 @@ class ImagePickerService {
                 Navigator.pop(context, file);
               }
             },
-            child: const Text('Camera'),
+            child: const Text(
+              'Camera',
+              style: TextStyle(color: Colors.black),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -69,7 +75,10 @@ class ImagePickerService {
                 Navigator.pop(context, file);
               }
             },
-            child: const Text('Gallery'),
+            child: const Text(
+              'Gallery',
+              style: TextStyle(color: Colors.black),
+            ),
           ),
         ],
       ),

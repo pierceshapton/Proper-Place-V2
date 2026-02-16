@@ -355,6 +355,88 @@ async function initializeDatabase() {
       console.error('[SERVER] Admin user check/seeding error:', err.message);
       console.error('[SERVER] Admin error stack:', err.stack);
     }
+
+    // Seed test regular user for testing
+    try {
+      const { hashPassword } = require('./utils/hash');
+      const testUserEmail = 'testuser@properplace.com';
+      const testUserPassword = 'TestUser123!';
+      const testUserHash = await hashPassword(testUserPassword);
+      
+      const testUserCheck = await db.query(
+        'SELECT id FROM users WHERE email = $1',
+        [testUserEmail]
+      );
+      
+      if (testUserCheck.rows.length === 0) {
+        await db.query(
+          'INSERT INTO users (email, password_hash, name, role, verified) VALUES ($1, $2, $3, $4, $5)',
+          [testUserEmail, testUserHash, 'Test User', 'user', true]
+        );
+        console.log('[SERVER] ✅ Test user created:', testUserEmail);
+      }
+    } catch (err) {
+      console.error('[SERVER] Test user seeding error:', err.message);
+    }
+
+    // Seed test messages for admin chat testing
+    try {
+      console.log('[SERVER] Seeding test messages for admin chat...');
+      
+      // Get or create test host user
+      let testHostId;
+      const testHostEmail = 'testhost@properplace.com';
+      const testHostCheck = await db.query(
+        'SELECT id FROM users WHERE email = $1',
+        [testHostEmail]
+      );
+      
+      if (testHostCheck.rows.length === 0) {
+        const { hashPassword } = require('./utils/hash');
+        const testHostPassword = await hashPassword('TestHost123!');
+        const createHostResult = await db.query(
+          'INSERT INTO users (email, password_hash, name, role, verified) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+          [testHostEmail, testHostPassword, 'Test Host', 'host', true]
+        );
+        testHostId = createHostResult.rows[0].id;
+        console.log('[SERVER] Created test host user with ID:', testHostId);
+      } else {
+        testHostId = testHostCheck.rows[0].id;
+      }
+      
+      // Get admin user ID
+      const adminCheck = await db.query(
+        'SELECT id FROM users WHERE email = $1',
+        ['admin@properplace.com']
+      );
+      
+      if (adminCheck.rows.length > 0) {
+        const adminUserId = adminCheck.rows[0].id;
+        
+        // Check if test messages already exist
+        const existingMessages = await db.query(
+          `SELECT COUNT(*) FROM messages 
+           WHERE (sender_id = $1 AND receiver_id = $2) 
+              OR (sender_id = $2 AND receiver_id = $1)`,
+          [testHostId, adminUserId]
+        );
+        
+        if (parseInt(existingMessages.rows[0].count) === 0) {
+          // Insert test messages
+          await db.query(
+            `INSERT INTO messages (sender_id, receiver_id, content, read, created_at)
+             VALUES 
+               ($1, $2, 'Hi admin, when will my listing be approved?', false, NOW() - INTERVAL '2 hours'),
+               ($1, $2, 'I have some questions about pricing for my listing', false, NOW() - INTERVAL '1 hour')
+            `,
+            [testHostId, adminUserId]
+          );
+          console.log('[SERVER] ✅ Test messages seeded for admin chat');
+        }
+      }
+    } catch (err) {
+      console.error('[SERVER] Test message seeding error:', err.message);
+    }
   } catch (error) {
     console.error('[SERVER] Database initialization error:', error.message);
     console.error('[SERVER] ⚠️ Continuing anyway - tables might already exist');

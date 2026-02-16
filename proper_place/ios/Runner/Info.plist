@@ -32,6 +32,12 @@
 	<string>This app needs access to your location for location-based services</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs access to your location to show nearby camping spots on the map</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to take photos of your parking spot or van</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photo library to upload images of your parking spot</string>
+	<key>NSPhotoLibraryAddOnlyUsageDescription</key>
+	<string>This app needs permission to save photos to your library</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

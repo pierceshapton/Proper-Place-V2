@@ -124,9 +124,234 @@ async function deleteMessage(req, res, next) {
   }
 }
 
+/**
+ * GET /conversations
+ * Get all conversations for the current user with latest message and unread count
+ */
+async function getConversations(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    console.log('[ChatController] Getting conversations for userId:', userId);
+
+    const result = await db.query(
+      `WITH conversation_partners AS (
+        SELECT DISTINCT 
+          CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END as partner_id
+        FROM messages
+        WHERE sender_id = $1 OR receiver_id = $1
+      ),
+      latest_messages AS (
+        SELECT DISTINCT ON (
+          CASE WHEN m.sender_id = $1 THEN m.receiver_id ELSE m.sender_id END
+        )
+          m.id as message_id,
+          m.content,
+          m.created_at,
+          m.read,
+          m.sender_id,
+          m.receiver_id,
+          m.booking_id,
+          CASE WHEN m.sender_id = $1 THEN m.receiver_id ELSE m.sender_id END as partner_id
+        FROM messages m
+        WHERE m.sender_id = $1 OR m.receiver_id = $1
+        ORDER BY 
+          CASE WHEN m.sender_id = $1 THEN m.receiver_id ELSE m.sender_id END,
+          m.created_at DESC
+      ),
+      unread_counts AS (
+        SELECT 
+          sender_id as partner_id,
+          COUNT(*) as unread_count
+        FROM messages
+        WHERE receiver_id = $1 AND read = false
+        GROUP BY sender_id
+      )
+      SELECT 
+        lm.message_id,
+        lm.content as last_message,
+        lm.created_at as last_message_at,
+        lm.read as last_message_read,
+        lm.sender_id as last_message_sender_id,
+        lm.booking_id,
+        lm.partner_id,
+        u.id as partner_user_id,
+        u.name as partner_name,
+        u.email as partner_email,
+        u.role as partner_role,
+        COALESCE(uc.unread_count, 0) as unread_count,
+        b.id as booking_id_ref,
+        p.name as place_name
+      FROM latest_messages lm
+      JOIN users u ON u.id = lm.partner_id
+      LEFT JOIN unread_counts uc ON uc.partner_id = lm.partner_id
+      LEFT JOIN bookings b ON b.id = lm.booking_id
+      LEFT JOIN places p ON p.id = b.place_id
+      ORDER BY lm.created_at DESC`,
+      [userId]
+    );
+
+    console.log('[ChatController] Found ' + result.rows.length + ' conversations for userId:', userId);
+
+    const conversations = result.rows.map(row => ({
+      partnerId: row.partner_user_id,
+      partnerName: row.partner_name,
+      partnerEmail: row.partner_email,
+      partnerRole: row.partner_role,
+      lastMessage: row.last_message,
+      lastMessageAt: row.last_message_at,
+      lastMessageSenderId: row.last_message_sender_id,
+      lastMessageRead: row.last_message_read,
+      unreadCount: parseInt(row.unread_count),
+      bookingId: row.booking_id_ref,
+      placeName: row.place_name,
+    }));
+
+    return res.json({ conversations });
+  } catch (error) {
+    console.error('[ChatController] Error fetching conversations:', error.message);
+    console.error('[ChatController] Error details:', error);
+    logger.error('Error fetching conversations', { error: error.message });
+    return next(error);
+  }
+}
+
+/**
+ * GET /conversations/:otherUserId/messages
+ * Get all messages between current user and another user
+ */
+async function getMessages(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const otherUserId = parseInt(req.params.otherUserId);
+
+    const result = await db.query(
+      `SELECT 
+        m.id,
+        m.sender_id,
+        m.receiver_id,
+        m.content,
+        m.attachment_url,
+        m.read,
+        m.created_at,
+        m.booking_id,
+        u.name as sender_name,
+        u.email as sender_email
+      FROM messages m
+      JOIN users u ON u.id = m.sender_id
+      WHERE (m.sender_id = $1 AND m.receiver_id = $2)
+         OR (m.sender_id = $2 AND m.receiver_id = $1)
+      ORDER BY m.created_at ASC`,
+      [userId, otherUserId]
+    );
+
+    return res.json({ messages: result.rows });
+  } catch (error) {
+    logger.error('Error fetching messages', { error: error.message });
+    return next(error);
+  }
+}
+
+/**
+ * POST /messages
+ * Send a new message
+ */
+async function sendMessage(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const { receiverId, content, bookingId, attachmentUrl } = req.body;
+
+    if (!receiverId || !content) {
+      return res.status(400).json({ error: 'receiverId and content are required' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO messages (sender_id, receiver_id, content, booking_id, attachment_url, read, created_at)
+       VALUES ($1, $2, $3, $4, $5, false, NOW())
+       RETURNING *`,
+      [userId, receiverId, content, bookingId || null, attachmentUrl || null]
+    );
+
+    const message = result.rows[0];
+
+    // Get sender info
+    const senderResult = await db.query(
+      'SELECT name, email FROM users WHERE id = $1',
+      [userId]
+    );
+
+    return res.status(201).json({
+      message: {
+        ...message,
+        sender_name: senderResult.rows[0]?.name,
+        sender_email: senderResult.rows[0]?.email,
+      }
+    });
+  } catch (error) {
+    logger.error('Error sending message', { error: error.message });
+    return next(error);
+  }
+}
+
+/**
+ * PUT /conversations/:otherUserId/read
+ * Mark all messages from a user as read
+ */
+async function markConversationAsRead(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const otherUserId = parseInt(req.params.otherUserId);
+
+    const result = await db.query(
+      `UPDATE messages 
+       SET read = true
+       WHERE sender_id = $1 AND receiver_id = $2 AND read = false
+       RETURNING id`,
+      [otherUserId, userId]
+    );
+
+    logger.info('Conversation marked as read', {
+      userId,
+      otherUserId,
+      messagesMarked: result.rows.length,
+    });
+
+    return res.json({
+      message: 'Conversation marked as read',
+      messagesMarked: result.rows.length,
+    });
+  } catch (error) {
+    logger.error('Error marking conversation as read', { error: error.message });
+    return next(error);
+  }
+}
+
+/**
+ * DELETE /messages/clear-all
+ * Clear all old messages (admin only, for fresh start)
+ */
+async function clearAllMessages(req, res, next) {
+  try {
+    const result = await db.query('DELETE FROM messages RETURNING id');
+    
+    logger.info('All messages cleared', { count: result.rows.length });
+    return res.json({
+      message: 'All messages cleared',
+      deletedCount: result.rows.length,
+    });
+  } catch (error) {
+    logger.error('Error clearing messages', { error: error.message });
+    return next(error);
+  }
+}
+
 module.exports = {
   deleteContact,
   markContactAsUnread,
   markContactAsRead,
   deleteMessage,
+  getConversations,
+  getMessages,
+  sendMessage,
+  markConversationAsRead,
+  clearAllMessages,
 };
