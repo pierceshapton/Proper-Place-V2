@@ -21,4 +21,7 @@ router.patch('/users/:id/role', adminController.updateUserRole);
 // Seed test data (for demo/testing)
 router.post('/seed-test-messages', adminController.seedTestMessages);
 
+// Cleanup all mock data (WARNING: Destructive!)
+router.delete('/cleanup-all', adminController.cleanupAllData);
+
 module.exports = router;

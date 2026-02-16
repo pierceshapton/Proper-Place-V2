@@ -371,6 +371,66 @@ async function seedTestMessages(req, res, next) {
   }
 }
 
+/**
+ * DELETE /admin/cleanup-all
+ * Delete all notifications, messages, places, and bookings (admin only)
+ * WARNING: This is destructive and cannot be undone!
+ */
+async function cleanupAllData(req, res, next) {
+  try {
+    const adminId = req.user.userId;
+
+    // Verify user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        error: 'unauthorized',
+        message: 'Only admins can cleanup data',
+      });
+    }
+
+    // Delete in order of dependencies
+    console.log('[AdminController] Starting cleanup of all mock data...');
+
+    // 1. Delete notifications
+    await db.query('DELETE FROM notifications');
+    console.log('[AdminController] ✅ Deleted all notifications');
+
+    // 2. Delete messages
+    await db.query('DELETE FROM messages');
+    console.log('[AdminController] ✅ Deleted all messages');
+
+    // 3. Delete reviews
+    await db.query('DELETE FROM reviews');
+    console.log('[AdminController] ✅ Deleted all reviews');
+
+    // 4. Delete bookings
+    await db.query('DELETE FROM bookings');
+    console.log('[AdminController] ✅ Deleted all bookings');
+
+    // 5. Delete places (except admin's own test places)
+    const placesResult = await db.query('DELETE FROM places WHERE deleted_at IS NULL RETURNING COUNT(*)');
+    console.log('[AdminController] ✅ Deleted all places');
+
+    // 6. Log the cleanup action
+    await db.query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, details)
+       VALUES ($1, $2, $3, $4)`,
+      [adminId, 'cleanup_all_data', 'all', 'All mock notifications, messages, places, bookings deleted for fresh test data']
+    );
+
+    logger.info('All mock data cleaned up', { adminId });
+
+    res.json({
+      message: 'All mock data deleted successfully',
+      status: 'cleaned',
+      details: 'Notifications, messages, reviews, bookings, and places have been deleted. Ready for fresh test data.',
+    });
+  } catch (error) {
+    logger.error('Cleanup all data error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getDashboard,
   getPlacesForModeration,
@@ -379,4 +439,5 @@ module.exports = {
   getUsers,
   updateUserRole,
   seedTestMessages,
+  cleanupAllData,
 };
