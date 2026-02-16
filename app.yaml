@@ -1,0 +1,41 @@
+name: proper-place
+services:
+- name: backend
+  github:
+    repo: pierceshapton/Proper-Place-V2
+    branch: main
+    deploy_on_push: true
+  build_command: cd backend && npm install
+  run_command: cd backend && node src/server.js
+  source_dir: backend
+  http_port: 3001
+  env:
+  - key: NODE_ENV
+    value: production
+  - key: PORT
+    value: "3001"
+  - key: JWT_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: ${JWT_SECRET}
+  - key: JWT_REFRESH_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: ${JWT_REFRESH_SECRET}
+  - key: CORS_ORIGIN
+    value: https://proper-place.app
+  - key: LOG_LEVEL
+    value: info
+  - key: DATABASE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: ${db.connection_string}
+  envs:
+  - key: DATABASE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: ${db.connection_string}
+  health_check:
+    http_path: /health
+  http_port: 3001
+
+databases:
+- engine: PG
+  name: db
+  version: "15"
