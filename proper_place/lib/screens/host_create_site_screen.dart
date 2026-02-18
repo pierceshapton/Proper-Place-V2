@@ -177,8 +177,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         businessDescriptionController.text.isNotEmpty ||
         selectedFacilities.values.any((v) => v) ||
         foodMenuController.text.isNotEmpty ||
-        selectedPlaceType != null ||
-        selectedImages.isNotEmpty;
+        mainPhotoFile != null ||
+        supportingPhotos.isNotEmpty ||
+        businessPhotos.isNotEmpty;
 
     if (!hasAnyData) {
       ScaffoldMessenger.of(context).showSnackBar(
