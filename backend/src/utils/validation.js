@@ -21,7 +21,7 @@ const schemas = {
     postal_code: Joi.string().optional(),
     latitude: Joi.number().min(-90).max(90).optional(),
     longitude: Joi.number().min(-180).max(180).optional(),
-    price_per_night: Joi.number().positive().optional(),
+    price_per_night: Joi.number().min(0).optional(),
     capacity: Joi.number().positive().integer().optional(),
     amenities: Joi.array().items(Joi.string()).optional(),
     approval_status: Joi.string().valid('draft', 'pending', 'approved', 'rejected').optional(),
