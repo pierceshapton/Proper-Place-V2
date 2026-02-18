@@ -33,6 +33,7 @@ const contactsRoutes = require('./routes/contacts');
 const notificationsRoutes = require('./routes/notifications');
 const chatRoutes = require('./routes/chat');
 const uploadRoutes = require('./routes/upload');
+const configRoutes = require('./routes/config');
 
 // User controller for user endpoints
 const userController = require('./controllers/userController');
@@ -73,6 +74,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
+app.use('/config', configRoutes);
 app.use('/auth', authRoutes);
 app.use('/places', placesRoutes);
 app.use('/pubs', pubsRoutes);
@@ -294,26 +296,28 @@ async function initializeDatabase() {
         console.error('[SERVER] Migration 2 error:', err.message);
       }
 
-      // Migration 3: Add pub-specific fields to places table (for existing databases)
-      const migration3 = `
-        ALTER TABLE places ADD COLUMN IF NOT EXISTS place_type VARCHAR(50) DEFAULT 'private_land';
-        ALTER TABLE places ADD COLUMN IF NOT EXISTS opening_hours VARCHAR(100);
-        ALTER TABLE places ADD COLUMN IF NOT EXISTS kitchen_hours VARCHAR(100);
-        ALTER TABLE places ADD COLUMN IF NOT EXISTS food_menu_description TEXT;
-        ALTER TABLE places ADD COLUMN IF NOT EXISTS serves_food BOOLEAN DEFAULT false;
-      `;
-
-      try {
-        console.log('[SERVER] Running migration 3: pub fields...');
-        await db.query(migration3);
-        console.log('[SERVER] ✅ Migration 3 completed');
-      } catch (err) {
-        console.error('[SERVER] Migration 3 error:', err.message);
-      }
-
-      console.log('[SERVER] ✅ All migrations completed');
+      console.log('[SERVER] ✅ Schema creation completed');
     } else {
       console.log('[SERVER] ✅ Database schema already exists');
+    }
+
+    // Migration 3: Add pub-specific fields to places table (ALWAYS runs on startup)
+    // This uses IF NOT EXISTS so it's safe to run multiple times
+    const migration3 = `
+      ALTER TABLE places ADD COLUMN IF NOT EXISTS place_type VARCHAR(50) DEFAULT 'private_land';
+      ALTER TABLE places ADD COLUMN IF NOT EXISTS opening_hours VARCHAR(100);
+      ALTER TABLE places ADD COLUMN IF NOT EXISTS kitchen_hours VARCHAR(100);
+      ALTER TABLE places ADD COLUMN IF NOT EXISTS food_menu_description TEXT;
+      ALTER TABLE places ADD COLUMN IF NOT EXISTS serves_food BOOLEAN DEFAULT false;
+      ALTER TABLE places ADD COLUMN IF NOT EXISTS business_description TEXT;
+    `;
+
+    try {
+      console.log('[SERVER] Running migration 3: ensuring pub/place fields exist...');
+      await db.query(migration3);
+      console.log('[SERVER] ✅ Migration 3 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 3 error:', err.message);
     }
 
     // Always try to seed admin user if it doesn't exist
