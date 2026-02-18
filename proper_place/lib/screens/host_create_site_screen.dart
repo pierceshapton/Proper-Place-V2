@@ -4,6 +4,7 @@ import '../services/storage_service.dart';
 import '../services/image_picker_service.dart';
 import '../services/place_service.dart';
 import '../services/google_places_service.dart';
+import '../services/api_service.dart';
 
 class HostCreateSiteScreen extends StatefulWidget {
   final Map<String, dynamic>? siteToEdit;
@@ -21,6 +22,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   late TextEditingController websiteController;
   late TextEditingController businessNameController;
   late TextEditingController foodMenuController;
+  late TextEditingController businessDescriptionController;
 
   File? mainPhotoFile;
   List<File> supportingPhotos = [];
@@ -29,6 +31,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   double maxVehicleLength = 20.0; // Default 20ft
   bool isSavingDraft = false;
   bool isSubmitting = false;
+  
+  // Focus node for price field keyboard toolbar
+  final FocusNode _priceFocusNode = FocusNode();
 
   // Location type and pub-specific fields
   String selectedLocationType = 'private_land';
@@ -65,27 +70,10 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   String city = 'Bristol';
   String country = 'UK';
 
-  final List<String> facilities = [
-    'WiFi',
-    'Electricity Hookup',
-    'Water Supply',
-    'Waste Disposal',
-    'Parking',
-    'Lighting',
-    'Security',
-    'Restaurant/Pub',
-  ];
+  List<String> facilities = [];
+  bool facilitiesLoading = true;
 
-  Map<String, bool> selectedFacilities = {
-    'WiFi': false,
-    'Electricity Hookup': false,
-    'Water Supply': false,
-    'Waste Disposal': false,
-    'Parking': false,
-    'Lighting': false,
-    'Security': false,
-    'Restaurant/Pub': false,
-  };
+  Map<String, bool> selectedFacilities = {};
 
   @override
   void initState() {
@@ -96,11 +84,49 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     websiteController = TextEditingController();
     businessNameController = TextEditingController();
     foodMenuController = TextEditingController();
+    businessDescriptionController = TextEditingController();
+    
+    _priceFocusNode.addListener(_onPriceFocusChange);
 
     if (widget.siteToEdit != null) {
       _loadExistingSite();
     } else {
       _loadDraft();
+    }
+    
+    _fetchFacilities();
+  }
+
+  Future<void> _fetchFacilities() async {
+    try {
+      final response = await ApiService.getFacilities();
+      if (mounted) {
+        setState(() {
+          facilities = response;
+          selectedFacilities = {
+            for (var facility in facilities) facility: false
+          };
+          facilitiesLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching facilities: $e');
+      // Fallback to defaults if API fails
+      setState(() {
+        facilities = [
+          'WiFi',
+          'Electricity Hookup',
+          'Drinking water fill up point',
+          'Chemical toilet disposal point',
+          'Grey water disposal point',
+          'Waste recycling point',
+          'Restaurant/Pub',
+        ];
+        selectedFacilities = {
+          for (var facility in facilities) facility: false
+        };
+        facilitiesLoading = false;
+      });
     }
   }
 
@@ -112,6 +138,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       priceController.text = site['price_per_night']?.toString() ?? '';
       websiteController.text = site['website_url'] ?? '';
       businessNameController.text = site['business_name'] ?? '';
+      businessDescriptionController.text = site['business_description'] ?? '';
       maxVehicleLength = (site['max_vehicle_length'] ?? 20).toDouble();
 
       if (site['selected_facilities'] != null) {
@@ -141,13 +168,39 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   }
 
   Future<void> _saveDraft() async {
+    // Check if at least one field has been filled
+    final hasAnyData = businessNameController.text.isNotEmpty ||
+        addressController.text.isNotEmpty ||
+        descriptionController.text.isNotEmpty ||
+        priceController.text.isNotEmpty ||
+        businessDescriptionController.text.isNotEmpty ||
+        selectedFacilities.values.any((v) => v) ||
+        foodMenuController.text.isNotEmpty;
+
+    if (!hasAnyData) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in at least one field to save draft')),
+      );
+      return;
+    }
+
     setState(() => isSavingDraft = true);
     try {
-      await StorageService.saveString('site_draft', _buildSiteData().toString());
+      final siteData = _buildDraftData();
+      siteData['approval_status'] = 'draft';
+
+      // Create place as draft on backend
+      await PlaceService.createPlace(siteData);
+      
+      // Clear local draft storage
+      await StorageService.removeString('site_draft');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Draft saved successfully')),
         );
+        // Return to sites tab with refresh flag
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -156,8 +209,41 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         );
       }
     } finally {
-      setState(() => isSavingDraft = false);
+      if (mounted) {
+        setState(() => isSavingDraft = false);
+      }
     }
+  }
+
+  // Build draft data with defaults for required fields
+  Map<String, dynamic> _buildDraftData() {
+    final data = {
+      'name': businessNameController.text.isNotEmpty ? businessNameController.text : 'Untitled Draft',
+      'address': addressController.text.isNotEmpty ? addressController.text : 'Address pending',
+      'description': descriptionController.text,
+      'price_per_night': double.tryParse(priceController.text) ?? 0,
+      'city': city.isNotEmpty ? city : 'Unknown',
+      'country': country.isNotEmpty ? country : 'UK',
+      'latitude': latitude != 0 ? latitude : 51.5074, // Default to London
+      'longitude': longitude != 0 ? longitude : -0.1278,
+      'capacity': maxVehicleLength.toInt(),
+      'amenities': selectedFacilities.entries.where((e) => e.value).map((e) => e.key).toList(),
+      'place_type': selectedLocationType,
+    };
+
+    // Add pub-specific data if location type is pub
+    if (selectedLocationType == 'pub') {
+      data['opening_hours'] = _formatTimeRange(pubOpenTime, pubCloseTime);
+      data['kitchen_hours'] = _formatTimeRange(kitchenOpenTime, kitchenCloseTime);
+      data['food_menu_description'] = foodMenuController.text;
+    }
+
+    // Add business description if provided
+    if (businessDescriptionController.text.isNotEmpty) {
+      data['business_description'] = businessDescriptionController.text;
+    }
+
+    return data;
   }
 
   Map<String, dynamic> _buildSiteData() {
@@ -182,6 +268,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       data['food_menu_description'] = foodMenuController.text;
     }
 
+    // Add business description if provided
+    if (businessDescriptionController.text.isNotEmpty) {
+      data['business_description'] = businessDescriptionController.text;
+    }
+
     return data;
   }
 
@@ -197,6 +288,26 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     final minute = time.minute.toString().padLeft(2, '0');
     final period = time.period == DayPeriod.am ? 'AM' : 'PM';
     return '$hour:$minute $period';
+  }
+
+  void _openAddressSearch() async {
+    final result = await showModalBottomSheet<PlaceDetails>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _AddressSearchBottomSheet(),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        addressController.text = result.formattedAddress;
+        latitude = result.latitude;
+        longitude = result.longitude;
+        city = result.city;
+        country = result.country;
+        addressVerified = true;
+      });
+    }
   }
 
   Future<void> _submitSite() async {
@@ -241,6 +352,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
     try {
       final siteData = _buildSiteData();
+      siteData['approval_status'] = 'pending';
 
       // Create place first
       final createdPlace = await PlaceService.createPlace(siteData);
@@ -277,21 +389,32 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     }
   }
 
+  void _onPriceFocusChange() {
+    setState(() {});  // Trigger rebuild when focus changes
+  }
+
   @override
   void dispose() {
+    _priceFocusNode.removeListener(_onPriceFocusChange);
     addressController.dispose();
     descriptionController.dispose();
     priceController.dispose();
     websiteController.dispose();
     businessNameController.dispose();
     foodMenuController.dispose();
+    businessDescriptionController.dispose();
     searchAddressController.dispose();
+    _priceFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final showToolbar = _priceFocusNode.hasFocus && keyboardHeight > 0;
+    
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -304,11 +427,21 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
           style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: Stack(
+        children: [
+          GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: showToolbar ? keyboardHeight + 60 : 100,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             // Main Photo Section
             _buildPhotoSection(
               title: 'Main Site Photo',
@@ -356,7 +489,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Search and select your address from the suggestions',
+              'Tap to search and select your address',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
             const SizedBox(height: 8),
@@ -392,92 +525,33 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit, size: 20, color: Color(0xFF3B82F6)),
-                      onPressed: () {
-                        setState(() {
-                          addressVerified = false;
-                          searchAddressController.text = '';
-                        });
-                      },
+                      onPressed: () => _openAddressSearch(),
                     ),
                   ],
                 ),
               ),
             ] else ...[
-              // Search field
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  TextField(
-                    controller: searchAddressController,
-                    decoration: InputDecoration(
-                      hintText: 'Search for your address...',
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                    ),
-                    onChanged: (value) async {
-                      if (value.length >= 3) {
-                        final suggestions = await GooglePlacesService.searchPlaces(value);
-                        setState(() {
-                          addressSuggestions = suggestions;
-                          showAddressSuggestions = suggestions.isNotEmpty;
-                        });
-                      } else {
-                        setState(() {
-                          showAddressSuggestions = false;
-                        });
-                      }
-                    },
+              // Tap to open address search modal
+              GestureDetector(
+                onTap: () => _openAddressSearch(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
                   ),
-                  if (showAddressSuggestions)
-                    Positioned(
-                      top: 56,
-                      left: 0,
-                      right: 0,
-                      child: Material(
-                        elevation: 8,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          constraints: const BoxConstraints(maxHeight: 250),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            padding: EdgeInsets.zero,
-                            itemCount: addressSuggestions.length,
-                            itemBuilder: (context, index) {
-                              final suggestion = addressSuggestions[index];
-                              return ListTile(
-                                leading: const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
-                                title: Text(suggestion.mainText, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                subtitle: Text(suggestion.secondaryText, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                                onTap: () async {
-                                  // Get full details from Google Places
-                                  final details = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
-                                  if (details != null) {
-                                    setState(() {
-                                      addressController.text = details.formattedAddress;
-                                      latitude = details.latitude;
-                                      longitude = details.longitude;
-                                      city = details.city;
-                                      country = details.country;
-                                      addressVerified = true;
-                                      showAddressSuggestions = false;
-                                      searchAddressController.text = '';
-                                    });
-                                  }
-                                },
-                              );
-                            },
-                          ),
-                        ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.search, color: const Color(0xFF3B82F6)),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Tap to search for address...',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
                       ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 8),
               Row(
@@ -533,17 +607,34 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
             const SizedBox(height: 24),
 
             // Price Per Night
-            _buildTextField(
-              label: 'Price Per Night (£) *',
-              hint: 'Max £20',
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              onChanged: (value) {
-                final price = double.tryParse(value) ?? 0;
-                if (price > 20) {
-                  priceController.text = '20';
-                }
-              },
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Price Per Night (£) *',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: priceController,
+                  focusNode: _priceFocusNode,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (value) {
+                    final price = double.tryParse(value) ?? 0;
+                    if (price > 20) {
+                      priceController.text = '20';
+                    }
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Max £20',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -566,6 +657,15 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                     'Business Information',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Please add information about goods or services your business can offer to guests. Adding menus, opening times etc here can help to generate further income by driving guests to your business.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                      height: 1.4,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   _buildTextField(
                     label: 'Business Name',
@@ -577,6 +677,35 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                     label: 'Website / Contact Link',
                     hint: 'E.g., https://www.example.com',
                     controller: websiteController,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Business Description',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: businessDescriptionController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: 'E.g., We serve traditional pub food from 12pm-9pm daily. Our menu includes local ales, homemade pies, and Sunday roasts...',
+                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _buildMultiPhotoSection(
@@ -649,6 +778,46 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
             const SizedBox(height: 16),
           ],
         ),
+      ),
+          ),
+          // Keyboard toolbar - positioned directly above keyboard
+          if (showToolbar)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: keyboardHeight,
+              child: Container(
+                height: 44,
+                color: const Color(0xFFD1D5DB),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        priceController.clear();
+                        _priceFocusNode.unfocus();
+                      },
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Color(0xFF007AFF), fontSize: 17),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _priceFocusNode.unfocus(),
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(
+                          color: Color(0xFF007AFF),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -842,6 +1011,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
             TextField(
               controller: foodMenuController,
               maxLines: 3,
+              textInputAction: TextInputAction.newline,
               decoration: InputDecoration(
                 hintText: 'E.g., Traditional pub food, Sunday roasts, local ales, vegetarian options...',
                 border: OutlineInputBorder(
@@ -854,6 +1024,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 ),
                 filled: true,
                 fillColor: Colors.white,
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.check_circle, color: Color(0xFF22C55E)),
+                  onPressed: () => FocusScope.of(context).unfocus(),
+                  tooltip: 'Done',
+                ),
               ),
             ),
 
@@ -927,6 +1102,12 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               primary: Color(0xFFF97316),
               onPrimary: Colors.white,
               secondary: Color(0xFFFED7AA),
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
             ),
           ),
           child: child!,
@@ -1137,32 +1318,42 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: selectedFacilities.keys.map((facility) {
-            return FilterChip(
-              label: Text(facility),
-              selected: selectedFacilities[facility]!,
-              onSelected: (bool selected) {
-                setState(() {
-                  selectedFacilities[facility] = selected;
-                });
-              },
-              backgroundColor: Colors.white,
-              selectedColor: const Color(0xFF3B82F6),
-              side: BorderSide(
-                color: selectedFacilities[facility]!
-                    ? const Color(0xFF3B82F6)
-                    : const Color(0xFFE2E8F0),
-              ),
-              labelStyle: TextStyle(
-                color: selectedFacilities[facility]! ? Colors.white : Colors.black,
-                fontWeight: FontWeight.w500,
-              ),
-            );
-          }).toList(),
-        ),
+        if (facilitiesLoading)
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: selectedFacilities.keys.map((facility) {
+              return FilterChip(
+                label: Text(facility),
+                selected: selectedFacilities[facility]!,
+                onSelected: (bool selected) {
+                  setState(() {
+                    selectedFacilities[facility] = selected;
+                  });
+                },
+                backgroundColor: Colors.white,
+                selectedColor: const Color(0xFF3B82F6),
+                side: BorderSide(
+                  color: selectedFacilities[facility]!
+                      ? const Color(0xFF3B82F6)
+                      : const Color(0xFFE2E8F0),
+                ),
+                labelStyle: TextStyle(
+                  color: selectedFacilities[facility]! ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.w500,
+                ),
+              );
+            }).toList(),
+          ),
       ],
     );
   }
@@ -1172,5 +1363,185 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     if (file != null) {
       onFilePicked(file);
     }
+  }
+}
+// Address search bottom sheet widget
+class _AddressSearchBottomSheet extends StatefulWidget {
+  @override
+  State<_AddressSearchBottomSheet> createState() => _AddressSearchBottomSheetState();
+}
+
+class _AddressSearchBottomSheetState extends State<_AddressSearchBottomSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  List<PlacePrediction> _suggestions = [];
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) async {
+    if (value.length >= 3) {
+      setState(() => _isLoading = true);
+      final suggestions = await GooglePlacesService.searchPlaces(value);
+      if (mounted) {
+        setState(() {
+          _suggestions = suggestions;
+          _isLoading = false;
+        });
+      }
+    } else {
+      setState(() {
+        _suggestions = [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _selectSuggestion(PlacePrediction suggestion) async {
+    setState(() => _isLoading = true);
+    final details = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
+    if (details != null && mounted) {
+      Navigator.of(context).pop(details);
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+    // When keyboard is open, use remaining space; otherwise use 75% of screen
+    final containerHeight = keyboardHeight > 0 
+        ? screenHeight - keyboardHeight 
+        : screenHeight * 0.75;
+    
+    return Container(
+      height: containerHeight,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Search Address',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          
+          // Search field
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Enter postcode or address...',
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _suggestions = []);
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              onChanged: _onSearchChanged,
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Loading indicator
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          
+          // Results list
+          Expanded(
+            child: _suggestions.isEmpty && !_isLoading
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search, size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchController.text.isEmpty
+                              ? 'Start typing to search'
+                              : 'No results found',
+                          style: const TextStyle(color: Colors.black54, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.only(bottom: 16, top: 8),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: _suggestions.length,
+                    itemBuilder: (context, index) {
+                      final suggestion = _suggestions[index];
+                      return ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFEFF6FF),
+                          child: Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                        ),
+                        title: Text(
+                          suggestion.mainText,
+                          style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          suggestion.secondaryText,
+                          style: const TextStyle(color: Colors.black87, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () => _selectSuggestion(suggestion),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }
