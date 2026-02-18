@@ -220,8 +220,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     final data = {
       'name': businessNameController.text.isNotEmpty ? businessNameController.text : 'Untitled Draft',
       'address': addressController.text.isNotEmpty ? addressController.text : 'Address pending',
-      'description': descriptionController.text,
-      'price_per_night': double.tryParse(priceController.text) ?? 0,
+      'description': descriptionController.text.isNotEmpty ? descriptionController.text : 'Draft - description pending',
+      'price_per_night': (double.tryParse(priceController.text) ?? 0) > 0 ? double.tryParse(priceController.text) : 1,
       'city': city.isNotEmpty ? city : 'Unknown',
       'country': country.isNotEmpty ? country : 'UK',
       'latitude': latitude != 0 ? latitude : 51.5074, // Default to London
