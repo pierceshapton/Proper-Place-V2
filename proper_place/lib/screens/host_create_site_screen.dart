@@ -133,15 +133,44 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   Future<void> _loadExistingSite() async {
     final site = widget.siteToEdit!;
     setState(() {
+      // Map backend field names to form fields
       addressController.text = site['address'] ?? '';
       descriptionController.text = site['description'] ?? '';
       priceController.text = site['price_per_night']?.toString() ?? '';
-      websiteController.text = site['website_url'] ?? '';
-      businessNameController.text = site['business_name'] ?? '';
+      websiteController.text = site['website_url'] ?? site['website'] ?? '';
+      businessNameController.text = site['name'] ?? site['business_name'] ?? '';
       businessDescriptionController.text = site['business_description'] ?? '';
-      maxVehicleLength = (site['max_vehicle_length'] ?? 20).toDouble();
+      foodMenuController.text = site['food_menu_description'] ?? '';
+      maxVehicleLength = (site['capacity'] ?? site['max_vehicle_length'] ?? 20).toDouble();
+      
+      // Load location data
+      city = site['city'] ?? '';
+      country = site['country'] ?? '';
+      latitude = (site['latitude'] ?? 0).toDouble();
+      longitude = (site['longitude'] ?? 0).toDouble();
+      
+      // Load place type
+      if (site['place_type'] != null) {
+        selectedLocationType = site['place_type'];
+      }
+      
+      // Load pub-specific fields
+      if (site['opening_hours'] != null) {
+        // Parse opening hours if needed
+      }
+      if (site['kitchen_hours'] != null) {
+        // Parse kitchen hours if needed
+      }
 
-      if (site['selected_facilities'] != null) {
+      // Load amenities/facilities
+      if (site['amenities'] != null) {
+        final facilitiesList = List<String>.from(site['amenities']);
+        for (var facility in facilitiesList) {
+          if (selectedFacilities.containsKey(facility)) {
+            selectedFacilities[facility] = true;
+          }
+        }
+      } else if (site['selected_facilities'] != null) {
         final facilitiesList = List<String>.from(site['selected_facilities']);
         for (var facility in facilitiesList) {
           if (selectedFacilities.containsKey(facility)) {
@@ -193,8 +222,16 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       final siteData = _buildDraftData();
       siteData['approval_status'] = 'draft';
 
-      // Create place as draft on backend
-      await PlaceService.createPlace(siteData);
+      final isEditing = widget.siteToEdit != null;
+      
+      if (isEditing) {
+        // Update existing draft
+        final placeId = widget.siteToEdit!['id'];
+        await PlaceService.updatePlace(placeId, siteData);
+      } else {
+        // Create new draft
+        await PlaceService.createPlace(siteData);
+      }
       
       // Clear local draft storage
       await StorageService.removeString('site_draft');
@@ -316,11 +353,17 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
   Future<void> _submitSite() async {
     // Validate required fields
-    if (!addressVerified || addressController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a valid address from the suggestions')),
-      );
-      return;
+    // Allow bypassing address verification if editing and address hasn't changed
+    final isEditing = widget.siteToEdit != null;
+    final addressUnchanged = isEditing && addressController.text == widget.siteToEdit!['address'];
+    
+    if (!addressVerified && !addressUnchanged) {
+      if (addressController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a valid address from the suggestions')),
+        );
+        return;
+      }
     }
 
     if (descriptionController.text.isEmpty) {
@@ -358,9 +401,17 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       final siteData = _buildSiteData();
       siteData['approval_status'] = 'pending';
 
-      // Create place first
-      final createdPlace = await PlaceService.createPlace(siteData);
-      final placeId = createdPlace['place']?['id'] ?? createdPlace['id'];
+      int placeId;
+      
+      if (isEditing) {
+        // Update existing place
+        placeId = widget.siteToEdit!['id'];
+        await PlaceService.updatePlace(placeId, siteData);
+      } else {
+        // Create new place
+        final createdPlace = await PlaceService.createPlace(siteData);
+        placeId = createdPlace['place']?['id'] ?? createdPlace['id'];
+      }
 
       // Collect all photos to upload
       final allPhotos = <File>[];
@@ -378,7 +429,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Site submitted successfully! 🎉')),
+          SnackBar(content: Text(isEditing ? 'Site updated successfully! 🎉' : 'Site submitted successfully! 🎉')),
         );
         Navigator.pop(context, true); // Return true to refresh parent screen
       }

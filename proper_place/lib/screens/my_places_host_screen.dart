@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'host_create_site_screen.dart';
+import '../services/place_service.dart';
 
 class MyPlacesHostScreen extends StatefulWidget {
   const MyPlacesHostScreen({super.key});
@@ -9,27 +10,52 @@ class MyPlacesHostScreen extends StatefulWidget {
 }
 
 class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
-  // Sample data - replace with API call
-  final List<Map<String, dynamic>> hostPlaces = [
-    {
-      'id': 1,
-      'name': 'Avalon',
-      'address': 'SA3 1AE, Reynoldston, Swansea, Wales, United Kingdom',
-      'image':
-          'https://images.unsplash.com/photo-1527004760902-c2c94f08fa54?w=400&h=300&fit=crop',
-      'status': 'Approved',
-      'statusColor': const Color(0xFF10B981),
-    },
-    {
-      'id': 2,
-      'name': 'Coastal Haven',
-      'address': '123 Beach Road, Cornwell, United Kingdom',
-      'image':
-          'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
-      'status': 'Pending',
-      'statusColor': const Color(0xFFF59E0B),
-    },
-  ];
+  List<Map<String, dynamic>> hostPlaces = [];
+  bool _isLoading = true;
+
+  // Status mapping for display
+  static const Map<String, Map<String, dynamic>> _statusConfig = {
+    'draft': {'label': 'Drafting', 'color': Color(0xFF6B7280), 'icon': Icons.edit_outlined},
+    'pending': {'label': 'Pending', 'color': Color(0xFFF59E0B), 'icon': Icons.schedule},
+    'approved': {'label': 'Approved', 'color': Color(0xFF10B981), 'icon': Icons.check_circle},
+    'rejected': {'label': 'Rejected', 'color': Color(0xFFEF4444), 'icon': Icons.cancel},
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlaces();
+  }
+
+  Future<void> _loadPlaces() async {
+    try {
+      setState(() => _isLoading = true);
+      final places = await PlaceService.getHostPlaces();
+      setState(() {
+        hostPlaces = places.map<Map<String, dynamic>>((place) {
+          final status = place['approval_status'] ?? 'pending';
+          final config = _statusConfig[status] ?? _statusConfig['pending']!;
+          return {
+            'id': place['id'],
+            'name': place['name'] ?? 'Unnamed Place',
+            'address': place['address'] ?? '',
+            'image': place['images']?.isNotEmpty == true 
+                ? place['images'][0] 
+                : 'https://via.placeholder.com/400x300',
+            'status': config['label'],
+            'statusColor': config['color'],
+            'statusIcon': config['icon'],
+            'approval_status': status,
+            'rawData': place, // Keep full data for editing
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading places: $e');
+      setState(() => _isLoading = false);
+    }
+  }
 
   // Sample reviews data
   final List<Map<String, dynamic>> allReviews = [
@@ -100,13 +126,17 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const HostCreateSiteScreen(),
                     ),
                   );
+                  // Refresh list if a place was saved
+                  if (result == true) {
+                    _loadPlaces();
+                  }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -135,7 +165,9 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // Title section
@@ -489,8 +521,8 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.check_circle,
+                      Icon(
+                        place['statusIcon'] ?? Icons.check_circle,
                         size: 16,
                         color: Colors.white,
                       ),
@@ -557,12 +589,29 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/host_submit_place',
-                            arguments: place,
-                          );
+                        onPressed: () async {
+                          final approvalStatus = place['approval_status'];
+                          if (approvalStatus == 'draft' || approvalStatus == 'pending') {
+                            // Use full create/edit form for draft and pending sites
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => HostCreateSiteScreen(
+                                  siteToEdit: place['rawData'],
+                                ),
+                              ),
+                            );
+                            if (result == true) {
+                              _loadPlaces();
+                            }
+                          } else {
+                            // Use simple edit form for approved sites
+                            Navigator.pushNamed(
+                              context,
+                              '/host_submit_place',
+                              arguments: place,
+                            );
+                          }
                         },
                         icon: const Icon(Icons.edit, size: 18),
                         label: const Text('Edit'),
