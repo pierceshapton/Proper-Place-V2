@@ -1,5 +1,6 @@
 const ImageService = require('../services/imageService');
 const logger = require('../utils/logger');
+const db = require('../config/database');
 
 async function uploadImages(req, res, next) {
   try {
@@ -65,7 +66,15 @@ async function uploadPlaceImages(req, res, next) {
       processedImages.push(result.url);
     }
 
-    logger.info('Place images uploaded successfully', { placeId, count: processedImages.length });
+    // Save image URLs to the place's image_urls column
+    await db.query(
+      `UPDATE places 
+       SET image_urls = COALESCE(image_urls, ARRAY[]::TEXT[]) || $1::TEXT[]
+       WHERE id = $2`,
+      [processedImages, placeId]
+    );
+
+    logger.info('Place images uploaded and saved', { placeId, count: processedImages.length });
 
     res.json({
       success: true,

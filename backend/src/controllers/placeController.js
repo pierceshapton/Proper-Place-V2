@@ -262,7 +262,12 @@ async function getHostPlaces(req, res, next) {
     const userId = req.user.userId;
 
     const result = await db.query(
-      `SELECT * FROM places 
+      `SELECT id, owner_id, name, description, address, city, country, postal_code,
+              latitude, longitude, price_per_night, capacity, amenities,
+              image_urls as images, approval_status, featured, rating, review_count,
+              place_type, opening_hours, kitchen_hours, food_menu_description,
+              serves_food, created_at, updated_at
+       FROM places 
        WHERE owner_id = $1 AND deleted_at IS NULL
        ORDER BY created_at DESC`,
       [userId]
