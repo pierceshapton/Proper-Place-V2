@@ -356,7 +356,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
       // Create place first
       final createdPlace = await PlaceService.createPlace(siteData);
-      final placeId = createdPlace['id'];
+      final placeId = createdPlace['place']?['id'] ?? createdPlace['id'];
 
       // Collect all photos to upload
       final allPhotos = <File>[];
