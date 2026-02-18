@@ -18,20 +18,30 @@ class StorageService {
   static const String _hostApplicationStatusKey = 'host_application_status';
   static const String _hasUnreadNotificationsKey = 'has_unread_notifications';
 
+  // In-memory cache to avoid repeated disk reads
+  static String? _cachedToken;
+
   /// Save authentication token
   static Future<void> saveToken(String token) async {
-    print('[StorageService.saveToken] Saving token: ${token.substring(0, 20)}...');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
-    print('[StorageService.saveToken] Token saved successfully');
+    _cachedToken = token; // Update cache
   }
 
-  /// Load authentication token
+  /// Load authentication token (with in-memory caching)
   static Future<String?> getToken() async {
+    // Return cached token if available
+    if (_cachedToken != null) {
+      return _cachedToken;
+    }
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(_tokenKey);
-    print('[StorageService.getToken] Retrieved token: ${token?.substring(0, 20) ?? 'NULL'}...');
-    return token;
+    _cachedToken = prefs.getString(_tokenKey);
+    return _cachedToken;
+  }
+  
+  /// Clear the token cache (call on logout)
+  static void clearTokenCache() {
+    _cachedToken = null;
   }
 
   /// Save user ID
@@ -110,6 +120,7 @@ class StorageService {
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    _cachedToken = null; // Clear in-memory cache
   }
 
   /// Clear user data for logout (keeps preferences)
@@ -122,6 +133,7 @@ class StorageService {
     await prefs.remove(_userRoleKey);
     await prefs.remove(_hostModeKey);
     await prefs.remove(_adminModeKey);
+    _cachedToken = null; // Clear in-memory cache
   }
 
   /// Check if user is authenticated

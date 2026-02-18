@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:proper_place/services/api_service.dart';
+import 'package:proper_place/services/image_picker_service.dart';
 import 'package:proper_place/widgets/google_places_address_field.dart';
 import 'dart:io';
 
@@ -53,18 +53,11 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
 
 
   Future<void> _pickImage() async {
-    try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() {
-          selectedImage = File(pickedFile.path);
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+    final file = await ImagePickerService.showImagePickerOptions(context);
+    if (file != null) {
+      setState(() {
+        selectedImage = file;
+      });
     }
   }
 

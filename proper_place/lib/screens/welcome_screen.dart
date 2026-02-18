@@ -38,7 +38,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               children: [
                 // Top Section - Title and Slogan (Logo removed)
                 Padding(
-                  padding: const EdgeInsets.only(top: 50.0),
+                  padding: const EdgeInsets.only(top: 25.0),
                   child: Column(
                     children: [
                       // App Title

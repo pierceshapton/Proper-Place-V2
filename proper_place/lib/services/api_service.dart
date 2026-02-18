@@ -247,6 +247,23 @@ class ApiService {
     );
   }
 
+  /// Get available facilities from config
+  static Future<List<String>> getFacilities() async {
+    try {
+      final response = await _request(
+        method: 'GET',
+        endpoint: '/config/facilities',
+      );
+      if (response['facilities'] != null) {
+        return List<String>.from(response['facilities']);
+      }
+      return [];
+    } catch (e) {
+      print('Error fetching facilities: $e');
+      rethrow;
+    }
+  }
+
   /// Get host's places
   static Future<List<dynamic>> getHostPlaces() async {
     final response = await _request(

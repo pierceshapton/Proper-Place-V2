@@ -123,7 +123,7 @@ class MyApp extends StatelessWidget {
           ),
           labelStyle: AppTypography.bodyMedium,
           hintStyle: AppTypography.bodyMedium.copyWith(
-            color: AppColors.mediumGray,
+            color: Colors.black54,
           ),
         ),
         cardTheme: CardThemeData(

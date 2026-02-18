@@ -101,11 +101,23 @@ class PlaceDetails {
     
     for (var component in components) {
       final types = component['types'] as List? ?? [];
-      if (types.contains('locality')) {
-        city = component['long_name'] ?? '';
+      final longName = component['long_name'] ?? '';
+      
+      // Try multiple city type options in order of preference
+      if (city.isEmpty) {
+        if (types.contains('locality')) {
+          city = longName;
+        } else if (types.contains('postal_town')) {
+          city = longName;
+        } else if (types.contains('administrative_area_level_2')) {
+          city = longName;
+        } else if (types.contains('administrative_area_level_3')) {
+          city = longName;
+        }
       }
+      
       if (types.contains('country')) {
-        country = component['long_name'] ?? '';
+        country = longName;
       }
     }
 

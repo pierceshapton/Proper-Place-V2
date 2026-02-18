@@ -24,10 +24,7 @@ class GooglePlacesAddressField extends StatefulWidget {
 }
 
 class _GooglePlacesAddressFieldState extends State<GooglePlacesAddressField> {
-  late TextEditingController _searchController;
   late TextEditingController _mainController;
-  List<PlacePrediction> _suggestions = [];
-  bool _showSuggestions = false;
   bool _addressVerified = false;
   double? _latitude;
   double? _longitude;
@@ -38,16 +35,44 @@ class _GooglePlacesAddressFieldState extends State<GooglePlacesAddressField> {
   void initState() {
     super.initState();
     _mainController = widget.controller ?? TextEditingController();
-    _searchController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
     if (widget.controller == null) {
       _mainController.dispose();
     }
     super.dispose();
+  }
+
+  void _openAddressSearch() async {
+    final result = await showModalBottomSheet<PlaceDetails>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _AddressSearchSheet(),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _mainController.text = result.formattedAddress;
+        _latitude = result.latitude;
+        _longitude = result.longitude;
+        _city = result.city;
+        _country = result.country;
+        _addressVerified = true;
+      });
+
+      if (widget.onAddressSelected != null) {
+        widget.onAddressSelected!(
+          result.formattedAddress,
+          result.latitude,
+          result.longitude,
+          result.city,
+          result.country,
+        );
+      }
+    }
   }
 
   @override
@@ -61,7 +86,7 @@ class _GooglePlacesAddressFieldState extends State<GooglePlacesAddressField> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Search and select your address from the suggestions',
+          'Tap to search and select your address',
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
         const SizedBox(height: 8),
@@ -97,25 +122,20 @@ class _GooglePlacesAddressFieldState extends State<GooglePlacesAddressField> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.edit, size: 20, color: Color(0xFF3B82F6)),
-                  onPressed: () {
-                    setState(() {
-                      _addressVerified = false;
-                      _searchController.text = '';
-                    });
-                  },
+                  onPressed: _openAddressSearch,
                 ),
               ],
             ),
           ),
         ] else ...[
-          // Search field
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              TextFormField(
-                controller: _searchController,
+          // Tap to search field
+          GestureDetector(
+            onTap: _openAddressSearch,
+            child: AbsorbPointer(
+              child: TextFormField(
+                controller: TextEditingController(text: ''),
                 decoration: InputDecoration(
-                  hintText: widget.hint,
+                  hintText: widget.hint.isNotEmpty ? widget.hint : 'Tap to search for address...',
                   prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   filled: true,
@@ -124,84 +144,13 @@ class _GooglePlacesAddressFieldState extends State<GooglePlacesAddressField> {
                 validator: widget.isRequired 
                   ? (value) {
                       if (!_addressVerified) {
-                        return 'Please select a valid address from the suggestions';
+                        return 'Please select a valid address';
                       }
                       return widget.validator?.call(_mainController.text);
                     }
                   : null,
-                onChanged: (value) async {
-                  if (value.length >= 3) {
-                    final suggestions = await GooglePlacesService.searchPlaces(value);
-                    setState(() {
-                      _suggestions = suggestions;
-                      _showSuggestions = suggestions.isNotEmpty;
-                    });
-                  } else {
-                    setState(() {
-                      _showSuggestions = false;
-                    });
-                  }
-                },
               ),
-              if (_showSuggestions)
-                Positioned(
-                  top: 56,
-                  left: 0,
-                  right: 0,
-                  child: Material(
-                    elevation: 8,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      constraints: const BoxConstraints(maxHeight: 250),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        itemCount: _suggestions.length,
-                        itemBuilder: (context, index) {
-                          final suggestion = _suggestions[index];
-                          return ListTile(
-                            leading: const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
-                            title: Text(suggestion.mainText, style: const TextStyle(fontWeight: FontWeight.w500)),
-                            subtitle: Text(suggestion.secondaryText, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                            onTap: () async {
-                              // Get full details from Google Places
-                              final details = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
-                              if (details != null) {
-                                setState(() {
-                                  _mainController.text = details.formattedAddress;
-                                  _latitude = details.latitude;
-                                  _longitude = details.longitude;
-                                  _city = details.city;
-                                  _country = details.country;
-                                  _addressVerified = true;
-                                  _showSuggestions = false;
-                                  _searchController.text = '';
-                                });
-                                
-                                // Notify parent widget
-                                if (widget.onAddressSelected != null) {
-                                  widget.onAddressSelected!(
-                                    details.formattedAddress,
-                                    details.latitude,
-                                    details.longitude,
-                                    details.city,
-                                    details.country,
-                                  );
-                                }
-                              }
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -230,13 +179,188 @@ class _GooglePlacesAddressFieldState extends State<GooglePlacesAddressField> {
   void reset() {
     setState(() {
       _addressVerified = false;
-      _searchController.text = '';
       _mainController.text = '';
       _latitude = null;
       _longitude = null;
       _city = null;
       _country = null;
-      _showSuggestions = false;
     });
+  }
+}
+
+// Separate widget for the address search bottom sheet
+class _AddressSearchSheet extends StatefulWidget {
+  const _AddressSearchSheet();
+
+  @override
+  State<_AddressSearchSheet> createState() => _AddressSearchSheetState();
+}
+
+class _AddressSearchSheetState extends State<_AddressSearchSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  List<PlacePrediction> _suggestions = [];
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) async {
+    if (value.length >= 3) {
+      setState(() => _isLoading = true);
+      final suggestions = await GooglePlacesService.searchPlaces(value);
+      if (mounted) {
+        setState(() {
+          _suggestions = suggestions;
+          _isLoading = false;
+        });
+      }
+    } else {
+      setState(() {
+        _suggestions = [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _selectSuggestion(PlacePrediction suggestion) async {
+    setState(() => _isLoading = true);
+    final details = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
+    if (details != null && mounted) {
+      Navigator.of(context).pop(details);
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.5,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Search Address',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          
+          // Search field
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Enter postcode or address...',
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _suggestions = []);
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              onChanged: _onSearchChanged,
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Loading indicator
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          
+          // Results list
+          Expanded(
+            child: _suggestions.isEmpty && !_isLoading
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search, size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchController.text.isEmpty
+                              ? 'Start typing to search'
+                              : 'No results found',
+                          style: const TextStyle(color: Colors.black54, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.only(bottom: bottomPadding + 16),
+                    itemCount: _suggestions.length,
+                    itemBuilder: (context, index) {
+                      final suggestion = _suggestions[index];
+                      return ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFEFF6FF),
+                          child: Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                        ),
+                        title: Text(
+                          suggestion.mainText,
+                          style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          suggestion.secondaryText,
+                          style: const TextStyle(color: Colors.black87, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () => _selectSuggestion(suggestion),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }

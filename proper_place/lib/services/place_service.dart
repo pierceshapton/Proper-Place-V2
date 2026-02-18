@@ -46,7 +46,7 @@ class PlaceService {
       final token = await StorageService.getString('access_token');
       if (token == null) throw Exception('No authentication token found');
 
-      final response = await http.put(
+      final response = await http.patch(
         Uri.parse('$baseUrl/places/$placeId'),
         headers: {
           'Content-Type': 'application/json',

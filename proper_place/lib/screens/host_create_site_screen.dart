@@ -27,6 +27,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   File? mainPhotoFile;
   List<File> supportingPhotos = [];
   List<File> businessPhotos = [];
+  
+  // Existing image URLs from backend (when editing)
+  String? existingMainPhotoUrl;
+  List<String> existingSupportingUrls = [];
+  List<String> existingBusinessUrls = [];
 
   double maxVehicleLength = 20.0; // Default 20ft
   bool isSavingDraft = false;
@@ -178,6 +183,21 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
           }
         }
       }
+      
+      // Load existing images
+      if (site['images'] != null && site['images'] is List && (site['images'] as List).isNotEmpty) {
+        final images = List<String>.from(site['images']);
+        existingMainPhotoUrl = images.first;
+        if (images.length > 1) {
+          existingSupportingUrls = images.sublist(1);
+        }
+      } else if (site['image_urls'] != null && site['image_urls'] is List && (site['image_urls'] as List).isNotEmpty) {
+        final images = List<String>.from(site['image_urls']);
+        existingMainPhotoUrl = images.first;
+        if (images.length > 1) {
+          existingSupportingUrls = images.sublist(1);
+        }
+      }
     });
   }
 
@@ -262,7 +282,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'name': businessNameController.text.isNotEmpty ? businessNameController.text : 'Untitled Draft',
       'address': addressController.text.isNotEmpty ? addressController.text : 'Address pending',
       'description': descriptionController.text.isNotEmpty ? descriptionController.text : 'Draft - description pending',
-      'price_per_night': (double.tryParse(priceController.text) ?? 0) > 0 ? double.tryParse(priceController.text) : 1,
+      'price_per_night': double.tryParse(priceController.text) ?? 0,
       'city': city.isNotEmpty ? city : 'Unknown',
       'country': country.isNotEmpty ? country : 'UK',
       'latitude': latitude != 0 ? latitude : 51.5074, // Default to London
@@ -502,10 +522,17 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               title: 'Main Site Photo',
               subtitle: 'This will be the main image shown to guests',
               file: mainPhotoFile,
+              existingUrl: existingMainPhotoUrl,
               onAddPhoto: () => _pickPhoto((file) {
-                setState(() => mainPhotoFile = file);
+                setState(() {
+                  mainPhotoFile = file;
+                  existingMainPhotoUrl = null; // Clear URL when new file selected
+                });
               }),
-              onRemovePhoto: () => setState(() => mainPhotoFile = null),
+              onRemovePhoto: () => setState(() {
+                mainPhotoFile = null;
+                existingMainPhotoUrl = null;
+              }),
             ),
             const SizedBox(height: 24),
 
@@ -1212,9 +1239,12 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     required String title,
     required String subtitle,
     required File? file,
+    String? existingUrl,
     required VoidCallback onAddPhoto,
     required VoidCallback onRemovePhoto,
   }) {
+    final hasImage = file != null || (existingUrl != null && existingUrl.isNotEmpty);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1228,7 +1258,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
           style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
         ),
         const SizedBox(height: 12),
-        if (file == null)
+        if (!hasImage)
           GestureDetector(
             onTap: onAddPhoto,
             child: Container(
@@ -1260,7 +1290,12 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 height: 160,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  image: DecorationImage(image: FileImage(file), fit: BoxFit.cover),
+                  image: DecorationImage(
+                    image: file != null 
+                        ? FileImage(file) as ImageProvider
+                        : NetworkImage(existingUrl!) as ImageProvider,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               Positioned(

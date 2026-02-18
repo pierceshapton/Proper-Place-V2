@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:ui' as ui;
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/services/google_places_service.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/screens/place_detail_screen.dart';
 import 'package:proper_place/widgets/google_places_address_field.dart';
@@ -488,6 +489,23 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     );
   }
 
+  void _showSearchSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _MapSearchSheet(
+        onLocationSelected: (lat, lng, address) {
+          Navigator.pop(context);
+          // Zoom to level 12 - enough to see the area and show site markers (markers appear at zoom 11+)
+          mapController?.animateCamera(
+            CameraUpdate.newLatLngZoom(LatLng(lat, lng), 12),
+          );
+        },
+      ),
+    );
+  }
+
   void _showRouteForm() {
     double localMaxTimeOffRoute = maxTimeOffRoute;
     showModalBottomSheet(
@@ -759,16 +777,52 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                         ),
                       ),
                     ),
-                    // Left side - My Location icon button (under Plan Route)
+                    // Left side - Search button (below Plan Route)
                     Positioned(
-                      top: 130,
+                      top: 115,
                       left: 16,
-                      child: FloatingActionButton(
-                        mini: true,
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        onPressed: _getCurrentLocation,
-                        child: const Icon(Icons.person),
+                      child: GestureDetector(
+                        onTap: _showSearchSheet,
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.search, color: Colors.black87, size: 26),
+                        ),
+                      ),
+                    ),
+                    // Left side - My Location button (below Search)
+                    Positioned(
+                      top: 175,
+                      left: 16,
+                      child: GestureDetector(
+                        onTap: _getCurrentLocation,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.my_location, color: Colors.black87, size: 22),
+                        ),
                       ),
                     ),
                     // Top right - Map Layer buttons
@@ -826,5 +880,183 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   @override
   void dispose() {
     super.dispose();
+  }
+}
+// Search sheet widget for map location search
+class _MapSearchSheet extends StatefulWidget {
+  final Function(double lat, double lng, String address) onLocationSelected;
+  
+  const _MapSearchSheet({required this.onLocationSelected});
+
+  @override
+  State<_MapSearchSheet> createState() => _MapSearchSheetState();
+}
+
+class _MapSearchSheetState extends State<_MapSearchSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  List<PlacePrediction> _suggestions = [];
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) async {
+    if (value.length >= 3) {
+      setState(() => _isLoading = true);
+      final suggestions = await GooglePlacesService.searchPlaces(value);
+      if (mounted) {
+        setState(() {
+          _suggestions = suggestions;
+          _isLoading = false;
+        });
+      }
+    } else {
+      setState(() {
+        _suggestions = [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _selectSuggestion(PlacePrediction suggestion) async {
+    setState(() => _isLoading = true);
+    final details = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
+    if (details != null && mounted) {
+      widget.onLocationSelected(details.latitude, details.longitude, details.formattedAddress);
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.35,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.search, color: Color(0xFF3B82F6)),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Search Location',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          
+          // Search field
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Enter city, postcode or address...',
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _suggestions = []);
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              onChanged: _onSearchChanged,
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Loading indicator
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          
+          // Results list
+          Expanded(
+            child: _suggestions.isEmpty && !_isLoading
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search, size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchController.text.isEmpty
+                              ? 'Search for a location'
+                              : 'No results found',
+                          style: const TextStyle(color: Colors.black54, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.only(bottom: bottomPadding + 16),
+                    itemCount: _suggestions.length,
+                    itemBuilder: (context, index) {
+                      final suggestion = _suggestions[index];
+                      return ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFEFF6FF),
+                          child: Icon(Icons.location_on, color: Color(0xFF3B82F6)),
+                        ),
+                        title: Text(
+                          suggestion.mainText,
+                          style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          suggestion.secondaryText,
+                          style: const TextStyle(color: Colors.black87, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () => _selectSuggestion(suggestion),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }
