@@ -7,9 +7,11 @@ const router = express.Router();
 
 // Public routes
 router.get('/', optionalAuthMiddleware, placeController.getPlaces);
-router.get('/:id', optionalAuthMiddleware, placeController.getPlaceDetail);
 
-// Protected routes
+// Protected routes - must be before /:id to avoid conflict
+router.get('/host/my-places', authMiddleware, placeController.getHostPlaces);
+
+router.get('/:id', optionalAuthMiddleware, placeController.getPlaceDetail);
 router.post('/', authMiddleware, validationMiddleware('createPlace'), placeController.createPlace);
 router.patch('/:id', authMiddleware, validationMiddleware('createPlace'), placeController.updatePlace);
 router.delete('/:id', authMiddleware, placeController.deletePlace);

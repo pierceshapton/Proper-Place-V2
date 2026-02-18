@@ -92,8 +92,9 @@ async function createPlace(req, res, next) {
       `INSERT INTO places (owner_id, name, description, address, city, country,
                            postal_code, latitude, longitude, price_per_night,
                            capacity, amenities, place_type, opening_hours, 
-                           kitchen_hours, food_menu_description, serves_food)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                           kitchen_hours, food_menu_description, serves_food, 
+                           business_description, approval_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
        RETURNING *`,
       [
         userId,
@@ -113,6 +114,8 @@ async function createPlace(req, res, next) {
         data.kitchen_hours || null,
         data.food_menu_description || null,
         data.serves_food || false,
+        data.business_description || null,
+        data.approval_status || 'pending',
       ]
     );
 
@@ -164,7 +167,8 @@ async function updatePlace(req, res, next) {
     const allowedFields = [
       'name', 'description', 'address', 'city', 'country', 'postal_code',
       'latitude', 'longitude', 'price_per_night', 'capacity', 'amenities',
-      'place_type', 'opening_hours', 'kitchen_hours', 'food_menu_description', 'serves_food',
+      'place_type', 'opening_hours', 'kitchen_hours', 'food_menu_description', 
+      'serves_food', 'business_description',
     ];
 
     for (const field of allowedFields) {
@@ -249,10 +253,37 @@ async function deletePlace(req, res, next) {
   }
 }
 
+/**
+ * GET /places/host/my-places
+ * Returns all places owned by the current user (including drafts)
+ */
+async function getHostPlaces(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    const result = await db.query(
+      `SELECT * FROM places 
+       WHERE owner_id = $1 AND deleted_at IS NULL
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    logger.info('Host places fetched', { userId, count: result.rows.length });
+
+    res.json({
+      places: result.rows,
+    });
+  } catch (error) {
+    logger.error('Get host places error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getPlaces,
   getPlaceDetail,
   createPlace,
   updatePlace,
   deletePlace,
+  getHostPlaces,
 };
