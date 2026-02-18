@@ -24,6 +24,13 @@ const schemas = {
     price_per_night: Joi.number().positive().optional(),
     capacity: Joi.number().positive().integer().optional(),
     amenities: Joi.array().items(Joi.string()).optional(),
+    approval_status: Joi.string().valid('draft', 'pending', 'approved', 'rejected').optional(),
+    place_type: Joi.string().valid('private_land', 'pub', 'campsite', 'farm').optional(),
+    opening_hours: Joi.string().max(100).optional().allow(null, ''),
+    kitchen_hours: Joi.string().max(100).optional().allow(null, ''),
+    food_menu_description: Joi.string().max(2000).optional().allow(null, ''),
+    serves_food: Joi.boolean().optional(),
+    business_description: Joi.string().max(2000).optional().allow(null, ''),
   }).unknown(true),
 
   createBooking: Joi.object({
