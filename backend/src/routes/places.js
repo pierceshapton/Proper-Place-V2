@@ -16,5 +16,7 @@ router.post('/', authMiddleware, validationMiddleware('createPlace'), placeContr
 router.patch('/:id', authMiddleware, validationMiddleware('createPlace'), placeController.updatePlace);
 router.delete('/:id', authMiddleware, placeController.deletePlace);
 router.post('/:id/set-unavailable', authMiddleware, placeController.setPlaceUnavailable);
+router.post('/:id/set-available', authMiddleware, placeController.setPlaceAvailable);
+router.delete('/:id/unavailable-period/:periodId', authMiddleware, placeController.removeUnavailablePeriod);
 
 module.exports = router;

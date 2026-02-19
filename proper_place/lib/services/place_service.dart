@@ -183,13 +183,42 @@ class PlaceService {
         }),
       );
 
+      print('Set unavailable response: ${response.statusCode} - ${response.body}');
+
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Failed to set place unavailable: ${response.statusCode}');
+        throw Exception('Failed to set place unavailable: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('Error setting place unavailable: $e');
+      rethrow;
+    }
+  }
+
+  /// Restore a place from indefinite unavailability back to available
+  static Future<Map<String, dynamic>> setPlaceAvailable(int placeId) async {
+    try {
+      final token = await StorageService.getString('access_token');
+      if (token == null) throw Exception('No authentication token found');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/places/$placeId/set-available'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('Set available response: ${response.statusCode} - ${response.body}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to set place available: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Error setting place available: $e');
       rethrow;
     }
   }

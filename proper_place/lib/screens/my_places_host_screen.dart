@@ -35,11 +35,12 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
       print('DEBUG: Loaded ${places.length} places');
       setState(() {
         hostPlaces = places.map<Map<String, dynamic>>((place) {
-          final status = place['approval_status'] ?? 'pending';
-          final config = _statusConfig[status] ?? _statusConfig['pending']!;
+          final approvalStatus = place['approval_status'] ?? 'pending';
+          final availabilityStatus = place['status'] ?? 'available';
+          final config = _statusConfig[approvalStatus] ?? _statusConfig['pending']!;
           
-          // Debug: print image data
-          print('DEBUG: Place ${place['name']} - images field: ${place['images']}');
+          // Debug: print status data
+          print('DEBUG: Place ${place['name']} - approval_status: $approvalStatus, status: $availabilityStatus');
           
           // Build full image URL from relative path
           String imageUrl = 'https://via.placeholder.com/400x300';
@@ -57,15 +58,33 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
             print('DEBUG: No images found, using placeholder');
           }
           
+          // Determine display status based on both approval and availability
+          String displayStatus;
+          Color displayColor;
+          IconData displayIcon;
+          
+          if (availabilityStatus == 'unavailable') {
+            // Indefinitely unavailable - overrides approval status display
+            displayStatus = 'Unavailable';
+            displayColor = const Color(0xFF6B7280); // Gray
+            displayIcon = Icons.block;
+          } else {
+            // Use approval status
+            displayStatus = config['label'] as String;
+            displayColor = config['color'] as Color;
+            displayIcon = config['icon'] as IconData;
+          }
+          
           return {
             'id': place['id'],
             'name': place['name'] ?? 'Unnamed Place',
             'address': place['address'] ?? '',
             'image': imageUrl,
-            'status': config['label'],
-            'statusColor': config['color'],
-            'statusIcon': config['icon'],
-            'approval_status': status,
+            'status': displayStatus,
+            'statusColor': displayColor,
+            'statusIcon': displayIcon,
+            'approval_status': approvalStatus,
+            'availability_status': availabilityStatus,
             'rawData': place, // Keep full data for editing
           };
         }).toList();
@@ -649,17 +668,32 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          _showSetUnavailableDialog(context, place);
+                          final availabilityStatus = place['availability_status'] ?? 'available';
+                          if (availabilityStatus == 'unavailable') {
+                            _showSetAvailableDialog(context, place);
+                          } else {
+                            _showSetUnavailableDialog(context, place);
+                          }
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          foregroundColor: place['availability_status'] == 'unavailable' 
+                            ? const Color(0xFF10B981) // Green for "Set Available"
+                            : Colors.black,
+                          side: BorderSide(
+                            color: place['availability_status'] == 'unavailable'
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFE2E8F0),
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text('Set Unavailable'),
+                        child: Text(
+                          place['availability_status'] == 'unavailable' 
+                            ? 'Set Available' 
+                            : 'Set Unavailable',
+                        ),
                       ),
                     ),
                   ],
@@ -670,6 +704,99 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
         ],
       ),
     );
+  }
+
+  void _showSetAvailableDialog(BuildContext context, Map<String, dynamic> place) {
+    final placeName = place['name'] ?? 'Your site';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Restore Availability'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to make $placeName available again?',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF10B981), width: 1),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, color: Color(0xFF10B981), size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Your site will be visible on the map again and guests can make new bookings.',
+                        style: TextStyle(color: Color(0xFF10B981), fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _submitSetAvailable(place['id']);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Yes, Make Available'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _submitSetAvailable(int placeId) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Restoring availability...')),
+      );
+
+      final response = await PlaceService.setPlaceAvailable(placeId);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message'] ?? 'Site is now available!'),
+          duration: const Duration(seconds: 3),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+
+      // Refresh the places list
+      _loadPlaces();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
   }
 
   void _showSetUnavailableDialog(BuildContext context, Map<String, dynamic> place) {

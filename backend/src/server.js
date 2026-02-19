@@ -372,15 +372,17 @@ async function initializeDatabase() {
     }
 
     // Always run migration 9 to add status field to places table
-    const migration9 = `
-      ALTER TABLE places
-      ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'available' CHECK (status IN ('available', 'unavailable'));
-      CREATE INDEX IF NOT EXISTS idx_places_status ON places(status);
-    `;
-
     try {
       console.log('[SERVER] Running migration 9: place status field...');
-      await db.query(migration9);
+      // Add status column without CHECK constraint first (PostgreSQL limitation)
+      await db.query(`
+        ALTER TABLE places
+        ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'available'
+      `);
+      // Create index
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_places_status ON places(status)`);
+      // Update any NULL values to 'available'
+      await db.query(`UPDATE places SET status = 'available' WHERE status IS NULL`);
       console.log('[SERVER] ✅ Migration 9 completed');
     } catch (err) {
       console.error('[SERVER] Migration 9 error:', err.message);

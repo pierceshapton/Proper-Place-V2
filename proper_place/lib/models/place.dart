@@ -28,6 +28,7 @@ class Place {
   final String? hostEmail;
   final String approvalStatus;
   final String status;
+  final bool isCurrentlyUnavailable; // True if place has active unavailable period (date range)
   final int capacity;
 
   Place({
@@ -46,6 +47,7 @@ class Place {
     this.hostEmail,
     this.approvalStatus = 'approved',
     this.status = 'available',
+    this.isCurrentlyUnavailable = false,
     this.capacity = 1,
   });
 
@@ -84,6 +86,7 @@ class Place {
       hostEmail: toStringOrNull(json['host_email']),
       approvalStatus: json['approval_status'] ?? 'pending',
       status: json['status'] ?? 'available',
+      isCurrentlyUnavailable: json['is_currently_unavailable'] == true,
       capacity: json['capacity'] ?? 1,
     );
   }
@@ -105,6 +108,7 @@ class Place {
       'host_email': hostEmail,
       'approval_status': approvalStatus,
       'status': status,
+      'is_currently_unavailable': isCurrentlyUnavailable,
       'capacity': capacity,
     };
   }

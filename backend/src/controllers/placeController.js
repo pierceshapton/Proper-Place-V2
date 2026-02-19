@@ -3,39 +3,57 @@ const logger = require('../utils/logger');
 
 /**
  * GET /places
+ * Returns places that are not indefinitely unavailable.
+ * For places with date-range unavailability, includes `isCurrentlyUnavailable` flag.
  */
 async function getPlaces(req, res, next) {
   try {
     const { page = 1, limit = 20, approval_status = 'approved', search } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = 'SELECT * FROM places WHERE deleted_at IS NULL AND status = $1';
-    const params = ['available'];
-    let paramCount = 2;
+    // Get places that are NOT indefinitely unavailable (status = 'unavailable')
+    // COALESCE handles NULL status values (treats them as 'available')
+    let query = `
+      SELECT p.*, 
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 FROM unavailable_periods up 
+            WHERE up.place_id = p.id 
+              AND up.start_date <= CURRENT_DATE 
+              AND (up.end_date IS NULL OR up.end_date >= CURRENT_DATE)
+          ) THEN true 
+          ELSE false 
+        END as is_currently_unavailable
+      FROM places p 
+      WHERE p.deleted_at IS NULL 
+        AND COALESCE(p.status, 'available') = 'available'
+    `;
+    const params = [];
+    let paramCount = 1;
 
     if (approval_status) {
-      query += ` AND approval_status = $${paramCount}`;
+      query += ` AND p.approval_status = $${paramCount}`;
       params.push(approval_status);
       paramCount++;
     }
 
     if (search) {
-      query += ` AND (name ILIKE $${paramCount} OR description ILIKE $${paramCount})`;
+      query += ` AND (p.name ILIKE $${paramCount} OR p.description ILIKE $${paramCount})`;
       const searchTerm = `%${search}%`;
       params.push(searchTerm);
       paramCount++;
     }
 
-    query += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    query += ` ORDER BY p.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(limit, offset);
 
     const result = await db.query(query, params);
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) FROM places WHERE deleted_at IS NULL AND status = $1';
-    const countParams = ['available'];
+    let countQuery = `SELECT COUNT(*) FROM places WHERE deleted_at IS NULL AND COALESCE(status, 'available') = 'available'`;
+    const countParams = [];
     if (approval_status) {
-      countQuery += ` AND approval_status = $2`;
+      countQuery += ` AND approval_status = $1`;
       countParams.push(approval_status);
     }
     const countResult = await db.query(countQuery, countParams);
@@ -301,9 +319,174 @@ async function setPlaceUnavailable(req, res, next) {
     const { startDate, endDate, isIndefinite } = req.body;
     const userId = req.user.userId;
 
+    logger.info('Set place unavailable request', { placeId, userId, startDate, endDate, isIndefinite });
+
     // Verify ownership
     const ownerResult = await db.query(
-      'SELECT approval_status FROM places WHERE id = $1 AND owner_id = $2',
+      'SELECT approval_status, name FROM places WHERE id = $1 AND owner_id = $2',
+      [placeId, userId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      logger.warn('Place not found or unauthorized', { placeId, userId });
+      return res.status(404).json({ message: 'Place not found or unauthorized' });
+    }
+
+    const placeApprovalStatus = ownerResult.rows[0].approval_status;
+    const placeName = ownerResult.rows[0].name;
+    const actualEndDate = isIndefinite ? null : endDate;
+
+    // DIFFERENT BEHAVIOR based on indefinite vs date range:
+    // - Indefinite: Set status = 'unavailable' → hidden from map completely
+    // - Date range: Keep status = 'available' → still shows on map, marked as "no space available" during that period
+    
+    if (isIndefinite) {
+      // Set status to unavailable - this hides the place from the map
+      await db.query(
+        'UPDATE places SET status = $1, updated_at = NOW() WHERE id = $2',
+        ['unavailable', placeId]
+      );
+      logger.info('Place set to unavailable (indefinite)', { placeId, placeName });
+    }
+    // For date range, we DON'T change status - place stays available but has an unavailable period
+
+    // Create unavailable period record
+    const unavailableResult = await db.query(
+      `INSERT INTO unavailable_periods (place_id, start_date, end_date, reason)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, start_date, end_date`,
+      [placeId, startDate, actualEndDate, isIndefinite ? 'Host set unavailable indefinitely' : 'Host set unavailable for date range']
+    );
+
+    // If the place is approved, refund all affected bookings that haven't checked in
+    let refundedBookings = 0;
+    let totalRefunded = 0;
+    
+    if (placeApprovalStatus === 'approved') {
+      // For indefinite: cancel ALL future bookings
+      // For date range: cancel only bookings within the date range
+      let refundQuery;
+      let queryParams;
+      
+      if (isIndefinite) {
+        refundQuery = `
+          UPDATE bookings 
+          SET status = 'Cancelled', updated_at = NOW()
+          WHERE place_id = $1
+            AND status IN ('Pending', 'Confirmed')
+            AND check_in_date >= $2
+          RETURNING id, user_id, total_price
+        `;
+        queryParams = [placeId, startDate];
+      } else {
+        refundQuery = `
+          UPDATE bookings 
+          SET status = 'Cancelled', updated_at = NOW()
+          WHERE place_id = $1
+            AND status IN ('Pending', 'Confirmed')
+            AND check_in_date >= $2
+            AND check_in_date <= $3
+          RETURNING id, user_id, total_price
+        `;
+        queryParams = [placeId, startDate, endDate];
+      }
+
+      const affectedBookings = await db.query(refundQuery, queryParams);
+      refundedBookings = affectedBookings.rows.length;
+      totalRefunded = affectedBookings.rows.reduce((sum, b) => sum + parseFloat(b.total_price || 0), 0);
+
+      logger.info('Bookings cancelled and to be refunded', {
+        placeId,
+        bookingCount: refundedBookings,
+        totalRefund: totalRefunded,
+      });
+    }
+
+    const message = isIndefinite 
+      ? 'Place set unavailable indefinitely. It will be hidden from the map.'
+      : `Place will show as unavailable from ${startDate} to ${endDate}. It will still appear on the map but marked as no space available.`;
+
+    res.json({
+      message,
+      unavailablePeriod: unavailableResult.rows[0],
+      refundedBookings,
+      totalRefunded,
+      placeStatus: isIndefinite ? 'unavailable' : 'available',
+      isIndefinite,
+    });
+  } catch (error) {
+    logger.error('Set place unavailable error', { error: error.message, stack: error.stack });
+    next(error);
+  }
+}
+
+/**
+ * POST /places/:id/set-available
+ * Restores a place from indefinite unavailability back to available
+ */
+async function setPlaceAvailable(req, res, next) {
+  try {
+    const { id: placeId } = req.params;
+    const userId = req.user.userId;
+
+    logger.info('Set place available request', { placeId, userId });
+
+    // Verify ownership
+    const ownerResult = await db.query(
+      'SELECT status, name FROM places WHERE id = $1 AND owner_id = $2',
+      [placeId, userId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      logger.warn('Place not found or unauthorized', { placeId, userId });
+      return res.status(404).json({ message: 'Place not found or unauthorized' });
+    }
+
+    const currentStatus = ownerResult.rows[0].status;
+    const placeName = ownerResult.rows[0].name;
+
+    if (currentStatus === 'available') {
+      return res.json({ message: 'Place is already available', placeStatus: 'available' });
+    }
+
+    // Set status back to available
+    await db.query(
+      'UPDATE places SET status = $1, updated_at = NOW() WHERE id = $2',
+      ['available', placeId]
+    );
+
+    // Remove indefinite unavailable periods (those with NULL end_date)
+    await db.query(
+      'DELETE FROM unavailable_periods WHERE place_id = $1 AND end_date IS NULL',
+      [placeId]
+    );
+
+    logger.info('Place restored to available', { placeId, placeName });
+
+    res.json({
+      message: 'Place is now available and visible on the map again.',
+      placeStatus: 'available',
+    });
+  } catch (error) {
+    logger.error('Set place available error', { error: error.message, stack: error.stack });
+    next(error);
+  }
+}
+
+/**
+ * DELETE /places/:id/unavailable-period/:periodId
+ * Removes a specific unavailable period (for date-range unavailability)
+ */
+async function removeUnavailablePeriod(req, res, next) {
+  try {
+    const { id: placeId, periodId } = req.params;
+    const userId = req.user.userId;
+
+    logger.info('Remove unavailable period request', { placeId, periodId, userId });
+
+    // Verify ownership
+    const ownerResult = await db.query(
+      'SELECT id FROM places WHERE id = $1 AND owner_id = $2',
       [placeId, userId]
     );
 
@@ -311,63 +494,24 @@ async function setPlaceUnavailable(req, res, next) {
       return res.status(404).json({ message: 'Place not found or unauthorized' });
     }
 
-    const placeStatus = ownerResult.rows[0].approval_status;
-    const actualEndDate = isIndefinite ? null : endDate;
-
-    // Update place status to unavailable
-    await db.query(
-      'UPDATE places SET status = $1, updated_at = NOW() WHERE id = $2',
-      ['unavailable', placeId]
+    // Delete the specific unavailable period
+    const deleteResult = await db.query(
+      'DELETE FROM unavailable_periods WHERE id = $1 AND place_id = $2 RETURNING *',
+      [periodId, placeId]
     );
 
-    // Create unavailable period
-    const unavailableResult = await db.query(
-      `INSERT INTO unavailable_periods (place_id, start_date, end_date, reason)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, start_date, end_date`,
-      [placeId, startDate, actualEndDate, 'Host set unavailable']
-    );
-
-    // If the place is approved, refund all affected bookings that haven't checked in
-    if (placeStatus === 'approved') {
-      const refundQuery = `
-        UPDATE bookings 
-        SET status = 'Cancelled', updated_at = NOW()
-        WHERE place_id = $1
-          AND status IN ('Pending', 'Confirmed')
-          AND check_in_date >= $2
-          AND check_in_date <= COALESCE($3, check_in_date)
-        RETURNING id, user_id, total_price
-      `;
-
-      const affectedBookings = await db.query(
-        refundQuery,
-        [placeId, startDate, actualEndDate]
-      );
-
-      // In a real-world scenario, you would process refunds here (Stripe, PayPal, etc.)
-      logger.info('Bookings cancelled and to be refunded', {
-        placeId,
-        bookingCount: affectedBookings.rows.length,
-        totalRefund: affectedBookings.rows.reduce((sum, b) => sum + parseFloat(b.total_price), 0),
-      });
-
-      res.json({
-        message: 'Place set unavailable. Affected bookings have been cancelled.',
-        unavailablePeriod: unavailableResult.rows[0],
-        refundedBookings: affectedBookings.rows.length,
-        totalRefunded: affectedBookings.rows.reduce((sum, b) => sum + parseFloat(b.total_price), 0),
-        placeStatus: 'unavailable',
-      });
-    } else {
-      res.json({
-        message: 'Place set unavailable.',
-        unavailablePeriod: unavailableResult.rows[0],
-        placeStatus: 'unavailable',
-      });
+    if (deleteResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Unavailable period not found' });
     }
+
+    logger.info('Unavailable period removed', { placeId, periodId });
+
+    res.json({
+      message: 'Unavailable period removed. The place is now available for those dates.',
+      removedPeriod: deleteResult.rows[0],
+    });
   } catch (error) {
-    logger.error('Set place unavailable error', { error: error.message });
+    logger.error('Remove unavailable period error', { error: error.message });
     next(error);
   }
 }
@@ -380,4 +524,6 @@ module.exports = {
   deletePlace,
   getHostPlaces,
   setPlaceUnavailable,
+  setPlaceAvailable,
+  removeUnavailablePeriod,
 };
