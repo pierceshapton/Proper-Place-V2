@@ -146,9 +146,6 @@ class _AdminMoreScreenState extends State<AdminMoreScreen> {
 
   void _handleHostInvitations() {
     // TODO: Navigate to Host Invitations screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Host Invitations feature coming soon')),
-    );
   }
 
 

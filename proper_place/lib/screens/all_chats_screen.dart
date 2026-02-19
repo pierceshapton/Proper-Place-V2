@@ -121,9 +121,6 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
                 onMarkUnread: () async {
                   try {
                     await ChatService().markContactAsUnread(conversationId);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Marked as unread')),
-                    );
                   } catch (error) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -138,11 +135,6 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
                     setState(() {
                       bookings.removeAt(index);
                     });
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Conversation deleted')),
-                      );
-                    }
                   } catch (error) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

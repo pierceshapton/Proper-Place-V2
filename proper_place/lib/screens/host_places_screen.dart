@@ -104,9 +104,7 @@ class _HostPlacesScreenState extends State<HostPlacesScreen> {
           IconButton(
             icon: const Icon(Icons.add, size: 28),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Add new place feature coming soon')),
-              );
+              // TODO: Navigate to add new place
             },
           ),
         ],
@@ -148,9 +146,7 @@ class _HostPlacesScreenState extends State<HostPlacesScreen> {
                           const SizedBox(height: 24),
                           ElevatedButton.icon(
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Add new place feature coming soon')),
-                              );
+                              // TODO: Navigate to add new place
                             },
                             icon: const Icon(Icons.add),
                             label: const Text('Add Place'),
@@ -351,10 +347,7 @@ class _HostPlacesScreenState extends State<HostPlacesScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Edit place feature coming soon')),
-                          );
+                          // TODO: Navigate to edit place
                         },
                         icon: const Icon(Icons.edit, size: 16),
                         label: const Text('Edit'),

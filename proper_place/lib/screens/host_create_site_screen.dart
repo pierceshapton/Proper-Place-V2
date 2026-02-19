@@ -269,10 +269,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       final draftJson = await StorageService.getString('site_draft');
       if (draftJson != null && mounted) {
         // Parse and load draft data
-        // For now, just show that draft was available
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Draft loaded')),
-        );
       }
     } catch (e) {
       print('Error loading draft: $e');
@@ -336,9 +332,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       await StorageService.removeString('site_draft');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Draft saved successfully')),
-        );
         // Return to sites tab with refresh flag
         Navigator.pop(context, true);
       }
@@ -383,9 +376,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       await PlaceService.deletePlace(placeId);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Draft deleted')),
-        );
         Navigator.pop(context, true); // Return with refresh flag
       }
     } catch (e) {

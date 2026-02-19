@@ -877,13 +877,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
             // FAQs Link
             GestureDetector(
               onTap: () {
-                // Open FAQs (can be a URL or a screen)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('FAQs - Coming soon'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
+                // TODO: Open FAQs
               },
               child: Container(
                 padding: const EdgeInsets.all(12),

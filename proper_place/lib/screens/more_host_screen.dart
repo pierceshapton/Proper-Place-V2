@@ -441,20 +441,14 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
                   icon: Icons.menu_book_outlined,
                   title: 'Host Welcome Guide',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Opening Host Welcome Guide')),
-                    );
+                    // TODO: Navigate to Host Welcome Guide
                   },
                 ),
                 _buildDocumentButton(
                   icon: Icons.balance_outlined,
                   title: 'Hosting Contract & Terms',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Opening Hosting Contract & Terms')),
-                    );
+                    // TODO: Navigate to Hosting Contract & Terms
                   },
                 ),
               ],
@@ -490,9 +484,7 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
               icon: Icons.help_outline,
               title: 'Help & Support',
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Opening Help & Support')),
-                );
+                // TODO: Navigate to Help & Support
               },
             ),
           ),
@@ -522,9 +514,7 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
                   icon: Icons.settings_outlined,
                   title: 'Account Settings',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Opening Account Settings')),
-                    );
+                    // TODO: Navigate to Account Settings
                   },
                 ),
               ],
@@ -674,9 +664,6 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
               Navigator.pop(context);
               await StorageService.setHostMode(false);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Switched to User Mode')),
-                );
                 // Navigate back to home and let it rebuild with new state
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/home',
