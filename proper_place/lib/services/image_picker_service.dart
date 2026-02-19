@@ -32,11 +32,10 @@ class ImagePickerService {
   static Future<File?> showImagePickerOptions(BuildContext context) async {
     final List<AssetEntity>? result = await AssetPicker.pickAssets(
       context,
-      pickerConfig: AssetPickerConfig(
+      pickerConfig: const AssetPickerConfig(
         maxAssets: 1,
         requestType: RequestType.image,
         pageSize: 120,
-        pathNameBuilder: DefaultAssetPickerPathNameBuilder(),
       ),
     );
 
