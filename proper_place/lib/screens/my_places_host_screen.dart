@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'host_create_site_screen.dart';
 import '../services/place_service.dart';
+import '../config/app_config.dart';
 
 class MyPlacesHostScreen extends StatefulWidget {
   const MyPlacesHostScreen({super.key});
@@ -35,13 +36,24 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
         hostPlaces = places.map<Map<String, dynamic>>((place) {
           final status = place['approval_status'] ?? 'pending';
           final config = _statusConfig[status] ?? _statusConfig['pending']!;
+          
+          // Build full image URL from relative path
+          String imageUrl = 'https://via.placeholder.com/400x300';
+          if (place['images'] != null && place['images'] is List && (place['images'] as List).isNotEmpty) {
+            final imgPath = place['images'][0];
+            if (imgPath.startsWith('http')) {
+              imageUrl = imgPath;
+            } else {
+              // Prepend API base URL for relative paths
+              imageUrl = '${AppConfig.properPlaceBackendUrl}$imgPath';
+            }
+          }
+          
           return {
             'id': place['id'],
             'name': place['name'] ?? 'Unnamed Place',
             'address': place['address'] ?? '',
-            'image': place['images']?.isNotEmpty == true 
-                ? place['images'][0] 
-                : 'https://via.placeholder.com/400x300',
+            'image': imageUrl,
             'status': config['label'],
             'statusColor': config['color'],
             'statusIcon': config['icon'],
