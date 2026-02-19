@@ -5,6 +5,7 @@ import '../services/image_picker_service.dart';
 import '../services/place_service.dart';
 import '../services/google_places_service.dart';
 import '../services/api_service.dart';
+import '../config/app_config.dart';
 
 class HostCreateSiteScreen extends StatefulWidget {
   final Map<String, dynamic>? siteToEdit;
@@ -137,6 +138,51 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
   Future<void> _loadExistingSite() async {
     final site = widget.siteToEdit!;
+    
+    // Debug: Print full site data to identify image field
+    print('DEBUG _loadExistingSite: Full site data keys: ${site.keys.toList()}');
+    print('DEBUG _loadExistingSite: images field type: ${site['images']?.runtimeType}');
+    print('DEBUG _loadExistingSite: images field value: ${site['images']}');
+    print('DEBUG _loadExistingSite: business_images field: ${site['business_images']}');
+    
+    // Process images BEFORE setState to catch any errors
+    List<String>? images;
+    String? mainPhotoUrl;
+    List<String> supportingUrls = [];
+    List<String> businessUrls = [];
+    
+    try {
+      // Load site images (main + supporting)
+      if (site['images'] != null && site['images'] is List && (site['images'] as List).isNotEmpty) {
+        images = List<String>.from(site['images']);
+        print('DEBUG: Found images field with ${images.length} images: $images');
+      } else if (site['image_urls'] != null && site['image_urls'] is List && (site['image_urls'] as List).isNotEmpty) {
+        images = List<String>.from(site['image_urls']);
+        print('DEBUG: Found image_urls field with ${images.length} images: $images');
+      } else {
+        print('DEBUG: No site images found');
+      }
+      
+      if (images != null && images.isNotEmpty) {
+        mainPhotoUrl = _toFullImageUrl(images.first);
+        print('DEBUG: Computed mainPhotoUrl: $mainPhotoUrl');
+        if (images.length > 1) {
+          supportingUrls = images.sublist(1).map((url) => _toFullImageUrl(url)).toList();
+          print('DEBUG: Computed supportingUrls: $supportingUrls');
+        }
+      }
+      
+      // Load business images separately
+      if (site['business_images'] != null && site['business_images'] is List && (site['business_images'] as List).isNotEmpty) {
+        businessUrls = List<String>.from(site['business_images']).map((url) => _toFullImageUrl(url)).toList();
+        print('DEBUG: Computed businessUrls: $businessUrls');
+      } else {
+        print('DEBUG: No business images found');
+      }
+    } catch (e) {
+      print('DEBUG ERROR loading images: $e');
+    }
+    
     setState(() {
       // Map backend field names to form fields
       addressController.text = site['address'] ?? '';
@@ -146,13 +192,13 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       businessNameController.text = site['name'] ?? site['business_name'] ?? '';
       businessDescriptionController.text = site['business_description'] ?? '';
       foodMenuController.text = site['food_menu_description'] ?? '';
-      maxVehicleLength = (site['capacity'] ?? site['max_vehicle_length'] ?? 20).toDouble();
+      maxVehicleLength = _parseDouble(site['capacity'] ?? site['max_vehicle_length'], 20);
       
       // Load location data
       city = site['city'] ?? '';
       country = site['country'] ?? '';
-      latitude = (site['latitude'] ?? 0).toDouble();
-      longitude = (site['longitude'] ?? 0).toDouble();
+      latitude = _parseDouble(site['latitude'], 0);
+      longitude = _parseDouble(site['longitude'], 0);
       
       // Load place type
       if (site['place_type'] != null) {
@@ -160,11 +206,19 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       }
       
       // Load pub-specific fields
-      if (site['opening_hours'] != null) {
-        // Parse opening hours if needed
+      if (site['opening_hours'] != null && site['opening_hours'].toString().isNotEmpty) {
+        final times = _parseTimeRange(site['opening_hours']);
+        if (times != null) {
+          pubOpenTime = times['start'];
+          pubCloseTime = times['end'];
+        }
       }
-      if (site['kitchen_hours'] != null) {
-        // Parse kitchen hours if needed
+      if (site['kitchen_hours'] != null && site['kitchen_hours'].toString().isNotEmpty) {
+        final times = _parseTimeRange(site['kitchen_hours']);
+        if (times != null) {
+          kitchenOpenTime = times['start'];
+          kitchenCloseTime = times['end'];
+        }
       }
 
       // Load amenities/facilities
@@ -184,21 +238,30 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         }
       }
       
-      // Load existing images
-      if (site['images'] != null && site['images'] is List && (site['images'] as List).isNotEmpty) {
-        final images = List<String>.from(site['images']);
-        existingMainPhotoUrl = images.first;
-        if (images.length > 1) {
-          existingSupportingUrls = images.sublist(1);
-        }
-      } else if (site['image_urls'] != null && site['image_urls'] is List && (site['image_urls'] as List).isNotEmpty) {
-        final images = List<String>.from(site['image_urls']);
-        existingMainPhotoUrl = images.first;
-        if (images.length > 1) {
-          existingSupportingUrls = images.sublist(1);
-        }
-      }
+      // Set pre-computed image URLs
+      existingMainPhotoUrl = mainPhotoUrl;
+      existingSupportingUrls = supportingUrls;
+      existingBusinessUrls = businessUrls;
+      print('DEBUG setState: existingMainPhotoUrl = $existingMainPhotoUrl');
+      print('DEBUG setState: existingBusinessUrls = $existingBusinessUrls');
     });
+  }
+
+  /// Transform relative image URL to full URL
+  String _toFullImageUrl(String url) {
+    if (url.startsWith('http')) return url;
+    return '${AppConfig.properPlaceBackendUrl}$url';
+  }
+
+  /// Parse a value to double, handling String, int, double, or null
+  double _parseDouble(dynamic value, double defaultValue) {
+    if (value == null) return defaultValue;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? defaultValue;
+    }
+    return defaultValue;
   }
 
   Future<void> _loadDraft() async {
@@ -255,14 +318,18 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         placeId = createdPlace['place']?['id'] ?? createdPlace['id'];
       }
       
-      // Upload photos if any new ones selected
-      final allPhotos = <File>[];
-      if (mainPhotoFile != null) allPhotos.add(mainPhotoFile!);
-      allPhotos.addAll(supportingPhotos);
-      allPhotos.addAll(businessPhotos);
+      // Upload site photos (main + supporting) separately from business photos
+      final sitePhotos = <File>[];
+      if (mainPhotoFile != null) sitePhotos.add(mainPhotoFile!);
+      sitePhotos.addAll(supportingPhotos);
       
-      if (allPhotos.isNotEmpty) {
-        await PlaceService.uploadPlacePhotos(placeId, allPhotos);
+      if (sitePhotos.isNotEmpty) {
+        await PlaceService.uploadPlacePhotos(placeId, sitePhotos, category: 'site');
+      }
+      
+      // Upload business photos separately
+      if (businessPhotos.isNotEmpty) {
+        await PlaceService.uploadPlacePhotos(placeId, businessPhotos, category: 'business');
       }
       
       // Clear local draft storage
@@ -397,6 +464,27 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     return '${format(start)} - ${format(end)}';
   }
 
+  Map<String, TimeOfDay>? _parseTimeRange(String timeRange) {
+    try {
+      // Parse format "HH:MM - HH:MM"
+      final parts = timeRange.split(' - ');
+      if (parts.length != 2) return null;
+      
+      final startParts = parts[0].split(':');
+      final endParts = parts[1].split(':');
+      
+      if (startParts.length != 2 || endParts.length != 2) return null;
+      
+      return {
+        'start': TimeOfDay(hour: int.parse(startParts[0]), minute: int.parse(startParts[1])),
+        'end': TimeOfDay(hour: int.parse(endParts[0]), minute: int.parse(endParts[1])),
+      };
+    } catch (e) {
+      print('Error parsing time range: $e');
+      return null;
+    }
+  }
+
   String _formatTime(TimeOfDay? time) {
     if (time == null) return 'Not set';
     final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
@@ -487,15 +575,19 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         placeId = createdPlace['place']?['id'] ?? createdPlace['id'];
       }
 
-      // Collect all photos to upload
-      final allPhotos = <File>[];
-      if (mainPhotoFile != null) allPhotos.add(mainPhotoFile!);
-      allPhotos.addAll(supportingPhotos);
-      allPhotos.addAll(businessPhotos);
+      // Upload site photos (main + supporting) separately from business photos
+      final sitePhotos = <File>[];
+      if (mainPhotoFile != null) sitePhotos.add(mainPhotoFile!);
+      sitePhotos.addAll(supportingPhotos);
 
-      // Upload photos if any
-      if (allPhotos.isNotEmpty) {
-        await PlaceService.uploadPlacePhotos(placeId, allPhotos);
+      // Upload site photos if any
+      if (sitePhotos.isNotEmpty) {
+        await PlaceService.uploadPlacePhotos(placeId, sitePhotos, category: 'site');
+      }
+      
+      // Upload business photos separately
+      if (businessPhotos.isNotEmpty) {
+        await PlaceService.uploadPlacePhotos(placeId, businessPhotos, category: 'business');
       }
 
       // Clear draft
@@ -571,6 +663,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+            // Debug: Print values at build time
+            Builder(builder: (_) { 
+              print('DEBUG BUILD: mainPhotoFile=$mainPhotoFile, existingMainPhotoUrl=$existingMainPhotoUrl'); 
+              return const SizedBox.shrink(); 
+            }),
             // Main Photo Section
             _buildPhotoSection(
               title: 'Main Site Photo',
@@ -592,11 +689,15 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
             // Supporting Photos Section
             _buildMultiPhotoSection(
+              key: const ValueKey('supporting_photos'),
               title: 'Supporting Photos',
               subtitle: 'Add additional photos of your site (max 5)',
               files: supportingPhotos,
+              existingUrls: existingSupportingUrls,
+              maxPhotos: 5,
               onAddPhoto: () => _pickPhoto((file) {
-                if (supportingPhotos.length < 5) {
+                print('DEBUG: Adding photo to SUPPORTING photos');
+                if (supportingPhotos.length + existingSupportingUrls.length < 5) {
                   setState(() => supportingPhotos.add(file));
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -605,6 +706,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 }
               }),
               onRemovePhoto: (index) => setState(() => supportingPhotos.removeAt(index)),
+              onRemoveExistingUrl: (index) => setState(() => existingSupportingUrls.removeAt(index)),
             ),
             const SizedBox(height: 24),
 
@@ -845,11 +947,15 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildMultiPhotoSection(
+                    key: const ValueKey('business_photos'),
                     title: 'Business Photos / Menu',
                     subtitle: 'Add menu or business photos (max 3)',
                     files: businessPhotos,
+                    existingUrls: existingBusinessUrls,
+                    maxPhotos: 3,
                     onAddPhoto: () => _pickPhoto((file) {
-                      if (businessPhotos.length < 3) {
+                      print('DEBUG: Adding photo to BUSINESS photos');
+                      if (businessPhotos.length + existingBusinessUrls.length < 3) {
                         setState(() => businessPhotos.add(file));
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -858,6 +964,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                       }
                     }),
                     onRemovePhoto: (index) => setState(() => businessPhotos.removeAt(index)),
+                    onRemoveExistingUrl: (index) => setState(() => existingBusinessUrls.removeAt(index)),
                     showTitle: false,
                   ),
                 ],
@@ -1403,10 +1510,16 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     required String title,
     required String subtitle,
     required List<File> files,
+    List<String> existingUrls = const [],
     required VoidCallback onAddPhoto,
     required Function(int) onRemovePhoto,
+    Function(int)? onRemoveExistingUrl,
     bool showTitle = true,
+    int maxPhotos = 5,
+    Key? key,
   }) {
+    final totalPhotos = files.length + existingUrls.length;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1426,10 +1539,48 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
           spacing: 8,
           runSpacing: 8,
           children: [
+            // Display existing URLs first
+            ...existingUrls.asMap().entries.map((entry) {
+              int index = entry.key;
+              String url = entry.value;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      image: DecorationImage(
+                        image: NetworkImage(url),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: -8,
+                    right: -8,
+                    child: GestureDetector(
+                      onTap: () => onRemoveExistingUrl?.call(index),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.red,
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: const Icon(Icons.close, color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
+            // Display newly selected files
             ...files.asMap().entries.map((entry) {
               int index = entry.key;
               File file = entry.value;
               return Stack(
+                clipBehavior: Clip.none,
                 children: [
                   Container(
                     width: 100,
@@ -1457,8 +1608,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 ],
               );
             }),
-            if (files.length < 5 || title.contains('Supporting'))
+            if (totalPhotos < maxPhotos)
               GestureDetector(
+                key: key != null ? ValueKey('${key}_add') : null,
                 onTap: onAddPhoto,
                 child: Container(
                   width: 100,

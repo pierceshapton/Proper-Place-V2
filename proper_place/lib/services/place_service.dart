@@ -67,17 +67,21 @@ class PlaceService {
   }
 
   /// Upload photo(s) for a place
+  /// [category] can be 'site' (default) or 'business'
   static Future<Map<String, dynamic>> uploadPlacePhotos(
     int placeId,
-    List<File> photoFiles,
-  ) async {
+    List<File> photoFiles, {
+    String category = 'site',
+  }) async {
     try {
       final token = await StorageService.getString('access_token');
       if (token == null) throw Exception('No authentication token found');
 
+      // Add category query parameter for business photos
+      final queryParam = category == 'business' ? '?category=business' : '';
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('$baseUrl/upload/place/$placeId'),
+        Uri.parse('$baseUrl/upload/place/$placeId$queryParam'),
       );
 
       request.headers['Authorization'] = 'Bearer $token';
