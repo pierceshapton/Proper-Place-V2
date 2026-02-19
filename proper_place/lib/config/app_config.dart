@@ -8,15 +8,11 @@ class AppConfig {
     defaultValue: 'com.properplace.ios',
   );
 
-  // Use localhost for iOS simulator testing, DigitalOcean for production
-  // Note: iOS simulator uses localhost, not 10.0.2.2 (which is for Android emulator)
+  // Use production DigitalOcean backend
   static const String properPlaceBackendUrl = String.fromEnvironment(
     'PROPER_PLACE_BACKEND_URL',
-    defaultValue: 'http://localhost:3001',  // Changed for local testing
+    defaultValue: 'https://octopus-app-lxh2t.ondigitalocean.app',
   );
-  
-  // Production URL for reference:
-  // defaultValue: 'https://octopus-app-lxh2t.ondigitalocean.app',
 
   // For debugging
   static void printConfig() {
