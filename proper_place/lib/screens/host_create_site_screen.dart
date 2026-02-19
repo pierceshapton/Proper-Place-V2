@@ -327,11 +327,10 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         await PlaceService.uploadPlacePhotos(placeId, sitePhotos, category: 'site');
       }
       
-      // TODO: Enable business photo uploads once migration is confirmed in database
       // Upload business photos separately
-      // if (businessPhotos.isNotEmpty) {
-      //   await PlaceService.uploadPlacePhotos(placeId, businessPhotos, category: 'business');
-      // }
+      if (businessPhotos.isNotEmpty) {
+        await PlaceService.uploadPlacePhotos(placeId, businessPhotos, category: 'business');
+      }
       
       // Clear local draft storage
       await StorageService.removeString('site_draft');
@@ -586,11 +585,10 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         await PlaceService.uploadPlacePhotos(placeId, sitePhotos, category: 'site');
       }
       
-      // TODO: Enable business photo uploads once migration is confirmed in database
       // Upload business photos separately
-      // if (businessPhotos.isNotEmpty) {
-      //   await PlaceService.uploadPlacePhotos(placeId, businessPhotos, category: 'business');
-      // }
+      if (businessPhotos.isNotEmpty) {
+        await PlaceService.uploadPlacePhotos(placeId, businessPhotos, category: 'business');
+      }
 
       // Clear draft
       await StorageService.removeString('site_draft');
