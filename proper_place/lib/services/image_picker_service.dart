@@ -1,9 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import 'dart:io';
 
 class ImagePickerService {
   static final ImagePicker _imagePicker = ImagePicker();
+
+  /// Strip EXIF metadata from image (removes location data, timestamps, etc)
+  static Future<File> _stripExifData(File imageFile) async {
+    try {
+      // Read the image file
+      final bytes = await imageFile.readAsBytes();
+      
+      // Decode the image
+      final image = img.decodeImage(bytes);
+      
+      if (image == null) return imageFile;
+      
+      // Re-encode the image to strip all metadata
+      final cleanedBytes = img.encodeJpg(image, quality: 95);
+      
+      // Write back to file
+      await imageFile.writeAsBytes(cleanedBytes);
+      return imageFile;
+    } catch (e) {
+      print('Error stripping EXIF data: $e');
+      // Return original file if stripping fails
+      return imageFile;
+    }
+  }
 
   /// Pick a single image from gallery
   static Future<File?> pickImageFromGallery() async {
@@ -13,7 +38,10 @@ class ImagePickerService {
         imageQuality: 100,
       );
       if (pickedFile != null) {
-        return File(pickedFile.path);
+        File imageFile = File(pickedFile.path);
+        // Strip location and other EXIF data
+        imageFile = await _stripExifData(imageFile);
+        return imageFile;
       }
     } catch (e) {
       print('Error picking image from gallery: $e');
@@ -29,7 +57,10 @@ class ImagePickerService {
         imageQuality: 100,
       );
       if (pickedFile != null) {
-        return File(pickedFile.path);
+        File imageFile = File(pickedFile.path);
+        // Strip location and other EXIF data
+        imageFile = await _stripExifData(imageFile);
+        return imageFile;
       }
     } catch (e) {
       print('Error picking image from camera: $e');
