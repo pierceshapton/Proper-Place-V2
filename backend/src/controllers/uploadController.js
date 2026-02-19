@@ -42,6 +42,7 @@ async function uploadImages(req, res, next) {
 async function uploadPlaceImages(req, res, next) {
   try {
     const { placeId } = req.params;
+    const { category } = req.query; // 'business' or default to site images
 
     if (!placeId) {
       return res.status(400).json({
@@ -57,7 +58,7 @@ async function uploadPlaceImages(req, res, next) {
       });
     }
 
-    logger.info('Uploading place images', { placeId, count: req.files.length });
+    logger.info('Uploading place images', { placeId, count: req.files.length, category: category || 'site' });
 
     // Process all uploaded images
     const processedImages = [];
@@ -66,20 +67,24 @@ async function uploadPlaceImages(req, res, next) {
       processedImages.push(result.url);
     }
 
-    // Save image URLs to the place's image_urls column
+    // Choose which column to update based on category
+    const columnName = category === 'business' ? 'business_image_urls' : 'image_urls';
+    
+    // Save image URLs to the appropriate column
     await db.query(
       `UPDATE places 
-       SET image_urls = COALESCE(image_urls, ARRAY[]::TEXT[]) || $1::TEXT[]
+       SET ${columnName} = COALESCE(${columnName}, ARRAY[]::TEXT[]) || $1::TEXT[]
        WHERE id = $2`,
       [processedImages, placeId]
     );
 
-    logger.info('Place images uploaded and saved', { placeId, count: processedImages.length });
+    logger.info('Place images uploaded and saved', { placeId, count: processedImages.length, column: columnName });
 
     res.json({
       success: true,
       message: `${processedImages.length} image(s) uploaded for place ${placeId}`,
       imageUrls: processedImages,
+      category: category || 'site',
     });
   } catch (error) {
     logger.error('Place image upload error', { error: error.message });
