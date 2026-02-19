@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:proper_place/config/app_config.dart';
+import 'package:proper_place/models/place.dart';
 import 'package:proper_place/services/storage_service.dart';
 
 class PlaceDetailScreen extends StatefulWidget {
@@ -353,8 +354,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = widget.place['image_url'] ??
+    final rawImageUrl = widget.place['image_url'] ??
         'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800';
+    final imageUrl = Place.toFullImageUrl(rawImageUrl) ?? rawImageUrl;
     final priceRaw = widget.place['price_per_night'] ?? 50;
     final pricePerNight = priceRaw is String ? double.tryParse(priceRaw) ?? 50.0 : (priceRaw as num).toDouble();
     final rating = widget.place['rating'] ?? 4.5;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../models/place.dart';
 import 'place_detail_screen.dart';
 import 'map_places_screen_new.dart';
 
@@ -294,7 +295,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Widget _buildFavoriteCard(Map<String, dynamic> place) {
-    final imageUrl = place['main_photo_url'] ?? place['image'] ?? '';
+    final rawImageUrl = place['main_photo_url'] ?? place['image'] ?? '';
+    final imageUrl = Place.toFullImageUrl(rawImageUrl) ?? '';
     final price = place['price_per_night'] ?? place['price'] ?? '0';
     
     return GestureDetector(

@@ -1,3 +1,5 @@
+import '../config/app_config.dart';
+
 class Place {
   final String placeId;
   final String name;
@@ -7,7 +9,19 @@ class Place {
   final String address;
   final double pricePerNight;
   final String? imageUrl;
-  final List<String> imageUrls; // Multiple images for swiper
+  final List<String> imageUrls;
+
+  /// Helper to convert relative image URL to full URL
+  static String? toFullImageUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    if (url.startsWith('http')) return url;
+    return '${AppConfig.properPlaceBackendUrl}$url';
+  }
+
+  /// Helper for lists of image URLs
+  static List<String> toFullImageUrls(List<String> urls) {
+    return urls.map((url) => toFullImageUrl(url) ?? '').where((url) => url.isNotEmpty).toList();
+  } // Multiple images for swiper
   final String? placeType;
   final String? amenities;
   final String? hostName;
@@ -60,8 +74,8 @@ class Place {
       locationLng: double.tryParse((json['location_lng'] ?? json['longitude'] ?? 0).toString()) ?? 0,
       address: json['address'] ?? '',
       pricePerNight: double.tryParse(json['price_per_night'].toString()) ?? 0,
-      imageUrl: toStringOrNull(json['image_url']),
-      imageUrls: images,
+      imageUrl: toFullImageUrl(toStringOrNull(json['image_url'])),
+      imageUrls: toFullImageUrls(images),
       placeType: toStringOrNull(json['place_type']),
       amenities: toStringOrNull(json['amenities']),
       hostName: toStringOrNull(json['host_name']),

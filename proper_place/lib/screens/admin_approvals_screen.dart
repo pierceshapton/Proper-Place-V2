@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/place.dart';
 
 class AdminApprovalsScreen extends StatefulWidget {
   final VoidCallback? onRefresh;
@@ -271,7 +272,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(
-                  place['image'],
+                  Place.toFullImageUrl(place['image']) ?? '',
                   height: 250,
                   width: double.infinity,
                   fit: BoxFit.cover,

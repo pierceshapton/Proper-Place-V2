@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/screens/chat_screen.dart';
 
@@ -287,7 +288,7 @@ class BookingDetailScreen extends StatelessWidget {
                 
                 // Call backend API to cancel booking
                 final response = await http.post(
-                  Uri.parse('http://192.168.1.114:3001/bookings/$bookingId/cancel'),
+                  Uri.parse('${AppConfig.properPlaceBackendUrl}/bookings/$bookingId/cancel'),
                   headers: {'Content-Type': 'application/json'},
                 );
                 

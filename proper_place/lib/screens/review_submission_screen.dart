@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/services/storage_service.dart';
 
 class ReviewSubmissionScreen extends StatefulWidget {
@@ -35,7 +36,7 @@ class _ReviewSubmissionScreenState extends State<ReviewSubmissionScreen> {
     try {
       final token = await StorageService.getToken();
       final response = await http.post(
-        Uri.parse('http://localhost:3001/reviews'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/reviews'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',

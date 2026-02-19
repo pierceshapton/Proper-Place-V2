@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
-import '../config/app_config.dart';
+import '../models/place.dart';
 import 'place_detail_screen.dart';
 
 class HostPlacesScreen extends StatefulWidget {
@@ -191,7 +191,7 @@ class _HostPlacesScreenState extends State<HostPlacesScreen> {
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(12)),
                 child: Image.network(
-                  place['image'] as String,
+                  Place.toFullImageUrl(place['image'] as String?) ?? 'https://via.placeholder.com/400x300',
                   height: 180,
                   width: double.infinity,
                   fit: BoxFit.cover,
