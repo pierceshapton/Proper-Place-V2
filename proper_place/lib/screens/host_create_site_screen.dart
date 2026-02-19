@@ -54,7 +54,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   final Map<String, String> locationTypeLabels = {
     'private_land': 'Private Land',
     'pub': 'Pub / Restaurant',
-    'farm': 'Farm / Rural',
+    'farm': 'Farm',
     'car_park': 'Car Park',
     'business': 'Business Parking',
     'other': 'Other',

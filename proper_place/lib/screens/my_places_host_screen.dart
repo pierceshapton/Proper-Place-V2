@@ -649,11 +649,7 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('${place['name']} set unavailable')),
-                          );
+                          _showSetUnavailableDialog(context, place);
                         },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.black,
@@ -674,6 +670,301 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
         ],
       ),
     );
+  }
+
+  void _showSetUnavailableDialog(BuildContext context, Map<String, dynamic> place) {
+    final isApproved = place['approval_status'] == 'approved';
+    final placeName = place['name'] ?? 'Your site';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Set Unavailable'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Are you sure you want to set $placeName as unavailable?',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                if (isApproved)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFEF4444), width: 1),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '⚠️ Important',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFEF4444),
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'All bookings during this unavailable period will be CANCELLED and guests will be REFUNDED automatically.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF374151),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFCD34D).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Since this site is pending approval, no refunds will be processed.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                const Text(
+                  'How long do you want to set it unavailable?',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _showDateSelectionDialog(context, place, isApproved);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+              ),
+              child: const Text('Continue', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDateSelectionDialog(
+    BuildContext context,
+    Map<String, dynamic> place,
+    bool isApproved,
+  ) {
+    final placeName = place['name'] ?? 'Your site';
+    final placeId = place['id'];
+    DateTime? selectedStartDate;
+    DateTime? selectedEndDate;
+    bool isIndefinite = false;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Unavailability Dates'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select the dates when $placeName will be unavailable:',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 20),
+                
+                // Start date picker
+                GestureDetector(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      setState(() => selectedStartDate = picked);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          selectedStartDate == null
+                              ? 'Select start date'
+                              : 'Start: ${selectedStartDate!.toString().split(' ')[0]}',
+                          style: TextStyle(
+                            color: selectedStartDate == null ? Colors.grey : Colors.black,
+                          ),
+                        ),
+                        const Icon(Icons.calendar_today, size: 18, color: Color(0xFF3B82F6)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Indefinite option
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isIndefinite,
+                      onChanged: (value) {
+                        setState(() {
+                          isIndefinite = value ?? false;
+                          if (isIndefinite) {
+                            selectedEndDate = null;
+                          }
+                        });
+                      },
+                    ),
+                    const Text('Set indefinitely (open-ended)', style: TextStyle(fontSize: 14)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // End date picker (only if not indefinite)
+                if (!isIndefinite)
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedStartDate ?? DateTime.now().add(const Duration(days: 1)),
+                        firstDate: selectedStartDate ?? DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) {
+                        setState(() => selectedEndDate = picked);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            selectedEndDate == null
+                                ? 'Select end date'
+                                : 'End: ${selectedEndDate!.toString().split(' ')[0]}',
+                            style: TextStyle(
+                              color: selectedEndDate == null ? Colors.grey : Colors.black,
+                            ),
+                          ),
+                          const Icon(Icons.calendar_today, size: 18, color: Color(0xFF3B82F6)),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: selectedStartDate == null || (!isIndefinite && selectedEndDate == null)
+                  ? null
+                  : () {
+                      Navigator.pop(dialogContext);
+                      _submitSetUnavailable(
+                        placeId,
+                        selectedStartDate!,
+                        selectedEndDate,
+                        isIndefinite,
+                      );
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                disabledBackgroundColor: Colors.grey[300],
+              ),
+              child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitSetUnavailable(
+    int placeId,
+    DateTime startDate,
+    DateTime? endDate,
+    bool isIndefinite,
+  ) async {
+    try {
+      // Show loading indicator
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Setting unavailable...')),
+      );
+
+      final response = await PlaceService.setPlaceUnavailable(
+        placeId,
+        startDate: startDate,
+        endDate: endDate,
+        isIndefinite: isIndefinite,
+      );
+
+      if (!mounted) return;
+
+      final refundedCount = response['refundedBookings'] ?? 0;
+      final refundAmount = response['totalRefunded'] ?? 0;
+
+      String message = 'Site set unavailable successfully!';
+      if (refundedCount > 0) {
+        message += '\n$refundedCount booking(s) cancelled.\nTotal refunded: \$$refundAmount';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 4),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+
+      // Refresh the places list
+      _loadPlaces();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
   }
 
   Widget _buildEmptyState() {

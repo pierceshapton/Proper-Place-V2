@@ -158,4 +158,39 @@ class PlaceService {
       rethrow;
     }
   }
+
+  /// Set a place unavailable for a date range or indefinitely
+  static Future<Map<String, dynamic>> setPlaceUnavailable(
+    int placeId, {
+    required DateTime startDate,
+    DateTime? endDate,
+    required bool isIndefinite,
+  }) async {
+    try {
+      final token = await StorageService.getString('access_token');
+      if (token == null) throw Exception('No authentication token found');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/places/$placeId/set-unavailable'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'startDate': startDate.toIso8601String().split('T')[0],
+          'endDate': endDate != null ? endDate.toIso8601String().split('T')[0] : null,
+          'isIndefinite': isIndefinite,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to set place unavailable: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error setting place unavailable: $e');
+      rethrow;
+    }
+  }
 }

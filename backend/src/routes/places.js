@@ -15,5 +15,6 @@ router.get('/:id', optionalAuthMiddleware, placeController.getPlaceDetail);
 router.post('/', authMiddleware, validationMiddleware('createPlace'), placeController.createPlace);
 router.patch('/:id', authMiddleware, validationMiddleware('createPlace'), placeController.updatePlace);
 router.delete('/:id', authMiddleware, placeController.deletePlace);
+router.post('/:id/set-unavailable', authMiddleware, placeController.setPlaceUnavailable);
 
 module.exports = router;

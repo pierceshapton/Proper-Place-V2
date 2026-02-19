@@ -348,6 +348,29 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 4 error:', err.message);
     }
 
+    // Always run migration 8 to create unavailable_periods table (for managing site unavailability)
+    const migration8 = `
+      CREATE TABLE IF NOT EXISTS unavailable_periods (
+        id SERIAL PRIMARY KEY,
+        place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+        start_date DATE NOT NULL,
+        end_date DATE,
+        reason VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_unavailable_periods_place_id ON unavailable_periods(place_id);
+      CREATE INDEX IF NOT EXISTS idx_unavailable_periods_dates ON unavailable_periods(start_date, end_date);
+    `;
+
+    try {
+      console.log('[SERVER] Running migration 8: unavailable_periods table...');
+      await db.query(migration8);
+      console.log('[SERVER] ✅ Migration 8 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 8 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

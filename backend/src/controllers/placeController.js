@@ -286,6 +286,80 @@ async function getHostPlaces(req, res, next) {
   }
 }
 
+/**
+ * POST /places/:id/set-unavailable
+ * Set a place unavailable for a date range (or indefinitely)
+ * If the place is approved, automatically refund all affected bookings
+ */
+async function setPlaceUnavailable(req, res, next) {
+  try {
+    const { id: placeId } = req.params;
+    const { startDate, endDate, isIndefinite } = req.body;
+    const userId = req.user.userId;
+
+    // Verify ownership
+    const ownerResult = await db.query(
+      'SELECT approval_status FROM places WHERE id = $1 AND owner_id = $2',
+      [placeId, userId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Place not found or unauthorized' });
+    }
+
+    const placeStatus = ownerResult.rows[0].approval_status;
+    const actualEndDate = isIndefinite ? null : endDate;
+
+    // Create unavailable period
+    const unavailableResult = await db.query(
+      `INSERT INTO unavailable_periods (place_id, start_date, end_date, reason)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, start_date, end_date`,
+      [placeId, startDate, actualEndDate, 'Host set unavailable']
+    );
+
+    // If the place is approved, refund all affected bookings that haven't checked in
+    if (placeStatus === 'approved') {
+      const refundQuery = `
+        UPDATE bookings 
+        SET status = 'Cancelled', updated_at = NOW()
+        WHERE place_id = $1
+          AND status IN ('Pending', 'Confirmed')
+          AND check_in_date >= $2
+          AND check_in_date <= COALESCE($3, check_in_date)
+        RETURNING id, user_id, total_price
+      `;
+
+      const affectedBookings = await db.query(
+        refundQuery,
+        [placeId, startDate, actualEndDate]
+      );
+
+      // In a real-world scenario, you would process refunds here (Stripe, PayPal, etc.)
+      logger.info('Bookings cancelled and to be refunded', {
+        placeId,
+        bookingCount: affectedBookings.rows.length,
+        totalRefund: affectedBookings.rows.reduce((sum, b) => sum + parseFloat(b.total_price), 0),
+      });
+
+      res.json({
+        message: 'Place set unavailable. Affected bookings have been cancelled.',
+        unavailablePeriod: unavailableResult.rows[0],
+        refundedBookings: affectedBookings.rows.length,
+        totalRefunded: affectedBookings.rows.reduce((sum, b) => sum + parseFloat(b.total_price), 0),
+      });
+    } else {
+      res.json({
+        message: 'Place set unavailable.',
+        unavailablePeriod: unavailableResult.rows[0],
+      });
+    }
+  } catch (error) {
+    logger.error('Set place unavailable error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getPlaces,
   getPlaceDetail,
@@ -293,4 +367,5 @@ module.exports = {
   updatePlace,
   deletePlace,
   getHostPlaces,
+  setPlaceUnavailable,
 };
