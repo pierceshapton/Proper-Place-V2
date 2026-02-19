@@ -288,6 +288,48 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     }
   }
 
+  Future<void> _deleteDraft() async {
+    // Confirm deletion
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Draft'),
+        content: const Text('Are you sure you want to delete this draft? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final placeId = widget.siteToEdit!['id'];
+      await PlaceService.deletePlace(placeId);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Draft deleted')),
+        );
+        Navigator.pop(context, true); // Return with refresh flag
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting draft: $e')),
+        );
+      }
+    }
+  }
+
   // Build draft data with defaults for required fields
   Map<String, dynamic> _buildDraftData() {
     final data = {
@@ -869,6 +911,32 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 ),
               ],
             ),
+            // Delete Draft Button (only show when editing a draft)
+            if (widget.siteToEdit != null && widget.siteToEdit!['approval_status'] == 'draft')
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: _deleteDraft,
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Delete Draft',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 16),
           ],
         ),

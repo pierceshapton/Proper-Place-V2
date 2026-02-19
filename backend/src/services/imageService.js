@@ -45,8 +45,9 @@ class ImageService {
       const filePath = path.join(UPLOAD_DIR, optimizedFileName);
 
       // Process image with Sharp
-      // Convert to WebP for better compression while maintaining quality
+      // Auto-rotate based on EXIF orientation, then convert to WebP
       const processedBuffer = await sharp(fileBuffer)
+        .rotate() // Auto-rotate based on EXIF orientation
         .resize(1920, 1080, {
           fit: 'inside',
           withoutEnlargement: true,
