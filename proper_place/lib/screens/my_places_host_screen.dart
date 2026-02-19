@@ -738,7 +738,7 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
               ),
-              child: const Text('Continue', style: TextStyle(color: Colors.white)),
+              child: const Text('Yes', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
