@@ -37,6 +37,7 @@ async function runMigrations() {
       '004_booking_times.sql',
       '005_message_indexes.sql',
       '006_business_description.sql',
+      '007_business_images.sql',
     ];
     
     for (const file of migrationFiles) {
