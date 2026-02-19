@@ -243,14 +243,26 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       siteData['approval_status'] = 'draft';
 
       final isEditing = widget.siteToEdit != null;
+      int placeId;
       
       if (isEditing) {
         // Update existing draft
-        final placeId = widget.siteToEdit!['id'];
+        placeId = widget.siteToEdit!['id'];
         await PlaceService.updatePlace(placeId, siteData);
       } else {
         // Create new draft
-        await PlaceService.createPlace(siteData);
+        final createdPlace = await PlaceService.createPlace(siteData);
+        placeId = createdPlace['place']?['id'] ?? createdPlace['id'];
+      }
+      
+      // Upload photos if any new ones selected
+      final allPhotos = <File>[];
+      if (mainPhotoFile != null) allPhotos.add(mainPhotoFile!);
+      allPhotos.addAll(supportingPhotos);
+      allPhotos.addAll(businessPhotos);
+      
+      if (allPhotos.isNotEmpty) {
+        await PlaceService.uploadPlacePhotos(placeId, allPhotos);
       }
       
       // Clear local draft storage
