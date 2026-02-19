@@ -690,8 +690,8 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                   'Are you sure you want to set $placeName as unavailable?',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(height: 16),
-                if (isApproved)
+                if (isApproved) ...[
+                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -720,27 +720,8 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                         ),
                       ],
                     ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFCD34D).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Since this site is pending approval, no refunds will be processed.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF374151),
-                      ),
-                    ),
                   ),
-                const SizedBox(height: 16),
-                const Text(
-                  'How long do you want to set it unavailable?',
-                  style: TextStyle(fontSize: 14),
-                ),
+                ],
               ],
             ),
           ),
@@ -791,99 +772,164 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 20),
-                
-                // Start date picker
-                GestureDetector(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (picked != null) {
-                      setState(() => selectedStartDate = picked);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      borderRadius: BorderRadius.circular(8),
+                Text(
+                  'Select unavailability option:',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+
+                // Date range section
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isIndefinite ? Colors.grey[300]! : const Color(0xFFE2E8F0),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          selectedStartDate == null
-                              ? 'Select start date'
-                              : 'Start: ${selectedStartDate!.toString().split(' ')[0]}',
-                          style: TextStyle(
-                            color: selectedStartDate == null ? Colors.grey : Colors.black,
+                    borderRadius: BorderRadius.circular(8),
+                    color: isIndefinite ? Colors.grey[50] : Colors.white,
+                  ),
+                  child: Column(
+                    children: [
+                      // Start date picker
+                      GestureDetector(
+                        onTap: isIndefinite
+                            ? null
+                            : () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedStartDate ?? DateTime.now(),
+                                  firstDate: DateTime.now(),
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                );
+                                if (picked != null) {
+                                  setState(() => selectedStartDate = picked);
+                                }
+                              },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            borderRadius: BorderRadius.circular(8),
+                            color: isIndefinite ? Colors.grey[100] : Colors.white,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                selectedStartDate == null
+                                    ? 'Select start date'
+                                    : 'Start: ${selectedStartDate!.toString().split(' ')[0]}',
+                                style: TextStyle(
+                                  color: isIndefinite
+                                      ? Colors.grey
+                                      : (selectedStartDate == null ? Colors.grey : Colors.black),
+                                ),
+                              ),
+                              Icon(Icons.calendar_today,
+                                  size: 18,
+                                  color: isIndefinite ? Colors.grey[400] : const Color(0xFF3B82F6)),
+                            ],
                           ),
                         ),
-                        const Icon(Icons.calendar_today, size: 18, color: Color(0xFF3B82F6)),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 12),
+                      // End date picker
+                      GestureDetector(
+                        onTap: isIndefinite || selectedStartDate == null
+                            ? null
+                            : () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedEndDate ?? selectedStartDate!.add(const Duration(days: 1)),
+                                  firstDate: selectedStartDate!,
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                );
+                                if (picked != null) {
+                                  setState(() => selectedEndDate = picked);
+                                }
+                              },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            borderRadius: BorderRadius.circular(8),
+                            color: isIndefinite ? Colors.grey[100] : Colors.white,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                selectedEndDate == null
+                                    ? 'Select end date'
+                                    : 'End: ${selectedEndDate!.toString().split(' ')[0]}',
+                                style: TextStyle(
+                                  color: isIndefinite
+                                      ? Colors.grey
+                                      : (selectedEndDate == null ? Colors.grey : Colors.black),
+                                ),
+                              ),
+                              Icon(Icons.calendar_today,
+                                  size: 18,
+                                  color: isIndefinite ? Colors.grey[400] : const Color(0xFF3B82F6)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),
 
-                // Indefinite option
+                // OR Divider
                 Row(
                   children: [
-                    Checkbox(
-                      value: isIndefinite,
-                      onChanged: (value) {
-                        setState(() {
-                          isIndefinite = value ?? false;
-                          if (isIndefinite) {
-                            selectedEndDate = null;
-                          }
-                        });
-                      },
+                    Expanded(child: Container(height: 1, color: Colors.grey[300])),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('OR', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500)),
                     ),
-                    const Text('Set indefinitely (open-ended)', style: TextStyle(fontSize: 14)),
+                    Expanded(child: Container(height: 1, color: Colors.grey[300])),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // End date picker (only if not indefinite)
-                if (!isIndefinite)
-                  GestureDetector(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedStartDate ?? DateTime.now().add(const Duration(days: 1)),
-                        firstDate: selectedStartDate ?? DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (picked != null) {
-                        setState(() => selectedEndDate = picked);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        borderRadius: BorderRadius.circular(8),
+                // Set Indefinitely button
+                GestureDetector(
+                  onTap: selectedStartDate != null
+                      ? () {
+                          setState(() {
+                            isIndefinite = !isIndefinite;
+                            if (isIndefinite) {
+                              selectedStartDate = null;
+                              selectedEndDate = null;
+                            }
+                          });
+                        }
+                      : () {
+                          setState(() => isIndefinite = !isIndefinite);
+                        },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: selectedStartDate != null ? Colors.grey[300]! : const Color(0xFF3B82F6),
+                        width: 2,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            selectedEndDate == null
-                                ? 'Select end date'
-                                : 'End: ${selectedEndDate!.toString().split(' ')[0]}',
-                            style: TextStyle(
-                              color: selectedEndDate == null ? Colors.grey : Colors.black,
-                            ),
-                          ),
-                          const Icon(Icons.calendar_today, size: 18, color: Color(0xFF3B82F6)),
-                        ],
+                      borderRadius: BorderRadius.circular(8),
+                      color: selectedStartDate != null ? Colors.grey[50] : const Color(0xFF3B82F6).withOpacity(0.05),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Set Indefinitely',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: selectedStartDate != null ? Colors.grey[400] : const Color(0xFF3B82F6),
+                        ),
                       ),
                     ),
                   ),
+                ),
               ],
             ),
           ),
@@ -893,17 +939,17 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: selectedStartDate == null || (!isIndefinite && selectedEndDate == null)
-                  ? null
-                  : () {
+              onPressed: (selectedStartDate != null && selectedEndDate != null) || isIndefinite
+                  ? () {
                       Navigator.pop(dialogContext);
                       _submitSetUnavailable(
                         placeId,
-                        selectedStartDate!,
+                        selectedStartDate,
                         selectedEndDate,
                         isIndefinite,
                       );
-                    },
+                    }
+                  : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
                 disabledBackgroundColor: Colors.grey[300],
@@ -918,11 +964,22 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
 
   Future<void> _submitSetUnavailable(
     int placeId,
-    DateTime startDate,
+    DateTime? startDate,
     DateTime? endDate,
     bool isIndefinite,
   ) async {
     try {
+      // Validate that we have the required data
+      if (!isIndefinite && startDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a start date or set indefinitely'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+        return;
+      }
+
       // Show loading indicator
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -931,7 +988,7 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
 
       final response = await PlaceService.setPlaceUnavailable(
         placeId,
-        startDate: startDate,
+        startDate: startDate ?? DateTime.now(),
         endDate: endDate,
         isIndefinite: isIndefinite,
       );
