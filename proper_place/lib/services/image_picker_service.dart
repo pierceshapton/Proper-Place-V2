@@ -137,82 +137,8 @@ class ImagePickerService {
         // User confirmed the image
         return selectedFile;
       } else {
-        // User wants to reselect - show source picker again
-        final newSource = await showModalBottomSheet<ImageSource>(
-          context: context,
-          backgroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (BuildContext sheetContext) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 12, bottom: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const Text(
-                    'Select New Image',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.camera_alt, color: Color(0xFF3B82F6)),
-                    ),
-                    title: const Text('Take Photo', style: TextStyle(color: Colors.black)),
-                    subtitle: const Text('Use your camera', style: TextStyle(color: Colors.grey)),
-                    onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
-                  ),
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.photo_library, color: Color(0xFF3B82F6)),
-                    ),
-                    title: const Text('Choose from Gallery', style: TextStyle(color: Colors.black)),
-                    subtitle: const Text('Select from your photos', style: TextStyle(color: Colors.grey)),
-                    onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
-                  ),
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: () => Navigator.pop(sheetContext),
-                    child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-
-        if (newSource == null) return null;
-
-        File? newFile;
-        if (newSource == ImageSource.camera) {
-          newFile = await pickImageFromCamera();
-        } else {
-          newFile = await pickImageFromGallery();
-        }
+        // User wants to reselect - go directly to gallery
+        File? newFile = await pickImageFromGallery();
 
         if (newFile == null) return null;
         selectedFile = newFile;
