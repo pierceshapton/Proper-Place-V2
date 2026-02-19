@@ -371,6 +371,21 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 8 error:', err.message);
     }
 
+    // Always run migration 9 to add status field to places table
+    const migration9 = `
+      ALTER TABLE places
+      ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'available' CHECK (status IN ('available', 'unavailable'));
+      CREATE INDEX IF NOT EXISTS idx_places_status ON places(status);
+    `;
+
+    try {
+      console.log('[SERVER] Running migration 9: place status field...');
+      await db.query(migration9);
+      console.log('[SERVER] ✅ Migration 9 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 9 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

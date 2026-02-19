@@ -9,9 +9,9 @@ async function getPlaces(req, res, next) {
     const { page = 1, limit = 20, approval_status = 'approved', search } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = 'SELECT * FROM places WHERE deleted_at IS NULL';
-    const params = [];
-    let paramCount = 1;
+    let query = 'SELECT * FROM places WHERE deleted_at IS NULL AND status = $1';
+    const params = ['available'];
+    let paramCount = 2;
 
     if (approval_status) {
       query += ` AND approval_status = $${paramCount}`;
@@ -32,9 +32,13 @@ async function getPlaces(req, res, next) {
     const result = await db.query(query, params);
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) FROM places WHERE deleted_at IS NULL';
-    if (approval_status) countQuery += ` AND approval_status = $1`;
-    const countResult = await db.query(countQuery, approval_status ? [approval_status] : []);
+    let countQuery = 'SELECT COUNT(*) FROM places WHERE deleted_at IS NULL AND status = $1';
+    const countParams = ['available'];
+    if (approval_status) {
+      countQuery += ` AND approval_status = $2`;
+      countParams.push(approval_status);
+    }
+    const countResult = await db.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
@@ -266,7 +270,7 @@ async function getHostPlaces(req, res, next) {
               latitude, longitude, price_per_night, capacity, amenities,
               image_urls as images, 
               COALESCE(business_image_urls, ARRAY[]::TEXT[]) as business_images,
-              approval_status, featured, rating, review_count,
+              approval_status, status, featured, rating, review_count,
               place_type, opening_hours, kitchen_hours, food_menu_description,
               serves_food, created_at, updated_at
        FROM places 
@@ -310,6 +314,12 @@ async function setPlaceUnavailable(req, res, next) {
     const placeStatus = ownerResult.rows[0].approval_status;
     const actualEndDate = isIndefinite ? null : endDate;
 
+    // Update place status to unavailable
+    await db.query(
+      'UPDATE places SET status = $1, updated_at = NOW() WHERE id = $2',
+      ['unavailable', placeId]
+    );
+
     // Create unavailable period
     const unavailableResult = await db.query(
       `INSERT INTO unavailable_periods (place_id, start_date, end_date, reason)
@@ -347,11 +357,13 @@ async function setPlaceUnavailable(req, res, next) {
         unavailablePeriod: unavailableResult.rows[0],
         refundedBookings: affectedBookings.rows.length,
         totalRefunded: affectedBookings.rows.reduce((sum, b) => sum + parseFloat(b.total_price), 0),
+        placeStatus: 'unavailable',
       });
     } else {
       res.json({
         message: 'Place set unavailable.',
         unavailablePeriod: unavailableResult.rows[0],
+        placeStatus: 'unavailable',
       });
     }
   } catch (error) {

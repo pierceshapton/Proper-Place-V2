@@ -27,6 +27,7 @@ class Place {
   final String? hostName;
   final String? hostEmail;
   final String approvalStatus;
+  final String status;
   final int capacity;
 
   Place({
@@ -44,6 +45,7 @@ class Place {
     this.hostName,
     this.hostEmail,
     this.approvalStatus = 'approved',
+    this.status = 'available',
     this.capacity = 1,
   });
 
@@ -81,6 +83,7 @@ class Place {
       hostName: toStringOrNull(json['host_name']),
       hostEmail: toStringOrNull(json['host_email']),
       approvalStatus: json['approval_status'] ?? 'pending',
+      status: json['status'] ?? 'available',
       capacity: json['capacity'] ?? 1,
     );
   }
@@ -101,6 +104,7 @@ class Place {
       'host_name': hostName,
       'host_email': hostEmail,
       'approval_status': approvalStatus,
+      'status': status,
       'capacity': capacity,
     };
   }
