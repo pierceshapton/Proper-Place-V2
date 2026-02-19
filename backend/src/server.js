@@ -335,6 +335,19 @@ async function initializeDatabase() {
       }
     }
 
+    // Always run migration 4 to ensure business_image_urls column exists (for existing databases)
+    const migration4 = `
+      ALTER TABLE places ADD COLUMN IF NOT EXISTS business_image_urls TEXT[];
+    `;
+
+    try {
+      console.log('[SERVER] Running migration 4: business_image_urls column...');
+      await db.query(migration4);
+      console.log('[SERVER] ✅ Migration 4 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 4 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
