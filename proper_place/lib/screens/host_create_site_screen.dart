@@ -911,8 +911,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 ),
               ],
             ),
-            // Delete Draft Button (only show when editing a draft)
-            if (widget.siteToEdit != null && widget.siteToEdit!['approval_status'] == 'draft')
+            // Delete Draft Button (show when editing any non-approved place)
+            if (widget.siteToEdit != null && widget.siteToEdit!['approval_status'] != 'approved')
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: SizedBox(
