@@ -32,21 +32,29 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
     try {
       setState(() => _isLoading = true);
       final places = await PlaceService.getHostPlaces();
+      print('DEBUG: Loaded ${places.length} places');
       setState(() {
         hostPlaces = places.map<Map<String, dynamic>>((place) {
           final status = place['approval_status'] ?? 'pending';
           final config = _statusConfig[status] ?? _statusConfig['pending']!;
           
+          // Debug: print image data
+          print('DEBUG: Place ${place['name']} - images field: ${place['images']}');
+          
           // Build full image URL from relative path
           String imageUrl = 'https://via.placeholder.com/400x300';
           if (place['images'] != null && place['images'] is List && (place['images'] as List).isNotEmpty) {
             final imgPath = place['images'][0];
+            print('DEBUG: imgPath = $imgPath');
             if (imgPath.startsWith('http')) {
               imageUrl = imgPath;
             } else {
               // Prepend API base URL for relative paths
               imageUrl = '${AppConfig.properPlaceBackendUrl}$imgPath';
             }
+            print('DEBUG: Final imageUrl = $imageUrl');
+          } else {
+            print('DEBUG: No images found, using placeholder');
           }
           
           return {

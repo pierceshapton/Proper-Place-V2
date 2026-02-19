@@ -1,29 +1,33 @@
 const sharp = require('sharp');
 const path = require('path');
-const fs = require('fs').promises;
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
-const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_FORMATS = ['jpeg', 'png', 'webp'];
 
+// DigitalOcean Spaces configuration (S3-compatible)
+const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT || 'https://lon1.digitaloceanspaces.com';
+const SPACES_BUCKET = process.env.DO_SPACES_BUCKET || 'proper-place-images';
+const SPACES_REGION = process.env.DO_SPACES_REGION || 'lon1';
+const SPACES_CDN_URL = process.env.DO_SPACES_CDN_URL || `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`;
+
+// Initialize S3 client for DigitalOcean Spaces
+const s3Client = new S3Client({
+  endpoint: SPACES_ENDPOINT,
+  region: SPACES_REGION,
+  credentials: {
+    accessKeyId: process.env.DO_SPACES_KEY || '',
+    secretAccessKey: process.env.DO_SPACES_SECRET || '',
+  },
+  forcePathStyle: false,
+});
+
 class ImageService {
   /**
-   * Ensure upload directory exists
-   */
-  static async ensureUploadDir() {
-    try {
-      await fs.mkdir(UPLOAD_DIR, { recursive: true });
-    } catch (error) {
-      console.error('Error creating upload directory:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Process and save image with compression and optimization
+   * Process and upload image to DigitalOcean Spaces
    * @param {Buffer} fileBuffer - Image file buffer
    * @param {string} fileName - Original file name
-   * @returns {Object} - { filename, path, url, size }
+   * @returns {Object} - { filename, url, size }
    */
   static async processImage(fileBuffer, fileName) {
     try {
@@ -37,12 +41,7 @@ class ImageService {
       const random = Math.random().toString(36).substring(7);
       const extension = path.extname(fileName).toLowerCase();
       const nameWithoutExt = path.basename(fileName, extension);
-      const optimizedFileName = `${nameWithoutExt}-${timestamp}-${random}.webp`;
-
-      // Ensure upload directory exists
-      await this.ensureUploadDir();
-
-      const filePath = path.join(UPLOAD_DIR, optimizedFileName);
+      const optimizedFileName = `uploads/${nameWithoutExt}-${timestamp}-${random}.webp`;
 
       // Process image with Sharp
       // Auto-rotate based on EXIF orientation, then convert to WebP
@@ -55,22 +54,31 @@ class ImageService {
         .webp({ quality: 80 })
         .toBuffer();
 
-      // Save optimized image
-      await fs.writeFile(filePath, processedBuffer);
+      // Upload to DigitalOcean Spaces
+      const uploadParams = {
+        Bucket: SPACES_BUCKET,
+        Key: optimizedFileName,
+        Body: processedBuffer,
+        ContentType: 'image/webp',
+        ACL: 'public-read',
+      };
 
-      // Get file size
-      const stats = await fs.stat(filePath);
+      await s3Client.send(new PutObjectCommand(uploadParams));
+
+      // Return CDN URL for the image
+      const imageUrl = `${SPACES_CDN_URL}/${optimizedFileName}`;
+
+      console.log('Image uploaded to Spaces:', imageUrl);
 
       return {
         filename: optimizedFileName,
-        path: filePath,
-        url: `/uploads/${optimizedFileName}`,
-        size: stats.size,
+        url: imageUrl,
+        size: processedBuffer.length,
         originalSize: fileBuffer.length,
-        compression: `${((1 - stats.size / fileBuffer.length) * 100).toFixed(2)}%`,
+        compression: `${((1 - processedBuffer.length / fileBuffer.length) * 100).toFixed(2)}%`,
       };
     } catch (error) {
-      console.error('Image processing error:', error);
+      console.error('Image processing/upload error:', error);
       throw error;
     }
   }
@@ -96,13 +104,26 @@ class ImageService {
   }
 
   /**
-   * Delete image file
-   * @param {string} fileName - File name to delete
+   * Delete image from DigitalOcean Spaces
+   * @param {string} imageUrl - Full URL or key of image to delete
    */
-  static async deleteImage(fileName) {
+  static async deleteImage(imageUrl) {
     try {
-      const filePath = path.join(UPLOAD_DIR, fileName);
-      await fs.unlink(filePath);
+      // Extract the key from URL if full URL provided
+      let key = imageUrl;
+      if (imageUrl.includes(SPACES_CDN_URL)) {
+        key = imageUrl.replace(`${SPACES_CDN_URL}/`, '');
+      } else if (imageUrl.startsWith('/uploads/')) {
+        key = `uploads${imageUrl.substring(8)}`; // Convert /uploads/x to uploads/x
+      }
+
+      const deleteParams = {
+        Bucket: SPACES_BUCKET,
+        Key: key,
+      };
+
+      await s3Client.send(new DeleteObjectCommand(deleteParams));
+      console.log('Image deleted from Spaces:', key);
       return { success: true, message: 'Image deleted successfully' };
     } catch (error) {
       console.error('Error deleting image:', error);
@@ -112,12 +133,12 @@ class ImageService {
 
   /**
    * Delete multiple images
-   * @param {Array<string>} fileNames - Array of file names to delete
+   * @param {Array<string>} imageUrls - Array of image URLs to delete
    */
-  static async deleteMultipleImages(fileNames) {
+  static async deleteMultipleImages(imageUrls) {
     try {
-      for (const fileName of fileNames) {
-        await this.deleteImage(fileName);
+      for (const url of imageUrls) {
+        await this.deleteImage(url);
       }
       return { success: true, message: 'Images deleted successfully' };
     } catch (error) {
