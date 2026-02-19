@@ -5,13 +5,28 @@ const path = require('path');
 const storage = multer.memoryStorage(); // Keep in memory before Sharp processing
 
 const fileFilter = (req, file, cb) => {
-  // Allowed MIME types
-  const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+  // Accept all image types - Sharp will handle conversion
+  // Also accept application/octet-stream since mobile apps often send this
+  const allowedMimes = [
+    'image/jpeg', 
+    'image/png', 
+    'image/webp', 
+    'image/heic', 
+    'image/heif',
+    'image/gif',
+    'image/bmp',
+    'image/tiff',
+    'application/octet-stream' // Mobile apps often send this
+  ];
 
-  if (allowedMimes.includes(file.mimetype)) {
+  // Check by extension as fallback
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.gif', '.bmp', '.tiff'];
+
+  if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error(`Invalid file type. Only JPEG, PNG, and WebP are allowed. Received: ${file.mimetype}`));
+    cb(new Error(`Invalid file type. Received: ${file.mimetype}, Extension: ${ext}`));
   }
 };
 
