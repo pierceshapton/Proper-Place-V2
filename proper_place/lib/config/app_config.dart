@@ -12,7 +12,7 @@ class AppConfig {
   // Note: iOS simulator uses localhost, not 10.0.2.2 (which is for Android emulator)
   static const String properPlaceBackendUrl = String.fromEnvironment(
     'PROPER_PLACE_BACKEND_URL',
-    defaultValue: 'https://octopus-app-lxh2t.ondigitalocean.app',  // Changed for local testing
+    defaultValue: 'http://localhost:3001',  // Changed for local testing
   );
   
   // Production URL for reference:
