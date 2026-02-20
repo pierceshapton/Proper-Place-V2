@@ -94,13 +94,14 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     
     _priceFocusNode.addListener(_onPriceFocusChange);
 
-    if (widget.siteToEdit != null) {
-      _loadExistingSite();
-    } else {
-      _loadDraft();
-    }
-    
-    _fetchFacilities();
+    // Load facilities first, then site data (to avoid race condition)
+    _fetchFacilities().then((_) {
+      if (widget.siteToEdit != null) {
+        _loadExistingSite();
+      } else {
+        _loadDraft();
+      }
+    });
   }
 
   Future<void> _fetchFacilities() async {
@@ -244,6 +245,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       existingBusinessUrls = businessUrls;
       print('DEBUG setState: existingMainPhotoUrl = $existingMainPhotoUrl');
       print('DEBUG setState: existingBusinessUrls = $existingBusinessUrls');
+      
+      // Mark address as verified so it displays correctly when editing
+      addressVerified = addressController.text.isNotEmpty;
     });
   }
 
