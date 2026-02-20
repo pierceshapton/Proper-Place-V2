@@ -35,8 +35,8 @@ const uploadMiddleware = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
     files: 10, // Maximum 10 files per request
+    // File size limit removed - allow large uploads
   },
 });
 

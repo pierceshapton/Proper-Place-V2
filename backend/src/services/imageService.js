@@ -2,7 +2,7 @@ const sharp = require('sharp');
 const path = require('path');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+// File size limit removed - allow large uploads
 const ALLOWED_FORMATS = ['jpeg', 'png', 'webp'];
 
 // DigitalOcean Spaces configuration (S3-compatible)
@@ -31,11 +31,6 @@ class ImageService {
    */
   static async processImage(fileBuffer, fileName) {
     try {
-      // Validate file size
-      if (fileBuffer.length > MAX_FILE_SIZE) {
-        throw new Error(`File size exceeds maximum of 5MB (received ${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB)`);
-      }
-
       // Generate unique filename
       const timestamp = Date.now();
       const random = Math.random().toString(36).substring(7);
