@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/place.dart';
+import '../services/api_service.dart';
 
 class AdminApprovalsScreen extends StatefulWidget {
   final VoidCallback? onRefresh;
@@ -13,63 +14,50 @@ class AdminApprovalsScreen extends StatefulWidget {
 class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   String _selectedFilter = 'Pending';
   final Set<String> _expandedApprovedPlaces = {}; // Track which approved places are expanded
+  
+  late List<Map<String, dynamic>> _allPlaces = [];
+  bool _isLoading = true;
+  String? _error;
 
-  // Sample place submissions data
-  final List<Map<String, dynamic>> _allPlaces = [
-    {
-      'id': '1',
-      'name': 'Cozy Mountain Cabin',
-      'address': '123 Mountain Rd, Colorado',
-      'hostName': 'John Smith',
-      'hostEmail': 'john@example.com',
-      'image':
-          'https://images.unsplash.com/photo-1520763185298-1b434c919abe?w=400&h=300&fit=crop',
-      'status': 'Pending',
-      'submissionDate': '2025-01-20',
-      'description':
-          'Beautiful mountain cabin with views, fully equipped kitchen',
-      'amenities': ['WiFi', 'Heating', 'Kitchen', 'Bathroom'],
-    },
-    {
-      'id': '2',
-      'name': 'Desert Glamping',
-      'address': '456 Desert Lane, Arizona',
-      'hostName': 'Sarah Johnson',
-      'hostEmail': 'sarah@example.com',
-      'image':
-          'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
-      'status': 'Approved',
-      'submissionDate': '2025-01-15',
-      'description': 'Luxury glamping experience in the desert',
-      'amenities': ['Heating', 'Star views', 'Outdoor shower'],
-    },
-    {
-      'id': '3',
-      'name': 'Lake House Retreat',
-      'address': '789 Lake View, Michigan',
-      'hostName': 'Michael Chen',
-      'hostEmail': 'michael@example.com',
-      'image':
-          'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&h=300&fit=crop',
-      'status': 'Approved',
-      'submissionDate': '2025-01-10',
-      'description': 'Stunning lakefront property with private dock',
-      'amenities': ['WiFi', 'Kitchen', 'Dock', 'Fireplace'],
-    },
-    {
-      'id': '4',
-      'name': 'City Loft',
-      'address': '321 Urban St, New York',
-      'hostName': 'Emma Davis',
-      'hostEmail': 'emma@example.com',
-      'image':
-          'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop',
-      'status': 'Pending',
-      'submissionDate': '2025-01-18',
-      'description': 'Modern loft in the heart of the city',
-      'amenities': ['WiFi', 'AC', 'Elevator'],
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadPendingPlaces();
+  }
+
+  Future<void> _loadPendingPlaces() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+      final places = await ApiService.getPendingPlaces();
+      setState(() {
+        _allPlaces = (places as List).map((place) {
+          return {
+            'id': place['place_id'] ?? place['id'] ?? '',
+            'name': place['name'] ?? 'Unnamed Place',
+            'address': place['address'] ?? '',
+            'hostName': place['host_name'] ?? place['owner_name'] ?? 'Unknown Host',
+            'hostEmail': place['host_email'] ?? place['owner_email'] ?? '',
+            'image': place['image_url'] ?? place['image'] ?? '',
+            'status': 'Pending',
+            'submissionDate': place['submitted_at'] ?? place['created_at'] ?? '',
+            'description': place['description'] ?? '',
+            'amenities': (place['amenities'] is List) ? place['amenities'] : [],
+            'raw': place, // Keep raw data for later updates
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading pending places: $e');
+      setState(() {
+        _error = 'Failed to load pending places: $e';
+        _isLoading = false;
+      });
+    }
+  }
 
   List<Map<String, dynamic>> get _filteredPlaces {
     if (_selectedFilter == 'All') {
@@ -101,16 +89,24 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              setState(() {
-                place['status'] = 'Approved';
-              });
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Place approved successfully')),
-              );
-              // Refresh notification counts after approval
-              widget.onRefresh?.call();
+              try {
+                await ApiService.approvePlace(placeId: place['id']);
+                // Remove approved place from list
+                setState(() {
+                  _allPlaces.removeWhere((p) => p['id'] == place['id']);
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${place['name']} approved successfully')),
+                );
+                // Refresh notification counts after approval
+                widget.onRefresh?.call();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to approve: $e'), backgroundColor: Colors.red),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
@@ -157,16 +153,27 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              setState(() {
-                place['status'] = 'Rejected';
-              });
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Place rejected')),
-              );
-              // Refresh notification counts after rejection
-              widget.onRefresh?.call();
+              try {
+                await ApiService.rejectPlace(
+                  placeId: place['id'],
+                  reason: reasonController.text,
+                );
+                // Remove rejected place from list
+                setState(() {
+                  _allPlaces.removeWhere((p) => p['id'] == place['id']);
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${place['name']} rejected')),
+                );
+                // Refresh notification counts after rejection
+                widget.onRefresh?.call();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to reject: $e'), backgroundColor: Colors.red),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -528,77 +535,95 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Filter Tabs
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    _buildFilterTab('Pending', _pendingCount),
-                    const SizedBox(width: 8),
-                    _buildFilterTab('Approved', _approvedCount),
-                    const SizedBox(width: 8),
-                    _buildFilterTab('Rejected', _rejectedCount),
-                    const SizedBox(width: 8),
-                    _buildFilterTab('All', _allPlaces.length),
-                  ],
-                ),
-              ),
-            ),
-            // Places List or Empty State
-            Expanded(
-              child: _filteredPlaces.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE0E7FF),
-                              borderRadius: BorderRadius.circular(50),
-                            ),
-                            child: const Icon(
-                              Icons.check_circle,
-                              color: Color(0xFF4F46E5),
-                              size: 64,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'All caught up!',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'No ${_selectedFilter.toLowerCase()} places to review at the moment.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _filteredPlaces.length,
-                      itemBuilder: (context, index) {
-                        final place = _filteredPlaces[index];
-                        // Use collapsible card for all places
-                        return _buildCollapsiblePlaceCard(place);
-                      },
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(_error!, textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadPendingPlaces,
+                          child: const Text('Retry'),
+                        ),
+                      ],
                     ),
-            ),
-          ],
-        ),
+                  )
+                : Column(
+                    children: [
+                      // Filter Tabs
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              _buildFilterTab('Pending', _pendingCount),
+                              const SizedBox(width: 8),
+                              _buildFilterTab('Approved', _approvedCount),
+                              const SizedBox(width: 8),
+                              _buildFilterTab('Rejected', _rejectedCount),
+                              const SizedBox(width: 8),
+                              _buildFilterTab('All', _allPlaces.length),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Places List or Empty State
+                      Expanded(
+                        child: _filteredPlaces.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(24),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE0E7FF),
+                                        borderRadius: BorderRadius.circular(50),
+                                      ),
+                                      child: const Icon(
+                                        Icons.check_circle,
+                                        color: Color(0xFF4F46E5),
+                                        size: 64,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    const Text(
+                                      'All caught up!',
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No ${_selectedFilter.toLowerCase()} places to review at the moment.',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _filteredPlaces.length,
+                                itemBuilder: (context, index) {
+                                  final place = _filteredPlaces[index];
+                                  // Use collapsible card for all places
+                                  return _buildCollapsiblePlaceCard(place);
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
       ),
     );
   }
