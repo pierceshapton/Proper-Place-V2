@@ -91,8 +91,8 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final otherUserId = int.tryParse(widget.hostName) ?? 1;
       await _chatService.sendMessage(
-        recipientId: otherUserId,
-        message: message,
+        receiverId: otherUserId,
+        content: message,
       );
 
       // Simulate message delivery after 500ms
@@ -296,7 +296,6 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ],
                 ),
-            ),
     );
   }
 }
