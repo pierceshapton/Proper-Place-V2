@@ -500,6 +500,71 @@ class ApiService {
     );
   }
 
+  // ==================== REVIEW METHODS ====================
+
+  /// Get reviews for a place
+  static Future<List<dynamic>> getPlaceReviews({
+    required String placeId,
+  }) async {
+    final response = await _request(
+      method: 'GET',
+      endpoint: '/reviews/places/$placeId/reviews',
+    );
+    return response['reviews'] ?? [];
+  }
+
+  /// Create a review for a place
+  static Future<Map<String, dynamic>> createPlaceReview({
+    required String placeId,
+    required int rating,
+    required String comment,
+  }) async {
+    return _request(
+      method: 'POST',
+      endpoint: '/reviews/places/$placeId',
+      body: {
+        'rating': rating,
+        'comment': comment,
+      },
+    );
+  }
+
+  /// Update a review
+  static Future<Map<String, dynamic>> updateReview({
+    required String reviewId,
+    int? rating,
+    String? comment,
+  }) async {
+    final body = <String, dynamic>{};
+    if (rating != null) body['rating'] = rating;
+    if (comment != null) body['comment'] = comment;
+
+    return _request(
+      method: 'PATCH',
+      endpoint: '/reviews/$reviewId',
+      body: body,
+    );
+  }
+
+  /// Delete a review
+  static Future<Map<String, dynamic>> deleteReview({
+    required String reviewId,
+  }) async {
+    return _request(
+      method: 'DELETE',
+      endpoint: '/reviews/$reviewId',
+    );
+  }
+
+  /// Get host's bookings (for all their places)
+  static Future<List<dynamic>> getHostBookings() async {
+    final response = await _request(
+      method: 'GET',
+      endpoint: '/bookings/host',
+    );
+    return response['bookings'] ?? [];
+  }
+
   /// Submit contact message
   static Future<Map<String, dynamic>> submitContact({
     required int userId,

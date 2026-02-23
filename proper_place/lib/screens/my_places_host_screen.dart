@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'host_create_site_screen.dart';
 import '../services/place_service.dart';
+import '../services/api_service.dart';
 import '../config/app_config.dart';
 
 class MyPlacesHostScreen extends StatefulWidget {
@@ -90,45 +91,74 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
         }).toList();
         _isLoading = false;
       });
+      // Load reviews for all places
+      _loadAllReviews();
     } catch (e) {
       print('Error loading places: $e');
       setState(() => _isLoading = false);
     }
   }
 
-  // Sample reviews data
-  final List<Map<String, dynamic>> allReviews = [
-    {
-      'id': '1',
-      'guestName': 'Alice Johnson',
-      'placeName': 'Avalon',
-      'rating': 5,
-      'date': '6 Feb 2026',
-      'reviewText': 'Absolutely amazing place! The views were stunning and hosts were very welcoming.',
-      'hasResponse': true,
-      'response': 'Thank you so much Alice! We loved having you stay with us.',
-    },
-    {
-      'id': '2',
-      'guestName': 'Bob Wilson',
-      'placeName': 'Coastal Haven',
-      'rating': 4,
-      'date': '4 Feb 2026',
-      'reviewText': 'Great location and comfortable accommodations. Minor issue with WiFi but overall excellent.',
-      'hasResponse': false,
-      'response': '',
-    },
-    {
-      'id': '3',
-      'guestName': 'Carol Davis',
-      'placeName': 'Avalon',
-      'rating': 5,
-      'date': '2 Feb 2026',
-      'reviewText': 'Perfect weekend getaway! Everything was clean and well-organized.',
-      'hasResponse': false,
-      'response': '',
-    },
-  ];
+  // Reviews loaded from API
+  List<Map<String, dynamic>> allReviews = [];
+  bool _reviewsLoading = true;
+
+  Future<void> _loadAllReviews() async {
+    try {
+      setState(() => _reviewsLoading = true);
+      
+      List<Map<String, dynamic>> aggregatedReviews = [];
+      
+      for (var place in hostPlaces) {
+        final placeId = place['id']?.toString() ?? '';
+        if (placeId.isEmpty) continue;
+        
+        try {
+          final reviews = await ApiService.getPlaceReviews(placeId: placeId);
+          for (var review in reviews) {
+            aggregatedReviews.add({
+              'id': review['id']?.toString() ?? '',
+              'guestName': review['user_name'] ?? review['reviewer_name'] ?? 'Guest',
+              'placeName': place['name'] ?? 'Unknown Place',
+              'rating': review['rating'] ?? 5,
+              'date': _formatDate(review['created_at']),
+              'reviewText': review['comment'] ?? review['content'] ?? '',
+              'hasResponse': review['response'] != null && review['response'].isNotEmpty,
+              'response': review['response'] ?? '',
+            });
+          }
+        } catch (e) {
+          print('Error loading reviews for place $placeId: $e');
+        }
+      }
+      
+      // Sort reviews by date (newest first)
+      aggregatedReviews.sort((a, b) => b['date'].compareTo(a['date']));
+      
+      setState(() {
+        allReviews = aggregatedReviews;
+        _reviewsLoading = false;
+      });
+    } catch (e) {
+      print('Error loading reviews: $e');
+      setState(() => _reviewsLoading = false);
+    }
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'Unknown';
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day} ${_monthName(date.month)} ${date.year}';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  String _monthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
+  }
 
   @override
   Widget build(BuildContext context) {
