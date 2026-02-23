@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/chat_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final String bookingId;
@@ -18,13 +19,52 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> messages = [
-    {
-      'sender': 'host',
-      'message': 'Hi! Thank you for booking with us. How can I help?',
-      'timestamp': DateTime.now().subtract(const Duration(hours: 2)),
-    },
-  ];
+  late List<Map<String, dynamic>> messages = [];
+  bool _isLoading = true;
+  String? _error;
+  late ChatService _chatService;
+
+  @override
+  void initState() {
+    super.initState();
+    _chatService = ChatService();
+    _loadMessages();
+  }
+
+  Future<void> _loadMessages() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+      
+      // Parse otherUserId from the booking or use a default
+      // The bookingId should help identify the conversation partner
+      final conversationMessages = await _chatService.getMessagesWithUser(
+        int.tryParse(widget.hostName) ?? 1,
+      );
+      
+      setState(() {
+        messages = conversationMessages.map((msg) {
+          return {
+            'sender': msg['sender_id'] == 1 ? 'host' : 'guest', // Adjust based on actual response
+            'message': msg['content'] ?? msg['message'] ?? '',
+            'timestamp': msg['created_at'] != null 
+              ? DateTime.parse(msg['created_at'])
+              : DateTime.now(),
+            'status': 'read', // Mark as read since they're loaded
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load messages: $e';
+        _isLoading = false;
+      });
+      print('Error loading messages: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -32,7 +72,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
 
@@ -47,23 +87,41 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _messageController.clear();
 
-    // Simulate message delivery after 500ms
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          messages.last['status'] = 'delivered';
-        });
-      }
-    });
+    // Send message via API
+    try {
+      final otherUserId = int.tryParse(widget.hostName) ?? 1;
+      await _chatService.sendMessage(
+        recipientId: otherUserId,
+        message: message,
+      );
 
-    // Simulate message read after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          messages.last['status'] = 'read';
-        });
-      }
-    });
+      // Simulate message delivery after 500ms
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            if (messages.isNotEmpty) {
+              messages.last['status'] = 'delivered';
+            }
+          });
+        }
+      });
+
+      // Simulate message read after 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            if (messages.isNotEmpty) {
+              messages.last['status'] = 'read';
+            }
+          });
+        }
+      });
+    } catch (e) {
+      print('Error sending message: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send message: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Widget _buildReadReceipt(String status) {
@@ -102,24 +160,49 @@ class _ChatScreenState extends State<ChatScreen> {
         backgroundColor: const Color(0xFF7BA7D8),
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          // Messages list
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              reverse: true,
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[messages.length - 1 - index];
-                final isHost = message['sender'] == 'host';
-
-                return Align(
-                  alignment: isHost ? Alignment.centerLeft : Alignment.centerRight,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
                   child: Column(
-                    crossAxisAlignment:
-                        isHost ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      const Icon(Icons.error, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadMessages,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: [
+                    // Messages list
+                    Expanded(
+                      child: messages.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No messages yet',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              reverse: true,
+                              itemCount: messages.length,
+                              itemBuilder: (context, index) {
+                                final message = messages[messages.length - 1 - index];
+                                final isHost = message['sender'] == 'host';
+
+                                return Align(
+                                  alignment: isHost ? Alignment.centerLeft : Alignment.centerRight,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        isHost ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                                    children: [
                       Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         padding: const EdgeInsets.symmetric(
@@ -170,49 +253,50 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // Message input
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              border: Border(
-                top: BorderSide(color: Colors.grey[200]!),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Type a message...',
-                      hintStyle: TextStyle(color: Colors.grey[700]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                    // Message input
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        border: Border(
+                          top: BorderSide(color: Colors.grey[200]!),
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _messageController,
+                              decoration: InputDecoration(
+                                hintText: 'Type a message...',
+                                hintStyle: TextStyle(color: Colors.grey[700]),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                              maxLines: null,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => _sendMessage(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          FloatingActionButton(
+                            onPressed: _sendMessage,
+                            mini: true,
+                            backgroundColor: const Color(0xFF7BA7D8),
+                            child: const Icon(Icons.send),
+                          ),
+                        ],
                       ),
                     ),
-                    maxLines: null,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                FloatingActionButton(
-                  onPressed: _sendMessage,
-                  mini: true,
-                  backgroundColor: const Color(0xFF7BA7D8),
-                  child: const Icon(Icons.send),
-                ),
-              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
