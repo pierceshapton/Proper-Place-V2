@@ -55,7 +55,7 @@ async function getNotificationCounts(req, res, next) {
       // Host requests (place applications) - pending places awaiting approval from admin
       if (userRole === 'admin') {
         const hostRequestsResult = await db.query(
-          `SELECT COUNT(*) as count FROM places WHERE approval_status = 'pending'`
+          `SELECT COUNT(*) as count FROM places WHERE approval_status = 'pending' AND deleted_at IS NULL`
         );
         counts.pendingApprovals = parseInt(hostRequestsResult.rows[0]?.count || 0);
         
