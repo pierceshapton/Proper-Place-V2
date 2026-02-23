@@ -80,7 +80,7 @@ async function approvePlace(req, res, next) {
 
     const result = await db.query(
       `UPDATE places
-       SET approval_status = 'approved', updated_at = NOW()
+       SET approval_status = 'approved', status = 'available', updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
       [id]
@@ -97,7 +97,7 @@ async function approvePlace(req, res, next) {
     await db.query(
       `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
        VALUES ($1, $2, $3, $4, $5)`,
-      [adminId, 'place_approved', 'place', id, 'Approved place']
+      [adminId, 'place_approved', 'place', id, 'Approved place and set to available']
     );
 
     logger.info('Place approved', { adminId, placeId: id });
