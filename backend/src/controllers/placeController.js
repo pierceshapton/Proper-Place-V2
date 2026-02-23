@@ -516,6 +516,59 @@ async function removeUnavailablePeriod(req, res, next) {
   }
 }
 
+/**
+ * GET /places/admin/pending
+ * Get all pending places for admin moderation (admin only)
+ */
+async function getPendingPlaces(req, res, next) {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        error: 'access_denied',
+        message: 'Admin access required',
+      });
+    }
+
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Get pending places
+    const result = await db.query(
+      `SELECT * FROM places 
+       WHERE approval_status = 'pending' 
+       AND deleted_at IS NULL
+       ORDER BY created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    // Get total count
+    const countResult = await db.query(
+      `SELECT COUNT(*) FROM places 
+       WHERE approval_status = 'pending' 
+       AND deleted_at IS NULL`
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    logger.info('Fetched pending places', { count: result.rows.length, total });
+
+    res.json({
+      message: 'Pending places retrieved successfully',
+      places: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    logger.error('Get pending places error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getPlaces,
   getPlaceDetail,
@@ -526,4 +579,5 @@ module.exports = {
   setPlaceUnavailable,
   setPlaceAvailable,
   removeUnavailablePeriod,
+  getPendingPlaces,
 };
