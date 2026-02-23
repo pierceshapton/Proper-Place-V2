@@ -16,6 +16,7 @@ router.get('/host/my-places', authMiddleware, placeController.getHostPlaces);
 router.get('/admin/pending', authMiddleware, adminMiddleware, placeController.getPendingPlaces);
 router.post('/:id/approve', authMiddleware, adminMiddleware, adminController.approvePlace);
 router.post('/:id/reject', authMiddleware, adminMiddleware, adminController.rejectPlace);
+router.post('/:id/reopen', authMiddleware, adminMiddleware, adminController.reopenPlace);
 
 router.get('/:id', optionalAuthMiddleware, placeController.getPlaceDetail);
 router.post('/', authMiddleware, validationMiddleware('createPlace'), placeController.createPlace);

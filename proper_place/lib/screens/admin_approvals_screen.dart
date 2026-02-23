@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/place.dart';
 import '../services/api_service.dart';
+import 'admin_approval_detail_screen.dart';
 
 class AdminApprovalsScreen extends StatefulWidget {
   final VoidCallback? onRefresh;
@@ -15,65 +16,84 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   String _selectedFilter = 'Pending';
   final Set<String> _expandedApprovedPlaces = {}; // Track which approved places are expanded
   
-  late List<Map<String, dynamic>> _allPlaces = [];
+  List<Map<String, dynamic>> _pendingPlaces = [];
+  List<Map<String, dynamic>> _approvedPlaces = [];
+  List<Map<String, dynamic>> _rejectedPlaces = [];
   bool _isLoading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadPendingPlaces();
+    _loadAllCounts();
   }
 
-  Future<void> _loadPendingPlaces() async {
+  /// Load counts for all filters upfront, then load details for current filter
+  Future<void> _loadAllCounts() async {
     try {
       setState(() {
         _isLoading = true;
         _error = null;
       });
-      final places = await ApiService.getPendingPlaces();
+      
+      // Load all categories in parallel to get accurate counts
+      final results = await Future.wait([
+        ApiService.getPendingPlaces(),
+        ApiService.getAdminApprovedPlaces(),
+        ApiService.getAdminRejectedPlaces(),
+      ]);
+      
       setState(() {
-        _allPlaces = (places as List).map((place) {
-          return {
-            'id': place['place_id'] ?? place['id'] ?? '',
-            'name': place['name'] ?? 'Unnamed Place',
-            'address': place['address'] ?? '',
-            'hostName': place['host_name'] ?? place['owner_name'] ?? 'Unknown Host',
-            'hostEmail': place['host_email'] ?? place['owner_email'] ?? '',
-            'image': place['image_url'] ?? place['image'] ?? '',
-            'status': 'Pending',
-            'submissionDate': place['submitted_at'] ?? place['created_at'] ?? '',
-            'description': place['description'] ?? '',
-            'amenities': (place['amenities'] is List) ? place['amenities'] : [],
-            'raw': place, // Keep raw data for later updates
-          };
-        }).toList();
+        _pendingPlaces = _mapPlaces(results[0], 'Pending');
+        _approvedPlaces = _mapPlaces(results[1], 'Approved');
+        _rejectedPlaces = _mapPlaces(results[2], 'Rejected');
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading pending places: $e');
+      print('Error loading places: $e');
       setState(() {
-        _error = 'Failed to load pending places: $e';
+        _error = 'Failed to load places: $e';
         _isLoading = false;
       });
     }
   }
 
-  List<Map<String, dynamic>> get _filteredPlaces {
-    if (_selectedFilter == 'All') {
-      return _allPlaces;
-    }
-    return _allPlaces
-        .where((place) => place['status'] == _selectedFilter)
-        .toList();
+  List<Map<String, dynamic>> _mapPlaces(List places, String status) {
+    return places.map((place) {
+      return {
+        'id': place['place_id'] ?? place['id'] ?? '',
+        'name': place['name'] ?? 'Unnamed Place',
+        'address': place['address'] ?? '',
+        'hostName': place['host_name'] ?? place['owner_name'] ?? 'Unknown Host',
+        'hostEmail': place['host_email'] ?? place['owner_email'] ?? '',
+        'host_total_sites': place['host_total_sites'] ?? 0,
+        'host_approved_sites': place['host_approved_sites'] ?? 0,
+        'host_joined_at': place['host_joined_at'] ?? '',
+        'image': place['image_url'] ?? place['image'] ?? '',
+        'status': status,
+        'submissionDate': place['submitted_at'] ?? place['created_at'] ?? '',
+        'description': place['description'] ?? '',
+        'amenities': (place['amenities'] is List) ? place['amenities'] : [],
+        'raw': place,
+      };
+    }).toList();
   }
 
-  int get _pendingCount =>
-      _allPlaces.where((p) => p['status'] == 'Pending').length;
-  int get _approvedCount =>
-      _allPlaces.where((p) => p['status'] == 'Approved').length;
-  int get _rejectedCount =>
-      _allPlaces.where((p) => p['status'] == 'Rejected').length;
+  List<Map<String, dynamic>> get _filteredPlaces {
+    if (_selectedFilter == 'Pending') {
+      return _pendingPlaces;
+    } else if (_selectedFilter == 'Approved') {
+      return _approvedPlaces;
+    } else if (_selectedFilter == 'Rejected') {
+      return _rejectedPlaces;
+    }
+    // 'All' - combine all lists
+    return [..._pendingPlaces, ..._approvedPlaces, ..._rejectedPlaces];
+  }
+
+  int get _pendingCount => _pendingPlaces.length;
+  int get _approvedCount => _approvedPlaces.length;
+  int get _rejectedCount => _rejectedPlaces.length;
 
   void _showApproveDialog(Map<String, dynamic> place) {
     showDialog(
@@ -93,9 +113,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               Navigator.pop(context);
               try {
                 await ApiService.approvePlace(placeId: place['id']);
-                // Remove approved place from list
+                // Remove approved place from pending list
                 setState(() {
-                  _allPlaces.removeWhere((p) => p['id'] == place['id']);
+                  _pendingPlaces.removeWhere((p) => p['id'] == place['id']);
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('${place['name']} approved successfully')),
@@ -160,9 +180,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   placeId: place['id'],
                   reason: reasonController.text,
                 );
-                // Remove rejected place from list
+                // Remove rejected place from pending list
                 setState(() {
-                  _allPlaces.removeWhere((p) => p['id'] == place['id']);
+                  _pendingPlaces.removeWhere((p) => p['id'] == place['id']);
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('${place['name']} rejected')),
@@ -547,7 +567,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                         Text(_error!, textAlign: TextAlign.center),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: _loadPendingPlaces,
+                          onPressed: _loadAllCounts,
                           child: const Text('Retry'),
                         ),
                       ],
@@ -568,7 +588,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                               const SizedBox(width: 8),
                               _buildFilterTab('Rejected', _rejectedCount),
                               const SizedBox(width: 8),
-                              _buildFilterTab('All', _allPlaces.length),
+                              _buildFilterTab('All', _pendingCount + _approvedCount + _rejectedCount),
                             ],
                           ),
                         ),
@@ -631,7 +651,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   Widget _buildFilterTab(String label, int count) {
     final isSelected = _selectedFilter == label;
     return GestureDetector(
-      onTap: () => setState(() => _selectedFilter = label),
+      onTap: () {
+        if (_selectedFilter != label) {
+          setState(() => _selectedFilter = label);
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -656,98 +680,108 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   }
 
   Widget _buildCollapsiblePlaceCard(Map<String, dynamic> place) {
-    final isExpanded = _expandedApprovedPlaces.contains(place['id']);
+    final hostTotalSites = place['host_total_sites'] ?? place['raw']?['host_total_sites'] ?? 0;
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          // Header - always visible
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedApprovedPlaces.remove(place['id']);
-                } else {
-                  _expandedApprovedPlaces.add(place['id']);
-                }
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: isExpanded 
-                    ? const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        topRight: Radius.circular(12),
-                      )
-                    : BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: place['status'] == 'Approved'
-                          ? Colors.green
-                          : place['status'] == 'Rejected'
-                              ? Colors.red
-                              : Colors.amber,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      place['status'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          place['name'],
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          place['hostName'],
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Transform.rotate(
-                    angle: isExpanded ? 1.5708 : 0, // 90 degrees when expanded
-                    child: Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
+      child: InkWell(
+        onTap: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AdminApprovalDetailScreen(
+                place: place,
+                onApproved: () {
+                  _loadAllCounts();
+                  widget.onRefresh?.call();
+                },
+                onRejected: () {
+                  _loadAllCounts();
+                  widget.onRefresh?.call();
+                },
               ),
             ),
+          );
+          // Refresh list if action was taken
+          if (result == true) {
+            _loadAllCounts();
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
           ),
-          // Expanded content
-          if (isExpanded) ..._buildExpandedContent(place),
-        ],
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: place['status'] == 'Approved'
+                      ? Colors.green
+                      : place['status'] == 'Rejected'
+                          ? Colors.red
+                          : Colors.amber,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  place['status'],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      place['name'],
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      place['hostName'],
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    if (hostTotalSites > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '$hostTotalSites site${hostTotalSites == 1 ? '' : 's'} total',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.grey[600],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  List<Widget> _buildExpandedContent(Map<String, dynamic> place) {
+  // Keep legacy expanded content for backwards compatibility (no longer used)
+  List<Widget> _buildExpandedContentLegacy(Map<String, dynamic> place) {
     return [
       // Place Image Placeholder
       Container(

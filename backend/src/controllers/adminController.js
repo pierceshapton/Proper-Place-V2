@@ -433,11 +433,54 @@ async function cleanupAllData(req, res, next) {
   }
 }
 
+/**
+ * POST /places/:id/reopen
+ * Reopen a rejected place (move it back to pending status)
+ */
+async function reopenPlace(req, res, next) {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.userId;
+
+    const result = await db.query(
+      `UPDATE places
+       SET approval_status = 'pending', updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'place_not_found',
+        message: 'Place not found',
+      });
+    }
+
+    // Log admin action
+    await db.query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'place_reopened', 'place', id, 'Reopened rejected place for review']
+    );
+
+    logger.info('Place reopened', { adminId, placeId: id });
+
+    res.json({
+      place: result.rows[0],
+    });
+  } catch (error) {
+    logger.error('Reopen place error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getDashboard,
   getPlacesForModeration,
   approvePlace,
   rejectPlace,
+  reopenPlace,
   getUsers,
   updateUserRole,
   seedTestMessages,

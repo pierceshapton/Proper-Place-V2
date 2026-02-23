@@ -282,6 +282,24 @@ class ApiService {
     return response['places'] ?? [];
   }
 
+  /// Get approved places (admin view)
+  static Future<List<dynamic>> getAdminApprovedPlaces() async {
+    final response = await _request(
+      method: 'GET',
+      endpoint: '/places?approval_status=approved',
+    );
+    return response['places'] ?? [];
+  }
+
+  /// Get rejected places (admin view)
+  static Future<List<dynamic>> getAdminRejectedPlaces() async {
+    final response = await _request(
+      method: 'GET',
+      endpoint: '/places?approval_status=rejected',
+    );
+    return response['places'] ?? [];
+  }
+
   /// Approve place (admin only)
   static Future<Map<String, dynamic>> approvePlace({
     required String placeId,
@@ -303,6 +321,26 @@ class ApiService {
       method: 'POST',
       endpoint: '/places/$placeId/reject',
       body: {'reason': reason},
+    );
+  }
+
+  /// Delete place (admin only)
+  static Future<Map<String, dynamic>> deletePlace({
+    required String placeId,
+  }) async {
+    return _request(
+      method: 'DELETE',
+      endpoint: '/places/$placeId',
+    );
+  }
+
+  /// Reopen/unreject place (admin only - moves rejected place back to pending)
+  static Future<Map<String, dynamic>> reopenPlace({
+    required String placeId,
+  }) async {
+    return _request(
+      method: 'POST',
+      endpoint: '/places/$placeId/reopen',
     );
   }
 

@@ -533,12 +533,19 @@ async function getPendingPlaces(req, res, next) {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
-    // Get pending places
+    // Get pending places with host info and their total site count
     const result = await db.query(
-      `SELECT * FROM places 
-       WHERE approval_status = 'pending' 
-       AND deleted_at IS NULL
-       ORDER BY created_at DESC 
+      `SELECT p.*, 
+              u.name as host_name, 
+              u.email as host_email,
+              u.created_at as host_joined_at,
+              (SELECT COUNT(*) FROM places WHERE owner_id = p.owner_id AND deleted_at IS NULL) as host_total_sites,
+              (SELECT COUNT(*) FROM places WHERE owner_id = p.owner_id AND approval_status = 'approved' AND deleted_at IS NULL) as host_approved_sites
+       FROM places p
+       JOIN users u ON p.owner_id = u.id
+       WHERE p.approval_status = 'pending' 
+       AND p.deleted_at IS NULL
+       ORDER BY p.created_at DESC 
        LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
