@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../services/place_service.dart';
 
 class BookingsHostScreen extends StatefulWidget {
   final VoidCallback? onRefresh;
@@ -13,6 +15,8 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
   late DateTime _selectedDate;
   late DateTime _focusedDate;
   String _selectedFilter = 'Confirmed';
+  bool _isLoading = true;
+  String? _error;
 
   final List<String> _filters = [
     'Confirmed',
@@ -21,76 +25,129 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     'All'
   ];
 
-  // Sample bookings data
-  final Map<DateTime, List<Map<String, dynamic>>> _bookingsByDate = {
-    DateTime(2026, 1, 18): [
-      {
-        'id': 1,
-        'guestName': 'John Smith',
-        'placeName': 'Avalon',
-        'checkIn': DateTime(2026, 1, 18),
-        'checkOut': DateTime(2026, 1, 21),
-        'status': 'Confirmed',
-        'amount': '£450.00',
-        'guestEmail': 'john@example.com',
-        'guestPhone': '+44 123 456 7890',
-      },
-    ],
-    DateTime(2026, 1, 19): [
-      {
-        'id': 1,
-        'guestName': 'John Smith',
-        'placeName': 'Avalon',
-        'checkIn': DateTime(2026, 1, 18),
-        'checkOut': DateTime(2026, 1, 21),
-        'status': 'Confirmed',
-        'amount': '£450.00',
-        'guestEmail': 'john@example.com',
-        'guestPhone': '+44 123 456 7890',
-      },
-      {
-        'id': 2,
-        'guestName': 'Sarah Johnson',
-        'placeName': 'Coastal Haven',
-        'checkIn': DateTime(2026, 1, 19),
-        'checkOut': DateTime(2026, 1, 22),
-        'status': 'Pending',
-        'amount': '£520.00',
-        'guestEmail': 'sarah@example.com',
-        'guestPhone': '+44 987 654 3210',
-      },
-    ],
-    DateTime(2026, 1, 20): [
-      {
-        'id': 1,
-        'guestName': 'John Smith',
-        'placeName': 'Avalon',
-        'checkIn': DateTime(2026, 1, 18),
-        'checkOut': DateTime(2026, 1, 21),
-        'status': 'Confirmed',
-        'amount': '£450.00',
-        'guestEmail': 'john@example.com',
-        'guestPhone': '+44 123 456 7890',
-      },
-      {
-        'id': 2,
-        'guestName': 'Sarah Johnson',
-        'placeName': 'Coastal Haven',
-        'checkIn': DateTime(2026, 1, 19),
-        'checkOut': DateTime(2026, 1, 22),
-        'status': 'Pending',
-        'amount': '£520.00',
-        'guestEmail': 'sarah@example.com',
-        'guestPhone': '+44 987 654 3210',
-      },
-    ],
-  };
+  // Real bookings data - loaded from API
+  Map<DateTime, List<Map<String, dynamic>>> _bookingsByDate = {};
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime(2026, 1, 23);
-    _focusedDate = DateTime(2026, 1, 23);
+    _selectedDate = DateTime.now();
+    _focusedDate = DateTime.now();
+    _loadHostBookings();
+  }
+
+  Future<void> _loadHostBookings() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // Get host's places
+      final places = await PlaceService.getHostPlaces();
+      if (places.isEmpty) {
+        setState(() {
+          _isLoading = false;
+          _bookingsByDate = {};
+        });
+        return;
+      }
+
+      // Aggregate bookings from all places
+      Map<DateTime, List<Map<String, dynamic>>> bookingsByDate = {};
+
+      for (var place in places) {
+        final placeId = place['id'] ?? place['place_id'] ?? '';
+        if (placeId.isEmpty) continue;
+
+        try {
+          final bookings = await ApiService.getBookingsForPlace(placeId: placeId.toString());
+          
+          for (var booking in bookings) {
+            // Parse check-in date
+            final checkInStr = booking['check_in'] ?? booking['check_in_date'] ?? '';
+            final checkOutStr = booking['check_out'] ?? booking['check_out_date'] ?? '';
+            
+            if (checkInStr.isEmpty) continue;
+
+            // Parse dates
+            DateTime checkInDate;
+            DateTime checkOutDate;
+            try {
+              checkInDate = DateTime.parse(checkInStr);
+              checkOutDate = checkOutStr.isNotEmpty 
+                ? DateTime.parse(checkOutStr)
+                : checkInDate;
+            } catch (e) {
+              continue;
+            }
+
+            // Normalize to date only (no time)
+            final dateKey = DateTime(checkInDate.year, checkInDate.month, checkInDate.day);
+
+            // Create booking record
+            final bookingRecord = {
+              'id': booking['id'] ?? booking['booking_id'] ?? '',
+              'guestName': booking['guest_name'] ?? booking['user_name'] ?? 'Guest',
+              'placeName': place['name'] ?? 'Unknown Place',
+              'checkIn': checkInDate,
+              'checkOut': checkOutDate,
+              'status': _normalizeBookingStatus(booking['status'] ?? 'pending'),
+              'amount': _formatPrice(booking['total_price'] ?? 0),
+              'guestEmail': booking['guest_email'] ?? booking['user_email'] ?? '',
+              'guestPhone': booking['contact_phone'] ?? booking['phone'] ?? '',
+            };
+
+            // Add to map
+            if (bookingsByDate[dateKey] == null) {
+              bookingsByDate[dateKey] = [];
+            }
+            bookingsByDate[dateKey]!.add(bookingRecord);
+          }
+        } catch (e) {
+          print('Error loading bookings for place $placeId: $e');
+          continue;
+        }
+      }
+
+      setState(() {
+        _bookingsByDate = bookingsByDate;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Error loading bookings: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _normalizeBookingStatus(String status) {
+    final lower = status.toLowerCase();
+    if (lower.contains('confirm') || lower.contains('approved')) {
+      return 'Confirmed';
+    }
+    if (lower.contains('pend')) {
+      return 'Pending';
+    }
+    if (lower.contains('complet') || lower.contains('finished')) {
+      return 'Completed';
+    }
+    if (lower.contains('cancel')) {
+      return 'Cancelled';
+    }
+    return 'Pending';
+  }
+
+  String _formatPrice(dynamic price) {
+    try {
+      if (price is String) {
+        return price.contains('£') ? price : '£${price}';
+      }
+      return '£${(price as num?)?.toStringAsFixed(2) ?? '0.00'}';
+    } catch (e) {
+      return '£0.00';
+    }
   }
 
   List<Map<String, dynamic>> get _bookingsForSelectedDate {
@@ -178,67 +235,89 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
           ),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Filter tabs
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _filters.map((filter) {
-                final isSelected = _selectedFilter == filter;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(
-                      filter,
-                      style: TextStyle(
-                        color:
-                            isSelected ? Colors.white : const Color(0xFF64748B),
-                        fontWeight: FontWeight.w600,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadHostBookings,
+                        child: const Text('Retry'),
                       ),
-                    ),
-                    backgroundColor: isSelected
-                        ? const Color(0xFF4F46E5)
-                        : Colors.grey[100],
-                    side: BorderSide(
-                      color: isSelected
-                          ? Colors.transparent
-                          : const Color(0xFFE2E8F0),
-                    ),
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedFilter = filter;
-                      });
-                    },
+                    ],
                   ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 24),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadHostBookings,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // Filter tabs
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: _filters.map((filter) {
+                            final isSelected = _selectedFilter == filter;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: Text(
+                                  filter,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : const Color(0xFF64748B),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                backgroundColor: isSelected
+                                    ? const Color(0xFF4F46E5)
+                                    : Colors.grey[100],
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? Colors.transparent
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _selectedFilter = filter;
+                                  });
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
 
-          // Bookings list
-          if (_bookingsForSelectedDate.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
-                child: Text(
-                  'No bookings',
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 14,
+                      // Bookings list
+                      if (_bookingsForSelectedDate.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 32),
+                            child: Text(
+                              'No bookings',
+                              style: TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ..._bookingsForSelectedDate
+                            .map((booking) => _buildBookingCard(booking)),
+
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
-              ),
-            )
-          else
-            ..._bookingsForSelectedDate
-                .map((booking) => _buildBookingCard(booking)),
-
-          const SizedBox(height: 24),
-        ],
-      ),
     );
   }
 
