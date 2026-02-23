@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:proper_place/services/chat_service.dart';
+import 'package:proper_place/services/api_service.dart';
+import 'package:proper_place/services/place_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int) onTabChanged;
-  final List<Map<String, dynamic>>? conversations;
-  final List<Map<String, dynamic>>? bookings;
 
   const DashboardScreen({
     super.key,
     required this.onTabChanged,
-    this.conversations,
-    this.bookings,
   });
 
   @override
@@ -24,12 +22,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _pendingPaymentsCount = 0;
   double _totalRevenue = 0.0;
   double _avgLengthOfStay = 0.0;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _conversations = [];
+  List<Map<String, dynamic>> _bookings = [];
 
   @override
   void initState() {
     super.initState();
     _chatService = ChatService();
+    _loadDataAndCalculateMetrics();
+  }
+
+  Future<void> _loadDataAndCalculateMetrics() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      // Load conversations from API
+      final conversationsData = await _chatService.getConversations();
+      _conversations = conversationsData.map((c) => c as Map<String, dynamic>).toList();
+      
+      // Load bookings from all host places
+      final places = await PlaceService.getHostPlaces();
+      List<Map<String, dynamic>> allBookings = [];
+      
+      for (var place in places) {
+        final placeId = place['id'] ?? place['place_id'] ?? '';
+        if (placeId.toString().isEmpty) continue;
+        
+        try {
+          final bookings = await ApiService.getBookingsForPlace(placeId: placeId.toString());
+          for (var booking in bookings) {
+            final checkInStr = booking['check_in'] ?? booking['check_in_date'] ?? '';
+            final checkOutStr = booking['check_out'] ?? booking['check_out_date'] ?? '';
+            
+            DateTime? checkIn;
+            DateTime? checkOut;
+            try {
+              if (checkInStr.isNotEmpty) checkIn = DateTime.parse(checkInStr);
+              if (checkOutStr.isNotEmpty) checkOut = DateTime.parse(checkOutStr);
+            } catch (e) {
+              // Use null if parsing fails
+            }
+            
+            allBookings.add({
+              'id': booking['id'] ?? booking['booking_id'] ?? '',
+              'guestName': booking['guest_name'] ?? booking['user_name'] ?? 'Guest',
+              'placeName': place['name'] ?? 'Unknown Place',
+              'checkIn': checkIn,
+              'checkOut': checkOut,
+              'status': _normalizeStatus(booking['status'] ?? 'pending'),
+              'amount': _formatPrice(booking['total_price'] ?? 0),
+              'guestEmail': booking['guest_email'] ?? booking['user_email'] ?? '',
+              'guestPhone': booking['contact_phone'] ?? booking['phone'] ?? '',
+            });
+          }
+        } catch (e) {
+          print('Error loading bookings for place $placeId: $e');
+        }
+      }
+      
+      _bookings = allBookings;
+    } catch (e) {
+      print('Error loading dashboard data: $e');
+    }
+    
     _calculateMetrics();
+    setState(() => _isLoading = false);
+  }
+
+  String _normalizeStatus(String status) {
+    final lower = status.toLowerCase();
+    if (lower == 'confirmed' || lower == 'accepted') return 'Confirmed';
+    if (lower == 'pending') return 'Pending';
+    if (lower == 'completed') return 'Completed';
+    if (lower == 'cancelled' || lower == 'canceled') return 'Cancelled';
+    return status;
+  }
+
+  String _formatPrice(dynamic price) {
+    if (price == null) return '£0.00';
+    final amount = price is num ? price.toDouble() : double.tryParse(price.toString()) ?? 0.0;
+    return '£${amount.toStringAsFixed(2)}';
   }
 
   void _calculateMetrics() {
@@ -40,9 +113,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     double totalDays = 0;
     int completedBookings = 0;
 
-    // Use provided data or sample data
-    var conversations = widget.conversations ?? _getSampleConversations();
-    var bookings = widget.bookings ?? _getSampleBookings();
+    // Use loaded data
+    var conversations = _conversations;
+    var bookings = _bookings;
 
     // Calculate unread conversations count (open/unread only)
     if (conversations.isNotEmpty) {
@@ -91,84 +164,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     setState(() {});
-  }
-
-  /// Sample conversations data for testing
-  List<Map<String, dynamic>> _getSampleConversations() {
-    return [
-      {
-        'id': '1',
-        'closed': false,
-        'guestName': 'Alice Johnson',
-        'guestAvatar': 'AJ',
-        'placeName': 'Cozy Studio Apartment',
-        'lastMessage': 'Thank you! We had an amazing stay!',
-        'timestamp': '2 min ago',
-        'unread': 1, // Unread
-        'messages': [],
-      },
-      {
-        'id': '2',
-        'closed': true,
-        'guestName': 'Bob Wilson',
-        'guestAvatar': 'BW',
-        'placeName': 'Beachfront Villa',
-        'lastMessage': 'Check-in was smooth, thanks!',
-        'timestamp': '1 day ago',
-        'unread': 0,
-        'messages': [],
-      },
-      {
-        'id': '3',
-        'closed': false,
-        'guestName': 'Carol Davis',
-        'guestAvatar': 'CD',
-        'placeName': 'Mountain Cabin',
-        'lastMessage': 'Do you have heating for winter?',
-        'timestamp': '1 hour ago',
-        'unread': 1, // Unread
-        'messages': [],
-      },
-    ];
-  }
-
-  /// Sample bookings data for testing
-  List<Map<String, dynamic>> _getSampleBookings() {
-    return [
-      {
-        'id': 1,
-        'guestName': 'John Smith',
-        'placeName': 'Avalon',
-        'checkIn': DateTime(2026, 1, 18),
-        'checkOut': DateTime(2026, 1, 21),
-        'status': 'Confirmed',
-        'amount': '£450.00',
-        'guestEmail': 'john@example.com',
-        'guestPhone': '+44 123 456 7890',
-      },
-      {
-        'id': 2,
-        'guestName': 'Sarah Johnson',
-        'placeName': 'Coastal Haven',
-        'checkIn': DateTime(2026, 1, 19),
-        'checkOut': DateTime(2026, 1, 22),
-        'status': 'Pending',
-        'amount': '£520.00',
-        'guestEmail': 'sarah@example.com',
-        'guestPhone': '+44 987 654 3210',
-      },
-      {
-        'id': 3,
-        'guestName': 'Mike Thompson',
-        'placeName': 'Forest Retreat',
-        'checkIn': DateTime(2025, 12, 20),
-        'checkOut': DateTime(2025, 12, 27),
-        'status': 'Completed',
-        'amount': '£750.00',
-        'guestEmail': 'mike@example.com',
-        'guestPhone': '+44 555 123 4567',
-      },
-    ];
   }
 
   void _showSalesSummaryPopup() {

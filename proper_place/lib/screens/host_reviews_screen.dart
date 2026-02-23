@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart';
+import '../services/place_service.dart';
 
 class HostReviewsScreen extends StatefulWidget {
   const HostReviewsScreen({super.key});
@@ -31,69 +33,37 @@ class _HostReviewsScreenState extends State<HostReviewsScreen> {
         return;
       }
 
-      // Mock data - replace with real API call to /places/:id/reviews
+      // Load reviews from all host places
+      List<dynamic> allReviews = [];
+      final places = await PlaceService.getHostPlaces();
+      
+      for (var place in places) {
+        final placeId = place['id']?.toString() ?? '';
+        if (placeId.isEmpty) continue;
+        
+        try {
+          final placeReviews = await ApiService.getPlaceReviews(placeId: placeId);
+          for (var review in placeReviews) {
+            allReviews.add({
+              'id': review['id'],
+              'guestName': review['user_name'] ?? review['reviewer_name'] ?? 'Guest',
+              'guestAvatar': review['user_avatar'] ?? '',
+              'rating': review['rating'] ?? 5,
+              'placeTitle': place['name'] ?? 'Unknown Place',
+              'date': review['created_at'] ?? '',
+              'text': review['comment'] ?? review['content'] ?? '',
+            });
+          }
+        } catch (e) {
+          print('Error loading reviews for place $placeId: $e');
+        }
+      }
+      
+      // Sort by date (newest first)
+      allReviews.sort((a, b) => (b['date'] ?? '').compareTo(a['date'] ?? ''));
+      
       setState(() {
-        reviews = [
-          {
-            'id': 1,
-            'guestName': 'Sarah Johnson',
-            'guestAvatar': 'https://i.pravatar.cc/150?img=1',
-            'rating': 5,
-            'placeTitle': 'Cozy Van Escape',
-            'date': '2024-01-15',
-            'text':
-                'Amazing experience! The van was clean and comfortable. Perfect for our weekend getaway in Sedona. Highly recommend!',
-          },
-          {
-            'id': 2,
-            'guestName': 'Mike Chen',
-            'guestAvatar': 'https://i.pravatar.cc/150?img=2',
-            'rating': 4,
-            'placeTitle': 'Mountain Retreat Van',
-            'date': '2024-01-10',
-            'text':
-                'Good location and nice setup. Only thing is the heater was a bit loud, but overall great stay.',
-          },
-          {
-            'id': 3,
-            'guestName': 'Emma Wilson',
-            'guestAvatar': 'https://i.pravatar.cc/150?img=3',
-            'rating': 5,
-            'placeTitle': 'Beachside Mobile Home',
-            'date': '2024-01-08',
-            'text':
-                'Gorgeous views! Woke up to the ocean every morning. Hosts were super responsive and helpful. Will definitely come back!',
-          },
-          {
-            'id': 4,
-            'guestName': 'James Rodriguez',
-            'guestAvatar': 'https://i.pravatar.cc/150?img=4',
-            'rating': 4,
-            'placeTitle': 'Cozy Van Escape',
-            'date': '2024-01-05',
-            'text':
-                'Really nice spot. Parking was convenient. Would appreciate more kitchen utensils, but had everything we needed.',
-          },
-          {
-            'id': 5,
-            'guestName': 'Lisa Anderson',
-            'guestAvatar': 'https://i.pravatar.cc/150?img=5',
-            'rating': 5,
-            'placeTitle': 'Mountain Retreat Van',
-            'date': '2024-01-01',
-            'text': 'Perfect for families! Kids loved the space. Great communication from the host. 10/10 would rent again.',
-          },
-          {
-            'id': 6,
-            'guestName': 'Tom Bradley',
-            'guestAvatar': 'https://i.pravatar.cc/150?img=6',
-            'rating': 3,
-            'placeTitle': 'Beachside Mobile Home',
-            'date': '2023-12-28',
-            'text':
-                'Decent place but a bit dated. Furnishing could use an update. Beach access is great though.',
-          },
-        ];
+        reviews = allReviews;
         isLoading = false;
       });
     } catch (e) {
