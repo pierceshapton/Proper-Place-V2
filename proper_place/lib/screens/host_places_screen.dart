@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
+import '../services/place_service.dart';
 import '../models/place.dart';
 import 'place_detail_screen.dart';
 
@@ -32,49 +33,24 @@ class _HostPlacesScreenState extends State<HostPlacesScreen> {
         return;
       }
 
-      // TODO: Replace with real API call when endpoint is ready
-      // final response = await http.get(Uri.parse('${AppConfig.baseUrl}/places?host=true'));
-      
-      // For now, use mock data since we don't have the actual endpoint
+      final hostPlacesData = await PlaceService.getHostPlaces();
       setState(() {
-        places = [
-          {
-            'id': 1,
-            'title': 'Cozy Van Escape',
-            'location': 'Sedona, Arizona',
-            'price': 85,
-            'image':
-                'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=400',
-            'rating': 4.8,
-            'reviews': 12,
-            'availability': 'Available',
-            'bookings': 8,
-          },
-          {
-            'id': 2,
-            'title': 'Mountain Retreat Van',
-            'location': 'Boulder, Colorado',
-            'price': 95,
-            'image':
-                'https://images.unsplash.com/photo-1527519335468-1c74e0c8d6a4?w=400',
-            'rating': 4.9,
-            'reviews': 18,
-            'availability': 'Booked',
-            'bookings': 12,
-          },
-          {
-            'id': 3,
-            'title': 'Beachside Mobile Home',
-            'location': 'Malibu, California',
-            'price': 120,
-            'image':
-                'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400',
-            'rating': 4.7,
-            'reviews': 24,
-            'availability': 'Available',
-            'bookings': 15,
-          },
-        ];
+        // Transform API response to match card format
+        places = (hostPlacesData as List).map((place) {
+          return {
+            'id': place['id'] ?? place['place_id'] ?? '',
+            'title': place['name'] ?? 'Unnamed Place',
+            'location': place['address'] ?? '',
+            'price': place['price_per_night'] ?? 0,
+            'image': place['image_url'] ?? place['image'] ?? '',
+            'rating': place['rating'] ?? 0.0,
+            'reviews': place['review_count'] ?? 0,
+            'availability': place['status'] == 'available' ? 'Available' : 'Unavailable',
+            'bookings': place['booking_count'] ?? 0,
+            'approval_status': place['approval_status'] ?? 'pending',
+            'raw': place, // Keep raw data for detail view
+          };
+        }).toList();
         isLoading = false;
       });
     } catch (e) {
