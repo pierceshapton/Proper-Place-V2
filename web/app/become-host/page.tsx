@@ -224,10 +224,10 @@ export default function BecomeHostPage() {
             Join the Proper Place community and start earning from your unused land.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <a href="/auth/signup" className="btn-primary px-8 py-3 rounded-xl">
+            <a href="/auth/signup" className="bg-light-blue hover:bg-accent-blue text-white px-8 py-3 rounded-xl font-semibold transition-colors inline-flex items-center justify-center">
               Create Host Account
             </a>
-            <a href="/contact-host" className="border-2 border-white text-white hover:bg-white hover:text-dark-bg px-8 py-3 rounded-xl font-semibold transition-colors">
+            <a href="/contact-host" className="border-2 border-white text-white hover:bg-white hover:text-dark-bg px-8 py-3 rounded-xl font-semibold transition-colors inline-flex items-center justify-center">
               Ask a Question
             </a>
           </div>
