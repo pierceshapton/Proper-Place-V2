@@ -11,7 +11,7 @@ export default function Navbar() {
 
   return (
     <nav className="bg-dark-bg text-white shadow-lg fixed top-0 left-0 right-0 z-50">
-      <div className="px-4 sm:px-6 lg:px-8 flex justify-between items-center py-4">
+      <div className="px-4 sm:px-6 lg:px-8 flex justify-between items-center py-4 relative">
         {/* Logo */}
         <Link href="/" className="text-2xl font-bold flex items-center gap-3">
           <Image
@@ -25,7 +25,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Menu */}
-        <div className="hidden md:flex gap-8">
+        <div className="hidden md:flex gap-8 absolute left-1/2 transform -translate-x-1/2">
           <Link href="/" className={`transition ${pathname === '/' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Home
           </Link>
@@ -34,9 +34,6 @@ export default function Navbar() {
           </Link>
           <Link href="/become-host" className={`transition ${pathname === '/become-host' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Become a Host
-          </Link>
-          <Link href="/contact-host" className={`transition ${pathname === '/contact-host' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
-            Host Inquiry
           </Link>
         </div>
 
@@ -70,9 +67,6 @@ export default function Navbar() {
           </Link>
           <Link href="/become-host" className={`block transition ${pathname === '/become-host' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Become a Host
-          </Link>
-          <Link href="/contact-host" className={`block transition ${pathname === '/contact-host' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
-            Host Inquiry
           </Link>
           <hr className="my-3 border-gray-600" />
           <Link href="/auth/login" className="block hover:text-light-blue transition">

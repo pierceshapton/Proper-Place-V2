@@ -32,7 +32,6 @@ export default function Footer() {
             <h4 className="font-semibold mb-4">For Hosts</h4>
             <ul className="space-y-2 text-gray-400 text-sm">
               <li><Link href="/become-host" className="hover:text-light-blue">List Your Space</Link></li>
-              <li><Link href="/contact-host" className="hover:text-light-blue">Host Inquiry</Link></li>
             </ul>
           </div>
 
