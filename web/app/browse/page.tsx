@@ -821,7 +821,7 @@ function PlaceDetailsPanel({
         {/* CTA - Download App */}
         <div className="bg-gray-100 rounded-lg p-4 text-center">
           <p className="text-sm text-gray-600 mb-2">
-            Download the app to book this place
+            Download the app to book this Proper Place
           </p>
           <div className="flex justify-center gap-4">
             <span className="text-gray-400 text-sm font-medium cursor-not-allowed">

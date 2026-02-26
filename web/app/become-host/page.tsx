@@ -83,7 +83,7 @@ export default function BecomeHostPage() {
               },
               {
                 title: 'Vineyards & Orchards',
-                desc: 'Scenic locations are highly sought after by motorhome enthusiasts'
+                desc: 'Scenic spots are highly sought after by motorhome enthusiasts'
               },
               {
                 title: 'Coastal Land',

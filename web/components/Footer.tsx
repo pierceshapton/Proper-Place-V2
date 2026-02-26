@@ -13,7 +13,7 @@ export default function Footer() {
               <span className="text-light-blue">Proper</span> Place
             </h3>
             <p className="text-gray-400 text-sm">
-              Connecting the motorhome community with affordable places to stay in ideal locations across the UK.
+              Connecting the UK's motorhome community with a Proper Place to stay the night.
             </p>
           </div>
 
@@ -21,7 +21,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold mb-4">For Travellers</h4>
             <ul className="space-y-2 text-gray-400 text-sm">
-              <li><Link href="/browse" className="hover:text-light-blue">Browse Locations</Link></li>
+              <li><Link href="/browse" className="hover:text-light-blue">Find a Proper Place</Link></li>
               <li><Link href="/how-it-works" className="hover:text-light-blue">How It Works</Link></li>
               <li><Link href="/about" className="hover:text-light-blue">About Proper Place</Link></li>
             </ul>

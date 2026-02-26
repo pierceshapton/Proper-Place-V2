@@ -5,8 +5,8 @@ import Footer from "@/components/Footer";
 import { ConditionalFooter } from "@/components/ConditionalFooter";
 
 export const metadata: Metadata = {
-  title: "Proper Place - Find Your Perfect Venue",
-  description: "Book unique venues and host unforgettable gatherings",
+  title: "Proper Place - Find Your Proper Place to Stay",
+  description: "Connecting the UK's motorhome community with unique, affordable Proper Places to stay the night.",
 };
 
 export default function RootLayout({

@@ -21,7 +21,7 @@ export default function Home() {
               Connecting the UK's Motorhome Community with a <span className="text-light-blue">Proper Place</span> to Stay the Night
             </h1>
             <p className="text-xl md:text-2xl text-gray-200 mb-8 leading-relaxed">
-              Discover unique, budget-friendly places to park your motorhome across the UK. From scenic farmland to coastal retreats — find your perfect pitch.
+              Discover unique, budget-friendly Proper Places across the UK. From scenic farmland to coastal retreats — find your perfect stay.
             </p>
             
             {/* App Download Buttons */}
@@ -113,9 +113,9 @@ export default function Home() {
               <div className="w-14 h-14 bg-light-blue text-white rounded-xl flex items-center justify-center text-2xl font-bold mb-6">
                 2
               </div>
-              <h3 className="text-xl font-bold mb-3">Browse Locations</h3>
+              <h3 className="text-xl font-bold mb-3">Find a Proper Place</h3>
               <p className="text-gray-600 leading-relaxed">
-                Explore our map of verified hosts across the UK. Filter by price, amenities, and location type to find your ideal stay.
+                Explore our map of verified hosts across the UK. Filter by price, amenities, and type to find your ideal stay.
               </p>
             </div>
             
@@ -168,7 +168,7 @@ export default function Home() {
                     </svg>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-lg">Unique Locations</h4>
+                    <h4 className="font-semibold text-lg">Unique Proper Places</h4>
                     <p className="text-gray-600">Discover hidden gems: farms, vineyards, coastal spots, and countryside retreats</p>
                   </div>
                 </li>
@@ -180,7 +180,7 @@ export default function Home() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-lg">Verified & Safe</h4>
-                    <p className="text-gray-600">All locations reviewed and rated by the motorhome community</p>
+                    <p className="text-gray-600">All Proper Places are reviewed and rated by the motorhome community</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-4">

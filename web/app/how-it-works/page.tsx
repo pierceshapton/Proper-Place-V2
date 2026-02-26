@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export const metadata = {
   title: 'How It Works | Proper Place',
-  description: 'Learn how Proper Place connects motorhome travellers with unique, affordable overnight stays across the UK.',
+  description: 'Learn how Proper Place connects motorhome travellers with unique, affordable Proper Places to stay across the UK.',
 };
 
 export default function HowItWorksPage() {
@@ -41,8 +41,8 @@ export default function HowItWorksPage() {
               <div className="w-20 h-20 bg-light-blue text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-6">
                 2
               </div>
-              <h3 className="text-xl font-bold mb-3">Browse Locations</h3>
-              <p className="text-gray-600">Explore our interactive map of verified hosts across the UK. Filter by price, amenities, and location type.</p>
+              <h3 className="text-xl font-bold mb-3">Find a Proper Place</h3>
+              <p className="text-gray-600">Explore our interactive map of verified hosts across the UK. Filter by price, amenities, and type.</p>
             </div>
             
             <div className="text-center">
@@ -58,7 +58,7 @@ export default function HowItWorksPage() {
                 4
               </div>
               <h3 className="text-xl font-bold mb-3">Enjoy & Review</h3>
-              <p className="text-gray-600">Arrive at your location, enjoy your stay, and leave a review to help other travellers.</p>
+              <p className="text-gray-600">Arrive at your Proper Place, enjoy your stay, and leave a review to help other travellers.</p>
             </div>
           </div>
         </div>
@@ -124,7 +124,7 @@ export default function HowItWorksPage() {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">Interactive Map</h3>
-              <p className="text-gray-600">Browse locations on our easy-to-use map. Find stays along your route or discover new destinations.</p>
+              <p className="text-gray-600">Browse Proper Places on our easy-to-use map. Find stays along your route or discover new destinations.</p>
             </div>
             
             <div className="bg-gray-50 rounded-2xl p-8">
@@ -164,7 +164,7 @@ export default function HowItWorksPage() {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">Verified Hosts</h3>
-              <p className="text-gray-600">Every location is reviewed to ensure it meets our community standards for safety and quality.</p>
+              <p className="text-gray-600">Every Proper Place is reviewed to ensure it meets our community standards for safety and quality.</p>
             </div>
             
             <div className="bg-gray-50 rounded-2xl p-8">
@@ -191,7 +191,7 @@ export default function HowItWorksPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/browse" className="btn-primary px-8 py-3 rounded-xl font-semibold">
-              Browse Locations
+              Find a Proper Place
             </Link>
             <Link href="/become-host" className="btn-secondary border-2 border-white text-white hover:bg-white hover:text-dark-bg px-8 py-3 rounded-xl font-semibold transition-colors">
               Become a Host
