@@ -9,8 +9,8 @@ const config: Config = {
     extend: {
       colors: {
         "dark-bg": "#1a1a1a",
-        "light-blue": "#6B9DCB",
-        "accent-blue": "#5A8BB8",
+        "light-blue": "#5B8FC4",
+        "accent-blue": "#4A7EB3",
         "light-gray": "#f5f5f5",
         "border-gray": "#e0e0e0",
         "cream": "#f8f5f0",
