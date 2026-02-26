@@ -606,22 +606,12 @@ export default function BrowsePage() {
                     Get turn-by-turn navigation in the app
                   </p>
                   <div className="flex justify-center gap-4">
-                    <a
-                      href="https://apps.apple.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline text-sm font-medium"
-                    >
-                      App Store
-                    </a>
-                    <a
-                      href="https://play.google.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline text-sm font-medium"
-                    >
-                      Google Play
-                    </a>
+                    <span className="text-gray-400 text-sm font-medium cursor-not-allowed">
+                      App Store <span className="text-red-500 text-xs">(Coming Soon)</span>
+                    </span>
+                    <span className="text-gray-400 text-sm font-medium cursor-not-allowed">
+                      Google Play <span className="text-red-500 text-xs">(Coming Soon)</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -834,22 +824,12 @@ function PlaceDetailsPanel({
             Download the app to book this place
           </p>
           <div className="flex justify-center gap-4">
-            <a
-              href="https://apps.apple.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline text-sm font-medium"
-            >
-              App Store
-            </a>
-            <a
-              href="https://play.google.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline text-sm font-medium"
-            >
-              Google Play
-            </a>
+            <span className="text-gray-400 text-sm font-medium cursor-not-allowed">
+              App Store <span className="text-red-500 text-xs">(Coming Soon)</span>
+            </span>
+            <span className="text-gray-400 text-sm font-medium cursor-not-allowed">
+              Google Play <span className="text-red-500 text-xs">(Coming Soon)</span>
+            </span>
           </div>
         </div>
       </div>
