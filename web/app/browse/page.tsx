@@ -276,14 +276,27 @@ export default function BrowsePage() {
                   }}
                   onCloseClick={() => setSelectedPlace(null)}
                 >
-                  <div className="p-2 max-w-xs">
-                    <h3 className="font-bold text-lg">{selectedPlace.name}</h3>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {selectedPlace.location_address}
-                    </p>
-                    <p className="text-blue-600 font-bold">
-                      £{selectedPlace.price_per_night}/night
-                    </p>
+                  <div className="w-64">
+                    {/* Image */}
+                    {selectedPlace.images && selectedPlace.images.length > 0 && (
+                      <div className="w-full h-32 overflow-hidden rounded-t-lg">
+                        <img
+                          src={selectedPlace.images[0]}
+                          alt={selectedPlace.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    {/* Content */}
+                    <div className="p-3">
+                      <h3 className="font-bold text-base text-gray-900 mb-1">{selectedPlace.name}</h3>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {selectedPlace.location_address}
+                      </p>
+                      <p className="text-blue-600 font-bold text-lg">
+                        £{selectedPlace.price_per_night}/night
+                      </p>
+                    </div>
                   </div>
                 </InfoWindow>
               )}
