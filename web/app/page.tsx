@@ -180,7 +180,7 @@ export default function Home() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-lg">Verified & Safe</h4>
-                    <p className="text-gray-600">All Proper Places are reviewed and rated by the motorhome community</p>
+                    <p className="text-gray-600">All Proper Places are reviewed by our admin teams and rated by the people who have stayed</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-4">
