@@ -75,38 +75,32 @@ export default function BecomeHostPage() {
             {[
               {
                 title: 'Farmland',
-                desc: 'A quiet corner of your farm is perfect for travellers seeking rural tranquility',
-                icon: '🌾'
+                desc: 'A quiet corner of your farm is perfect for travellers seeking rural tranquility'
               },
               {
                 title: 'Large Gardens',
-                desc: 'Private driveways or spacious gardens make excellent overnight stops',
-                icon: '🏡'
+                desc: 'Private driveways or spacious gardens make excellent overnight stops'
               },
               {
                 title: 'Vineyards & Orchards',
-                desc: 'Scenic locations are highly sought after by motorhome enthusiasts',
-                icon: '🍇'
+                desc: 'Scenic locations are highly sought after by motorhome enthusiasts'
               },
               {
                 title: 'Coastal Land',
-                desc: 'Spots with sea views or near beaches attract premium bookings',
-                icon: '🌊'
+                desc: 'Spots with sea views or near beaches attract premium bookings'
               },
               {
                 title: 'Woodland Areas',
-                desc: 'Peaceful forest settings offer a unique camping experience',
-                icon: '🌲'
+                desc: 'Peaceful forest settings offer a unique camping experience'
               },
               {
                 title: 'Pub Car Parks',
-                desc: 'Pubs with spare parking can offer stays with easy access to refreshments',
-                icon: '🍺'
+                desc: 'Pubs with spare parking can offer stays with easy access to refreshments'
               },
             ].map((item, i) => (
-              <div key={i} className="bg-white p-6 rounded-2xl shadow-md hover:shadow-lg transition-shadow">
-                <span className="text-4xl mb-4 block">{item.icon}</span>
-                <h3 className="font-bold text-lg mb-2">{item.title}</h3>
+              <div key={i} className="bg-cream p-6 rounded-2xl shadow-md hover:shadow-lg transition-shadow relative">
+                <div className="w-3 h-3 bg-light-blue rounded-sm absolute top-4 left-4"></div>
+                <h3 className="font-bold text-lg mb-2 mt-4">{item.title}</h3>
                 <p className="text-gray-600">{item.desc}</p>
               </div>
             ))}
