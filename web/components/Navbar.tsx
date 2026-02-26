@@ -10,8 +10,8 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <nav className="bg-dark-bg text-white shadow-lg">
-      <div className="container-md flex justify-between items-center py-4">
+    <nav className="bg-dark-bg text-white shadow-lg sticky top-0 z-50 w-full">
+      <div className="px-4 sm:px-6 lg:px-8 flex justify-between items-center py-4">
         {/* Logo */}
         <Link href="/" className="text-2xl font-bold flex items-center gap-3">
           <Image
@@ -61,7 +61,7 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-gray-800 px-6 py-4 space-y-3">
+        <div className="md:hidden bg-gray-800 px-4 sm:px-6 lg:px-8 py-4 space-y-3">
           <Link href="/" className={`block transition ${pathname === '/' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Home
           </Link>
