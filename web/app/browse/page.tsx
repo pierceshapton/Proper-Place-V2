@@ -39,11 +39,11 @@ const containerStyle = {
 
 // Map styling to match the app
 const mapOptions: google.maps.MapOptions = {
-  disableDefaultUI: false,
-  zoomControl: true,
-  mapTypeControl: true,
+  disableDefaultUI: true,
+  zoomControl: false,
+  mapTypeControl: false,
   streetViewControl: false,
-  fullscreenControl: true,
+  fullscreenControl: false,
 };
 
 export default function BrowsePage() {
@@ -57,6 +57,10 @@ export default function BrowsePage() {
   const [showMarkers, setShowMarkers] = useState(false);
   const [placeReviews, setPlaceReviews] = useState<{ [key: string]: PlaceReview[] }>({});
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'terrain' | 'hybrid'>('roadmap');
+  const [showSearch, setShowSearch] = useState(false);
+  const [showRouteForm, setShowRouteForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -242,6 +246,7 @@ export default function BrowsePage() {
               onUnmount={onUnmount}
               onZoomChanged={onZoomChanged}
               options={mapOptions}
+              mapTypeId={mapType}
             >
               {/* Place Markers - only show when zoomed in */}
               {showMarkers &&
@@ -277,16 +282,82 @@ export default function BrowsePage() {
               )}
             </GoogleMap>
 
-            {/* Map Controls Overlay */}
-            <div className="absolute bottom-6 right-6 flex flex-col gap-2">
+            {/* Top Left - Plan Route Button */}
+            <div className="absolute top-4 left-4">
+              <button
+                onClick={() => setShowRouteForm(true)}
+                className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                <span className="text-gray-700 font-medium">Plan Route</span>
+              </button>
+            </div>
+
+            {/* Left Side - Search Button */}
+            <div className="absolute top-[72px] left-4">
+              <button
+                onClick={() => setShowSearch(true)}
+                className="w-12 h-12 bg-white rounded-xl shadow-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+                title="Search places"
+              >
+                <svg className="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Left Side - My Location Button */}
+            <div className="absolute top-[132px] left-4">
               <button
                 onClick={goToCurrentLocation}
-                className="bg-white p-3 rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+                className="w-10 h-10 bg-white rounded-xl shadow-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
                 title="Go to my location"
               >
-                <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Top Right - Map Type Buttons */}
+            <div className="absolute top-4 right-4 flex flex-col gap-2">
+              <button
+                onClick={() => setMapType('roadmap')}
+                className={`w-10 h-10 rounded-lg shadow-lg transition-colors flex items-center justify-center ${mapType === 'roadmap' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                title="Standard map"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setMapType('satellite')}
+                className={`w-10 h-10 rounded-lg shadow-lg transition-colors flex items-center justify-center ${mapType === 'satellite' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                title="Satellite view"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setMapType('terrain')}
+                className={`w-10 h-10 rounded-lg shadow-lg transition-colors flex items-center justify-center ${mapType === 'terrain' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                title="Terrain view"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15l5.12-5.12a3 3 0 014.24 0L15 12.36m0 0l1.76-1.76a3 3 0 014.24 0L21 15M3 21h18" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setMapType('hybrid')}
+                className={`w-10 h-10 rounded-lg shadow-lg transition-colors flex items-center justify-center ${mapType === 'hybrid' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                title="Hybrid view"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </button>
             </div>
@@ -311,6 +382,111 @@ export default function BrowsePage() {
             averageRating={getAverageRating(selectedPlace.place_id)}
             reviews={placeReviews[selectedPlace.place_id] || []}
           />
+        )}
+
+        {/* Search Modal */}
+        {showSearch && (
+          <div className="absolute inset-0 bg-black/50 z-50 flex items-start justify-center pt-20">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+              <div className="p-4 border-b flex items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="Search places..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+                <button
+                  onClick={() => {
+                    setShowSearch(false);
+                    setSearchQuery('');
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full"
+                >
+                  <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {places
+                  .filter((p) =>
+                    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    p.location_address.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((place) => (
+                    <button
+                      key={place.place_id}
+                      onClick={() => {
+                        setSelectedPlace(place);
+                        setMapCenter({ lat: place.location_lat, lng: place.location_lng });
+                        map?.panTo({ lat: place.location_lat, lng: place.location_lng });
+                        map?.setZoom(14);
+                        setShowSearch(false);
+                        setSearchQuery('');
+                      }}
+                      className="w-full p-4 text-left hover:bg-gray-50 border-b last:border-b-0"
+                    >
+                      <p className="font-medium text-gray-900">{place.name}</p>
+                      <p className="text-sm text-gray-500 truncate">{place.location_address}</p>
+                      <p className="text-sm text-blue-500 font-medium">£{place.price_per_night}/night</p>
+                    </button>
+                  ))}
+                {places.filter((p) =>
+                  p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  p.location_address.toLowerCase().includes(searchQuery.toLowerCase())
+                ).length === 0 && (
+                  <p className="p-4 text-center text-gray-500">No places found</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Route Planning Modal */}
+        {showRouteForm && (
+          <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">Plan Your Route</h3>
+                <button
+                  onClick={() => setShowRouteForm(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full"
+                >
+                  <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-gray-600 mb-4">
+                Route planning finds places along your journey. This feature is available in the Proper Place app.
+              </p>
+              <div className="bg-blue-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-600 mb-2">
+                  Download the app for full route planning features
+                </p>
+                <div className="flex justify-center gap-4">
+                  <a
+                    href="https://apps.apple.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline text-sm font-medium"
+                  >
+                    App Store
+                  </a>
+                  <a
+                    href="https://play.google.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline text-sm font-medium"
+                  >
+                    Google Play
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </main>
