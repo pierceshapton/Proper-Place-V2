@@ -1,10 +1,10 @@
 import Link from 'next/link';
 
-export default function Footer({ noMargin = false }: { noMargin?: boolean }) {
+export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className={`bg-dark-bg text-white ${noMargin ? '' : 'mt-16'} pt-12 pb-6`}>
+    <footer className="bg-dark-bg text-white pt-12 pb-6">
       <div className="container-md">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* About */}

@@ -271,7 +271,7 @@ export default function BrowsePage() {
             </GoogleMap>
 
             {/* Top Left - Plan Route Button */}
-            <div className="absolute top-4 left-4">
+            <div className="absolute top-2 left-2">
               <button
                 onClick={() => setShowRouteForm(true)}
                 className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
@@ -284,7 +284,7 @@ export default function BrowsePage() {
             </div>
 
             {/* Left Side - Search Button */}
-            <div className="absolute top-[72px] left-4">
+            <div className="absolute top-[56px] left-2">
               <button
                 onClick={() => setShowSearch(true)}
                 className="w-12 h-12 bg-white rounded-xl shadow-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
@@ -297,7 +297,7 @@ export default function BrowsePage() {
             </div>
 
             {/* Left Side - My Location Button */}
-            <div className="absolute top-[132px] left-4">
+            <div className="absolute top-[112px] left-2">
               <button
                 onClick={goToCurrentLocation}
                 className="w-10 h-10 bg-white rounded-xl shadow-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
@@ -311,7 +311,7 @@ export default function BrowsePage() {
             </div>
 
             {/* Top Right - Map Type Buttons */}
-            <div className="absolute top-4 right-4 flex flex-col gap-2">
+            <div className="absolute top-2 right-2 flex flex-col gap-2">
               <button
                 onClick={() => setMapType('roadmap')}
                 className={`w-10 h-10 rounded-lg shadow-lg transition-colors flex items-center justify-center ${mapType === 'roadmap' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}

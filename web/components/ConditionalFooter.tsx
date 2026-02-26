@@ -8,7 +8,7 @@ export function ConditionalFooter() {
   
   // On browse page, remove top margin from footer
   if (pathname === '/browse') {
-    return <Footer noMargin />;
+    return <Footer />;
   }
   
   return <Footer />;

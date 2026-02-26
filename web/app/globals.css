@@ -29,7 +29,7 @@ body {
 
 /* Utility classes */
 .container-md {
-  @apply max-w-6xl mx-auto px-6;
+  @apply max-w-6xl mx-auto px-4;
 }
 
 .btn-primary {
