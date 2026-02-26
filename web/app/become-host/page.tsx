@@ -183,31 +183,31 @@ export default function BecomeHostPage() {
           <div className="space-y-4">
             {[
               {
-                title: '📸 Quality Photos',
+                title: 'Quality Photos',
                 desc: 'Show clear photos of the parking area, surroundings, and any amenities you offer'
               },
               {
-                title: '📍 Accurate Location',
+                title: 'Accurate Location',
                 desc: 'Provide precise directions and landmarks so guests can find you easily'
               },
               {
-                title: '💰 Fair Pricing',
+                title: 'Fair Pricing',
                 desc: 'Most hosts charge £10-20 per night. Research similar listings in your area'
               },
               {
-                title: '✅ Clear Rules',
+                title: 'Clear Rules',
                 desc: 'Set expectations about arrival times, quiet hours, and what facilities are available'
               },
               {
-                title: '💬 Quick Responses',
+                title: 'Quick Responses',
                 desc: 'Respond to booking requests promptly to improve your acceptance rate'
               },
               {
-                title: '⭐ Great Service',
+                title: 'Great Service',
                 desc: 'A friendly welcome and helpful local tips lead to glowing reviews'
               },
             ].map((item, i) => (
-              <div key={i} className="bg-white p-6 rounded-xl border border-gray-200">
+              <div key={i} className="bg-cream p-6 rounded-xl border border-gray-200">
                 <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
                 <p className="text-gray-600">{item.desc}</p>
               </div>
