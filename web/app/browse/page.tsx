@@ -55,6 +55,7 @@ export default function BrowsePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMarkers, setShowMarkers] = useState(false);
+  const [zoomHintDismissed, setZoomHintDismissed] = useState(false);
   const [placeReviews, setPlaceReviews] = useState<{ [key: string]: PlaceReview[] }>({});
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'terrain' | 'hybrid'>('roadmap');
@@ -152,6 +153,10 @@ export default function BrowsePage() {
       const zoom = map.getZoom() || DEFAULT_ZOOM;
       setMapZoom(zoom);
       setShowMarkers(zoom >= MIN_ZOOM_FOR_MARKERS);
+      // Dismiss zoom hint on any zoom in (one-time hint)
+      if (zoom > DEFAULT_ZOOM) {
+        setZoomHintDismissed(true);
+      }
     }
   }, [map]);
 
@@ -350,8 +355,8 @@ export default function BrowsePage() {
               </button>
             </div>
 
-            {/* Zoom Hint */}
-            {!showMarkers && (
+            {/* Zoom Hint - only shows once, dismissed after any zoom in */}
+            {!showMarkers && !zoomHintDismissed && (
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm px-6 py-4 rounded-lg shadow-lg text-center">
                 <p className="text-gray-700 font-medium">Zoom in to see available places</p>
                 <p className="text-sm text-gray-500 mt-1">Use scroll or pinch to zoom</p>
