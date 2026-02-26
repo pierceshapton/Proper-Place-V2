@@ -98,9 +98,8 @@ export default function BecomeHostPage() {
                 desc: 'Pubs with spare parking can offer stays with easy access to refreshments'
               },
             ].map((item, i) => (
-              <div key={i} className="bg-cream p-6 rounded-2xl shadow-md hover:shadow-lg transition-shadow relative">
-                <div className="w-3 h-3 bg-light-blue rounded-sm absolute top-4 left-4"></div>
-                <h3 className="font-bold text-lg mb-2 mt-4">{item.title}</h3>
+              <div key={i} className="bg-cream p-6 rounded-2xl shadow-md hover:shadow-lg transition-shadow">
+                <h3 className="font-bold text-lg mb-2">{item.title}</h3>
                 <p className="text-gray-600">{item.desc}</p>
               </div>
             ))}
