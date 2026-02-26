@@ -10,7 +10,7 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <nav className="bg-dark-bg text-white shadow-lg sticky top-0 z-50 w-full">
+    <nav className="bg-dark-bg text-white shadow-lg fixed top-0 left-0 right-0 z-50">
       <div className="px-4 sm:px-6 lg:px-8 flex justify-between items-center py-4">
         {/* Logo */}
         <Link href="/" className="text-2xl font-bold flex items-center gap-3">

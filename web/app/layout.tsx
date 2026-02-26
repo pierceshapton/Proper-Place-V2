@@ -18,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-white text-gray-900">
         <Navbar />
-        {children}
+        <div className="pt-24">
+          {children}
+        </div>
         <ConditionalFooter />
       </body>
     </html>
