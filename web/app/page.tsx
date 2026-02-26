@@ -91,8 +91,8 @@ export default function Home() {
             </div>
             <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">
               <Image
-                src="https://images.unsplash.com/photo-1533591380348-14193f1de18f?w=800&q=80"
-                alt="Campervan on scenic coastal road"
+                src="https://images.pexels.com/photos/2533092/pexels-photo-2533092.jpeg?auto=compress&cs=tinysrgb&w=800"
+                alt="VW campervan at green coastal cliffs"
                 fill
                 className="object-cover"
               />
