@@ -40,7 +40,7 @@ body {
 }
 
 .btn-primary {
-  @apply bg-light-blue hover:bg-accent-blue text-white py-2 px-6 rounded-lg font-semibold transition-colors;
+  @apply bg-light-blue hover:bg-accent-blue text-white hover:text-gray-900 py-2 px-6 rounded-lg font-semibold transition-colors;
 }
 
 .btn-secondary {
