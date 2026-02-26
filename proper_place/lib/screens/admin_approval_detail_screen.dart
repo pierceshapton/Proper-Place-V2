@@ -803,36 +803,30 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
   Widget _buildRejectedButtons() {
     return Row(
       children: [
-        // Small Remove Site button
-        SizedBox(
-          width: 100,
-          child: OutlinedButton(
-            onPressed: _isRemoving ? null : _showRemoveDialog,
-            style: OutlinedButton.styleFrom(
+        // Contact Host button (50% width)
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _contactHost,
+            icon: const Icon(Icons.phone, color: Colors.white),
+            label: const Text(
+              'Contact Host',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              side: const BorderSide(color: Colors.red),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: _isRemoving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
-                  )
-                : const Text(
-                    'Remove',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
           ),
         ),
         const SizedBox(width: 16),
-        // Reopen Site button
+        // Reopen Site button (50% width)
         Expanded(
           child: ElevatedButton.icon(
             onPressed: _isApproving ? null : _reopenPlace,

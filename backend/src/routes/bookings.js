@@ -5,7 +5,11 @@ const bookingController = require('../controllers/bookingController');
 
 const router = express.Router();
 
-// Public route - get bookings for a place (for availability checking)
+// Public routes - IMPORTANT: more specific routes must come first!
+// Get availability data per date for calendar display
+router.get('/availability/place/:placeId', bookingController.getPlaceAvailability);
+
+// Get bookings for a place (for availability checking)
 router.get('/place/:placeId', bookingController.getPlaceBookings);
 
 // Protected routes

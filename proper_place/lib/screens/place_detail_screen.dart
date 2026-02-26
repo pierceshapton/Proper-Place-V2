@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/widgets/availability_calendar_picker.dart';
 
 class PlaceDetailScreen extends StatefulWidget {
   final Map<String, dynamic> place;
@@ -150,30 +151,40 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   }
 
   void _selectDate(BuildContext context, {required bool isCheckIn}) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      selectableDayPredicate: (DateTime day) {
-        // Don't allow selection of fully booked dates
-        return !_isDateBooked(day);
-      },
-    );
+    // For checkout, start at checkout date or day after check-in
+    final initialDate = isCheckIn 
+      ? (_checkInDate ?? DateTime.now())
+      : (_checkOutDate ?? (_checkInDate?.add(const Duration(days: 1)) ?? DateTime.now().add(const Duration(days: 1))));
+    
+    // Minimum date for checkout is the day after check-in
+    final minDateForCheckout = isCheckIn 
+      ? null 
+      : (_checkInDate?.add(const Duration(days: 1)) ?? DateTime.now().add(const Duration(days: 1)));
 
-    if (picked != null) {
-      setState(() {
-        if (isCheckIn) {
-          _checkInDate = picked;
-          // Reset checkout if it's before or equal to checkin
-          if (_checkOutDate != null && !_checkOutDate!.isAfter(picked)) {
-            _checkOutDate = null;
-          }
-        } else {
-          _checkOutDate = picked;
-        }
-      });
-    }
+    showDialog(
+      context: context,
+      builder: (context) => AvailabilityCalendarPicker(
+        placeId: int.parse(widget.place['id'].toString()),
+        initialDate: initialDate,
+        isCheckIn: isCheckIn,
+        minDate: minDateForCheckout,
+        checkInDate: _checkInDate,
+        checkOutDate: _checkOutDate,
+        onDateSelected: (picked) {
+          setState(() {
+            if (isCheckIn) {
+              _checkInDate = picked;
+              // Set checkout to at least the day after check-in
+              if (_checkOutDate == null || _checkOutDate!.isBefore(picked.add(const Duration(days: 1)))) {
+                _checkOutDate = picked.add(const Duration(days: 1));
+              }
+            } else {
+              _checkOutDate = picked;
+            }
+          });
+        },
+      ),
+    );
   }
   
   void _selectTime(BuildContext context, {required bool isCheckIn}) async {
@@ -824,10 +835,18 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                   if (isLoadingReviews)
                     const Center(child: CircularProgressIndicator())
                   else if (reviews.isEmpty)
-                    Center(
-                      child: Text(
-                        'No reviews yet',
-                        style: TextStyle(color: Colors.grey[600]),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No reviews at this site yet. Please leave a review after your stay to help out other guests!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
                       ),
                     )
                   else

@@ -154,6 +154,25 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     }
   }
 
+  Future<double> _getAverageRating(String placeId) async {
+    try {
+      final reviews = await ApiService.getPlaceReviews(placeId: placeId);
+      if (reviews.isEmpty) return 0.0;
+      
+      double totalRating = 0;
+      for (var review in reviews) {
+        final rating = review['rating'] ?? 0;
+        totalRating += (rating is int ? rating.toDouble() : double.tryParse(rating.toString()) ?? 0);
+      }
+      
+      return totalRating / reviews.length;
+    } catch (e) {
+      print('Error getting average rating: $e');
+      return 0.0;
+    }
+  }
+
+
   Future<void> _getCurrentLocation() async {
     try {
       // Check permissions
@@ -284,150 +303,163 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   }
 
   Widget _buildPlaceModal(Place place) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: ListView(
-        shrinkWrap: true,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return FutureBuilder<double>(
+      future: _getAverageRating(place.placeId),
+      builder: (context, snapshot) {
+        final averageRating = snapshot.data ?? 0.0;
+        
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: ListView(
+            shrinkWrap: true,
             children: [
-              IconButton(
-                icon: Icon(
-                  favoriteIds.contains(place.placeId)
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  color:
-                      favoriteIds.contains(place.placeId) ? Colors.red : null,
-                ),
-                onPressed: () {
-                  _toggleFavorite(place.placeId);
-                  final isFavorite = !favoriteIds.contains(place.placeId);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isFavorite
-                            ? 'Added to favorites'
-                            : 'Removed from favorites',
-                      ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      favoriteIds.contains(place.placeId)
+                          ? Icons.favorite
+                          : Icons.favorite_border,
+                      color:
+                          favoriteIds.contains(place.placeId) ? Colors.red : null,
                     ),
-                  );
-                },
+                    onPressed: () {
+                      _toggleFavorite(place.placeId);
+                      final isFavorite = !favoriteIds.contains(place.placeId);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            isFavorite
+                                ? 'Added to favorites'
+                                : 'Removed from favorites',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  // Rating display
+                  Expanded(
+                    child: averageRating > 0
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ...List.generate(
+                                5,
+                                (index) => Icon(
+                                  index < averageRating.floor() ? Icons.star : Icons.star_outline,
+                                  color: const Color(0xFFFFB800),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                averageRating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            'No ratings yet',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          // Image
-          if (place.imageUrl != null && place.imageUrl!.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                place.imageUrl!,
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 200,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.image_not_supported),
-                  );
-                },
-              ),
-            )
-          else
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.image_not_supported),
-            ),
-          const SizedBox(height: 16),
-          // Price badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.blue,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              '£${place.pricePerNight.toStringAsFixed(0)}/night',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Name
-          Text(
-            place.name,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Address
-          Row(
-            children: [
-              const Icon(Icons.location_on, color: Colors.grey, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  place.address,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+              // Image
+              _buildPlaceImage(place),
+              const SizedBox(height: 16),
+              // Price badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Instant booking badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.green,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.flash_on, color: Colors.white, size: 16),
-                SizedBox(width: 4),
-                Text(
-                  'Instant Booking',
-                  style: TextStyle(
+                child: Text(
+                  '£${place.pricePerNight.toStringAsFixed(0)}/night',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 16,
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Description
-          Text(
-            place.description,
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
-          ),
-          if (place.placeType != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Type: ${place.placeType}',
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
-            ),
-          const SizedBox(height: 20),
-          // View Details & Book button
-          SizedBox(
+              const SizedBox(height: 12),
+              // Name
+              Text(
+                place.name,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Address
+              Row(
+                children: [
+                  const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      place.address,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Instant booking badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.flash_on, color: Colors.white, size: 16),
+                    SizedBox(width: 4),
+                    Text(
+                      'Instant Booking',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Description
+              Text(
+                place.description,
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+              if (place.placeType != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Type: ${place.placeType}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ),
+              const SizedBox(height: 20),
+              // View Details & Book button
+              SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -486,6 +518,60 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
           ),
         ],
       ),
+    );
+      }
+    );
+  }
+
+  /// Helper method to display place image with fallback to imageUrls
+  Widget _buildPlaceImage(Place place) {
+    // Get the best available image URL - prefer imageUrl, fallback to imageUrls
+    final String? imageUrl = (place.imageUrl != null && place.imageUrl!.isNotEmpty)
+        ? place.imageUrl
+        : (place.imageUrls.isNotEmpty ? place.imageUrls.first : null);
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          imageUrl,
+          height: 200,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              height: 200,
+              color: Colors.grey[300],
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.image_not_supported),
+            );
+          },
+        ),
+      );
+    }
+
+    // No image available - show placeholder
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(Icons.image_not_supported),
     );
   }
 

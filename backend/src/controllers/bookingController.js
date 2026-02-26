@@ -184,10 +184,10 @@ async function createBooking(req, res, next) {
     const result = await db.query(
       `INSERT INTO bookings (user_id, place_id, pub_id, check_in_date, check_out_date,
                              check_in_time, check_out_time,
-                             number_of_nights, total_price, 
+                             number_of_nights, total_price, status,
                              early_checkin_fee, late_checkout_fee,
                              van_registration, contact_phone, special_requests)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         userId,
@@ -199,6 +199,7 @@ async function createBooking(req, res, next) {
         checkOutTime,
         nights,
         totalPrice,
+        'confirmed',
         earlyCheckinFee,
         lateCheckoutFee,
         data.van_registration || null,
@@ -357,6 +358,112 @@ async function getPlaceBookings(req, res, next) {
   }
 }
 
+/**
+ * GET /availability/place/:placeId
+ * Get place availability data - capacity and available spaces per date for booking calendar
+ * Query params: from_date (YYYY-MM-DD), to_date (YYYY-MM-DD), num_days (default 365)
+ */
+async function getPlaceAvailability(req, res, next) {
+  try {
+    const { placeId } = req.params;
+    const { from_date, to_date, num_days = 365 } = req.query;
+
+    // Get place capacity
+    const placeResult = await db.query(
+      'SELECT id, capacity, name FROM places WHERE id = $1 AND deleted_at IS NULL',
+      [placeId]
+    );
+
+    if (placeResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'place_not_found',
+        message: 'Place not found',
+      });
+    }
+
+    const place = placeResult.rows[0];
+    const capacity = place.capacity || 1;
+
+    // Determine date range
+    const startDate = from_date ? new Date(from_date) : new Date();
+    const endDate = to_date
+      ? new Date(to_date)
+      : new Date(new Date(startDate).setDate(startDate.getDate() + parseInt(num_days)));
+
+    // Get all bookings in date range (only count confirmed/completed bookings)
+    const bookingsResult = await db.query(
+      `SELECT check_in_date, check_out_date, status
+       FROM bookings 
+       WHERE place_id = $1 
+         AND status IN ('confirmed', 'Completed')
+         AND check_out_date > $2
+         AND check_in_date <= $3
+       ORDER BY check_in_date ASC`,
+      [placeId, startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]]
+    );
+    
+    logger.info('Place availability query', {
+      placeId,
+      capacity,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      bookingsFound: bookingsResult.rows.length,
+      bookings: bookingsResult.rows
+    });
+
+    // Calculate availability for each date
+    const availability = {};
+    const currentDate = new Date(startDate);
+    currentDate.setHours(0, 0, 0, 0);
+
+    while (currentDate <= endDate) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+
+      // Count how many bookings cover this date
+      let bookedCount = 0;
+      for (const booking of bookingsResult.rows) {
+        // Use string comparison to avoid timezone issues
+        const checkInStr = booking.check_in_date.toString().split('T')[0];
+        const checkOutStr = booking.check_out_date.toString().split('T')[0];
+
+        // A date is occupied if it falls within the booking range
+        // (check_in <= date < check_out)
+        if (dateStr >= checkInStr && dateStr < checkOutStr) {
+          bookedCount++;
+          logger.info('Date occupied by booking', { dateStr, checkInStr, checkOutStr, bookedCount });
+        }
+      }
+
+      const availableSpaces = Math.max(0, capacity - bookedCount);
+      const isFull = availableSpaces === 0;
+
+      availability[dateStr] = {
+        date: dateStr,
+        capacity,
+        booked: bookedCount,
+        available: availableSpaces,
+        isFull,
+      };
+      
+      logger.info('Date availability calculated', { dateStr, capacity, booked: bookedCount, available: availableSpaces, isFull });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    res.json({
+      place: {
+        id: place.id,
+        name: place.name,
+        capacity,
+      },
+      availability,
+    });
+  } catch (error) {
+    logger.error('Get place availability error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetail,
@@ -365,4 +472,5 @@ module.exports = {
   deleteBooking,
   autoCompleteBookings,
   getPlaceBookings,
+  getPlaceAvailability,
 };
