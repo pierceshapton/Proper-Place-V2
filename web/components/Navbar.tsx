@@ -20,7 +20,7 @@ export default function Navbar() {
             Home
           </Link>
           <Link href="/browse" className="hover:text-light-blue transition">
-            Browse Venues
+            Proper Place Map
           </Link>
           <Link href="/become-host" className="hover:text-light-blue transition">
             Become a Host
@@ -56,7 +56,7 @@ export default function Navbar() {
             Home
           </Link>
           <Link href="/browse" className="block hover:text-light-blue transition">
-            Browse Venues
+            Proper Place Map
           </Link>
           <Link href="/become-host" className="block hover:text-light-blue transition">
             Become a Host
