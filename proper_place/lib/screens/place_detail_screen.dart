@@ -76,9 +76,16 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           reviews = List<Map<String, dynamic>>.from(data['reviews'] ?? []);
           isLoadingReviews = false;
         });
+      } else {
+        // Non-200 response (404, 500, etc.) - stop loading and show empty state
+        setState(() {
+          reviews = [];
+          isLoadingReviews = false;
+        });
       }
     } catch (e) {
       setState(() {
+        reviews = [];
         isLoadingReviews = false;
       });
     }

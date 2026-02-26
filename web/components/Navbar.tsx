@@ -11,17 +11,17 @@ export default function Navbar() {
 
   return (
     <nav className="bg-dark-bg text-white shadow-lg">
-      <div className="container-md flex justify-between items-center py-4">
+      <div className="container-md flex justify-between items-center py-2">
         {/* Logo */}
         <Link href="/" className="text-2xl font-bold flex items-center gap-3">
-          <span className="text-light-blue">Proper</span> Place
           <Image
             src="/logo-192.png"
             alt="Proper Place Van"
-            width={40}
-            height={40}
+            width={80}
+            height={80}
             className="object-contain"
           />
+          <span className="text-light-blue">Proper</span> Place
         </Link>
 
         {/* Desktop Menu */}
