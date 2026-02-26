@@ -202,7 +202,7 @@ export default function BrowsePage() {
   }
 
   return (
-    <main className="flex flex-col h-screen">
+    <main className="flex flex-col h-[calc(100vh-72px)] overflow-hidden">
       {/* Map Container */}
       <div className="flex-1 relative">
         {!isLoaded || isLoading ? (

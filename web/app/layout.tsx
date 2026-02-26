@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { ConditionalFooter } from "@/components/ConditionalFooter";
 
 export const metadata: Metadata = {
   title: "Proper Place - Find Your Perfect Venue",
@@ -18,7 +19,7 @@ export default function RootLayout({
       <body className="bg-white text-gray-900">
         <Navbar />
         {children}
-        <Footer />
+        <ConditionalFooter />
       </body>
     </html>
   );
