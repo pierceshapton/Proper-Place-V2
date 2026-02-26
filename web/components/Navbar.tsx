@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <nav className="bg-dark-bg text-white shadow-lg">
@@ -16,16 +18,16 @@ export default function Navbar() {
 
         {/* Desktop Menu */}
         <div className="hidden md:flex gap-8">
-          <Link href="/" className="hover:text-light-blue transition">
+          <Link href="/" className={`transition ${pathname === '/' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Home
           </Link>
-          <Link href="/browse" className="hover:text-light-blue transition">
+          <Link href="/browse" className={`transition ${pathname === '/browse' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Proper Place Map
           </Link>
-          <Link href="/become-host" className="hover:text-light-blue transition">
+          <Link href="/become-host" className={`transition ${pathname === '/become-host' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Become a Host
           </Link>
-          <Link href="/contact-host" className="hover:text-light-blue transition">
+          <Link href="/contact-host" className={`transition ${pathname === '/contact-host' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Host Inquiry
           </Link>
         </div>
@@ -52,16 +54,16 @@ export default function Navbar() {
       {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden bg-gray-800 px-6 py-4 space-y-3">
-          <Link href="/" className="block hover:text-light-blue transition">
+          <Link href="/" className={`block transition ${pathname === '/' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Home
           </Link>
-          <Link href="/browse" className="block hover:text-light-blue transition">
+          <Link href="/browse" className={`block transition ${pathname === '/browse' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Proper Place Map
           </Link>
-          <Link href="/become-host" className="block hover:text-light-blue transition">
+          <Link href="/become-host" className={`block transition ${pathname === '/become-host' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Become a Host
           </Link>
-          <Link href="/contact-host" className="block hover:text-light-blue transition">
+          <Link href="/contact-host" className={`block transition ${pathname === '/contact-host' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Host Inquiry
           </Link>
           <hr className="my-3 border-gray-600" />

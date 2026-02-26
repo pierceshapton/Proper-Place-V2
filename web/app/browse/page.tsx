@@ -203,21 +203,6 @@ export default function BrowsePage() {
 
   return (
     <main className="flex flex-col h-screen">
-      {/* Header */}
-      <div className="bg-dark-bg text-white py-4 px-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Proper Place Map</h1>
-        <div className="flex items-center gap-4">
-          {!showMarkers && mapZoom < MIN_ZOOM_FOR_MARKERS && (
-            <span className="text-sm text-gray-300 bg-gray-700 px-3 py-1 rounded">
-              Zoom in to see places
-            </span>
-          )}
-          <span className="text-sm text-gray-300">
-            {places.length} places available
-          </span>
-        </div>
-      </div>
-
       {/* Map Container */}
       <div className="flex-1 relative">
         {!isLoaded || isLoading ? (
