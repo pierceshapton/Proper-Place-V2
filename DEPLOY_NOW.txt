@@ -1,0 +1,141 @@
+# Proper Place - One-Click Deployment
+
+Your website is **ready to deploy** to your DigitalOcean droplet!
+
+## 🚀 Deploy Now (30 seconds)
+
+### Option 1: Automatic Deployment (Recommended)
+
+```bash
+chmod +x deploy.sh
+./deploy.sh 162.159.140.98
+```
+
+That's it! The script will:
+- ✅ Install Docker & Nginx
+- ✅ Upload your code
+- ✅ Build containers
+- ✅ Get SSL certificate
+- ✅ Start backend + website
+- ✅ Configure reverse proxy
+
+Takes about **5 minutes** to complete.
+
+### Option 2: Quick Script
+```bash
+./deploy-quick.sh
+```
+
+## 📋 After Deployment
+
+### 1. Update Your Domain (REQUIRED)
+Go to your domain registrar (where you bought `proper-place.co.uk`) and:
+
+**Create/Update A Record:**
+- Name: `@` (or leave blank)
+- Type: `A`
+- Value: `162.159.140.98`
+- TTL: `3600`
+
+**Optional - Add WWW:**
+- Name: `www`
+- Type: `CNAME`
+- Value: `proper-place.co.uk`
+- TTL: `3600`
+
+### 2. Wait for DNS (24-48 hours)
+DNS changes take time to propagate globally. You can check status:
+```bash
+dig proper-place.co.uk
+nslookup proper-place.co.uk
+```
+
+### 3. Visit Your Website
+Once DNS is ready:
+- **Website:** https://proper-place.co.uk
+- **API:** https://proper-place.co.uk/api
+- **Contact Form:** Submits to your backend
+
+## 🔧 Useful Commands (After Deployment)
+
+### View Logs
+```bash
+# SSH into droplet
+ssh root@162.159.140.98
+
+# View website logs
+docker-compose -f /var/www/proper-place/docker-compose.prod.yml logs -f website
+
+# View backend logs
+docker-compose -f /var/www/proper-place/docker-compose.prod.yml logs -f backend
+```
+
+### Restart Services
+```bash
+docker-compose -f /var/www/proper-place/docker-compose.prod.yml restart
+```
+
+### Update Code
+```bash
+cd /var/www/proper-place
+git pull origin main
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+### Check Status
+```bash
+docker-compose -f /var/www/proper-place/docker-compose.prod.yml ps
+```
+
+## 🆘 Troubleshooting
+
+### "Connection refused" after deployment
+- **Cause:** DNS propagation hasn't finished
+- **Fix:** Wait 24-48 hours, then try again
+
+### Website shows Nginx 502 error
+```bash
+ssh root@162.159.140.98
+docker-compose -f /var/www/proper-place/docker-compose.prod.yml logs website
+docker-compose -f /var/www/proper-place/docker-compose.prod.yml restart website
+```
+
+### SSL certificate issues
+```bash
+ssh root@162.159.140.98
+certbot renew --force-renewal
+systemctl reload nginx
+```
+
+### Need to see full deployment output
+```bash
+chmod +x deploy.sh
+./deploy.sh 162.159.140.98 2>&1 | tee deployment.log
+```
+
+## 📞 Support
+
+- **Full Guide:** See `DIGITALOCEAN_DEPLOY_WEBSITE.md`
+- **DigitalOcean Docs:** https://docs.digitalocean.com
+- **Next.js Docs:** https://nextjs.org/docs
+- **Node.js Docs:** https://nodejs.org/docs
+
+## 🎉 What's Running
+
+After deployment, you'll have:
+
+| Service | Port | URL |
+|---------|------|-----|
+| Website (Next.js) | 3000 | https://proper-place.co.uk |
+| Backend API | 3001 | https://proper-place.co.uk/api |
+| Nginx (Reverse Proxy) | 80/443 | Handles SSL & routing |
+| PostgreSQL | (Remote) | DigitalOcean managed database |
+
+Everything is behind Nginx with SSL encryption. Your backend and website talk internally with Docker networking.
+
+---
+
+**Ready to deploy? Run this:**
+```bash
+chmod +x deploy.sh && ./deploy.sh 162.159.140.98
+```

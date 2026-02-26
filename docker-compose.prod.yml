@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # Backend API
+  backend:
+    image: proper-place-backend:latest
+    container_name: proper-place-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=${DATABASE_URL}
+    restart: unless-stopped
+    networks:
+      - proper-place-network
+
+  # Frontend Website
+  website:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: proper-place-website
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://proper-place.co.uk/api
+    restart: unless-stopped
+    networks:
+      - proper-place-network
+    depends_on:
+      - backend
+
+networks:
+  proper-place-network:
+    driver: bridge

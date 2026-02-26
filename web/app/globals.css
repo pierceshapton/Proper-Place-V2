@@ -71,11 +71,21 @@ input[type="password"],
 input[type="tel"],
 textarea,
 select {
-  @apply w-full px-4 py-2 border border-border-gray rounded-lg focus:outline-none focus:border-light-blue focus:ring-1 focus:ring-light-blue;
+  @apply w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1;
+  border-color: #e0e0e0;
+  color: inherit;
+}
+
+input[type="password"]:focus,
+input[type="tel"]:focus,
+textarea:focus,
+select:focus {
+  border-color: #4a90e2;
+  --ring-color: #4a90e2;
 }
 
 textarea {
-  @apply resize-vertical;
+  resize: vertical;
 }
 
 /* Typography */
@@ -96,12 +106,18 @@ h4 {
 }
 
 p {
-  @apply text-gray-600 leading-relaxed;
+  @apply leading-relaxed;
+  color: #666;
 }
 
 /* Links */
 a {
-  @apply text-light-blue hover:text-accent-blue transition-colors;
+  @apply transition-colors;
+  color: #4a90e2;
+}
+
+a:hover {
+  color: #357abd;
 }
 
 /* Color scheme utilities */
