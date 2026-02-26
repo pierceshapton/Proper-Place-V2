@@ -221,9 +221,9 @@ export default function BrowsePage() {
   }
 
   return (
-    <main className="flex flex-col">
-      {/* Map Container - fills remaining viewport height */}
-      <div className="h-[calc(100vh-6rem)] relative">
+    <main className="flex flex-col overflow-hidden">
+      {/* Map Container - fills remaining viewport height below navbar */}
+      <div className="h-[calc(100vh-96px)] relative">
         {!isLoaded || isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
             <div className="text-center">
