@@ -194,7 +194,12 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
 
   Widget _buildDateTile(DateTime date, dynamic availData) {
     final isPast = date.isBefore(DateTime.now().subtract(const Duration(days: 1)));
-    final isBeforeMin = widget.minDate != null && date.isBefore(widget.minDate!);
+    // Normalize minDate comparison to ignore time components
+    final minDateOnly = widget.minDate != null 
+        ? DateTime(widget.minDate!.year, widget.minDate!.month, widget.minDate!.day)
+        : null;
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final isBeforeMin = minDateOnly != null && dateOnly.isBefore(minDateOnly);
     final available = availData?['available'] ?? capacity ?? 10;
     final isFull = availData?['isFull'] ?? false;
     final isToday = date.day == DateTime.now().day &&
@@ -202,7 +207,6 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
         date.year == DateTime.now().year;
 
     // Check if this date is check-in or check-out
-    final dateOnly = DateTime(date.year, date.month, date.day);
     final isCheckInDate = widget.checkInDate != null && 
         DateTime(widget.checkInDate!.year, widget.checkInDate!.month, widget.checkInDate!.day) == dateOnly;
     final isCheckOutDate = widget.checkOutDate != null && 
@@ -257,14 +261,19 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: isPast || isBeforeMin || isFull ? Colors.grey[400] : Colors.black,
+                    color: (isPast || (isBeforeMin && !isCheckInDate) || isFull) ? Colors.grey[400] : Colors.black,
                   ),
                 ),
                 const SizedBox(height: 2),
                 // Availability status
-                if (isPast || isBeforeMin)
+                if (isPast)
                   Text(
-                    isPast ? 'Past' : 'Check in',
+                    'Past',
+                    style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                  )
+                else if (isBeforeMin && !isCheckInDate)
+                  Text(
+                    'Check in',
                     style: TextStyle(fontSize: 10, color: Colors.grey[400]),
                   )
                 else if (isFull)
