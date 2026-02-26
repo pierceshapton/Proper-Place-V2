@@ -48,8 +48,16 @@ app.use(cors({
     if (!origin || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
       callback(null, true);
     } else {
-      // In production, restrict to specific origins
-      const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',');
+      // Allowed production origins
+      const defaultAllowed = [
+        'https://proper-place.co.uk',
+        'https://www.proper-place.co.uk',
+        'http://proper-place.co.uk',
+        'http://www.proper-place.co.uk'
+      ];
+      const envOrigins = (process.env.CORS_ORIGIN || '').split(',').filter(o => o);
+      const allowedOrigins = [...defaultAllowed, ...envOrigins];
+      
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
