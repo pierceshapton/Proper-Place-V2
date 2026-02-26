@@ -18,7 +18,7 @@ export default function Home() {
         <div className="relative container-md py-24 md:py-36">
           <div className="max-w-3xl">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Connecting the Motorhome Community with <span className="text-light-blue">Affordable Places to Stay</span> in Ideal Locations
+              Connecting the UK's Motorhome Community with a <span className="text-light-blue">Proper Place</span> to Stay the Night
             </h1>
             <p className="text-xl md:text-2xl text-gray-200 mb-8 leading-relaxed">
               Discover unique, budget-friendly places to park your motorhome across the UK. From scenic farmland to coastal retreats — find your perfect pitch.
