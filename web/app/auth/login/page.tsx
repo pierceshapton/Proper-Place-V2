@@ -40,38 +40,38 @@ export default function LoginPage() {
 
   return (
     <main>
-      <section className="min-h-screen bg-dark-bg text-white flex items-center justify-center py-12 px-6">
+      <section className="min-h-screen bg-light-gray text-gray-900 flex items-center justify-center py-12 px-6">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-2">
               <span className="text-light-blue">Proper</span> Place
             </h1>
-            <p className="text-gray-400">Welcome back</p>
+            <p className="text-gray-600">Welcome back</p>
           </div>
 
-          <div className="card p-8 bg-gray-900 border-gray-800">
+          <div className="card p-8 bg-white border-gray-200 shadow-lg">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium mb-2">Email</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700">Email</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
                   required
-                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
+                  className="bg-white border-gray-300 text-gray-900 placeholder-gray-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Password</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700">Password</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
+                  className="bg-white border-gray-300 text-gray-900 placeholder-gray-400"
                 />
               </div>
 
@@ -84,21 +84,21 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full py-3 font-bold disabled:opacity-50"
+                className="btn-primary w-full py-3 font-bold disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {loading ? 'Signing In...' : 'Sign In'}
               </button>
 
-              <div className="text-center text-sm text-gray-400">
+              <div className="text-center text-sm text-gray-600">
                 <p>
                   Don't have an account?{' '}
-                  <Link href="/auth/signup" className="text-light-blue hover:text-accent-blue">
+                  <Link href="/auth/signup" className="text-light-blue hover:text-accent-blue font-medium">
                     Sign up
                   </Link>
                 </p>
               </div>
 
-              <div className="text-center text-sm text-gray-400">
+              <div className="text-center text-sm">
                 <Link href="#" className="text-light-blue hover:text-accent-blue">
                   Forgot password?
                 </Link>
@@ -107,7 +107,7 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center text-xs text-gray-500 mt-6">
-            <p>By signing in, you agree to our Terms of Service and Privacy Policy</p>
+            <p>By signing in, you agree to our <Link href="/terms" className="text-light-blue">Terms of Service</Link> and <Link href="/privacy" className="text-light-blue">Privacy Policy</Link></p>
           </div>
         </div>
       </section>
