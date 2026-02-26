@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-dark-bg: #1a1a1a;
+  --color-light-blue: #4a90e2;
+  --color-accent-blue: #357abd;
+  --color-light-gray: #f5f5f5;
+  --color-border-gray: #e0e0e0;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #ffffff;
+  color: #333333;
+}
+
+/* Utility classes */
+.container-md {
+  @apply max-w-6xl mx-auto px-6;
+}
+
+.btn-primary {
+  @apply bg-light-blue hover:bg-accent-blue text-white py-2 px-6 rounded-lg font-semibold transition-colors;
+}
+
+.btn-secondary {
+  @apply border-2 border-light-blue text-light-blue hover:bg-light-blue hover:text-white py-2 px-6 rounded-lg font-semibold transition-colors;
+}
+
+.btn-small {
+  @apply px-4 py-2 text-sm rounded-md transition-colors;
+}
+
+.section-padding {
+  @apply py-16 md:py-24;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Cards */
+.card {
+  @apply bg-white border border-border-gray rounded-lg shadow-md hover:shadow-lg transition-shadow;
+}
+
+.card-hover {
+  @apply cursor-pointer transform hover:-translate-y-2 transition-transform;
+}
+
+/* Forms */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+textarea,
+select {
+  @apply w-full px-4 py-2 border border-border-gray rounded-lg focus:outline-none focus:border-light-blue focus:ring-1 focus:ring-light-blue;
+}
+
+textarea {
+  @apply resize-vertical;
+}
+
+/* Typography */
+h1 {
+  @apply font-bold;
+}
+
+h2 {
+  @apply font-bold;
+}
+
+h3 {
+  @apply font-semibold;
+}
+
+h4 {
+  @apply font-semibold;
+}
+
+p {
+  @apply text-gray-600 leading-relaxed;
+}
+
+/* Links */
+a {
+  @apply text-light-blue hover:text-accent-blue transition-colors;
+}
+
+/* Color scheme utilities */
+.dark-bg {
+  background-color: var(--color-dark-bg);
+}
+
+.light-blue {
+  color: var(--color-light-blue);
+}
+
+.accent-blue {
+  color: var(--color-accent-blue);
+}
+
+.light-gray {
+  background-color: var(--color-light-gray);
+}
+
+.border-gray {
+  border-color: var(--color-border-gray);
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.875rem;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+  }
+}
