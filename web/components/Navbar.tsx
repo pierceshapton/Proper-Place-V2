@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 
@@ -12,8 +13,15 @@ export default function Navbar() {
     <nav className="bg-dark-bg text-white shadow-lg">
       <div className="container-md flex justify-between items-center py-4">
         {/* Logo */}
-        <Link href="/" className="text-2xl font-bold">
+        <Link href="/" className="text-2xl font-bold flex items-center gap-3">
           <span className="text-light-blue">Proper</span> Place
+          <Image
+            src="/logo-192.png"
+            alt="Proper Place Van"
+            width={40}
+            height={40}
+            className="object-contain"
+          />
         </Link>
 
         {/* Desktop Menu */}
