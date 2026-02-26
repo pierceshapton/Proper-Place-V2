@@ -79,10 +79,24 @@ export default function BrowsePage() {
         const response = await fetch(`${API_BASE_URL}/places`);
         if (!response.ok) throw new Error('Failed to fetch places');
         const data = await response.json();
-        // Filter to only approved places
-        const approvedPlaces = (data.places || data || []).filter(
-          (p: Place) => p.approval_status === 'approved'
-        );
+        const rawPlaces = data.places || data || [];
+        // Map API fields to interface and filter to only approved places
+        const approvedPlaces = rawPlaces
+          .filter((p: any) => p.approval_status === 'approved')
+          .map((p: any): Place => ({
+            place_id: String(p.id),
+            name: p.name,
+            description: p.description || '',
+            location_address: p.address || '',
+            location_lat: parseFloat(p.latitude),
+            location_lng: parseFloat(p.longitude),
+            price_per_night: parseFloat(p.price_per_night) || 0,
+            max_guests: p.capacity || 1,
+            amenities: p.amenities || [],
+            images: p.image_urls || [],
+            host_id: String(p.owner_id),
+            approval_status: p.approval_status,
+          }));
         setPlaces(approvedPlaces);
         setError(null);
       } catch (err) {
