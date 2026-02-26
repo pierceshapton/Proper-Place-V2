@@ -18,7 +18,7 @@ export default function Home() {
         <div className="relative container-md py-24 md:py-36">
           <div className="max-w-3xl">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Connecting Motorhome Travellers with <span className="text-light-blue">Affordable Stays</span>
+              Connecting the Motorhome Community with <span className="text-light-blue">Affordable Places to Stay</span> in Ideal Locations
             </h1>
             <p className="text-xl md:text-2xl text-gray-200 mb-8 leading-relaxed">
               Discover unique, budget-friendly places to park your motorhome across the UK. From scenic farmland to coastal retreats — find your perfect pitch.
@@ -347,8 +347,8 @@ export default function Home() {
       <section className="relative py-24 overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920&q=80"
-            alt="Scenic mountain landscape"
+            src="https://images.unsplash.com/photo-1527786356703-4b100091cd2c?w=1920&q=80"
+            alt="Campervan parked by the seaside"
             fill
             className="object-cover"
           />
