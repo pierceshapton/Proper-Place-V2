@@ -92,7 +92,7 @@ export default function ContactHostPage() {
       </section>
 
       {/* Contact Form Section */}
-      <section className="section-padding">
+      <section className="section-padding bg-gray-300">
         <div className="container-md max-w-4xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             {/* Info Column */}
