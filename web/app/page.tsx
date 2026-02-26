@@ -35,7 +35,7 @@ export default function Home() {
                   <div className="text-lg font-semibold">App Store</div>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="bg-red-600 text-white text-xs font-bold px-8 py-1 transform -rotate-12 shadow-lg">COMING SOON!</span>
+                  <span className="bg-red-600 text-white text-xs font-bold px-8 py-1 rounded-md transform -rotate-12 shadow-lg">COMING SOON!</span>
                 </div>
               </div>
               <div className="relative overflow-hidden inline-flex items-center gap-3 bg-black text-white px-6 py-3 rounded-xl cursor-not-allowed opacity-80">
@@ -47,7 +47,7 @@ export default function Home() {
                   <div className="text-lg font-semibold">Google Play</div>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="bg-red-600 text-white text-xs font-bold px-8 py-1 transform -rotate-12 shadow-lg">COMING SOON!</span>
+                  <span className="bg-red-600 text-white text-xs font-bold px-8 py-1 rounded-md transform -rotate-12 shadow-lg">COMING SOON!</span>
                 </div>
               </div>
             </div>
@@ -298,7 +298,7 @@ export default function Home() {
                 <div className="text-xl font-semibold">App Store</div>
               </div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="bg-red-600 text-white text-xs font-bold px-10 py-1 transform -rotate-12 shadow-lg">COMING SOON!</span>
+                <span className="bg-red-600 text-white text-xs font-bold px-10 py-1 rounded-md transform -rotate-12 shadow-lg">COMING SOON!</span>
               </div>
             </div>
             <div className="relative overflow-hidden inline-flex items-center gap-3 bg-white text-gray-900 px-8 py-4 rounded-xl cursor-not-allowed opacity-90">
@@ -310,7 +310,7 @@ export default function Home() {
                 <div className="text-xl font-semibold">Google Play</div>
               </div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="bg-red-600 text-white text-xs font-bold px-10 py-1 transform -rotate-12 shadow-lg">COMING SOON!</span>
+                <span className="bg-red-600 text-white text-xs font-bold px-10 py-1 rounded-md transform -rotate-12 shadow-lg">COMING SOON!</span>
               </div>
             </div>
           </div>
