@@ -202,9 +202,9 @@ export default function BrowsePage() {
   }
 
   return (
-    <main className="flex flex-col h-[calc(100vh-96px)] overflow-hidden">
+    <main className="flex flex-col">
       {/* Map Container */}
-      <div className="flex-1 relative">
+      <div className="h-[70vh] relative">
         {!isLoaded || isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
             <div className="text-center">
