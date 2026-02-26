@@ -78,13 +78,13 @@ export default function ContactHostPage() {
   return (
     <main>
       {/* Hero Section */}
-      <section className="bg-light-gray text-gray-800 py-10 md:py-14">
+      <section className="bg-gray-300 text-gray-800 py-10 md:py-14">
         <div className="container-md">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-5xl md:text-6xl font-bold mb-4">
               Interested in Hosting?
             </h1>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-gray-700">
               Join our community of hosts and start earning by sharing your unique space with guests
             </p>
           </div>
