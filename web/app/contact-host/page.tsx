@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 
 export default function ContactHostPage() {
   const [formData, setFormData] = useState({
@@ -76,15 +77,24 @@ export default function ContactHostPage() {
   };
 
   return (
-    <main>
+    <main className="bg-cream">
       {/* Hero Section */}
-      <section className="bg-gray-300 text-gray-800 py-10 md:py-14">
-        <div className="container-md">
+      <section className="relative bg-dark-bg text-white py-20 md:py-28 overflow-hidden">
+        <div className="absolute inset-0">
+          <Image
+            src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80"
+            alt="Beautiful farmland"
+            fill
+            className="object-cover opacity-30"
+            priority
+          />
+        </div>
+        <div className="relative container-md">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-5xl md:text-6xl font-bold mb-4">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">
               Interested in Hosting?
             </h1>
-            <p className="text-xl text-gray-700">
+            <p className="text-xl text-gray-200">
               Join our community of hosts and start earning by sharing your unique space with guests
             </p>
           </div>
@@ -92,7 +102,7 @@ export default function ContactHostPage() {
       </section>
 
       {/* Contact Form Section */}
-      <section className="section-padding bg-gray-300">
+      <section className="section-padding bg-cream">
         <div className="container-md max-w-4xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             {/* Info Column */}
