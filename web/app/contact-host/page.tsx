@@ -101,32 +101,32 @@ export default function ContactHostPage() {
               
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-light-blue mb-2">💰 Earn Money</h3>
+                  <h3 className="text-xl font-semibold text-light-blue mb-2">Earn Money</h3>
                   <p className="text-gray-600">Set your own prices and earn competitive rates for your space</p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-light-blue mb-2">🛡️ Safety First</h3>
+                  <h3 className="text-xl font-semibold text-light-blue mb-2">Safety First</h3>
                   <p className="text-gray-600">Verified guests and secure payment processing for peace of mind</p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-light-blue mb-2">📅 Full Control</h3>
+                  <h3 className="text-xl font-semibold text-light-blue mb-2">Full Control</h3>
                   <p className="text-gray-600">Manage your own availability and accept or decline bookings</p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-light-blue mb-2">🤝 Community</h3>
+                  <h3 className="text-xl font-semibold text-light-blue mb-2">Community</h3>
                   <p className="text-gray-600">Connect with fellow hosts and share experiences and tips</p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-light-blue mb-2">📊 Dashboard</h3>
+                  <h3 className="text-xl font-semibold text-light-blue mb-2">Dashboard</h3>
                   <p className="text-gray-600">Track bookings, earnings, and guest reviews in real-time</p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-light-blue mb-2">🎯 Marketing</h3>
+                  <h3 className="text-xl font-semibold text-light-blue mb-2">Marketing</h3>
                   <p className="text-gray-600">We promote your space to thousands of potential guests</p>
                 </div>
               </div>
@@ -136,7 +136,7 @@ export default function ContactHostPage() {
             <div>
               {submitted ? (
                 <div className="bg-green-100 border-2 border-green-500 text-green-700 px-6 py-8 rounded-lg text-center">
-                  <h3 className="text-2xl font-bold mb-2">✓ Thank You!</h3>
+                  <h3 className="text-2xl font-bold mb-2">Thank You!</h3>
                   <p className="mb-2">Your inquiry has been received successfully.</p>
                   <p>Our team will contact you within 24-48 hours to discuss your hosting opportunity.</p>
                 </div>
