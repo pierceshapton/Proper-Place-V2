@@ -4,15 +4,24 @@ import Image from 'next/image';
 
 export default function BecomeHostPage() {
   return (
-    <main>
+    <main className="bg-cream">
       {/* Hero Section */}
-      <section className="relative bg-light-blue text-white py-16 md:py-24 overflow-hidden">
-        <div className="container-md">
+      <section className="relative bg-dark-bg text-white py-20 md:py-28 overflow-hidden">
+        <div className="absolute inset-0">
+          <Image
+            src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80"
+            alt="Beautiful farmland"
+            fill
+            className="object-cover opacity-30"
+            priority
+          />
+        </div>
+        <div className="relative container-md">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
               Turn Your Land Into Extra Income
             </h1>
-            <p className="text-xl opacity-90">
+            <p className="text-xl text-gray-200">
               Welcome motorhome travellers to your farm, garden, or land and earn money from unused space.
             </p>
           </div>
@@ -20,7 +29,7 @@ export default function BecomeHostPage() {
       </section>
 
       {/* Steps Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-cream">
         <div className="container-md">
           <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">Getting Started is Easy</h2>
 
@@ -58,7 +67,7 @@ export default function BecomeHostPage() {
       </section>
 
       {/* What You Can Offer */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-white">
         <div className="container-md">
           <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">What Spaces Work Well?</h2>
 
@@ -106,7 +115,7 @@ export default function BecomeHostPage() {
       </section>
 
       {/* Benefits */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-cream">
         <div className="container-md">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -174,7 +183,7 @@ export default function BecomeHostPage() {
       </section>
 
       {/* Tips for Success */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-white">
         <div className="container-md max-w-3xl">
           <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">Tips for a Great Listing</h2>
 

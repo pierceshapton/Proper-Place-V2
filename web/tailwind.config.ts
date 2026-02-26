@@ -13,6 +13,7 @@ const config: Config = {
         "accent-blue": "#357abd",
         "light-gray": "#f5f5f5",
         "border-gray": "#e0e0e0",
+        "cream": "#f8f5f0",
       },
     },
   },
