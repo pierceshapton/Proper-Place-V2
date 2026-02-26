@@ -74,19 +74,8 @@ export default function Home() {
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
                 No more expensive campsites or uncertain wild camping. Our verified hosts offer safe, legal, and welcoming places for motorhome travellers at prices that won't break the bank.
               </p>
-              <div className="grid grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className="text-3xl font-bold text-light-blue">500+</div>
-                  <div className="text-gray-500 text-sm">Locations</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-light-blue">10k+</div>
-                  <div className="text-gray-500 text-sm">Travellers</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-light-blue">4.8★</div>
-                  <div className="text-gray-500 text-sm">Rating</div>
-                </div>
+              <div className="bg-gray-100 rounded-xl p-6 text-center">
+                <p className="text-gray-500 italic">Community statistics coming soon</p>
               </div>
             </div>
             <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">
@@ -268,76 +257,12 @@ export default function Home() {
       {/* Testimonials */}
       <section className="py-20 bg-white">
         <div className="container-md">
-          <div className="text-center mb-16">
+          <div className="text-center">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Community</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2">What Our Users Say</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 rounded-2xl p-8">
-              <div className="flex gap-1 mb-4">
-                {[1,2,3,4,5].map(i => (
-                  <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                  </svg>
-                ))}
-              </div>
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                "Brilliant app! We've saved hundreds on our motorhome trips. The hosts are always friendly and the locations are so much better than crowded campsites."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-light-blue rounded-full flex items-center justify-center text-white font-bold">
-                  JM
-                </div>
-                <div>
-                  <div className="font-semibold">James & Mary</div>
-                  <div className="text-gray-500 text-sm">Motorhome owners, Devon</div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 rounded-2xl p-8">
-              <div className="flex gap-1 mb-4">
-                {[1,2,3,4,5].map(i => (
-                  <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                  </svg>
-                ))}
-              </div>
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                "As a farmer, hosting motorhomers has been a lovely extra income stream. The guests are always respectful and it's been wonderful meeting people from all walks of life."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
-                  RT
-                </div>
-                <div>
-                  <div className="font-semibold">Robert T.</div>
-                  <div className="text-gray-500 text-sm">Host, Yorkshire</div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 rounded-2xl p-8">
-              <div className="flex gap-1 mb-4">
-                {[1,2,3,4,5].map(i => (
-                  <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                  </svg>
-                ))}
-              </div>
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                "The route planning feature is a game changer. We can now plan week-long trips with stopovers all sorted before we leave. Highly recommend!"
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                  SW
-                </div>
-                <div>
-                  <div className="font-semibold">Sarah W.</div>
-                  <div className="text-gray-500 text-sm">Campervan traveller, Scotland</div>
-                </div>
-              </div>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-8">What Our Users Say</h2>
+            <div className="bg-gray-50 rounded-2xl p-12 max-w-2xl mx-auto">
+              <p className="text-gray-500 italic text-lg">Community reviews coming soon</p>
+              <p className="text-gray-400 mt-4">Be one of the first to share your experience with Proper Place</p>
             </div>
           </div>
         </div>

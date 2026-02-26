@@ -42,10 +42,10 @@ export default function Navbar() {
 
         {/* Auth Buttons */}
         <div className="hidden md:flex gap-4">
-          <Link href="/login" className="btn-secondary py-2 px-4 text-sm">
+          <Link href="/auth/login" className="btn-secondary py-2 px-4 text-sm">
             Login
           </Link>
-          <Link href="/signup" className="btn-primary py-2 px-4 text-sm">
+          <Link href="/auth/signup" className="btn-primary py-2 px-4 text-sm">
             Sign Up
           </Link>
         </div>
@@ -75,10 +75,10 @@ export default function Navbar() {
             Host Inquiry
           </Link>
           <hr className="my-3 border-gray-600" />
-          <Link href="/login" className="block hover:text-light-blue transition">
+          <Link href="/auth/login" className="block hover:text-light-blue transition">
             Login
           </Link>
-          <Link href="/signup" className="block hover:text-light-blue transition">
+          <Link href="/auth/signup" className="block hover:text-light-blue transition">
             Sign Up
           </Link>
         </div>

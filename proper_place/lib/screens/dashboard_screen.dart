@@ -52,8 +52,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         try {
           final bookings = await ApiService.getBookingsForPlace(placeId: placeId.toString());
           for (var booking in bookings) {
-            final checkInStr = booking['check_in'] ?? booking['check_in_date'] ?? '';
-            final checkOutStr = booking['check_out'] ?? booking['check_out_date'] ?? '';
+            final checkInStr = (booking['check_in'] ?? booking['check_in_date'] ?? '').toString();
+            final checkOutStr = (booking['check_out'] ?? booking['check_out_date'] ?? '').toString();
             
             DateTime? checkIn;
             DateTime? checkOut;

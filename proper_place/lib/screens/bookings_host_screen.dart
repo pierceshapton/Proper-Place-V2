@@ -57,16 +57,16 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
       Map<DateTime, List<Map<String, dynamic>>> bookingsByDate = {};
 
       for (var place in places) {
-        final placeId = place['id'] ?? place['place_id'] ?? '';
+        final placeId = (place['id'] ?? place['place_id'] ?? '').toString();
         if (placeId.isEmpty) continue;
 
         try {
-          final bookings = await ApiService.getBookingsForPlace(placeId: placeId.toString());
+          final bookings = await ApiService.getBookingsForPlace(placeId: placeId);
           
           for (var booking in bookings) {
-            // Parse check-in date
-            final checkInStr = booking['check_in'] ?? booking['check_in_date'] ?? '';
-            final checkOutStr = booking['check_out'] ?? booking['check_out_date'] ?? '';
+            // Parse check-in date - ensure strings
+            final checkInStr = (booking['check_in'] ?? booking['check_in_date'] ?? '').toString();
+            final checkOutStr = (booking['check_out'] ?? booking['check_out_date'] ?? '').toString();
             
             if (checkInStr.isEmpty) continue;
 

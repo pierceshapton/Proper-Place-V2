@@ -1,97 +1,103 @@
 'use client';
 
+import Image from 'next/image';
+
 export default function BecomeHostPage() {
   return (
     <main>
       {/* Hero Section */}
-      <section className="bg-light-blue text-white py-16 md:py-24">
+      <section className="relative bg-light-blue text-white py-16 md:py-24 overflow-hidden">
         <div className="container-md">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              Start Earning Today
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+              Turn Your Land Into Extra Income
             </h1>
-            <p className="text-xl">
-              List your space on Proper Place and start hosting memorable events
+            <p className="text-xl opacity-90">
+              Welcome motorhome travellers to your farm, garden, or land and earn money from unused space.
             </p>
           </div>
         </div>
       </section>
 
       {/* Steps Section */}
-      <section className="section-padding">
+      <section className="py-20 bg-white">
         <div className="container-md">
-          <h2 className="text-4xl font-bold mb-12 text-center">Getting Started is Easy</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">Getting Started is Easy</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             {[
               {
-                step: 'Step 1',
                 title: 'Create Your Account',
-                desc: 'Sign up with your email or social media account'
+                desc: 'Sign up for free and verify your identity to become a trusted host'
               },
               {
-                step: 'Step 2',
                 title: 'List Your Space',
-                desc: 'Add photos, description, and pricing for your venue'
+                desc: 'Add photos of your land, set your price, availability, and any rules'
               },
               {
-                step: 'Step 3',
-                title: 'Start Hosting',
-                desc: 'Accept bookings and earn money from your space'
+                title: 'Welcome Guests',
+                desc: 'Accept booking requests and host respectful motorhome travellers'
               },
             ].map((item, i) => (
               <div key={i} className="text-center">
                 <div className="w-20 h-20 bg-light-blue text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-6">
                   {i + 1}
                 </div>
-                <h3 className="text-2xl font-bold mb-3">{item.title}</h3>
+                <h3 className="text-xl font-bold mb-3">{item.title}</h3>
                 <p className="text-gray-600">{item.desc}</p>
               </div>
             ))}
           </div>
 
           <div className="text-center">
-            <a href="/auth/signup" className="btn-primary px-8 py-3 text-lg">
+            <a href="/auth/signup" className="btn-primary px-8 py-3 text-lg rounded-xl">
               Create Host Account
             </a>
           </div>
         </div>
       </section>
 
-      {/* Listing Requirements */}
-      <section className="section-padding bg-light-gray">
-        <div className="container-md max-w-3xl">
-          <h2 className="text-4xl font-bold mb-12 text-center">What Makes a Great Listing?</h2>
+      {/* What You Can Offer */}
+      <section className="py-20 bg-gray-50">
+        <div className="container-md">
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">What Spaces Work Well?</h2>
 
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
-                title: '📸 High-Quality Photos',
-                desc: 'Clear, well-lit photos of your space from different angles help guests understand what to expect'
+                title: 'Farmland',
+                desc: 'A quiet corner of your farm is perfect for travellers seeking rural tranquility',
+                icon: '🌾'
               },
               {
-                title: '✍️ Detailed Description',
-                desc: 'Describe your space honestly, including amenities, capacity, and rules'
+                title: 'Large Gardens',
+                desc: 'Private driveways or spacious gardens make excellent overnight stops',
+                icon: '🏡'
               },
               {
-                title: '💰 Competitive Pricing',
-                desc: 'Research similar venues in your area and set your rates accordingly'
+                title: 'Vineyards & Orchards',
+                desc: 'Scenic locations are highly sought after by motorhome enthusiasts',
+                icon: '🍇'
               },
               {
-                title: '📋 Clear Policies',
-                desc: 'Set expectations for cancellation, guest behavior, and house rules'
+                title: 'Coastal Land',
+                desc: 'Spots with sea views or near beaches attract premium bookings',
+                icon: '🌊'
               },
               {
-                title: '🗺️ Accurate Location',
-                desc: 'Include specific directions and public transit information'
+                title: 'Woodland Areas',
+                desc: 'Peaceful forest settings offer a unique camping experience',
+                icon: '🌲'
               },
               {
-                title: '⭐ Professional Info',
-                desc: 'Ensure your profile is complete and you respond to inquiries quickly'
+                title: 'Pub Car Parks',
+                desc: 'Pubs with spare parking can offer stays with easy access to refreshments',
+                icon: '🍺'
               },
             ].map((item, i) => (
-              <div key={i} className="bg-white p-6 rounded-lg border border-border-gray">
-                <h3 className="font-semibold text-xl mb-2">{item.title}</h3>
+              <div key={i} className="bg-white p-6 rounded-2xl shadow-md hover:shadow-lg transition-shadow">
+                <span className="text-4xl mb-4 block">{item.icon}</span>
+                <h3 className="font-bold text-lg mb-2">{item.title}</h3>
                 <p className="text-gray-600">{item.desc}</p>
               </div>
             ))}
@@ -99,64 +105,128 @@ export default function BecomeHostPage() {
         </div>
       </section>
 
-      {/* Pricing Tips */}
-      <section className="section-padding">
-        <div className="container-md max-w-2xl">
-          <h2 className="text-4xl font-bold mb-12 text-center">Pricing Your Space</h2>
-
-          <div className="card p-8">
-            <div className="space-y-4">
-              <p className="text-gray-600">
-                Here are some factors to consider when pricing your space:
-              </p>
-              <ul className="space-y-3">
-                <li className="flex gap-3">
-                  <span>📍</span>
-                  <span><strong>Location:</strong> Premium locations command higher prices</span>
+      {/* Benefits */}
+      <section className="py-20 bg-white">
+        <div className="container-md">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Why Host?</span>
+              <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
+                Benefits of Becoming a Host
+              </h2>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-4">
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg">Free to List</h4>
+                    <p className="text-gray-600">No upfront costs or subscription fees. We only take a small commission when you earn.</p>
+                  </div>
                 </li>
-                <li className="flex gap-3">
-                  <span>👥</span>
-                  <span><strong>Capacity:</strong> Larger spaces can accommodate bigger events</span>
+                <li className="flex items-start gap-4">
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg">You're in Control</h4>
+                    <p className="text-gray-600">Set your own prices, availability, and house rules. Accept or decline any booking.</p>
+                  </div>
                 </li>
-                <li className="flex gap-3">
-                  <span>🎨</span>
-                  <span><strong>Amenities:</strong> Unique features increase your venue's value</span>
+                <li className="flex items-start gap-4">
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg">Secure Payments</h4>
+                    <p className="text-gray-600">Payments are processed securely and transferred directly to your bank account.</p>
+                  </div>
                 </li>
-                <li className="flex gap-3">
-                  <span>📅</span>
-                  <span><strong>Demand:</strong> Adjust pricing based on seasonal demand</span>
-                </li>
-                <li className="flex gap-3">
-                  <span>⭐</span>
-                  <span><strong>Reviews:</strong> Highly-rated spaces justify premium pricing</span>
+                <li className="flex items-start gap-4">
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg">Meet Interesting People</h4>
+                    <p className="text-gray-600">Motorhome travellers are typically respectful, self-sufficient guests who love exploring.</p>
+                  </div>
                 </li>
               </ul>
             </div>
-
-            <hr className="my-6 border-border-gray" />
-
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">
-                <strong>💡 Tip:</strong> Start with competitive pricing to get your first bookings and reviews, then adjust as you build your reputation.
-              </p>
+            <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">
+              <Image
+                src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80"
+                alt="Beautiful farmland with rolling hills"
+                fill
+                className="object-cover"
+              />
             </div>
           </div>
         </div>
       </section>
 
+      {/* Tips for Success */}
+      <section className="py-20 bg-gray-50">
+        <div className="container-md max-w-3xl">
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">Tips for a Great Listing</h2>
+
+          <div className="space-y-4">
+            {[
+              {
+                title: '📸 Quality Photos',
+                desc: 'Show clear photos of the parking area, surroundings, and any amenities you offer'
+              },
+              {
+                title: '📍 Accurate Location',
+                desc: 'Provide precise directions and landmarks so guests can find you easily'
+              },
+              {
+                title: '💰 Fair Pricing',
+                desc: 'Most hosts charge £10-20 per night. Research similar listings in your area'
+              },
+              {
+                title: '✅ Clear Rules',
+                desc: 'Set expectations about arrival times, quiet hours, and what facilities are available'
+              },
+              {
+                title: '💬 Quick Responses',
+                desc: 'Respond to booking requests promptly to improve your acceptance rate'
+              },
+              {
+                title: '⭐ Great Service',
+                desc: 'A friendly welcome and helpful local tips lead to glowing reviews'
+              },
+            ].map((item, i) => (
+              <div key={i} className="bg-white p-6 rounded-xl border border-gray-200">
+                <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
+                <p className="text-gray-600">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
-      <section className="bg-dark-bg text-white py-16">
+      <section className="bg-dark-bg text-white py-20">
         <div className="container-md text-center">
-          <h2 className="text-4xl font-bold mb-6">Ready to Start Hosting?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Start Hosting?</h2>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Join thousands of hosts who are earning money by sharing their unique spaces
+            Join the Proper Place community and start earning from your unused land.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <a href="/auth/signup" className="btn-primary px-8 py-3">
+            <a href="/auth/signup" className="btn-primary px-8 py-3 rounded-xl">
               Create Host Account
             </a>
-            <a href="/contact-host" className="btn-secondary px-8 py-3 bg-white text-dark-bg border-white">
-              Inquire About Hosting
+            <a href="/contact-host" className="border-2 border-white text-white hover:bg-white hover:text-dark-bg px-8 py-3 rounded-xl font-semibold transition-colors">
+              Ask a Question
             </a>
           </div>
         </div>
