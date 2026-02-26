@@ -61,6 +61,9 @@ export default function BrowsePage() {
   const [showSearch, setShowSearch] = useState(false);
   const [showRouteForm, setShowRouteForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [startAddress, setStartAddress] = useState('');
+  const [destAddress, setDestAddress] = useState('');
+  const [maxTimeOffRoute, setMaxTimeOffRoute] = useState(15);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -384,32 +387,48 @@ export default function BrowsePage() {
           />
         )}
 
-        {/* Search Modal */}
+        {/* Search Modal - Bottom Sheet Style */}
         {showSearch && (
-          <div className="absolute inset-0 bg-black/50 z-50 flex items-start justify-center pt-20">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-              <div className="p-4 border-b flex items-center gap-3">
-                <input
-                  type="text"
-                  placeholder="Search places..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  autoFocus
-                />
-                <button
-                  onClick={() => {
-                    setShowSearch(false);
-                    setSearchQuery('');
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                >
-                  <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+          <div className="absolute inset-0 bg-black/50 z-50 flex items-end sm:items-start sm:justify-center sm:pt-20">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 overflow-hidden max-h-[80vh]">
+              {/* Handle bar for mobile */}
+              <div className="sm:hidden flex justify-center pt-3 pb-1">
+                <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
               </div>
-              <div className="max-h-80 overflow-y-auto">
+              
+              {/* Header */}
+              <div className="p-4 border-b">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-bold">Search Location</h3>
+                  <button
+                    onClick={() => {
+                      setShowSearch(false);
+                      setSearchQuery('');
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                  >
+                    <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="relative">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search places or addresses..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              
+              {/* Results */}
+              <div className="overflow-y-auto max-h-[60vh]">
                 {places
                   .filter((p) =>
                     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -426,18 +445,32 @@ export default function BrowsePage() {
                         setShowSearch(false);
                         setSearchQuery('');
                       }}
-                      className="w-full p-4 text-left hover:bg-gray-50 border-b last:border-b-0"
+                      className="w-full p-4 text-left hover:bg-gray-50 border-b last:border-b-0 flex items-start gap-3"
                     >
-                      <p className="font-medium text-gray-900">{place.name}</p>
-                      <p className="text-sm text-gray-500 truncate">{place.location_address}</p>
-                      <p className="text-sm text-blue-500 font-medium">£{place.price_per_night}/night</p>
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900">{place.name}</p>
+                        <p className="text-sm text-gray-500 truncate">{place.location_address}</p>
+                        <p className="text-sm text-blue-500 font-medium mt-1">£{place.price_per_night}/night</p>
+                      </div>
                     </button>
                   ))}
                 {places.filter((p) =>
                   p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                   p.location_address.toLowerCase().includes(searchQuery.toLowerCase())
                 ).length === 0 && (
-                  <p className="p-4 text-center text-gray-500">No places found</p>
+                  <div className="p-8 text-center">
+                    <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <p className="text-gray-500">No places found</p>
+                    <p className="text-sm text-gray-400 mt-1">Try a different search term</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -446,9 +479,10 @@ export default function BrowsePage() {
 
         {/* Route Planning Modal */}
         {showRouteForm && (
-          <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-              <div className="flex items-center justify-between mb-6">
+          <div className="absolute inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[85vh] overflow-y-auto">
+              {/* Header */}
+              <div className="sticky top-0 bg-white p-4 border-b flex items-center justify-between z-10">
                 <h3 className="text-xl font-bold">Plan Your Route</h3>
                 <button
                   onClick={() => setShowRouteForm(false)}
@@ -459,30 +493,119 @@ export default function BrowsePage() {
                   </svg>
                 </button>
               </div>
-              <p className="text-gray-600 mb-4">
-                Route planning finds places along your journey. This feature is available in the Proper Place app.
-              </p>
-              <div className="bg-blue-50 rounded-lg p-4 text-center">
-                <p className="text-sm text-gray-600 mb-2">
-                  Download the app for full route planning features
-                </p>
-                <div className="flex justify-center gap-4">
-                  <a
-                    href="https://apps.apple.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline text-sm font-medium"
-                  >
-                    App Store
-                  </a>
-                  <a
-                    href="https://play.google.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline text-sm font-medium"
-                  >
-                    Google Play
-                  </a>
+
+              <div className="p-4 space-y-5">
+                {/* Starting Location */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">Starting Location</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter starting address..."
+                      value={startAddress}
+                      onChange={(e) => setStartAddress(e.target.value)}
+                      className="flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => {
+                        if (navigator.geolocation) {
+                          navigator.geolocation.getCurrentPosition(
+                            () => setStartAddress('My Location'),
+                            () => alert('Could not get location')
+                          );
+                        }
+                      }}
+                      className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      title="Use my location"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Destination */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">Destination</label>
+                  <input
+                    type="text"
+                    placeholder="Enter destination address..."
+                    value={destAddress}
+                    onChange={(e) => setDestAddress(e.target.value)}
+                    className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Max Time Off Route */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-1">Max Time Off Route</label>
+                  <p className="text-sm text-gray-500 mb-4">How far off your route are you willing to travel?</p>
+                  
+                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                    <div className="text-center mb-4">
+                      <span className="text-4xl font-bold text-blue-600">{maxTimeOffRoute}</span>
+                      <span className="text-lg text-blue-600 ml-1">minutes</span>
+                    </div>
+                    
+                    <input
+                      type="range"
+                      min="1"
+                      max="60"
+                      value={maxTimeOffRoute}
+                      onChange={(e) => setMaxTimeOffRoute(parseInt(e.target.value))}
+                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                    
+                    <div className="flex justify-between mt-2 text-xs text-gray-500">
+                      <span>1 min</span>
+                      <span>60 min</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Find Places Button */}
+                <button
+                  onClick={() => {
+                    if (!startAddress || !destAddress) {
+                      alert('Please enter both starting location and destination');
+                      return;
+                    }
+                    setShowRouteForm(false);
+                    alert(`Finding places within ${maxTimeOffRoute} minutes of your route from "${startAddress}" to "${destAddress}". Download the app for full route navigation!`);
+                  }}
+                  className="w-full py-3 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Find Places on Route
+                </button>
+
+                {/* App Download CTA */}
+                <div className="bg-gray-100 rounded-lg p-4 text-center">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Get turn-by-turn navigation in the app
+                  </p>
+                  <div className="flex justify-center gap-4">
+                    <a
+                      href="https://apps.apple.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline text-sm font-medium"
+                    >
+                      App Store
+                    </a>
+                    <a
+                      href="https://play.google.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline text-sm font-medium"
+                    >
+                      Google Play
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
