@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 export const metadata = {
   title: 'About Us | Proper Place',
-  description: 'Learn about Proper Place - connecting the UK\\'s motorhome community with unique Proper Places to stay.',
+  description: "Learn about Proper Place - connecting the UK's motorhome community with unique Proper Places to stay.",
 };
 
 export default function AboutPage() {
