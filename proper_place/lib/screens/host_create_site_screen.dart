@@ -34,7 +34,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   List<String> existingSupportingUrls = [];
   List<String> existingBusinessUrls = [];
 
-  double maxVehicleLength = 20.0; // Default 20ft
+  double maxVehicleLength = 30.0; // Default 30ft
+  double maxVehicleHeight = 12.0; // Default 12ft
+  double maxVehicleWidth = 8.0; // Default 8ft
   bool isSavingDraft = false;
   bool isSubmitting = false;
   
@@ -193,7 +195,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       businessNameController.text = site['name'] ?? site['business_name'] ?? '';
       businessDescriptionController.text = site['business_description'] ?? '';
       foodMenuController.text = site['food_menu_description'] ?? '';
-      maxVehicleLength = _parseDouble(site['capacity'] ?? site['max_vehicle_length'], 20);
+      maxVehicleLength = _parseDouble(site['max_vehicle_length_ft'] ?? site['capacity'] ?? site['max_vehicle_length'], 30);
+      maxVehicleHeight = _parseDouble(site['max_vehicle_height_ft'], 12);
+      maxVehicleWidth = _parseDouble(site['max_vehicle_width_ft'], 8);
       
       // Load location data
       city = site['city'] ?? '';
@@ -403,6 +407,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'latitude': latitude != 0 ? latitude : 51.5074, // Default to London
       'longitude': longitude != 0 ? longitude : -0.1278,
       'capacity': maxVehicleLength.toInt(),
+      'max_vehicle_height_ft': maxVehicleHeight,
+      'max_vehicle_width_ft': maxVehicleWidth,
+      'max_vehicle_length_ft': maxVehicleLength,
       'amenities': selectedFacilities.entries.where((e) => e.value).map((e) => e.key).toList(),
       'place_type': selectedLocationType,
     };
@@ -433,6 +440,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'latitude': latitude,
       'longitude': longitude,
       'capacity': maxVehicleLength.toInt(),
+      'max_vehicle_height_ft': maxVehicleHeight,
+      'max_vehicle_width_ft': maxVehicleWidth,
+      'max_vehicle_length_ft': maxVehicleLength,
       'amenities': selectedFacilities.entries.where((e) => e.value).map((e) => e.key).toList(),
       'place_type': selectedLocationType,
     };
@@ -806,35 +816,129 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               controller: descriptionController,
               maxLines: 4,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-            // Max Vehicle Length Slider
-            Text(
-              'Maximum Vehicle Length',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: maxVehicleLength,
-                    min: 1,
-                    max: 30,
-                    divisions: 29,
-                    label: '${maxVehicleLength.toStringAsFixed(0)}ft',
-                    onChanged: (value) => setState(() => maxVehicleLength = value),
+            // Vehicle Size Restrictions Section
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F9FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF0EA5E9).withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.directions_car, color: const Color(0xFF0EA5E9), size: 24),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Vehicle Size Limits',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF0369A1),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 16),
-                  child: Text(
-                    '${maxVehicleLength.toStringAsFixed(0)}ft',
-                    style:
-                        const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Important: Set the maximum vehicle dimensions that can fit on your site',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+
+                  // Max Vehicle Height Slider
+                  Text(
+                    'Maximum Vehicle Height',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: maxVehicleHeight,
+                          min: 6,
+                          max: 15,
+                          divisions: 18,
+                          label: '${maxVehicleHeight.toStringAsFixed(1)}ft',
+                          onChanged: (value) => setState(() => maxVehicleHeight = value),
+                        ),
+                      ),
+                      Container(
+                        width: 60,
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${maxVehicleHeight.toStringAsFixed(1)}ft',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Max Vehicle Width Slider
+                  Text(
+                    'Maximum Vehicle Width',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: maxVehicleWidth,
+                          min: 6,
+                          max: 12,
+                          divisions: 12,
+                          label: '${maxVehicleWidth.toStringAsFixed(1)}ft',
+                          onChanged: (value) => setState(() => maxVehicleWidth = value),
+                        ),
+                      ),
+                      Container(
+                        width: 60,
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${maxVehicleWidth.toStringAsFixed(1)}ft',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Max Vehicle Length Slider
+                  Text(
+                    'Maximum Vehicle Length',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: maxVehicleLength,
+                          min: 15,
+                          max: 45,
+                          divisions: 30,
+                          label: '${maxVehicleLength.toStringAsFixed(0)}ft',
+                          onChanged: (value) => setState(() => maxVehicleLength = value),
+                        ),
+                      ),
+                      Container(
+                        width: 60,
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${maxVehicleLength.toStringAsFixed(0)}ft',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
 

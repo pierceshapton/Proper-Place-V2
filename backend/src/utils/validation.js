@@ -31,6 +31,9 @@ const schemas = {
     food_menu_description: Joi.string().max(2000).optional().allow(null, ''),
     serves_food: Joi.boolean().optional(),
     business_description: Joi.string().max(2000).optional().allow(null, ''),
+    max_vehicle_height_ft: Joi.number().min(0).max(20).optional().allow(null),
+    max_vehicle_width_ft: Joi.number().min(0).max(15).optional().allow(null),
+    max_vehicle_length_ft: Joi.number().min(0).max(50).optional().allow(null),
   }).unknown(true),
 
   createBooking: Joi.object({

@@ -115,8 +115,9 @@ async function createPlace(req, res, next) {
                            postal_code, latitude, longitude, price_per_night,
                            capacity, amenities, place_type, opening_hours, 
                            kitchen_hours, food_menu_description, serves_food, 
-                           business_description, approval_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                           business_description, approval_status,
+                           max_vehicle_height_ft, max_vehicle_width_ft, max_vehicle_length_ft)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
        RETURNING *`,
       [
         userId,
@@ -138,6 +139,9 @@ async function createPlace(req, res, next) {
         data.serves_food || false,
         data.business_description || null,
         data.approval_status || 'pending',
+        data.max_vehicle_height_ft || null,
+        data.max_vehicle_width_ft || null,
+        data.max_vehicle_length_ft || null,
       ]
     );
 
@@ -190,7 +194,8 @@ async function updatePlace(req, res, next) {
       'name', 'description', 'address', 'city', 'country', 'postal_code',
       'latitude', 'longitude', 'price_per_night', 'capacity', 'amenities',
       'place_type', 'opening_hours', 'kitchen_hours', 'food_menu_description', 
-      'serves_food', 'business_description',
+      'serves_food', 'business_description', 'max_vehicle_height_ft', 
+      'max_vehicle_width_ft', 'max_vehicle_length_ft',
     ];
 
     for (const field of allowedFields) {
