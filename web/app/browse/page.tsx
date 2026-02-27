@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
 const API_BASE_URL = 'https://octopus-app-lxh2t.ondigitalocean.app';
 const GOOGLE_MAPS_API_KEY = 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
@@ -267,39 +267,7 @@ export default function BrowsePage() {
                   />
                 ))}
 
-              {/* Info Window for selected place */}
-              {selectedPlace && (
-                <InfoWindow
-                  position={{
-                    lat: selectedPlace.location_lat,
-                    lng: selectedPlace.location_lng,
-                  }}
-                  onCloseClick={() => setSelectedPlace(null)}
-                >
-                  <div className="w-64">
-                    {/* Image */}
-                    {selectedPlace.images && selectedPlace.images.length > 0 && (
-                      <div className="w-full h-32 overflow-hidden rounded-t-lg">
-                        <img
-                          src={selectedPlace.images[0]}
-                          alt={selectedPlace.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    {/* Content */}
-                    <div className="p-3">
-                      <h3 className="font-bold text-base text-gray-900 mb-1">{selectedPlace.name}</h3>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {selectedPlace.location_address}
-                      </p>
-                      <p className="text-blue-600 font-bold text-lg">
-                        £{selectedPlace.price_per_night}/night
-                      </p>
-                    </div>
-                  </div>
-                </InfoWindow>
-              )}
+
             </GoogleMap>
 
             {/* Top Left - Plan Route Button */}
