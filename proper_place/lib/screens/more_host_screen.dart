@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'welcome_screen.dart';
 
@@ -10,40 +11,29 @@ class MoreHostScreen extends StatefulWidget {
 }
 
 class _MoreHostScreenState extends State<MoreHostScreen> {
+  // Colors matching website
+  static const Color headerGrey = Color(0xFFF5F5F5);
+  static const Color cream = Color(0xFFF8F5F0);
+  static const Color lightBlue = Color(0xFF5B8FC4);
+  static const Color accentBlue = Color(0xFF4A7EB3);
+
   Map<String, dynamic>? user;
   bool isLoading = true;
-  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
     _loadUserData();
-  }
-
-  void _onScroll() {
-    // Limit scroll to stop when logout section is visible
-    // Allow more scrolling to show logout section prominently
-    final maxScroll = _scrollController.position.maxScrollExtent - 115;
-    if (_scrollController.offset > maxScroll) {
-      _scrollController.jumpTo(maxScroll);
-    }
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadUserData() async {
     try {
       final email = await StorageService.getUserEmail();
+      final name = await StorageService.getUserName();
       final role = await StorageService.getUserRole();
       setState(() {
         user = {
-          'name': 'Host User',
+          'name': name ?? 'Host User',
           'email': email ?? 'host@example.com',
           'role': role ?? 'host',
         };
@@ -63,6 +53,13 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
       return '${names[0][0]}${names[1][0]}'.toUpperCase();
     }
     return names[0][0].toUpperCase();
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   void _showLogoutConfirmation() {
@@ -100,552 +97,6 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF7BA7D8)),
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 48,
-        leading: const SizedBox.shrink(),
-        title: RichText(
-          text: const TextSpan(
-            children: [
-              TextSpan(
-                text: 'Proper Place ',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              TextSpan(
-                text: 'Host',
-                style: TextStyle(
-                  color: Color(0xFF7BA7D8),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: ListView(
-        controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-        children: [
-          // Header section
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Profile & Settings',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Manage your host account',
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Profile card
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Avatar and name
-                Row(
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF3B4B5E),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          _getInitials(user?['name']),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user?['name'] ?? 'Host User',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.shield,
-                                  size: 14, color: Color(0xFF94A3B8)),
-                              const SizedBox(width: 4),
-                              Text(
-                                user?['role']?.toString().replaceFirst(
-                                        user!['role'][0],
-                                        user!['role'][0].toUpperCase()) ??
-                                    'Host',
-                                style: const TextStyle(
-                                  color: Color(0xFF94A3B8),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Email
-                Row(
-                  children: [
-                    const Icon(Icons.email_outlined,
-                        color: Color(0xFF94A3B8), size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Email',
-                            style: TextStyle(
-                              color: Color(0xFF94A3B8),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            user?['email'] ?? 'host@example.com',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Host Since
-                const Row(
-                  children: [
-                    Icon(Icons.calendar_today_outlined,
-                        color: Color(0xFF94A3B8), size: 20),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Host Since',
-                            style: TextStyle(
-                              color: Color(0xFF94A3B8),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'November 11, 2025',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Account Type
-                const Row(
-                  children: [
-                    Icon(Icons.person_outline,
-                        color: Color(0xFF94A3B8), size: 20),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Account Type',
-                            style: TextStyle(
-                              color: Color(0xFF94A3B8),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Host Account',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Host Mode Status
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFCD34D)),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.shield_outlined,
-                        color: Color(0xFFD97706), size: 24),
-                    SizedBox(width: 12),
-                    Text(
-                      'Host Mode Status',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'You are currently in host mode. Switch back to user mode if you want to browse and book places.',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.6,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      _switchToUserMode();
-                    },
-                    icon: const Icon(Icons.person_outline),
-                    label: const Text('Switch to User Mode'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFD97706),
-                      side: const BorderSide(color: Color(0xFFD97706)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Important Documents
-          Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFE0E7FF),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: const Row(
-              children: [
-                Icon(Icons.description_outlined,
-                    color: Color(0xFF3B82F6), size: 24),
-                SizedBox(width: 12),
-                Text(
-                  'Important Documents',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                left: BorderSide(color: Color(0xFFE2E8F0)),
-                right: BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              children: [
-                _buildDocumentButton(
-                  icon: Icons.menu_book_outlined,
-                  title: 'Host Welcome Guide',
-                  onTap: () {
-                    // TODO: Navigate to Host Welcome Guide
-                  },
-                ),
-                _buildDocumentButton(
-                  icon: Icons.balance_outlined,
-                  title: 'Hosting Contract & Terms',
-                  onTap: () {
-                    // TODO: Navigate to Hosting Contract & Terms
-                  },
-                ),
-              ],
-            ),
-          ),
-          Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFE0E7FF),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: const Text(
-              'Note: Review these documents to understand your responsibilities and rights as a Proper Place host.',
-              style: TextStyle(
-                color: Color(0xFF3B82F6),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                height: 1.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Help & Support (moved above Settings)
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: _buildSettingButton(
-              icon: Icons.help_outline,
-              title: 'Help & Support',
-              onTap: () {
-                // TODO: Navigate to Help & Support
-              },
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Settings
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Settings',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildSettingButton(
-                  icon: Icons.settings_outlined,
-                  title: 'Account Settings',
-                  onTap: () {
-                    // TODO: Navigate to Account Settings
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Sign Out Section
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.red[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.red[200]!),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Sign Out',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Log out of your Proper Place account',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _showLogoutConfirmation,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[600],
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.logout, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Logout',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDocumentButton({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: const Color(0xFF3B82F6), size: 20),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const Spacer(),
-            const Icon(Icons.arrow_forward_ios,
-                size: 14, color: Color(0xFFCBD5E1)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingButton({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: const Color(0xFF64748B), size: 20),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const Spacer(),
-            const Icon(Icons.arrow_forward_ios,
-                size: 14, color: Color(0xFFCBD5E1)),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _switchToUserMode() {
     showDialog(
       context: context,
@@ -664,7 +115,6 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
               Navigator.pop(context);
               await StorageService.setHostMode(false);
               if (mounted) {
-                // Navigate back to home and let it rebuild with new state
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/home',
                   (Route<dynamic> route) => false,
@@ -679,4 +129,557 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
     );
   }
 
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: lightBlue),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: cream,
+      body: CustomScrollView(
+        slivers: [
+          // Header Section
+          SliverToBoxAdapter(
+            child: Container(
+              color: headerGrey,
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 12,
+                left: 20,
+                right: 20,
+                bottom: 16,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Profile Row
+                  Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFD97706),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _getInitials(user?['name']),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user?['name'] ?? 'Host User',
+                              style: const TextStyle(
+                                color: Color(0xFF1A1A1A),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Host Account',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Content Section
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Host Status Card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFCD34D)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD97706).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.shield_outlined,
+                            color: Color(0xFFD97706),
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Host Mode Active',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'You can manage your properties',
+                                style: TextStyle(
+                                  color: Color(0xFF92400E),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Quick Actions
+                  _buildSectionTitle('Host Actions'),
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    icon: Icons.add_home_outlined,
+                    title: 'Add New Place',
+                    subtitle: 'List a new property',
+                    onTap: () => Navigator.pushNamed(context, '/host/create-site'),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    icon: Icons.home_outlined,
+                    title: 'My Properties',
+                    subtitle: 'Manage your listed places',
+                    onTap: () => Navigator.pushNamed(context, '/host/places'),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    icon: Icons.calendar_month_outlined,
+                    title: 'Bookings',
+                    subtitle: 'View and manage bookings',
+                    onTap: () => Navigator.pushNamed(context, '/host/bookings'),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    icon: Icons.star_outline,
+                    title: 'Reviews',
+                    subtitle: 'See what guests are saying',
+                    onTap: () => Navigator.pushNamed(context, '/host/reviews'),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Important Documents
+                  _buildSectionTitle('Important Documents'),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildDocumentRow(
+                          icon: Icons.menu_book_outlined,
+                          title: 'Host Welcome Guide',
+                          onTap: () => _launchUrl('https://proper-place.co.uk/how-it-works'),
+                        ),
+                        const Divider(height: 1),
+                        _buildDocumentRow(
+                          icon: Icons.balance_outlined,
+                          title: 'Hosting Terms & Conditions',
+                          onTap: () => _launchUrl('https://proper-place.co.uk/terms'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Website Links
+                  _buildSectionTitle('Explore Proper Place'),
+                  const SizedBox(height: 12),
+                  _buildWebsiteLinkCard(
+                    icon: Icons.language,
+                    title: 'Visit Our Website',
+                    subtitle: 'proper-place.co.uk',
+                    onTap: () => _launchUrl('https://proper-place.co.uk'),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildWebsiteLinkCard(
+                    icon: Icons.home_work_outlined,
+                    title: 'Become a Host Guide',
+                    subtitle: 'Tips for successful hosting',
+                    onTap: () => _launchUrl('https://proper-place.co.uk/become-host'),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Help & Support
+                  _buildSectionTitle('Help & Support'),
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    icon: Icons.mail_outline,
+                    title: 'Contact Support',
+                    subtitle: 'Get help from our team',
+                    onTap: () => _launchUrl('https://proper-place.co.uk/contact'),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Switch Mode
+                  _buildSectionTitle('Account'),
+                  const SizedBox(height: 12),
+                  _buildSwitchModeCard(),
+                  const SizedBox(height: 24),
+
+                  // Sign Out
+                  _buildSignOutCard(),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title.toUpperCase(),
+      style: const TextStyle(
+        color: lightBlue,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.2,
+      ),
+    );
+  }
+
+  Widget _buildActionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: lightBlue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: lightBlue, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebsiteLinkCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: accentBlue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: accentBlue, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.open_in_new, color: accentBlue, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentRow({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(icon, color: lightBlue, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const Icon(Icons.open_in_new, color: Colors.grey, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwitchModeCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD97706).withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD97706).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.swap_horiz, color: Color(0xFFD97706), size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Switch to User Mode',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Browse and book Proper Places',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _switchToUserMode,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFD97706),
+                side: const BorderSide(color: Color(0xFFD97706)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Switch Mode',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSignOutCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.logout, color: Colors.red, size: 24),
+              SizedBox(width: 12),
+              Text(
+                'Sign Out',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Log out of your Proper Place account',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _showLogoutConfirmation,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

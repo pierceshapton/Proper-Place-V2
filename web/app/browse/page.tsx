@@ -202,7 +202,7 @@ export default function BrowsePage() {
       fillOpacity: 1,
       strokeColor: '#FFFFFF',
       strokeWeight: 2,
-      scale: 1.5,
+      scale: 0.75,
       anchor: new google.maps.Point(12, 22),
     };
   };
