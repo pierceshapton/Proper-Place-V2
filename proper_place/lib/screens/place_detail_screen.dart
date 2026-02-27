@@ -505,6 +505,73 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                       ],
                     ),
 
+                  // Vehicle Size Limits - Important for motorhome users
+                  if (widget.place['max_vehicle_height_ft'] != null ||
+                      widget.place['max_vehicle_width_ft'] != null ||
+                      widget.place['max_vehicle_length_ft'] != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF93C5FD)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.directions_car, color: const Color(0xFF2563EB), size: 22),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Vehicle Size Limits',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E40AF),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Check your vehicle fits before booking',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  if (widget.place['max_vehicle_height_ft'] != null)
+                                    _buildVehicleSizeItem(
+                                      'Height',
+                                      '${widget.place['max_vehicle_height_ft']}ft',
+                                      Icons.height,
+                                    ),
+                                  if (widget.place['max_vehicle_width_ft'] != null)
+                                    _buildVehicleSizeItem(
+                                      'Width',
+                                      '${widget.place['max_vehicle_width_ft']}ft',
+                                      Icons.swap_horiz,
+                                    ),
+                                  if (widget.place['max_vehicle_length_ft'] != null)
+                                    _buildVehicleSizeItem(
+                                      'Length',
+                                      '${widget.place['max_vehicle_length_ft']}ft',
+                                      Icons.straighten,
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+
                   // Facilities
                   if (facilities.isNotEmpty)
                     Column(
@@ -899,6 +966,45 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildVehicleSizeItem(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: const Color(0xFF2563EB), size: 20),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E40AF),
+            ),
+          ),
+        ],
       ),
     );
   }

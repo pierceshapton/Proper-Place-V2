@@ -24,6 +24,9 @@ interface Place {
   images: string[];
   host_id: string;
   approval_status: string;
+  max_vehicle_height_ft?: number;
+  max_vehicle_width_ft?: number;
+  max_vehicle_length_ft?: number;
 }
 
 interface PlaceReview {
@@ -720,6 +723,38 @@ function PlaceDetailsPanel({
             <p className="font-semibold">{reviews.length > 0 ? `${reviews.length} reviews` : 'No reviews yet'}</p>
           </div>
         </div>
+
+        {/* Vehicle Size Limits - Important for motorhome users */}
+        {(place.max_vehicle_height_ft || place.max_vehicle_width_ft || place.max_vehicle_length_ft) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <p className="text-sm font-semibold text-blue-800">Vehicle Size Limits</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {place.max_vehicle_height_ft && (
+                <div className="bg-white rounded p-2">
+                  <p className="text-xs text-gray-500">Height</p>
+                  <p className="font-bold text-blue-700">{place.max_vehicle_height_ft}ft</p>
+                </div>
+              )}
+              {place.max_vehicle_width_ft && (
+                <div className="bg-white rounded p-2">
+                  <p className="text-xs text-gray-500">Width</p>
+                  <p className="font-bold text-blue-700">{place.max_vehicle_width_ft}ft</p>
+                </div>
+              )}
+              {place.max_vehicle_length_ft && (
+                <div className="bg-white rounded p-2">
+                  <p className="text-xs text-gray-500">Length</p>
+                  <p className="font-bold text-blue-700">{place.max_vehicle_length_ft}ft</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Reviews Section */}
         {reviews.length === 0 ? (
