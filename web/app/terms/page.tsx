@@ -1,6 +1,11 @@
-export const metadata = {
-  title: 'Terms of Service | Proper Place',
-  description: 'Terms of service for using the Proper Place platform.',
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description: 'Terms of service for using the Proper Place motorhome stays platform. Rules and guidelines for travellers and hosts.',
+  alternates: {
+    canonical: 'https://proper-place.co.uk/terms',
+  },
 };
 
 export default function TermsPage() {

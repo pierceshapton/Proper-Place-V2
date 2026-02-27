@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://proper-place.co.uk/sitemap.xml
+
+# Disallow admin/auth paths from indexing
+Disallow: /auth/
+Disallow: /api/

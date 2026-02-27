@@ -29,6 +29,9 @@ export default function Navbar() {
           <Link href="/" className={`transition ${pathname === '/' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Home
           </Link>
+          <Link href="/download" className={`transition ${pathname === '/download' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
+            Download App
+          </Link>
           <Link href="/browse" className={`transition ${pathname === '/browse' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Proper Place Map
           </Link>
@@ -61,6 +64,9 @@ export default function Navbar() {
         <div className="md:hidden bg-gray-800 px-4 sm:px-6 lg:px-8 py-4 space-y-3">
           <Link href="/" className={`block transition ${pathname === '/' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Home
+          </Link>
+          <Link href="/download" className={`block transition ${pathname === '/download' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
+            Download App
           </Link>
           <Link href="/browse" className={`block transition ${pathname === '/browse' ? 'text-white' : 'text-gray-400 hover:text-light-blue'}`}>
             Proper Place Map

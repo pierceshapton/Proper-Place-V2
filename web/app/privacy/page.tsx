@@ -1,6 +1,11 @@
-export const metadata = {
-  title: 'Privacy Policy | Proper Place',
-  description: 'Learn how Proper Place collects, uses, and protects your personal information.',
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description: 'Learn how Proper Place collects, uses, and protects your personal information when using our motorhome stays platform.',
+  alternates: {
+    canonical: 'https://proper-place.co.uk/privacy',
+  },
 };
 
 export default function PrivacyPage() {

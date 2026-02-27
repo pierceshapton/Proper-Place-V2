@@ -1,9 +1,24 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { Metadata } from 'next';
 
-export const metadata = {
-  title: 'About Us | Proper Place',
-  description: "Learn about Proper Place - connecting the UK's motorhome community with unique Proper Places to stay.",
+export const metadata: Metadata = {
+  title: 'About Us - Our Motorhome Community Story',
+  description: 'Learn about Proper Place - the UK motorhome community platform connecting travellers with affordable overnight stays on farms, vineyards, and countryside retreats.',
+  keywords: [
+    'about Proper Place',
+    'motorhome community UK',
+    'campervan travel UK',
+    'motorhome overnight stays company'
+  ],
+  openGraph: {
+    title: 'About Proper Place - UK Motorhome Community',
+    description: 'Connecting motorhome travellers with unique, affordable overnight stays across the UK.',
+    url: 'https://proper-place.co.uk/about',
+  },
+  alternates: {
+    canonical: 'https://proper-place.co.uk/about',
+  },
 };
 
 export default function AboutPage() {

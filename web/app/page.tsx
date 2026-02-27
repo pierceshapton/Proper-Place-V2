@@ -1,5 +1,28 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Proper Place - Affordable Motorhome Overnight Stays UK',
+  description: 'Find affordable overnight motorhome stays across the UK. Proper Place connects motorhome travellers with landowners offering unique farm stays, coastal spots & countryside retreats from £10/night. Download the free app today.',
+  keywords: [
+    'motorhome overnight stays UK',
+    'campervan parking sites',
+    'cheap motorhome camping',
+    'farm stays for motorhomes',
+    'UK campervan stops',
+    'motorhome stopovers England',
+    'affordable motorhome sites'
+  ],
+  openGraph: {
+    title: 'Proper Place - Affordable Motorhome Overnight Stays UK',
+    description: 'Find affordable overnight motorhome stays across the UK. Farm stays, coastal spots & countryside retreats from £10/night.',
+    url: 'https://proper-place.co.uk',
+  },
+  alternates: {
+    canonical: 'https://proper-place.co.uk',
+  },
+};
 
 export default function Home() {
   return (

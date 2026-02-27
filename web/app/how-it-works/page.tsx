@@ -1,8 +1,23 @@
 import Link from 'next/link';
+import { Metadata } from 'next';
 
-export const metadata = {
-  title: 'How It Works | Proper Place',
-  description: 'Learn how Proper Place connects motorhome travellers with unique, affordable Proper Places to stay across the UK.',
+export const metadata: Metadata = {
+  title: 'How It Works - Find & Book Motorhome Stays',
+  description: 'Learn how Proper Place works for motorhome travellers and hosts. Find stays, book securely, and enjoy unique overnight spots. List your land and earn extra income.',
+  keywords: [
+    'how to book motorhome stays',
+    'list land for motorhomes',
+    'motorhome booking app',
+    'host campervan stays'
+  ],
+  openGraph: {
+    title: 'How Proper Place Works - Book Motorhome Stays',
+    description: 'Find and book affordable motorhome overnight stays, or list your land and earn extra income.',
+    url: 'https://proper-place.co.uk/how-it-works',
+  },
+  alternates: {
+    canonical: 'https://proper-place.co.uk/how-it-works',
+  },
 };
 
 export default function HowItWorksPage() {
