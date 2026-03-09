@@ -43,6 +43,9 @@ const { apiLimiter } = require('./middleware/rateLimit');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy for DigitalOcean/load balancer (required for rate limiting and secure cookies)
+app.set('trust proxy', 1);
+
 // HTTPS enforcement middleware (for production)
 app.use((req, res, next) => {
   // Check if behind a proxy (DigitalOcean, Heroku, etc.)
