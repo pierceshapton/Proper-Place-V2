@@ -1,9 +1,25 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'change-me-in-production';
-const JWT_EXPIRY = process.env.JWT_EXPIRY || '7d';
-const JWT_REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRY || '30d';
+// SECURITY: JWT secrets must be set via environment variables
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+// Fail fast if secrets are not configured in production
+if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[JWT] ❌ CRITICAL: JWT_SECRET and JWT_REFRESH_SECRET must be set!');
+    process.exit(1);
+  } else {
+    console.warn('[JWT] ⚠️ WARNING: Using insecure default secrets for development');
+  }
+}
+
+const SECURE_JWT_SECRET = JWT_SECRET || 'dev-only-secret-change-in-production';
+const SECURE_JWT_REFRESH_SECRET = JWT_REFRESH_SECRET || 'dev-only-refresh-secret-change-in-production';
+
+// Shorter token expiry for better security
+const JWT_EXPIRY = process.env.JWT_EXPIRY || '1h'; // 1 hour access token
+const JWT_REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRY || '7d'; // 7 day refresh token
 
 /**
  * Generate JWT access token
@@ -11,7 +27,7 @@ const JWT_REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRY || '30d';
 function generateAccessToken(userId, email, role) {
   return jwt.sign(
     { userId, email, role },
-    JWT_SECRET,
+    SECURE_JWT_SECRET,
     { expiresIn: JWT_EXPIRY }
   );
 }
@@ -22,7 +38,7 @@ function generateAccessToken(userId, email, role) {
 function generateRefreshToken(userId) {
   return jwt.sign(
     { userId },
-    JWT_REFRESH_SECRET,
+    SECURE_JWT_REFRESH_SECRET,
     { expiresIn: JWT_REFRESH_EXPIRY }
   );
 }
@@ -32,7 +48,7 @@ function generateRefreshToken(userId) {
  */
 function verifyAccessToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, SECURE_JWT_SECRET);
   } catch (error) {
     return null;
   }
@@ -43,7 +59,7 @@ function verifyAccessToken(token) {
  */
 function verifyRefreshToken(token) {
   try {
-    return jwt.verify(token, JWT_REFRESH_SECRET);
+    return jwt.verify(token, SECURE_JWT_REFRESH_SECRET);
   } catch (error) {
     return null;
   }

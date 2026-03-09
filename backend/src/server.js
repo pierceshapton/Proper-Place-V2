@@ -1,15 +1,15 @@
 // Load environment variables from .env file (for local development)
 require('dotenv').config();
 
-// CRITICAL FIX: Ensure DATABASE_URL is set correctly
-// This handles DigitalOcean environment where .env files don't work
-const DIGITALOCEAN_DB_URL = 'postgresql://doadmin:AVNS_h5gAks_XqiZhRqSOX1T@db-postgresql-lon1-38562-properplace-do-user-33237375-0.g.db.ondigitalocean.com:25060/defaultdb?sslmode=require';
-
-if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('base') || process.env.DATABASE_URL.length < 20) {
-  console.log('[SERVER] ⚠️ DATABASE_URL invalid or missing, using DigitalOcean default...');
-  console.log('[SERVER] Old URL:', process.env.DATABASE_URL || 'NOT SET');
-  process.env.DATABASE_URL = DIGITALOCEAN_DB_URL;
-  console.log('[SERVER] ✅ DATABASE_URL set to DigitalOcean managed database');
+// SECURITY: Database URL must be set via environment variable
+// Set DATABASE_URL in DigitalOcean App Platform environment variables
+if (!process.env.DATABASE_URL || process.env.DATABASE_URL.length < 20) {
+  console.error('[SERVER] ❌ CRITICAL: DATABASE_URL environment variable not set!');
+  console.error('[SERVER] Please set DATABASE_URL in your environment variables.');
+  // In production, fail fast if DB URL is not configured
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
 }
 
 const express = require('express');
@@ -37,11 +37,44 @@ const uploadRoutes = require('./routes/upload');
 // User controller for user endpoints
 const userController = require('./controllers/userController');
 
+// Rate limiting middleware
+const { apiLimiter } = require('./middleware/rateLimit');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// HTTPS enforcement middleware (for production)
+app.use((req, res, next) => {
+  // Check if behind a proxy (DigitalOcean, Heroku, etc.)
+  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  
+  if (process.env.NODE_ENV === 'production' && !isSecure && req.path !== '/health') {
+    // Redirect HTTP to HTTPS
+    return res.redirect(301, `https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
+
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
+}));
+
+// Apply API-wide rate limiting
+app.use(apiLimiter);
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests from localhost on any port (for development)

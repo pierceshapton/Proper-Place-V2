@@ -5,6 +5,7 @@ import 'host_application_form_screen.dart';
 import 'contact_us_form_screen.dart';
 import 'profile_screen.dart';
 import 'welcome_screen.dart';
+import 'vehicle_settings_screen.dart';
 
 class MoreUserScreen extends StatefulWidget {
   const MoreUserScreen({super.key});
@@ -24,6 +25,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
   String? _userRole = 'user';
   bool _isHostMode = false;
   bool _isOfflineMode = false;
+  bool _sizeFilterEnabled = false;
   String? _hostApplicationStatus;
   bool _isLoading = false;
 
@@ -42,6 +44,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
       final hostMode = await StorageService.getHostMode();
       final offlineMode = await StorageService.getOfflineMode();
       final hostAppStatus = await StorageService.getHostApplicationStatus();
+      final sizeFilter = await StorageService.getSizeFilterEnabled();
 
       if (mounted) {
         setState(() {
@@ -50,6 +53,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
           _isHostMode = hostMode;
           _isOfflineMode = offlineMode;
           _hostApplicationStatus = hostAppStatus;
+          _sizeFilterEnabled = sizeFilter;
         });
       }
     } catch (e) {
@@ -242,6 +246,12 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Settings
+                  _buildSectionTitle('Settings'),
+                  const SizedBox(height: 12),
+                  _buildSettingsCard(),
+                  const SizedBox(height: 24),
+
                   // Website Links
                   _buildSectionTitle('Explore Proper Place'),
                   const SizedBox(height: 12),
@@ -322,12 +332,6 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                     _buildAdminCard(),
                     const SizedBox(height: 24),
                   ],
-
-                  // Settings
-                  _buildSectionTitle('Settings'),
-                  const SizedBox(height: 12),
-                  _buildSettingsCard(),
-                  const SizedBox(height: 24),
 
                   // Sign Out
                   _buildSignOutCard(),
@@ -780,6 +784,92 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
       ),
       child: Column(
         children: [
+          // Vehicle Settings Link
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const VehicleSettingsScreen(),
+                ),
+              );
+            },
+            child: Row(
+              children: [
+                const Icon(Icons.directions_bus_outlined, color: lightBlue, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Vehicle Dimensions',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Set your motorhome size',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey[400],
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          // Size Filter Toggle
+          Row(
+            children: [
+              const Icon(Icons.filter_alt_outlined, color: lightBlue, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Filter by Vehicle Size',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Only show places that fit',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _sizeFilterEnabled,
+                onChanged: (value) async {
+                  await StorageService.setSizeFilterEnabled(value);
+                  setState(() => _sizeFilterEnabled = value);
+                },
+                activeColor: lightBlue,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          // Offline Mode
           Row(
             children: [
               const Icon(Icons.cloud_off_outlined, color: lightBlue, size: 24),

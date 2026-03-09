@@ -457,6 +457,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                     label: const Text('Show on Map'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF7BA7D8),
+                      backgroundColor: Colors.grey[50],
                       side: const BorderSide(color: Color(0xFF7BA7D8)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -606,6 +607,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                   // Booking Section
                   Container(
                     decoration: BoxDecoration(
+                      color: Colors.grey[50],
                       border: Border.all(color: Colors.grey[300]!),
                       borderRadius: BorderRadius.circular(12),
                     ),

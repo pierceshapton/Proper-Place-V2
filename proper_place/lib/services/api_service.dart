@@ -89,6 +89,14 @@ class ApiService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return data;
       } else {
+        // If token is invalid/expired, clear it so user gets redirected to login
+        if (response.statusCode == 401 && 
+            (data['message']?.toString().toLowerCase().contains('invalid') == true ||
+             data['message']?.toString().toLowerCase().contains('expired') == true ||
+             data['error'] == 'invalid_token')) {
+          print('[ApiService] Token invalid/expired - clearing stored token');
+          await StorageService.clearAll();
+        }
         throw ApiException(
           statusCode: response.statusCode,
           message: data['message'] ?? 'Request failed',

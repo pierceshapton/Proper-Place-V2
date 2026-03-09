@@ -17,6 +17,13 @@ class StorageService {
   static const String _mapZoomKey = 'map_last_zoom';
   static const String _hostApplicationStatusKey = 'host_application_status';
   static const String _hasUnreadNotificationsKey = 'has_unread_notifications';
+  
+  // Vehicle dimensions keys
+  static const String _vehicleHeightKey = 'vehicle_height_ft';
+  static const String _vehicleWidthKey = 'vehicle_width_ft';
+  static const String _vehicleLengthKey = 'vehicle_length_ft';
+  static const String _vehicleUnitKey = 'vehicle_unit'; // 'ft' or 'm'
+  static const String _sizeFilterEnabledKey = 'size_filter_enabled';
 
   // In-memory cache to avoid repeated disk reads
   static String? _cachedToken;
@@ -225,6 +232,94 @@ class StorageService {
   static Future<bool> getHasUnreadNotifications() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_hasUnreadNotificationsKey) ?? false;
+  }
+
+  // ===== Vehicle Dimensions =====
+
+  /// Save vehicle height in feet
+  static Future<void> setVehicleHeight(double height) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_vehicleHeightKey, height);
+  }
+
+  /// Get vehicle height in feet (default 12ft)
+  static Future<double> getVehicleHeight() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_vehicleHeightKey) ?? 12.0;
+  }
+
+  /// Save vehicle width in feet
+  static Future<void> setVehicleWidth(double width) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_vehicleWidthKey, width);
+  }
+
+  /// Get vehicle width in feet (default 8ft)
+  static Future<double> getVehicleWidth() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_vehicleWidthKey) ?? 8.0;
+  }
+
+  /// Save vehicle length in feet
+  static Future<void> setVehicleLength(double length) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_vehicleLengthKey, length);
+  }
+
+  /// Get vehicle length in feet (default 25ft)
+  static Future<double> getVehicleLength() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_vehicleLengthKey) ?? 25.0;
+  }
+
+  /// Save vehicle unit preference ('ft' or 'm')
+  static Future<void> setVehicleUnit(String unit) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_vehicleUnitKey, unit);
+  }
+
+  /// Get vehicle unit preference (default 'ft')
+  static Future<String> getVehicleUnit() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_vehicleUnitKey) ?? 'ft';
+  }
+
+  /// Set size filter enabled
+  static Future<void> setSizeFilterEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_sizeFilterEnabledKey, enabled);
+  }
+
+  /// Get size filter enabled
+  static Future<bool> getSizeFilterEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_sizeFilterEnabledKey) ?? false;
+  }
+
+  /// Get all vehicle dimensions at once
+  static Future<Map<String, dynamic>> getVehicleDimensions() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'height': prefs.getDouble(_vehicleHeightKey) ?? 12.0,
+      'width': prefs.getDouble(_vehicleWidthKey) ?? 8.0,
+      'length': prefs.getDouble(_vehicleLengthKey) ?? 25.0,
+      'unit': prefs.getString(_vehicleUnitKey) ?? 'ft',
+      'filterEnabled': prefs.getBool(_sizeFilterEnabledKey) ?? false,
+    };
+  }
+
+  /// Save all vehicle dimensions at once
+  static Future<void> saveVehicleDimensions({
+    required double height,
+    required double width,
+    required double length,
+    required String unit,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_vehicleHeightKey, height);
+    await prefs.setDouble(_vehicleWidthKey, width);
+    await prefs.setDouble(_vehicleLengthKey, length);
+    await prefs.setString(_vehicleUnitKey, unit);
   }
 
   /// Generic method to save a string value

@@ -36,7 +36,8 @@ class ChatService {
       if (response.statusCode == 200) {
         return;
       } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
+        await StorageService.clearAll();
+        throw Exception('Session expired - please log in again');
       } else if (response.statusCode == 404) {
         throw Exception('Contact not found');
       } else {
@@ -72,7 +73,8 @@ class ChatService {
       if (response.statusCode == 200) {
         return;
       } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
+        await StorageService.clearAll();
+        throw Exception('Session expired - please log in again');
       } else if (response.statusCode == 404) {
         throw Exception('Contact not found');
       } else {
@@ -108,7 +110,8 @@ class ChatService {
       if (response.statusCode == 200) {
         return;
       } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
+        await StorageService.clearAll();
+        throw Exception('Session expired - please log in again');
       } else if (response.statusCode == 404) {
         throw Exception('Contact not found');
       } else {
@@ -144,7 +147,8 @@ class ChatService {
       if (response.statusCode == 200) {
         return;
       } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
+        await StorageService.clearAll();
+        throw Exception('Session expired - please log in again');
       } else if (response.statusCode == 404) {
         throw Exception('Message not found');
       } else {
@@ -181,7 +185,10 @@ class ChatService {
         print('[ChatService] Successfully fetched ${conversations.length} conversations');
         return conversations;
       } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized - Token may be expired');
+        // Token invalid/expired - clear it so user gets redirected to login
+        print('[ChatService] Token invalid/expired - clearing stored token');
+        await StorageService.clearAll();
+        throw Exception('Session expired - please log in again');
       } else {
         print('[ChatService] Error response body: ${response.body}');
         throw Exception('Failed to fetch conversations: ${response.statusCode} - ${response.body}');
@@ -212,7 +219,8 @@ class ChatService {
         final data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data['messages'] ?? []);
       } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
+        await StorageService.clearAll();
+        throw Exception('Session expired - please log in again');
       } else {
         throw Exception('Failed to fetch messages: ${response.statusCode}');
       }
@@ -255,7 +263,8 @@ class ChatService {
         final data = json.decode(response.body);
         return Map<String, dynamic>.from(data['message']);
       } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
+        await StorageService.clearAll();
+        throw Exception('Session expired - please log in again');
       } else {
         throw Exception('Failed to send message: ${response.statusCode}');
       }
@@ -284,7 +293,8 @@ class ChatService {
       if (response.statusCode == 200) {
         return;
       } else if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
+        await StorageService.clearAll();
+        throw Exception('Session expired - please log in again');
       } else {
         throw Exception('Failed to mark conversation as read: ${response.statusCode}');
       }
