@@ -9,33 +9,23 @@ services:
   run_command: cd backend && node src/server.js
   source_dir: backend
   http_port: 3001
-  env:
+  envs:
   - key: NODE_ENV
     value: production
   - key: PORT
     value: "3001"
   - key: JWT_SECRET
     scope: RUN_AND_BUILD_TIME
-    value: ${JWT_SECRET}
+    type: SECRET
   - key: JWT_REFRESH_SECRET
     scope: RUN_AND_BUILD_TIME
-    value: ${JWT_REFRESH_SECRET}
+    type: SECRET
+  - key: DATABASE_URL
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
   - key: CORS_ORIGIN
-    value: https://proper-place.app
+    value: https://proper-place.app,https://properplace.app,http://localhost:3000
   - key: LOG_LEVEL
     value: info
-  - key: DATABASE_URL
-    scope: RUN_AND_BUILD_TIME
-    value: ${db.connection_string}
-  envs:
-  - key: DATABASE_URL
-    scope: RUN_AND_BUILD_TIME
-    value: ${db.connection_string}
   health_check:
     http_path: /health
-  http_port: 3001
-
-databases:
-- engine: PG
-  name: db
-  version: "15"
