@@ -230,10 +230,10 @@ async function seedDatabase() {
     console.log('\n📋 === SEED CREDENTIALS ===');
     console.log('Admin:');
     console.log(`  Email: ${adminEmail}`);
-    console.log(`  Password: ${adminPassword}`);
+    console.log(`  Password: ${'*'.repeat(adminPassword.length)} (check seed.js for actual password)`);
     console.log('\nHost:');
     console.log(`  Email: ${hostEmail}`);
-    console.log(`  Password: ${hostPassword}`);
+    console.log(`  Password: ${'*'.repeat(hostPassword.length)} (check seed.js for actual password)`);
     console.log('==========================\n');
 
     process.exit(0);

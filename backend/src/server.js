@@ -130,6 +130,7 @@ app.use('/upload', uploadRoutes);
 app.get('/users/:id', userController.getUserProfile);
 app.patch('/users/:id', authMiddleware, userController.updateProfile);
 app.delete('/users/:id', authMiddleware, userController.deleteAccount);
+app.get('/users/:id/export', authMiddleware, userController.exportUserData); // GDPR Article 20
 
 // 404 handler
 app.use(notFoundHandler);

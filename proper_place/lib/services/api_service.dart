@@ -36,21 +36,10 @@ class ApiService {
   }) async {
     try {
       final fullUrl = _buildUrl(endpoint);
-      print('[ApiService._request] [DEBUG] Base URL: $_baseUrl');
-      print('[ApiService._request] [DEBUG] Full URL: $fullUrl');
       final url = Uri.parse(fullUrl);
       
       // Fetch token and add to headers for authenticated endpoints
       final token = await StorageService.getToken();
-      print('[ApiService._request] Endpoint: $endpoint, Token present: ${token != null}');
-      
-      final defaultHeaders = {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer ${token.substring(0, 20)}...',
-        ...?headers,
-      };
-      
-      print('[ApiService._request] Headers: $defaultHeaders');
 
       late http.Response response;
 

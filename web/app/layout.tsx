@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ConditionalFooter } from "@/components/ConditionalFooter";
 import ScrollToTop from "@/components/ScrollToTop";
+import CookieConsent from "@/components/CookieConsent";
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://proper-place.co.uk'),
@@ -185,6 +186,7 @@ export default function RootLayout({
           {children}
         </div>
         <ConditionalFooter />
+        <CookieConsent />
       </body>
     </html>
   );

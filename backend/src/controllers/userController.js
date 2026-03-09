@@ -145,8 +145,102 @@ async function deleteAccount(req, res, next) {
   }
 }
 
+/**
+ * GET /users/:id/export
+ * GDPR Article 20: Right to data portability
+ * Returns all user data in a portable JSON format
+ */
+async function exportUserData(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    // Users can only export their own data
+    if (parseInt(id) !== userId && req.user.role !== 'admin') {
+      return res.status(403).json({
+        error: 'forbidden',
+        message: 'Cannot export other user data',
+      });
+    }
+
+    // Get user profile data
+    const userResult = await db.query(
+      `SELECT id, email, name, avatar_url, bio, phone_number,
+              vehicle_registration, vehicle_length, vehicle_height, vehicle_width,
+              role, verified, created_at
+       FROM users WHERE id = $1`,
+      [id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'user_not_found',
+        message: 'User not found',
+      });
+    }
+
+    // Get user's bookings
+    const bookingsResult = await db.query(
+      `SELECT id, place_id, check_in_date, check_out_date, 
+              total_price, status, created_at
+       FROM bookings WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [id]
+    );
+
+    // Get user's reviews
+    const reviewsResult = await db.query(
+      `SELECT id, place_id, rating, comment, created_at
+       FROM reviews WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [id]
+    );
+
+    // Get user's places (if host)
+    const placesResult = await db.query(
+      `SELECT id, name, description, address, city, postcode, country,
+              latitude, longitude, price_per_night, max_vehicle_height,
+              max_vehicle_width, max_vehicle_length, amenities,
+              status, created_at
+       FROM places WHERE host_id = $1
+       ORDER BY created_at DESC`,
+      [id]
+    );
+
+    // Get user's messages
+    const messagesResult = await db.query(
+      `SELECT id, recipient_id, place_id, subject, content, created_at
+       FROM messages WHERE sender_id = $1
+       ORDER BY created_at DESC`,
+      [id]
+    );
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      gdprArticle: 'Article 20 - Right to data portability',
+      user: userResult.rows[0],
+      bookings: bookingsResult.rows,
+      reviews: reviewsResult.rows,
+      places: placesResult.rows,
+      sentMessages: messagesResult.rows,
+    };
+
+    logger.info('User data exported', { userId: id });
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="proper-place-data-export-${id}.json"`);
+    
+    res.json(exportData);
+  } catch (error) {
+    logger.error('Export user data error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getUserProfile,
   updateProfile,
   deleteAccount,
+  exportUserData,
 };

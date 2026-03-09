@@ -1,12 +1,18 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Service for managing local storage operations
+/// Uses flutter_secure_storage for sensitive data (tokens, PII)
+/// Uses SharedPreferences for non-sensitive preferences
 class StorageService {
+  // Secure storage keys (sensitive data - encrypted)
   static const String _tokenKey = 'access_token';
   static const String _userIdKey = 'user_id';
   static const String _userEmailKey = 'user_email';
   static const String _userNameKey = 'user_name';
   static const String _userRoleKey = 'user_role';
+  
+  // SharedPreferences keys (non-sensitive preferences)
   static const String _hostModeKey = 'host_mode';
   static const String _adminModeKey = 'admin_mode';
   static const String _offlineModeKey = 'offline_mode';
@@ -25,24 +31,32 @@ class StorageService {
   static const String _vehicleUnitKey = 'vehicle_unit'; // 'ft' or 'm'
   static const String _sizeFilterEnabledKey = 'size_filter_enabled';
 
+  // Secure storage instance for sensitive data (encrypted)
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+  );
+
   // In-memory cache to avoid repeated disk reads
   static String? _cachedToken;
 
-  /// Save authentication token
+  /// Save authentication token (ENCRYPTED)
   static Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
+    await _secureStorage.write(key: _tokenKey, value: token);
     _cachedToken = token; // Update cache
   }
 
-  /// Load authentication token (with in-memory caching)
+  /// Load authentication token (with in-memory caching) (ENCRYPTED)
   static Future<String?> getToken() async {
     // Return cached token if available
     if (_cachedToken != null) {
       return _cachedToken;
     }
-    final prefs = await SharedPreferences.getInstance();
-    _cachedToken = prefs.getString(_tokenKey);
+    _cachedToken = await _secureStorage.read(key: _tokenKey);
     return _cachedToken;
   }
   
@@ -51,52 +65,44 @@ class StorageService {
     _cachedToken = null;
   }
 
-  /// Save user ID
+  /// Save user ID (ENCRYPTED)
   static Future<void> saveUserId(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userIdKey, userId);
+    await _secureStorage.write(key: _userIdKey, value: userId);
   }
 
-  /// Load user ID
+  /// Load user ID (ENCRYPTED)
   static Future<String?> getUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_userIdKey);
+    return await _secureStorage.read(key: _userIdKey);
   }
 
-  /// Save user email
+  /// Save user email (ENCRYPTED)
   static Future<void> saveUserEmail(String email) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userEmailKey, email);
+    await _secureStorage.write(key: _userEmailKey, value: email);
   }
 
-  /// Load user email
+  /// Load user email (ENCRYPTED)
   static Future<String?> getUserEmail() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_userEmailKey);
+    return await _secureStorage.read(key: _userEmailKey);
   }
 
-  /// Save user name
+  /// Save user name (ENCRYPTED)
   static Future<void> saveUserName(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userNameKey, name);
+    await _secureStorage.write(key: _userNameKey, value: name);
   }
 
-  /// Load user name
+  /// Load user name (ENCRYPTED)
   static Future<String?> getUserName() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_userNameKey);
+    return await _secureStorage.read(key: _userNameKey);
   }
 
-  /// Save user role
+  /// Save user role (ENCRYPTED)
   static Future<void> saveUserRole(String role) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userRoleKey, role);
+    await _secureStorage.write(key: _userRoleKey, value: role);
   }
 
-  /// Load user role
+  /// Load user role (ENCRYPTED)
   static Future<String?> getUserRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_userRoleKey);
+    return await _secureStorage.read(key: _userRoleKey);
   }
 
   /// Set host mode (for hosts to switch between user and host view)
@@ -125,6 +131,9 @@ class StorageService {
 
   /// Clear all stored data (logout)
   static Future<void> clearAll() async {
+    // Clear secure storage (sensitive data)
+    await _secureStorage.deleteAll();
+    // Clear SharedPreferences (non-sensitive data)
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     _cachedToken = null; // Clear in-memory cache
@@ -132,12 +141,14 @@ class StorageService {
 
   /// Clear user data for logout (keeps preferences)
   static Future<void> clearUserData() async {
+    // Clear secure storage (sensitive user data)
+    await _secureStorage.delete(key: _tokenKey);
+    await _secureStorage.delete(key: _userIdKey);
+    await _secureStorage.delete(key: _userEmailKey);
+    await _secureStorage.delete(key: _userNameKey);
+    await _secureStorage.delete(key: _userRoleKey);
+    // Clear mode preferences
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userIdKey);
-    await prefs.remove(_userEmailKey);
-    await prefs.remove(_userNameKey);
-    await prefs.remove(_userRoleKey);
     await prefs.remove(_hostModeKey);
     await prefs.remove(_adminModeKey);
     _cachedToken = null; // Clear in-memory cache
