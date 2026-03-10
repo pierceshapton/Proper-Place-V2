@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:proper_place/screens/login_screen.dart';
 import 'package:proper_place/screens/signup_screen.dart';
 
@@ -42,14 +43,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   child: Column(
                     children: [
                       // App Title
-                      const Text(
+                      Text(
                         'Proper Place',
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 42,
+                          fontWeight: FontWeight.w700,
                           color: Colors.white,
                           shadows: [
-                            Shadow(
+                            const Shadow(
                               offset: Offset(0, 2),
                               blurRadius: 4,
                               color: Color.fromRGBO(0, 0, 0, 0.5),

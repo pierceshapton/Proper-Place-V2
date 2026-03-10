@@ -1,5 +1,7 @@
-// Load environment variables from .env file (for local development)
-require('dotenv').config();
+// Load environment variables from the appropriate .env file
+const path = require('path');
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+require('dotenv').config({ path: path.resolve(__dirname, '..', envFile) });
 
 // SECURITY: Database URL must be set via environment variable
 // Set DATABASE_URL in DigitalOcean App Platform environment variables

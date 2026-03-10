@@ -30,6 +30,10 @@ class StorageService {
   static const String _vehicleLengthKey = 'vehicle_length_ft';
   static const String _vehicleUnitKey = 'vehicle_unit'; // 'ft' or 'm'
   static const String _sizeFilterEnabledKey = 'size_filter_enabled';
+  
+  // Remember Me keys
+  static const String _rememberMeKey = 'remember_me';
+  static const String _rememberedEmailKey = 'remembered_email';
 
   // Secure storage instance for sensitive data (encrypted)
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
@@ -158,6 +162,31 @@ class StorageService {
   static Future<bool> isAuthenticated() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
+  }
+
+  // ===== Remember Me =====
+
+  /// Save remember me preference and email
+  static Future<void> setRememberMe(bool remember, {String? email}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_rememberMeKey, remember);
+    if (remember && email != null) {
+      await prefs.setString(_rememberedEmailKey, email);
+    } else if (!remember) {
+      await prefs.remove(_rememberedEmailKey);
+    }
+  }
+
+  /// Get remember me preference
+  static Future<bool> getRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_rememberMeKey) ?? false;
+  }
+
+  /// Get remembered email
+  static Future<String?> getRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_rememberedEmailKey);
   }
 
   /// Set offline mode

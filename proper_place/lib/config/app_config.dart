@@ -14,6 +14,10 @@ class AppConfig {
     defaultValue: 'https://octopus-app-lxh2t.ondigitalocean.app',
   );
 
+  // Aliases for backward compatibility with base44_client.dart
+  static String get base44AppId => properPlaceAppId;
+  static String get base44BackendUrl => properPlaceBackendUrl;
+
   // For debugging
   static void printConfig() {
     print('=== App Config ===');

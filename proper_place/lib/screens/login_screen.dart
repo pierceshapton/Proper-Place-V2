@@ -15,10 +15,28 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _rememberMe = false;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
+    _loadRememberedCredentials();
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    final rememberMe = await StorageService.getRememberMe();
+    if (rememberMe) {
+      final email = await StorageService.getRememberedEmail();
+      if (mounted) {
+        setState(() {
+          _rememberMe = true;
+          if (email != null) {
+            _emailController.text = email;
+          }
+        });
+      }
+    }
   }
 
   @override
@@ -68,6 +86,9 @@ class _LoginScreenState extends State<LoginScreen> {
       
       // Save token
       await StorageService.saveToken(token);
+      
+      // Save remember me preference
+      await StorageService.setRememberMe(_rememberMe, email: _emailController.text);
       
       // Extract user data from nested 'user' object
       final user = response['user'];
@@ -254,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 4),
                           TextField(
                             controller: _passwordController,
-                            obscureText: true,
+                            obscureText: _obscurePassword,
                             decoration: InputDecoration(
                               hintText: 'Password',
                               hintStyle: TextStyle(color: Colors.grey[600]),
@@ -280,6 +301,54 @@ class _LoginScreenState extends State<LoginScreen> {
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 8,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey[600],
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Remember Me Checkbox
+                      Row(
+                        children: [
+                          SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: Checkbox(
+                              value: _rememberMe,
+                              onChanged: (value) {
+                                setState(() {
+                                  _rememberMe = value ?? false;
+                                });
+                              },
+                              activeColor: const Color(0xFF7BA7D8),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _rememberMe = !_rememberMe;
+                              });
+                            },
+                            child: Text(
+                              'Remember me',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[700],
                               ),
                             ),
                           ),
