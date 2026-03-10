@@ -128,6 +128,11 @@ class PlaceService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['places'] ?? [];
+      } else if (response.statusCode == 401) {
+        // Token expired or invalid - clear stored auth and throw specific error
+        print('PlaceService: Token expired/invalid (401) - clearing auth');
+        await StorageService.clearAll();
+        throw Exception('Session expired. Please log in again.');
       } else {
         throw Exception('Failed to fetch places: ${response.statusCode}');
       }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/place_service.dart';
+import 'login_screen.dart';
 
 class BookingsHostScreen extends StatefulWidget {
   final VoidCallback? onRefresh;
@@ -17,6 +18,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
   String _selectedFilter = 'Confirmed';
   bool _isLoading = true;
   String? _error;
+  bool _sessionExpired = false;
 
   final List<String> _filters = [
     'Confirmed',
@@ -115,9 +117,18 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      final errorMessage = e.toString();
       setState(() {
-        _error = 'Error loading bookings: $e';
         _isLoading = false;
+        // Check if it's a session expiry
+        if (errorMessage.contains('Session expired') || 
+            errorMessage.contains('401') ||
+            errorMessage.contains('authentication')) {
+          _error = 'Session expired. Please log in again.';
+          _sessionExpired = true;
+        } else {
+          _error = 'Error loading bookings: $e';
+        }
       });
     }
   }
@@ -242,14 +253,42 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(_error!, textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadHostBookings,
-                        child: const Text('Retry'),
+                      Icon(
+                        _sessionExpired ? Icons.lock_outline : Icons.error,
+                        size: 64,
+                        color: _sessionExpired ? const Color(0xFF6B96C8) : Colors.red,
                       ),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_sessionExpired)
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              (route) => false,
+                            );
+                          },
+                          icon: const Icon(Icons.login),
+                          label: const Text('Log In'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6B96C8),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                          ),
+                        )
+                      else
+                        ElevatedButton(
+                          onPressed: _loadHostBookings,
+                          child: const Text('Retry'),
+                        ),
                     ],
                   ),
                 )
