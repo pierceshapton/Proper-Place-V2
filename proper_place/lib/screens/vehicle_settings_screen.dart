@@ -29,7 +29,8 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
     if (mounted) {
       setState(() {
         _vehicleHeight = dimensions['height'] as double;
-        _vehicleWidth = dimensions['width'] as double;
+        // Clamp width to valid range (4-8ft)
+        _vehicleWidth = (dimensions['width'] as double).clamp(4.0, 8.0);
         _vehicleLength = dimensions['length'] as double;
         _unit = dimensions['unit'] as String;
         _isLoading = false;
@@ -233,8 +234,8 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
                     _buildDimensionSlider(
                       icon: Icons.swap_horiz,
                       value: _vehicleWidth,
-                      min: 3.3,
-                      max: 8.2,
+                      min: 4.0,
+                      max: 8.0,
                       onChanged: (value) {
                         setState(() {
                           _vehicleWidth = value;

@@ -218,7 +218,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       foodMenuController.text = site['food_menu_description'] ?? '';
       maxVehicleLength = _parseDouble(site['max_vehicle_length_ft'] ?? site['capacity'] ?? site['max_vehicle_length'], 30);
       maxVehicleHeight = _parseDouble(site['max_vehicle_height_ft'], 12);
-      maxVehicleWidth = _parseDouble(site['max_vehicle_width_ft'], 8);
+      // Clamp width to valid range (4-8ft)
+      maxVehicleWidth = _parseDouble(site['max_vehicle_width_ft'], 8).clamp(4.0, 8.0);
       vehicleDimensionsConfirmed = true; // Already set when editing
       
       // Load location data
@@ -1041,9 +1042,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                       Expanded(
                         child: Slider(
                           value: maxVehicleWidth,
-                          min: 6,
-                          max: 12,
-                          divisions: 12,
+                          min: 4,
+                          max: 8,
+                          divisions: 8,
                           label: formatDimension(maxVehicleWidth),
                           onChanged: (value) => setState(() => maxVehicleWidth = value),
                         ),
