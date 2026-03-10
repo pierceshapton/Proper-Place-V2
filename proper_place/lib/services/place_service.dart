@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:proper_place/config/app_config.dart';
 import 'storage_service.dart';
+import 'image_picker_service.dart';
 
 class PlaceService {
   static String get baseUrl => AppConfig.properPlaceBackendUrl;
@@ -124,6 +125,9 @@ class PlaceService {
       final token = await StorageService.getString('access_token');
       if (token == null) throw Exception('No authentication token found');
 
+      // Strip EXIF data (location, etc) from photos before upload
+      final cleanedFiles = await ImagePickerService.stripExifFromFiles(photoFiles);
+
       // Add category query parameter for business photos
       final queryParam = category == 'business' ? '?category=business' : '';
       final request = http.MultipartRequest(
@@ -133,12 +137,12 @@ class PlaceService {
 
       request.headers['Authorization'] = 'Bearer $token';
 
-      // Add all files to the multipart request
-      for (int i = 0; i < photoFiles.length; i++) {
+      // Add all cleaned files to the multipart request
+      for (int i = 0; i < cleanedFiles.length; i++) {
         request.files.add(
           await http.MultipartFile.fromPath(
             'images', // Field name must match backend multer config
-            photoFiles[i].path,
+            cleanedFiles[i].path,
           ),
         );
       }
