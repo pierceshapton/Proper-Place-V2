@@ -157,6 +157,98 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     return false;
   }
 
+  // Check if user's vehicle dimensions fit the place's limits
+  Future<List<String>> _checkVehicleFit() async {
+    final issues = <String>[];
+    final userDimensions = await StorageService.getVehicleDimensions();
+    
+    final userHeight = userDimensions['height'] as double;
+    final userWidth = userDimensions['width'] as double;
+    final userLength = userDimensions['length'] as double;
+    
+    // Parse place limits
+    final maxHeight = _parseDouble(widget.place['max_vehicle_height_ft']);
+    final maxWidth = _parseDouble(widget.place['max_vehicle_width_ft']);
+    final maxLength = _parseDouble(widget.place['max_vehicle_length_ft']);
+    
+    // Check each dimension
+    if (maxHeight != null && userHeight > maxHeight) {
+      issues.add('Your vehicle height (${userHeight.toStringAsFixed(1)}ft) exceeds the maximum allowed (${maxHeight.toStringAsFixed(1)}ft)');
+    }
+    if (maxWidth != null && userWidth > maxWidth) {
+      issues.add('Your vehicle width (${userWidth.toStringAsFixed(1)}ft) exceeds the maximum allowed (${maxWidth.toStringAsFixed(1)}ft)');
+    }
+    if (maxLength != null && userLength > maxLength) {
+      issues.add('Your vehicle length (${userLength.toStringAsFixed(0)}ft) exceeds the maximum allowed (${maxLength.toStringAsFixed(0)}ft)');
+    }
+    
+    return issues;
+  }
+  
+  double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  // Show warning dialog for vehicle size issues
+  Future<bool?> _showVehicleSizeWarning(List<String> issues) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 28),
+            const SizedBox(width: 8),
+            const Text('Vehicle Size Warning'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your vehicle may not fit this location:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            ...issues.map((issue) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(issue, style: const TextStyle(fontSize: 13))),
+                ],
+              ),
+            )),
+            const SizedBox(height: 8),
+            Text(
+              'You can update your vehicle dimensions in Settings.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange[700],
+            ),
+            child: const Text('Book Anyway', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _selectDate(BuildContext context, {required bool isCheckIn}) async {
     // For checkout, start at checkout date or day after check-in
     final initialDate = isCheckIn 
@@ -246,6 +338,15 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         ),
       );
       return;
+    }
+
+    // Check vehicle size compatibility
+    final vehicleFitIssues = await _checkVehicleFit();
+    if (vehicleFitIssues.isNotEmpty) {
+      final shouldProceed = await _showVehicleSizeWarning(vehicleFitIssues);
+      if (shouldProceed != true) {
+        return; // User cancelled
+      }
     }
 
     try {

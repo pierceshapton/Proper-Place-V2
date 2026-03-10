@@ -37,6 +37,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   double maxVehicleLength = 30.0; // Default 30ft
   double maxVehicleHeight = 12.0; // Default 12ft
   double maxVehicleWidth = 8.0; // Default 8ft
+  bool vehicleDimensionsConfirmed = false; // Track if host confirmed dimensions
   bool isSavingDraft = false;
   bool isSubmitting = false;
   
@@ -198,6 +199,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       maxVehicleLength = _parseDouble(site['max_vehicle_length_ft'] ?? site['capacity'] ?? site['max_vehicle_length'], 30);
       maxVehicleHeight = _parseDouble(site['max_vehicle_height_ft'], 12);
       maxVehicleWidth = _parseDouble(site['max_vehicle_width_ft'], 8);
+      vehicleDimensionsConfirmed = true; // Already set when editing
       
       // Load location data
       city = site['city'] ?? '';
@@ -561,6 +563,13 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       return;
     }
 
+    if (!vehicleDimensionsConfirmed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please confirm the vehicle size limits for your site')),
+      );
+      return;
+    }
+
     setState(() => isSubmitting = true);
 
     try {
@@ -834,7 +843,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                       Icon(Icons.directions_car, color: const Color(0xFF0EA5E9), size: 24),
                       const SizedBox(width: 8),
                       Text(
-                        'Vehicle Size Limits',
+                        'Vehicle Size Limits *',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFF0369A1),
@@ -933,6 +942,35 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                         child: Text(
                           '${maxVehicleLength.toStringAsFixed(0)}ft',
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Confirmation checkbox
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: Checkbox(
+                          value: vehicleDimensionsConfirmed,
+                          onChanged: (value) => setState(() => vehicleDimensionsConfirmed = value ?? false),
+                          activeColor: const Color(0xFF0EA5E9),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => vehicleDimensionsConfirmed = !vehicleDimensionsConfirmed),
+                          child: Text(
+                            'I confirm these dimensions are correct for my site',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: vehicleDimensionsConfirmed ? const Color(0xFF0369A1) : Colors.grey[700],
+                              fontWeight: vehicleDimensionsConfirmed ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
                         ),
                       ),
                     ],

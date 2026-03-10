@@ -30,6 +30,9 @@ class Place {
   final String status;
   final bool isCurrentlyUnavailable; // True if place has active unavailable period (date range)
   final int capacity;
+  final double? maxVehicleHeightFt;
+  final double? maxVehicleWidthFt;
+  final double? maxVehicleLengthFt;
 
   Place({
     required this.placeId,
@@ -49,6 +52,9 @@ class Place {
     this.status = 'available',
     this.isCurrentlyUnavailable = false,
     this.capacity = 1,
+    this.maxVehicleHeightFt,
+    this.maxVehicleWidthFt,
+    this.maxVehicleLengthFt,
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -88,6 +94,9 @@ class Place {
       status: json['status'] ?? 'available',
       isCurrentlyUnavailable: json['is_currently_unavailable'] == true,
       capacity: json['capacity'] ?? 1,
+      maxVehicleHeightFt: double.tryParse((json['max_vehicle_height_ft'] ?? '').toString()),
+      maxVehicleWidthFt: double.tryParse((json['max_vehicle_width_ft'] ?? '').toString()),
+      maxVehicleLengthFt: double.tryParse((json['max_vehicle_length_ft'] ?? '').toString()),
     );
   }
 
@@ -110,6 +119,9 @@ class Place {
       'status': status,
       'is_currently_unavailable': isCurrentlyUnavailable,
       'capacity': capacity,
+      'max_vehicle_height_ft': maxVehicleHeightFt,
+      'max_vehicle_width_ft': maxVehicleWidthFt,
+      'max_vehicle_length_ft': maxVehicleLengthFt,
     };
   }
 }

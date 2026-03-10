@@ -241,9 +241,39 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   Future<void> _loadPlaces() async {
     try {
       final placesData = await ApiService.getApprovedPlaces();
-      final loadedPlaces = (placesData)
+      List<Place> loadedPlaces = (placesData)
           .map((p) => Place.fromJson(p as Map<String, dynamic>))
           .toList();
+
+      // Apply vehicle size filter if enabled
+      final filterEnabled = await StorageService.getSizeFilterEnabled();
+      if (filterEnabled) {
+        final userHeight = await StorageService.getVehicleHeight();
+        final userWidth = await StorageService.getVehicleWidth();
+        final userLength = await StorageService.getVehicleLength();
+        
+        loadedPlaces = loadedPlaces.where((place) {
+          // If place has no size limits, it's considered to fit all vehicles
+          if (place.maxVehicleHeightFt == null && 
+              place.maxVehicleWidthFt == null && 
+              place.maxVehicleLengthFt == null) {
+            return true;
+          }
+          
+          // Check each dimension - place must accommodate user's vehicle
+          if (place.maxVehicleHeightFt != null && place.maxVehicleHeightFt! < userHeight) {
+            return false;
+          }
+          if (place.maxVehicleWidthFt != null && place.maxVehicleWidthFt! < userWidth) {
+            return false;
+          }
+          if (place.maxVehicleLengthFt != null && place.maxVehicleLengthFt! < userLength) {
+            return false;
+          }
+          
+          return true;
+        }).toList();
+      }
 
       setState(() {
         places = loadedPlaces;

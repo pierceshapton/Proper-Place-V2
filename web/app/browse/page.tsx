@@ -11,6 +11,15 @@ const DEFAULT_CENTER = { lat: 54.5, lng: -2.5 };
 const DEFAULT_ZOOM = 6;
 const MIN_ZOOM_FOR_MARKERS = 11;
 
+// Security: Prevent console access to data
+if (typeof window !== 'undefined') {
+  // Warn in console about data protection
+  console.log('%c⚠️ WARNING', 'color: red; font-size: 24px; font-weight: bold;');
+  console.log('%cThis browser feature is intended for developers only.', 'font-size: 14px;');
+  console.log('%cLocation data on this platform is protected and monitored.', 'font-size: 14px;');
+  console.log('%cUnauthorised scraping or export of data is prohibited.', 'font-size: 14px; color: red;');
+}
+
 interface Place {
   place_id: string;
   name: string;
@@ -121,6 +130,34 @@ export default function BrowsePage() {
     }
   }, []);
 
+  // Security: Prevent data scraping via right-click and keyboard shortcuts
+  useEffect(() => {
+    const preventContextMenu = (e: MouseEvent) => {
+      // Only prevent on map area
+      const target = e.target as HTMLElement;
+      if (target.closest('.gm-style') || target.closest('[data-protected]')) {
+        e.preventDefault();
+      }
+    };
+
+    const preventKeyboardShortcuts = (e: KeyboardEvent) => {
+      // Prevent Ctrl+S (save page), Ctrl+U (view source)
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 's' || e.key === 'S' || e.key === 'u' || e.key === 'U') {
+          e.preventDefault();
+        }
+      }
+    };
+
+    document.addEventListener('contextmenu', preventContextMenu);
+    document.addEventListener('keydown', preventKeyboardShortcuts);
+
+    return () => {
+      document.removeEventListener('contextmenu', preventContextMenu);
+      document.removeEventListener('keydown', preventKeyboardShortcuts);
+    };
+  }, []);
+
   // Save favorites to localStorage
   const toggleFavorite = (placeId: string) => {
     setFavorites((prev) => {
@@ -224,9 +261,9 @@ export default function BrowsePage() {
   }
 
   return (
-    <main className="flex flex-col overflow-hidden">
+    <main className="flex flex-col overflow-hidden" data-protected="true">
       {/* Map Container - fills remaining viewport height below navbar */}
-      <div className="h-[calc(100vh-96px)] relative">
+      <div className="h-[calc(100vh-96px)] relative" data-protected="true">
         {!isLoaded || isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
             <div className="text-center">

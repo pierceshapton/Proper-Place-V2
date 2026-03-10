@@ -1,13 +1,14 @@
 const express = require('express');
 const { authMiddleware, optionalAuthMiddleware, adminMiddleware } = require('../middleware/auth');
 const { validationMiddleware } = require('../middleware/validation');
+const { placesLimiter } = require('../middleware/rateLimit');
 const placeController = require('../controllers/placeController');
 const adminController = require('../controllers/adminController');
 
 const router = express.Router();
 
-// Public routes
-router.get('/', optionalAuthMiddleware, placeController.getPlaces);
+// Public routes - with rate limiting to prevent scraping
+router.get('/', placesLimiter, optionalAuthMiddleware, placeController.getPlaces);
 
 // Protected routes - must be before /:id to avoid conflict
 router.get('/host/my-places', authMiddleware, placeController.getHostPlaces);

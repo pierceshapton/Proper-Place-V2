@@ -84,9 +84,34 @@ const passwordResetLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * Places API rate limiter
+ * Strict limits to prevent scraping of location data
+ */
+const placesLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute (enough for normal browsing)
+  message: {
+    error: 'too_many_requests',
+    message: 'Too many requests. Please slow down.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    logger.warn('Rate limit exceeded for places API - possible scraping attempt', {
+      ip: req.ip,
+      path: req.path,
+      userAgent: req.get('User-Agent'),
+      referer: req.get('Referer'),
+    });
+    res.status(429).json(options.message);
+  },
+});
+
 module.exports = {
   authLimiter,
   registerLimiter,
   apiLimiter,
   passwordResetLimiter,
+  placesLimiter,
 };

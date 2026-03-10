@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/screens/booking_detail_screen.dart';
+import 'package:proper_place/screens/review_submission_screen.dart';
 import 'package:proper_place/models/place.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -112,6 +114,34 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     }
   }
 
+  // Check if stay has ended (checkout date is in the past)
+  bool _isStayEnded(String? checkOutDate) {
+    if (checkOutDate == null || checkOutDate.isEmpty) return false;
+    try {
+      final checkOut = DateTime.parse(checkOutDate);
+      return checkOut.isBefore(DateTime.now());
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Navigate to review screen
+  void _openReviewScreen(Map<String, dynamic> booking) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReviewSubmissionScreen(booking: booking),
+      ),
+    );
+    
+    // Refresh bookings if review was submitted
+    if (result == true && mounted) {
+      setState(() {
+        bookingsFuture = ApiService.getGuestBookings(guestId: guestId);
+      });
+    }
+  }
+
   void _cancelBooking(String bookingId, String bookingIdDisplay) {
     showDialog(
       context: context,
@@ -182,7 +212,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const SizedBox.shrink(),
-        title: const Text('My Bookings'),
+        title: Text(
+          'My Bookings',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         backgroundColor: const Color(0xFF7BA7D8),
       ),
       body: FutureBuilder<List<dynamic>>(
@@ -486,6 +522,25 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       fontStyle: FontStyle.italic,
                     ),
                     textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+              // Review button for completed bookings (only after checkout date has passed)
+              if (status.toLowerCase() == 'completed' && _isStayEnded(booking['check_out'])) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _openReviewScreen(booking),
+                    icon: const Icon(Icons.rate_review, size: 18),
+                    label: const Text('Leave a Review'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7BA7D8),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
               ],

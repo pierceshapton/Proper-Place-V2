@@ -2,14 +2,35 @@ const db = require('../config/database');
 const logger = require('../utils/logger');
 
 /**
+ * Obfuscate coordinates by adding a small random offset
+ * This prevents scraping of exact locations while still showing approximate position
+ * @param {number} lat - Original latitude
+ * @param {number} lng - Original longitude
+ * @returns {{ lat: number, lng: number }} - Obfuscated coordinates
+ */
+function obfuscateCoordinates(lat, lng) {
+  // Add random offset of up to ~500 meters (0.005 degrees ~ 550 meters)
+  const latOffset = (Math.random() - 0.5) * 0.01;
+  const lngOffset = (Math.random() - 0.5) * 0.01;
+  return {
+    lat: parseFloat(lat) + latOffset,
+    lng: parseFloat(lng) + lngOffset,
+  };
+}
+
+/**
  * GET /places
  * Returns places that are not indefinitely unavailable.
  * For places with date-range unavailability, includes `isCurrentlyUnavailable` flag.
+ * Coordinates are obfuscated for unauthenticated requests to prevent scraping.
  */
 async function getPlaces(req, res, next) {
   try {
     const { page = 1, limit = 20, approval_status = 'approved', search } = req.query;
     const offset = (page - 1) * limit;
+    
+    // Check if user is authenticated (from optionalAuthMiddleware)
+    const isAuthenticated = req.user && req.user.userId;
 
     // Get places that are NOT indefinitely unavailable (status = 'unavailable')
     // COALESCE handles NULL status values (treats them as 'available')
@@ -49,6 +70,21 @@ async function getPlaces(req, res, next) {
 
     const result = await db.query(query, params);
 
+    // Obfuscate coordinates for unauthenticated requests to prevent scraping
+    let places = result.rows;
+    if (!isAuthenticated) {
+      places = result.rows.map(place => {
+        const obfuscated = obfuscateCoordinates(place.latitude, place.longitude);
+        return {
+          ...place,
+          latitude: obfuscated.lat.toFixed(6),
+          longitude: obfuscated.lng.toFixed(6),
+          // Flag that coordinates are approximate
+          coordinates_approximate: true,
+        };
+      });
+    }
+
     // Get total count
     let countQuery = `SELECT COUNT(*) FROM places WHERE deleted_at IS NULL AND COALESCE(status, 'available') = 'available'`;
     const countParams = [];
@@ -60,7 +96,7 @@ async function getPlaces(req, res, next) {
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
-      places: result.rows,
+      places,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

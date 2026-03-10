@@ -92,16 +92,18 @@ async function createPlaceReview(req, res, next) {
     const userId = req.user.userId;
     const data = req.validatedBody;
 
-    // Check if user has booked this place
+    // Check if user has booked this place with completed status and checkout date in the past
     const bookingResult = await db.query(
-      'SELECT id FROM bookings WHERE user_id = $1 AND place_id = $2 AND status = $3',
+      `SELECT id, check_out_date FROM bookings 
+       WHERE user_id = $1 AND place_id = $2 AND status = $3
+       AND check_out_date < NOW()`,
       [userId, id, 'completed']
     );
 
     if (bookingResult.rows.length === 0) {
       return res.status(403).json({
         error: 'cannot_review',
-        message: 'Can only review places you have booked',
+        message: 'You can only review places after your stay has ended',
       });
     }
 
@@ -119,10 +121,10 @@ async function createPlaceReview(req, res, next) {
     }
 
     const result = await db.query(
-      `INSERT INTO reviews (user_id, place_id, rating, title, comment)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO reviews (user_id, place_id, rating, title, comment, photo_urls)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [userId, id, data.rating, data.title || null, data.comment || null]
+      [userId, id, data.rating, data.title || null, data.comment || null, data.photo_urls || []]
     );
 
     // Update place rating
@@ -148,16 +150,18 @@ async function createPubReview(req, res, next) {
     const userId = req.user.userId;
     const data = req.validatedBody;
 
-    // Check if user has booked this pub
+    // Check if user has booked this pub with completed status and checkout date in the past
     const bookingResult = await db.query(
-      'SELECT id FROM bookings WHERE user_id = $1 AND pub_id = $2 AND status = $3',
+      `SELECT id, check_out_date FROM bookings 
+       WHERE user_id = $1 AND pub_id = $2 AND status = $3
+       AND check_out_date < NOW()`,
       [userId, id, 'completed']
     );
 
     if (bookingResult.rows.length === 0) {
       return res.status(403).json({
         error: 'cannot_review',
-        message: 'Can only review pubs you have booked',
+        message: 'You can only review pubs after your stay has ended',
       });
     }
 
@@ -175,10 +179,10 @@ async function createPubReview(req, res, next) {
     }
 
     const result = await db.query(
-      `INSERT INTO reviews (user_id, pub_id, rating, title, comment)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO reviews (user_id, pub_id, rating, title, comment, photo_urls)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [userId, id, data.rating, data.title || null, data.comment || null]
+      [userId, id, data.rating, data.title || null, data.comment || null, data.photo_urls || []]
     );
 
     // Update pub rating

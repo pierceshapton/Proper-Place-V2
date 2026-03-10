@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/services/image_picker_service.dart';
 
 class ReviewSubmissionScreen extends StatefulWidget {
   final Map<String, dynamic> booking;
@@ -20,6 +22,60 @@ class _ReviewSubmissionScreenState extends State<ReviewSubmissionScreen> {
   int _rating = 5;
   final _commentController = TextEditingController();
   bool _isSubmitting = false;
+  List<File> _selectedPhotos = [];
+  static const int _maxPhotos = 5;
+
+  Future<void> _pickPhoto() async {
+    if (_selectedPhotos.length >= _maxPhotos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Maximum $_maxPhotos photos allowed')),
+      );
+      return;
+    }
+
+    final file = await ImagePickerService.showImagePickerOptions(context);
+    if (file != null) {
+      setState(() {
+        _selectedPhotos.add(file);
+      });
+    }
+  }
+
+  void _removePhoto(int index) {
+    setState(() {
+      _selectedPhotos.removeAt(index);
+    });
+  }
+
+  Future<List<String>> _uploadPhotos() async {
+    if (_selectedPhotos.isEmpty) return [];
+
+    final token = await StorageService.getToken();
+    if (token == null) throw Exception('No authentication token');
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${AppConfig.properPlaceBackendUrl}/upload'),
+    );
+    request.headers['Authorization'] = 'Bearer $token';
+
+    for (final photo in _selectedPhotos) {
+      request.files.add(
+        await http.MultipartFile.fromPath('images', photo.path),
+      );
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final images = data['images'] as List;
+      return images.map((img) => img['url'] as String).toList();
+    } else {
+      throw Exception('Failed to upload photos');
+    }
+  }
 
   Future<void> _submitReview() async {
     if (_commentController.text.isEmpty) {
@@ -34,40 +90,55 @@ class _ReviewSubmissionScreenState extends State<ReviewSubmissionScreen> {
     });
 
     try {
+      // Upload photos first if any
+      List<String> photoUrls = [];
+      if (_selectedPhotos.isNotEmpty) {
+        photoUrls = await _uploadPhotos();
+      }
+
       final token = await StorageService.getToken();
+      final placeId = widget.booking['place_id'];
+      
       final response = await http.post(
-        Uri.parse('${AppConfig.properPlaceBackendUrl}/reviews'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/reviews/places/$placeId'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'place_id': widget.booking['place_id'],
-          'place_name': widget.booking['place_name'],
-          'booking_id': widget.booking['id'],
           'rating': _rating,
           'comment': _commentController.text,
+          'photo_urls': photoUrls,
         }),
       );
 
       if (response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Review submitted!')),
-        );
-        Navigator.of(context).pop();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Review submitted successfully!')),
+          );
+          Navigator.of(context).pop(true); // Return true to indicate success
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error submitting review')),
-        );
+        final error = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error['message'] ?? 'Error submitting review')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isSubmitting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -171,6 +242,97 @@ class _ReviewSubmissionScreenState extends State<ReviewSubmissionScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 24),
+
+            // Photos section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Add Photos (Optional)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '${_selectedPhotos.length}/$_maxPhotos',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Share photos from your stay to help other travelers',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            
+            // Photo grid
+            if (_selectedPhotos.isNotEmpty)
+              Container(
+                height: 100,
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _selectedPhotos.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              _selectedPhotos[index],
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: GestureDetector(
+                              onTap: () => _removePhoto(index),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            // Add photo button
+            if (_selectedPhotos.length < _maxPhotos)
+              OutlinedButton.icon(
+                onPressed: _pickPhoto,
+                icon: const Icon(Icons.add_photo_alternate, color: Color(0xFF7BA7D8)),
+                label: Text(
+                  _selectedPhotos.isEmpty ? 'Add Photos' : 'Add More Photos',
+                  style: const TextStyle(color: Color(0xFF7BA7D8)),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF7BA7D8)),
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
             const SizedBox(height: 24),
 
             // Submit button
