@@ -1,7 +1,12 @@
 // Load environment variables from the appropriate .env file
+// Use override: true in production to ensure .env.production values take precedence
+// over any platform-set environment variables
 const path = require('path');
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
-require('dotenv').config({ path: path.resolve(__dirname, '..', envFile) });
+require('dotenv').config({ 
+  path: path.resolve(__dirname, '..', envFile),
+  override: true  // Force override of platform environment variables
+});
 
 // SECURITY: Database URL must be set via environment variable
 // Set DATABASE_URL in DigitalOcean App Platform environment variables

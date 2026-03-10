@@ -1,9 +1,12 @@
 const { Pool } = require('pg');
 const path = require('path');
 
-// Load environment-specific .env file
+// Load environment-specific .env file with override to ensure file values take precedence
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
-require('dotenv').config({ path: path.resolve(__dirname, '../../', envFile) });
+require('dotenv').config({ 
+  path: path.resolve(__dirname, '../../', envFile),
+  override: true  // Force override of platform environment variables
+});
 
 // Log database configuration for debugging
 const DATABASE_URL = process.env.DATABASE_URL;
