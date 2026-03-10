@@ -70,9 +70,13 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
 
       final token = response['access_token'];
+      final refreshToken = response['refresh_token'];
       
-      // Save token and user data
+      // Save tokens and user data
       await StorageService.saveToken(token);
+      if (refreshToken != null) {
+        await StorageService.saveRefreshToken(refreshToken);
+      }
       await StorageService.saveUserName(name);
       if (response['user_id'] != null) {
         await StorageService.saveUserId(response['user_id']);

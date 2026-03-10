@@ -82,10 +82,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       final token = response['access_token'];
+      final refreshToken = response['refresh_token'];
       print('[Login] Response data: $response');
       
-      // Save token
+      // Save tokens
       await StorageService.saveToken(token);
+      if (refreshToken != null) {
+        await StorageService.saveRefreshToken(refreshToken);
+      }
       
       // Save remember me preference
       await StorageService.setRememberMe(_rememberMe, email: _emailController.text);

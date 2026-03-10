@@ -7,6 +7,53 @@ import 'storage_service.dart';
 class PlaceService {
   static String get baseUrl => AppConfig.properPlaceBackendUrl;
 
+  // Flag to prevent infinite refresh loops
+  static bool _isRefreshing = false;
+
+  /// Attempt to refresh the access token using the refresh token
+  static Future<bool> _refreshAccessToken() async {
+    if (_isRefreshing) return false;
+    _isRefreshing = true;
+
+    try {
+      final refreshToken = await StorageService.getRefreshToken();
+      if (refreshToken == null) {
+        print('[PlaceService] No refresh token available');
+        return false;
+      }
+
+      print('[PlaceService] Attempting token refresh...');
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh_token': refreshToken}),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final newAccessToken = data['access_token'];
+        final newRefreshToken = data['refresh_token'];
+
+        if (newAccessToken != null) {
+          await StorageService.saveToken(newAccessToken);
+          if (newRefreshToken != null) {
+            await StorageService.saveRefreshToken(newRefreshToken);
+          }
+          print('[PlaceService] Token refresh successful');
+          return true;
+        }
+      }
+
+      print('[PlaceService] Token refresh failed: ${response.statusCode}');
+      return false;
+    } catch (e) {
+      print('[PlaceService] Token refresh error: $e');
+      return false;
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
   /// Create a new site with address, description, etc.
   static Future<Map<String, dynamic>> createPlace(
     Map<String, dynamic> placeData,
@@ -113,7 +160,7 @@ class PlaceService {
   }
 
   /// Fetch all places for the current host
-  static Future<List<dynamic>> getHostPlaces() async {
+  static Future<List<dynamic>> getHostPlaces({bool isRetry = false}) async {
     try {
       final token = await StorageService.getString('access_token');
       if (token == null) throw Exception('No authentication token found');
@@ -128,11 +175,18 @@ class PlaceService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['places'] ?? [];
-      } else if (response.statusCode == 401) {
-        // Token expired or invalid - clear stored auth and throw specific error
-        print('PlaceService: Token expired/invalid (401) - clearing auth');
+      } else if (response.statusCode == 401 && !isRetry) {
+        // Token expired - try to refresh automatically
+        print('[PlaceService] Got 401 - attempting auto-refresh');
+        final refreshed = await _refreshAccessToken();
+        if (refreshed) {
+          // Retry with new token
+          return getHostPlaces(isRetry: true);
+        }
+        // Refresh failed - clear auth
+        print('[PlaceService] Token refresh failed - clearing auth');
         await StorageService.clearAll();
-        throw Exception('Session expired. Please log in again.');
+        throw Exception('Session expired');
       } else {
         throw Exception('Failed to fetch places: ${response.statusCode}');
       }

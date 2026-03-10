@@ -12,8 +12,45 @@ class NotificationService {
 
   NotificationService._internal();
 
+  // Flag to prevent infinite refresh loops
+  static bool _isRefreshing = false;
+
+  /// Attempt to refresh the access token using the refresh token
+  static Future<bool> _refreshAccessToken() async {
+    if (_isRefreshing) return false;
+    _isRefreshing = true;
+
+    try {
+      final refreshToken = await StorageService.getRefreshToken();
+      if (refreshToken == null) return false;
+
+      final response = await http.post(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh_token': refreshToken}),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final newAccessToken = data['access_token'];
+        if (newAccessToken != null) {
+          await StorageService.saveToken(newAccessToken);
+          if (data['refresh_token'] != null) {
+            await StorageService.saveRefreshToken(data['refresh_token']);
+          }
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      return false;
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
   /// Get all notification counts
-  Future<Map<String, dynamic>> getNotificationCounts() async {
+  Future<Map<String, dynamic>> getNotificationCounts({bool isRetry = false}) async {
     try {
       final token = await StorageService.getToken();
       if (token == null) {
@@ -30,7 +67,11 @@ class NotificationService {
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
-      } else if (response.statusCode == 401) {
+      } else if (response.statusCode == 401 && !isRetry) {
+        final refreshed = await _refreshAccessToken();
+        if (refreshed) {
+          return getNotificationCounts(isRetry: true);
+        }
         throw Exception('Unauthorized');
       } else {
         throw Exception('Failed to get notification counts: ${response.statusCode}');

@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class StorageService {
   // Secure storage keys (sensitive data - encrypted)
   static const String _tokenKey = 'access_token';
+  static const String _refreshTokenKey = 'refresh_token';
   static const String _userIdKey = 'user_id';
   static const String _userEmailKey = 'user_email';
   static const String _userNameKey = 'user_name';
@@ -67,6 +68,16 @@ class StorageService {
   /// Clear the token cache (call on logout)
   static void clearTokenCache() {
     _cachedToken = null;
+  }
+
+  /// Save refresh token (ENCRYPTED)
+  static Future<void> saveRefreshToken(String token) async {
+    await _secureStorage.write(key: _refreshTokenKey, value: token);
+  }
+
+  /// Load refresh token (ENCRYPTED)
+  static Future<String?> getRefreshToken() async {
+    return await _secureStorage.read(key: _refreshTokenKey);
   }
 
   /// Save user ID (ENCRYPTED)

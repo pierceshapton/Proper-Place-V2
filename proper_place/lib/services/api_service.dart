@@ -27,12 +27,61 @@ class ApiService {
     return '$_baseUrl$endpoint';
   }
 
-  /// Generic request method with error handling
+  // Flag to prevent infinite refresh loops
+  static bool _isRefreshing = false;
+
+  /// Attempt to refresh the access token using the refresh token
+  static Future<bool> _refreshAccessToken() async {
+    if (_isRefreshing) return false;
+    _isRefreshing = true;
+
+    try {
+      final refreshToken = await StorageService.getRefreshToken();
+      if (refreshToken == null) {
+        print('[ApiService] No refresh token available');
+        return false;
+      }
+
+      print('[ApiService] Attempting token refresh...');
+      final url = Uri.parse('$_baseUrl/auth/refresh');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh_token': refreshToken}),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final newAccessToken = data['access_token'];
+        final newRefreshToken = data['refresh_token'];
+
+        if (newAccessToken != null) {
+          await StorageService.saveToken(newAccessToken);
+          if (newRefreshToken != null) {
+            await StorageService.saveRefreshToken(newRefreshToken);
+          }
+          print('[ApiService] Token refresh successful');
+          return true;
+        }
+      }
+
+      print('[ApiService] Token refresh failed: ${response.statusCode}');
+      return false;
+    } catch (e) {
+      print('[ApiService] Token refresh error: $e');
+      return false;
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
+  /// Generic request method with error handling and auto-refresh
   static Future<Map<String, dynamic>> _request({
     required String method,
     required String endpoint,
     Map<String, dynamic>? body,
     Map<String, String>? headers,
+    bool isRetry = false,
   }) async {
     try {
       final fullUrl = _buildUrl(endpoint);
@@ -78,12 +127,22 @@ class ApiService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return data;
       } else {
-        // If token is invalid/expired, clear it so user gets redirected to login
-        if (response.statusCode == 401 && 
-            (data['message']?.toString().toLowerCase().contains('invalid') == true ||
-             data['message']?.toString().toLowerCase().contains('expired') == true ||
-             data['error'] == 'invalid_token')) {
-          print('[ApiService] Token invalid/expired - clearing stored token');
+        // Handle 401 - try to refresh token automatically
+        if (response.statusCode == 401 && !isRetry) {
+          print('[ApiService] Got 401 - attempting auto-refresh');
+          final refreshed = await _refreshAccessToken();
+          if (refreshed) {
+            // Retry the original request with new token
+            return _request(
+              method: method,
+              endpoint: endpoint,
+              body: body,
+              headers: headers,
+              isRetry: true,
+            );
+          }
+          // Refresh failed - clear auth
+          print('[ApiService] Token refresh failed - clearing auth');
           await StorageService.clearAll();
         }
         throw ApiException(
