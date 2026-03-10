@@ -603,43 +603,45 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
         ),
         // Input
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.only(
+            left: 12,
+            right: 12,
+            top: 12,
+            bottom: 12 + MediaQuery.of(context).padding.bottom,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border(
               top: BorderSide(color: Colors.grey[300]!),
             ),
           ),
-          child: SafeArea(
-            top: false,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Type a message...',
-                      hintStyle: TextStyle(color: Colors.grey[700]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: 'Type a message...',
+                    hintStyle: TextStyle(color: Colors.grey[700]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
                     ),
-                    maxLines: null,
-                    onSubmitted: (_) => _sendMessage(),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                   ),
+                  maxLines: null,
+                  onSubmitted: (_) => _sendMessage(),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _sendMessage,
-                  icon: const Icon(Icons.send, color: Color(0xFF3B82F6)),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _sendMessage,
+                icon: const Icon(Icons.send, color: Color(0xFF3B82F6)),
+              ),
+            ],
           ),
         ),
       ],

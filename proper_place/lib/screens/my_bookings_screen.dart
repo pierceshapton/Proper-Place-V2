@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/screens/booking_detail_screen.dart';
@@ -212,13 +211,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const SizedBox.shrink(),
-        title: Text(
-          'My Bookings',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: const Text('My Bookings'),
         backgroundColor: const Color(0xFF7BA7D8),
       ),
       body: FutureBuilder<List<dynamic>>(

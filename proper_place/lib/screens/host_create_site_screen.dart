@@ -38,6 +38,23 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   double maxVehicleHeight = 12.0; // Default 12ft
   double maxVehicleWidth = 8.0; // Default 8ft
   bool vehicleDimensionsConfirmed = false; // Track if host confirmed dimensions
+  bool useMetricUnits = false; // Toggle between feet and metres
+  
+  // Conversion helpers
+  double feetToMetres(double feet) => feet * 0.3048;
+  double metresToFeet(double metres) => metres / 0.3048;
+  String formatDimension(double feet) {
+    if (useMetricUnits) {
+      return '${feetToMetres(feet).toStringAsFixed(1)}m';
+    }
+    return '${feet.toStringAsFixed(1)}ft';
+  }
+  String formatDimensionWhole(double feet) {
+    if (useMetricUnits) {
+      return '${feetToMetres(feet).toStringAsFixed(1)}m';
+    }
+    return '${feet.toStringAsFixed(0)}ft';
+  }
   bool isSavingDraft = false;
   bool isSubmitting = false;
   
@@ -856,6 +873,57 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                     'Important: Set the maximum vehicle dimensions that can fit on your site',
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
+                  const SizedBox(height: 12),
+                  
+                  // Unit toggle (feet/metres)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: () => setState(() => useMetricUnits = false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: !useMetricUnits ? const Color(0xFF0EA5E9) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Feet (ft)',
+                              style: TextStyle(
+                                color: !useMetricUnits ? Colors.white : Colors.grey[700],
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() => useMetricUnits = true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: useMetricUnits ? const Color(0xFF0EA5E9) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Metres (m)',
+                              style: TextStyle(
+                                color: useMetricUnits ? Colors.white : Colors.grey[700],
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 16),
 
                   // Max Vehicle Height Slider
@@ -872,15 +940,15 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                           min: 6,
                           max: 15,
                           divisions: 18,
-                          label: '${maxVehicleHeight.toStringAsFixed(1)}ft',
+                          label: formatDimension(maxVehicleHeight),
                           onChanged: (value) => setState(() => maxVehicleHeight = value),
                         ),
                       ),
                       Container(
-                        width: 60,
+                        width: 70,
                         alignment: Alignment.center,
                         child: Text(
-                          '${maxVehicleHeight.toStringAsFixed(1)}ft',
+                          formatDimension(maxVehicleHeight),
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -902,15 +970,15 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                           min: 6,
                           max: 12,
                           divisions: 12,
-                          label: '${maxVehicleWidth.toStringAsFixed(1)}ft',
+                          label: formatDimension(maxVehicleWidth),
                           onChanged: (value) => setState(() => maxVehicleWidth = value),
                         ),
                       ),
                       Container(
-                        width: 60,
+                        width: 70,
                         alignment: Alignment.center,
                         child: Text(
-                          '${maxVehicleWidth.toStringAsFixed(1)}ft',
+                          formatDimension(maxVehicleWidth),
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -932,15 +1000,15 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                           min: 15,
                           max: 45,
                           divisions: 30,
-                          label: '${maxVehicleLength.toStringAsFixed(0)}ft',
+                          label: formatDimensionWhole(maxVehicleLength),
                           onChanged: (value) => setState(() => maxVehicleLength = value),
                         ),
                       ),
                       Container(
-                        width: 60,
+                        width: 70,
                         alignment: Alignment.center,
                         child: Text(
-                          '${maxVehicleLength.toStringAsFixed(0)}ft',
+                          formatDimensionWhole(maxVehicleLength),
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
