@@ -607,6 +607,56 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                       ],
                     ),
 
+                  // Access Route Description - Important for navigation
+                  if (widget.place['access_route_description'] != null && 
+                      widget.place['access_route_description'].toString().isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFB923C)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.route, color: const Color(0xFFF97316), size: 22),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Access Route',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFC2410C),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'How to reach this site',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                widget.place['access_route_description'],
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+
                   // Vehicle Size Limits - Important for motorhome users
                   if (widget.place['max_vehicle_height_ft'] != null ||
                       widget.place['max_vehicle_width_ft'] != null ||

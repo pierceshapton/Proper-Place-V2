@@ -353,6 +353,7 @@ async function initializeDatabase() {
         ALTER TABLE places ADD COLUMN IF NOT EXISTS food_menu_description TEXT;
         ALTER TABLE places ADD COLUMN IF NOT EXISTS serves_food BOOLEAN DEFAULT false;
         ALTER TABLE places ADD COLUMN IF NOT EXISTS business_description TEXT;
+        ALTER TABLE places ADD COLUMN IF NOT EXISTS access_route_description TEXT;
       `;
 
       try {
@@ -375,6 +376,7 @@ async function initializeDatabase() {
         ALTER TABLE places ADD COLUMN IF NOT EXISTS food_menu_description TEXT;
         ALTER TABLE places ADD COLUMN IF NOT EXISTS serves_food BOOLEAN DEFAULT false;
         ALTER TABLE places ADD COLUMN IF NOT EXISTS business_description TEXT;
+        ALTER TABLE places ADD COLUMN IF NOT EXISTS access_route_description TEXT;
       `;
 
       try {

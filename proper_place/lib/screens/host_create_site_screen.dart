@@ -19,6 +19,7 @@ class HostCreateSiteScreen extends StatefulWidget {
 class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   late TextEditingController addressController;
   late TextEditingController descriptionController;
+  late TextEditingController accessRouteController;
   late TextEditingController priceController;
   late TextEditingController websiteController;
   late TextEditingController businessNameController;
@@ -106,6 +107,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     super.initState();
     addressController = TextEditingController();
     descriptionController = TextEditingController();
+    accessRouteController = TextEditingController();
     priceController = TextEditingController();
     websiteController = TextEditingController();
     businessNameController = TextEditingController();
@@ -208,6 +210,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       // Map backend field names to form fields
       addressController.text = site['address'] ?? '';
       descriptionController.text = site['description'] ?? '';
+      accessRouteController.text = site['access_route_description'] ?? '';
       priceController.text = site['price_per_night']?.toString() ?? '';
       websiteController.text = site['website_url'] ?? site['website'] ?? '';
       businessNameController.text = site['name'] ?? site['business_name'] ?? '';
@@ -445,6 +448,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       data['business_description'] = businessDescriptionController.text;
     }
 
+    // Add access route description (required)
+    data['access_route_description'] = accessRouteController.text.isNotEmpty 
+        ? accessRouteController.text 
+        : 'Access route pending';
+
     return data;
   }
 
@@ -453,6 +461,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'name': businessNameController.text.isNotEmpty ? businessNameController.text : 'Site',
       'address': addressController.text,
       'description': descriptionController.text,
+      'access_route_description': accessRouteController.text,
       'price_per_night': double.tryParse(priceController.text) ?? 0,
       'city': city,
       'country': country,
@@ -558,6 +567,13 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       return;
     }
 
+    if (accessRouteController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please describe how to access your site')),
+      );
+      return;
+    }
+
     if (mainPhotoFile == null && widget.siteToEdit == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload a main photo')),
@@ -649,6 +665,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     _priceFocusNode.removeListener(_onPriceFocusChange);
     addressController.dispose();
     descriptionController.dispose();
+    accessRouteController.dispose();
     priceController.dispose();
     websiteController.dispose();
     businessNameController.dispose();
@@ -841,6 +858,63 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               hint: 'Describe your site, location, amenities...',
               controller: descriptionController,
               maxLines: 4,
+            ),
+            const SizedBox(height: 16),
+
+            // Access Route Description Field
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFB923C).withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.route, color: const Color(0xFFF97316), size: 24),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Access Route *',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFC2410C),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Help guests find your site safely - describe any narrow lanes, low bridges, tight turns etc.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: accessRouteController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'e.g., "Access via the B4058, turn left at the village pub. Lane is narrow with passing places. No low bridges. Gate code: 1234"',
+                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFFF97316)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
 
