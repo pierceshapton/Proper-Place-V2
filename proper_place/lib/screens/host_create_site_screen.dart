@@ -58,6 +58,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   }
   bool isSavingDraft = false;
   bool isSubmitting = false;
+  bool showBusinessInfo = false; // Toggle for optional business information
   
   // Focus node for price field keyboard toolbar
   final FocusNode _priceFocusNode = FocusNode();
@@ -273,6 +274,12 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       print('DEBUG setState: existingMainPhotoUrl = $existingMainPhotoUrl');
       print('DEBUG setState: existingBusinessUrls = $existingBusinessUrls');
       
+      // Show business info section if any business data exists
+      showBusinessInfo = businessNameController.text.isNotEmpty || 
+                         businessDescriptionController.text.isNotEmpty ||
+                         websiteController.text.isNotEmpty ||
+                         existingBusinessUrls.isNotEmpty;
+      
       // Mark address as verified so it displays correctly when editing
       addressVerified = addressController.text.isNotEmpty;
     });
@@ -459,7 +466,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
   Map<String, dynamic> _buildSiteData() {
     final data = {
-      'name': businessNameController.text.isNotEmpty ? businessNameController.text : 'Site',
+      'name': (showBusinessInfo && businessNameController.text.isNotEmpty) ? businessNameController.text : 'Site',
       'address': addressController.text,
       'description': descriptionController.text,
       'access_route_description': accessRouteController.text,
@@ -483,8 +490,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       data['food_menu_description'] = foodMenuController.text;
     }
 
-    // Add business description if provided
-    if (businessDescriptionController.text.isNotEmpty) {
+    // Add business info only if toggle is on and data provided
+    if (showBusinessInfo && businessDescriptionController.text.isNotEmpty) {
       data['business_description'] = businessDescriptionController.text;
     }
 
@@ -632,8 +639,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         await PlaceService.uploadPlacePhotos(placeId, sitePhotos, category: 'site');
       }
       
-      // Upload business photos separately
-      if (businessPhotos.isNotEmpty) {
+      // Upload business photos separately (only if toggle is on)
+      if (showBusinessInfo && businessPhotos.isNotEmpty) {
         await PlaceService.uploadPlacePhotos(placeId, businessPhotos, category: 'business');
       }
 
@@ -1159,7 +1166,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
             _buildFacilitiesSection(),
             const SizedBox(height: 24),
 
-            // Business Information Section
+            // Business Information Toggle
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1170,82 +1177,109 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Business Information',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Add Business Information?',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Optional: Add details about your business to attract more guests',
+                              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: showBusinessInfo,
+                        onChanged: (value) => setState(() => showBusinessInfo = value),
+                        activeColor: const Color(0xFF3B82F6),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Please add information about goods or services your business can offer to guests. Adding menus, opening times etc here can help to generate further income by driving guests to your business.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                      height: 1.4,
+                  // Business Information Section (shown when toggled on)
+                  if (showBusinessInfo) ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Please add information about goods or services your business can offer to guests. Adding menus, opening times etc here can help to generate further income by driving guests to your business.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        height: 1.4,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    label: 'Business Name',
-                    hint: 'E.g., The Old Barn Pub',
-                    controller: businessNameController,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    label: 'Website / Contact Link',
-                    hint: 'E.g., https://www.example.com',
-                    controller: websiteController,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Business Description',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: businessDescriptionController,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: 'E.g., We serve traditional pub food from 12pm-9pm daily. Our menu includes local ales, homemade pies, and Sunday roasts...',
-                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF3B82F6)),
-                      ),
-                      contentPadding: const EdgeInsets.all(12),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      label: 'Business Name',
+                      hint: 'E.g., The Old Barn Pub',
+                      controller: businessNameController,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMultiPhotoSection(
-                    key: const ValueKey('business_photos'),
-                    title: 'Business Photos / Menu',
-                    subtitle: 'Add menu or business photos (max 3)',
-                    files: businessPhotos,
-                    existingUrls: existingBusinessUrls,
-                    maxPhotos: 3,
-                    onAddPhoto: () => _pickPhoto((file) {
-                      print('DEBUG: Adding photo to BUSINESS photos');
-                      if (businessPhotos.length + existingBusinessUrls.length < 3) {
-                        setState(() => businessPhotos.add(file));
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Maximum 3 business photos allowed')),
-                        );
-                      }
-                    }),
-                    onRemovePhoto: (index) => setState(() => businessPhotos.removeAt(index)),
-                    onRemoveExistingUrl: (index) => setState(() => existingBusinessUrls.removeAt(index)),
-                    showTitle: false,
-                  ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      label: 'Website / Contact Link',
+                      hint: 'E.g., https://www.example.com',
+                      controller: websiteController,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Business Description',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: businessDescriptionController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'E.g., We serve traditional pub food from 12pm-9pm daily. Our menu includes local ales, homemade pies, and Sunday roasts...',
+                        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildMultiPhotoSection(
+                      key: const ValueKey('business_photos'),
+                      title: 'Business Photos / Menu',
+                      subtitle: 'Add menu or business photos (max 3)',
+                      files: businessPhotos,
+                      existingUrls: existingBusinessUrls,
+                      maxPhotos: 3,
+                      onAddPhoto: () => _pickPhoto((file) {
+                        print('DEBUG: Adding photo to BUSINESS photos');
+                        if (businessPhotos.length + existingBusinessUrls.length < 3) {
+                          setState(() => businessPhotos.add(file));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Maximum 3 business photos allowed')),
+                          );
+                        }
+                      }),
+                      onRemovePhoto: (index) => setState(() => businessPhotos.removeAt(index)),
+                      onRemoveExistingUrl: (index) => setState(() => existingBusinessUrls.removeAt(index)),
+                      showTitle: false,
+                    ),
+                  ],
                 ],
               ),
             ),
