@@ -201,15 +201,16 @@ class BookingDetailScreen extends StatelessWidget {
     final bookingIdStr = (booking['booking_id'] ?? '').toString();
     final placeIdStr = (booking['place_id'] ?? '').toString();
     final hostName = place.hostName ?? 'Host';
+    final hostId = place.hostId;
 
-    debugPrint('DEBUG: bookingIdStr=$bookingIdStr, placeIdStr=$placeIdStr, hostName=$hostName');
+    debugPrint('DEBUG: bookingIdStr=$bookingIdStr, placeIdStr=$placeIdStr, hostName=$hostName, hostId=$hostId');
 
-    if (bookingIdStr.isEmpty || placeIdStr.isEmpty) {
-      debugPrint('DEBUG: Missing booking or place information');
+    if (bookingIdStr.isEmpty || placeIdStr.isEmpty || hostId == null) {
+      debugPrint('DEBUG: Missing booking, place, or host information');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text(
-                'Cannot open chat: Missing booking or place information')),
+                'Cannot open chat: Missing booking or host information')),
       );
       return;
     }
@@ -227,6 +228,7 @@ class BookingDetailScreen extends StatelessWidget {
             bookingId: bookingIdStr,
             placeId: placeIdInt,
             hostName: hostName,
+            hostId: hostId,
           ),
         ),
       ).then((_) {

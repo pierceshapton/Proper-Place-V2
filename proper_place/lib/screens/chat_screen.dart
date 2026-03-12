@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
+import '../services/storage_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final String bookingId;
   final int placeId;
   final String hostName;
+  final int hostId;
 
   const ChatScreen({
     Key? key,
     required this.bookingId,
     required this.placeId,
     required this.hostName,
+    required this.hostId,
   }) : super(key: key);
 
   @override
@@ -23,12 +26,19 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   String? _error;
   late ChatService _chatService;
+  int? _currentUserId;
 
   @override
   void initState() {
     super.initState();
     _chatService = ChatService();
-    _loadMessages();
+    _initAndLoad();
+  }
+
+  Future<void> _initAndLoad() async {
+    final userIdStr = await StorageService.getUserId();
+    _currentUserId = int.tryParse(userIdStr ?? '');
+    await _loadMessages();
   }
 
   Future<void> _loadMessages() async {
@@ -37,22 +47,28 @@ class _ChatScreenState extends State<ChatScreen> {
         _isLoading = true;
         _error = null;
       });
-      
-      // Parse otherUserId from the booking or use a default
-      // The bookingId should help identify the conversation partner
-      final conversationMessages = await _chatService.getMessagesWithUser(
-        int.tryParse(widget.hostName) ?? 1,
-      );
-      
+
+      final bookingIdInt = int.tryParse(widget.bookingId);
+      List<Map<String, dynamic>> conversationMessages;
+
+      if (bookingIdInt != null) {
+        conversationMessages = await _chatService.getMessagesByBooking(bookingIdInt);
+      } else {
+        conversationMessages = await _chatService.getMessagesWithUser(widget.hostId);
+      }
+
       setState(() {
         messages = conversationMessages.map((msg) {
+          final senderId = msg['sender_id'] is int
+              ? msg['sender_id']
+              : int.tryParse(msg['sender_id'].toString()) ?? -1;
           return {
-            'sender': msg['sender_id'] == 1 ? 'host' : 'guest', // Adjust based on actual response
+            'sender': senderId == _currentUserId ? 'guest' : 'host',
             'message': msg['content'] ?? msg['message'] ?? '',
-            'timestamp': msg['created_at'] != null 
-              ? DateTime.parse(msg['created_at'])
-              : DateTime.now(),
-            'status': 'read', // Mark as read since they're loaded
+            'timestamp': msg['created_at'] != null
+                ? DateTime.parse(msg['created_at'])
+                : DateTime.now(),
+            'status': 'read',
           };
         }).toList();
         _isLoading = false;
@@ -62,7 +78,6 @@ class _ChatScreenState extends State<ChatScreen> {
         _error = 'Failed to load messages: $e';
         _isLoading = false;
       });
-      print('Error loading messages: $e');
     }
   }
 
@@ -89,10 +104,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Send message via API
     try {
-      final otherUserId = int.tryParse(widget.hostName) ?? 1;
       await _chatService.sendMessage(
-        receiverId: otherUserId,
+        receiverId: widget.hostId,
         content: message,
+        bookingId: int.tryParse(widget.bookingId),
       );
 
       // Simulate message delivery after 500ms

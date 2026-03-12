@@ -41,7 +41,7 @@ async function getBookings(req, res, next) {
     const { page = 1, limit = 20, status } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = 'SELECT * FROM bookings WHERE user_id = $1';
+    let query = 'SELECT b.*, p.owner_id as host_id, u_host.name as host_name FROM bookings b LEFT JOIN places p ON b.place_id = p.id LEFT JOIN users u_host ON p.owner_id = u_host.id WHERE b.user_id = $1';
     const params = [userId];
     let paramCount = 2;
 

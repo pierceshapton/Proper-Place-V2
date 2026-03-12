@@ -24,6 +24,7 @@ class Place {
   } // Multiple images for swiper
   final String? placeType;
   final String? amenities;
+  final int? hostId;
   final String? hostName;
   final String? hostEmail;
   final String approvalStatus;
@@ -46,6 +47,7 @@ class Place {
     this.imageUrls = const [],
     this.placeType,
     this.amenities,
+    this.hostId,
     this.hostName,
     this.hostEmail,
     this.approvalStatus = 'approved',
@@ -88,6 +90,7 @@ class Place {
       imageUrls: toFullImageUrls(images),
       placeType: toStringOrNull(json['place_type']),
       amenities: toStringOrNull(json['amenities']),
+      hostId: int.tryParse((json['owner_id'] ?? '').toString()),
       hostName: toStringOrNull(json['host_name']),
       hostEmail: toStringOrNull(json['host_email']),
       approvalStatus: json['approval_status'] ?? 'pending',
@@ -113,6 +116,7 @@ class Place {
       'image_urls': imageUrls,
       'place_type': placeType,
       'amenities': amenities,
+      'owner_id': hostId,
       'host_name': hostName,
       'host_email': hostEmail,
       'approval_status': approvalStatus,

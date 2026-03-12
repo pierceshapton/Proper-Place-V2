@@ -117,6 +117,45 @@ class ApiService {
           const Duration(seconds: 30),
           onTimeout: () => throw TimeoutException('Request timeout after 30 seconds'),
         );
+      } else if (method == 'DELETE') {
+        response = await http.delete(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+            ...?headers,
+          },
+          body: body != null ? jsonEncode(body) : null,
+        ).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw TimeoutException('Request timeout after 30 seconds'),
+        );
+      } else if (method == 'PATCH') {
+        response = await http.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+            ...?headers,
+          },
+          body: body != null ? jsonEncode(body) : null,
+        ).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw TimeoutException('Request timeout after 30 seconds'),
+        );
+      } else if (method == 'PUT') {
+        response = await http.put(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+            ...?headers,
+          },
+          body: body != null ? jsonEncode(body) : null,
+        ).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw TimeoutException('Request timeout after 30 seconds'),
+        );
       } else {
         throw Exception('Unsupported HTTP method: $method');
       }
@@ -463,6 +502,8 @@ class ApiService {
           'user_id': booking['user_id'],
           'place_id': booking['place_id'],
           'pub_id': booking['pub_id'],
+          'host_id': booking['host_id'],
+          'host_name': booking['host_name'],
           'check_in': booking['check_in_date'],
           'check_out': booking['check_out_date'],
           'check_in_date': booking['check_in_date'], // Keep original for compatibility

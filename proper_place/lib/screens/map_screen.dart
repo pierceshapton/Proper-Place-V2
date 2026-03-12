@@ -21,10 +21,16 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _checkAuthStatus() async {
     try {
-      final user = await _authProvider.checkAuthStatus();
-      if (mounted) {
+      final token = await StorageService.getToken();
+      if (token != null && mounted) {
+        final name = await StorageService.getUserName();
+        final email = await StorageService.getUserEmail();
         setState(() {
-          _user = user;
+          _user = {'name': name, 'email': email};
+          _isLoading = false;
+        });
+      } else if (mounted) {
+        setState(() {
           _isLoading = false;
         });
       }

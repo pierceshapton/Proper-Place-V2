@@ -344,6 +344,46 @@ async function clearAllMessages(req, res, next) {
   }
 }
 
+/**
+ * GET /bookings/:bookingId/messages
+ * Get all messages for a specific booking
+ */
+async function getMessagesByBooking(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const bookingId = parseInt(req.params.bookingId);
+
+    if (!bookingId || isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Valid bookingId is required' });
+    }
+
+    const result = await db.query(
+      `SELECT 
+        m.id,
+        m.sender_id,
+        m.receiver_id,
+        m.content,
+        m.attachment_url,
+        m.read,
+        m.created_at,
+        m.booking_id,
+        u.name as sender_name,
+        u.email as sender_email
+      FROM messages m
+      JOIN users u ON u.id = m.sender_id
+      WHERE m.booking_id = $1
+        AND (m.sender_id = $2 OR m.receiver_id = $2)
+      ORDER BY m.created_at ASC`,
+      [bookingId, userId]
+    );
+
+    return res.json({ messages: result.rows });
+  } catch (error) {
+    logger.error('Error fetching messages by booking', { error: error.message });
+    return next(error);
+  }
+}
+
 module.exports = {
   deleteContact,
   markContactAsUnread,
@@ -351,6 +391,7 @@ module.exports = {
   deleteMessage,
   getConversations,
   getMessages,
+  getMessagesByBooking,
   sendMessage,
   markConversationAsRead,
   clearAllMessages,

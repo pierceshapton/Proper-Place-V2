@@ -11,9 +11,10 @@ class GooglePlacesService {
     if (input.isEmpty) return [];
 
     try {
+      final encodedInput = Uri.encodeQueryComponent(input);
       final response = await http.get(
         Uri.parse(
-          '$baseUrl/place/autocomplete/json?input=$input&key=$apiKey&components=country:uk',
+          '$baseUrl/place/autocomplete/json?input=$encodedInput&key=$apiKey&components=country:uk',
         ),
       );
 
@@ -34,9 +35,10 @@ class GooglePlacesService {
   /// Get detailed information about a place (including lat/lng)
   static Future<PlaceDetails?> getPlaceDetails(String placeId) async {
     try {
+      final encodedPlaceId = Uri.encodeQueryComponent(placeId);
       final response = await http.get(
         Uri.parse(
-          '$baseUrl/place/details/json?place_id=$placeId&fields=formatted_address,geometry,address_components&key=$apiKey',
+          '$baseUrl/place/details/json?place_id=$encodedPlaceId&fields=formatted_address,geometry,address_components&key=$apiKey',
         ),
       );
 

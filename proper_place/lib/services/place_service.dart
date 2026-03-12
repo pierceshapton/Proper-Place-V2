@@ -60,7 +60,7 @@ class PlaceService {
     Map<String, dynamic> placeData,
   ) async {
     try {
-      final token = await StorageService.getString('access_token');
+      final token = await StorageService.getToken();
       if (token == null) throw Exception('No authentication token found');
 
       final response = await http.post(
@@ -91,7 +91,7 @@ class PlaceService {
     Map<String, dynamic> placeData,
   ) async {
     try {
-      final token = await StorageService.getString('access_token');
+      final token = await StorageService.getToken();
       if (token == null) throw Exception('No authentication token found');
 
       final response = await http.patch(
@@ -122,7 +122,7 @@ class PlaceService {
     String category = 'site',
   }) async {
     try {
-      final token = await StorageService.getString('access_token');
+      final token = await StorageService.getToken();
       if (token == null) throw Exception('No authentication token found');
 
       // Strip EXIF data (location, etc) from photos before upload
@@ -166,7 +166,7 @@ class PlaceService {
   /// Fetch all places for the current host
   static Future<List<dynamic>> getHostPlaces({bool isRetry = false}) async {
     try {
-      final token = await StorageService.getString('access_token');
+      final token = await StorageService.getToken();
       if (token == null) throw Exception('No authentication token found');
 
       final response = await http.get(
@@ -203,7 +203,7 @@ class PlaceService {
   /// Delete a place
   static Future<void> deletePlace(int placeId) async {
     try {
-      final token = await StorageService.getString('access_token');
+      final token = await StorageService.getToken();
       if (token == null) throw Exception('No authentication token found');
 
       final response = await http.delete(
@@ -230,7 +230,7 @@ class PlaceService {
     required bool isIndefinite,
   }) async {
     try {
-      final token = await StorageService.getString('access_token');
+      final token = await StorageService.getToken();
       if (token == null) throw Exception('No authentication token found');
 
       final response = await http.post(
@@ -262,7 +262,7 @@ class PlaceService {
   /// Restore a place from indefinite unavailability back to available
   static Future<Map<String, dynamic>> setPlaceAvailable(int placeId) async {
     try {
-      final token = await StorageService.getString('access_token');
+      final token = await StorageService.getToken();
       if (token == null) throw Exception('No authentication token found');
 
       final response = await http.post(

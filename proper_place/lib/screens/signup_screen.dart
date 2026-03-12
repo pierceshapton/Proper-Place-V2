@@ -114,6 +114,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -130,7 +131,13 @@ class _SignupScreenState extends State<SignupScreen> {
             SafeArea(
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.only(
+                    left: 24.0,
+                    right: 24.0,
+                    top: 24.0,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24.0,
+                  ),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,

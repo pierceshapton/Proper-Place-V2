@@ -27,11 +27,11 @@ class NotificationManager extends ChangeNotifier {
       final counts = await _notificationService.getNotificationCounts();
       
       _badgeCounts = {
-        'unreadMessages': (counts['unreadMessages'] as int?) ?? 0,
-        'pendingBookings': (counts['pendingBookings'] as int?) ?? 0,
-        'pendingHostApplications': (counts['pendingHostApplications'] as int?) ?? 0,
-        'pendingApprovals': (counts['pendingApprovals'] as int?) ?? 0,
-        'siteSubmissions': (counts['siteSubmissions'] as int?) ?? 0,
+        'unreadMessages': (counts['unreadMessages'] as num?)?.toInt() ?? 0,
+        'pendingBookings': (counts['pendingBookings'] as num?)?.toInt() ?? 0,
+        'pendingHostApplications': (counts['pendingHostApplications'] as num?)?.toInt() ?? 0,
+        'pendingApprovals': (counts['pendingApprovals'] as num?)?.toInt() ?? 0,
+        'siteSubmissions': (counts['siteSubmissions'] as num?)?.toInt() ?? 0,
       };
 
       _isLoading = false;

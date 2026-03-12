@@ -14,6 +14,7 @@ router.patch('/contacts/:id/read', chatController.markContactAsRead);
 // Conversation endpoints
 router.get('/conversations', chatController.getConversations);
 router.get('/conversations/:otherUserId/messages', chatController.getMessages);
+router.get('/bookings/:bookingId/messages', chatController.getMessagesByBooking);
 router.put('/conversations/:otherUserId/read', chatController.markConversationAsRead);
 
 // Message operations

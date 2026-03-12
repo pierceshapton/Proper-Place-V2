@@ -113,6 +113,7 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
               final placeId = booking['place_id'];
               final placeName = booking['place_name'] ?? 'Place';
               final hostName = booking['host_name'] ?? 'Host';
+              final hostId = booking['host_id'];
               final checkIn = booking['check_in'] ?? 'N/A';
               final conversationId = bookingId.toString();
 
@@ -176,6 +177,7 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
                             bookingId: bookingIdStr,
                             placeId: placeIdInt,
                             hostName: hostName,
+                            hostId: hostId is int ? hostId : int.tryParse(hostId.toString()) ?? 0,
                           ),
                         ),
                       );

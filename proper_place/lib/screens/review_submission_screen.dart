@@ -149,8 +149,15 @@ class _ReviewSubmissionScreenState extends State<ReviewSubmissionScreen> {
         title: const Text('Write a Review'),
         backgroundColor: const Color(0xFF7BA7D8),
       ),
+      resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

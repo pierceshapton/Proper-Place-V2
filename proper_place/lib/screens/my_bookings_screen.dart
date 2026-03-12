@@ -3,6 +3,7 @@ import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/screens/booking_detail_screen.dart';
 import 'package:proper_place/screens/review_submission_screen.dart';
+import 'package:proper_place/screens/chat_screen.dart';
 import 'package:proper_place/models/place.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -518,6 +519,25 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   ),
                 ),
               ],
+              // Chat button for confirmed and pending bookings
+              if (status.toLowerCase() == 'confirmed' || status.toLowerCase() == 'pending') ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openChat(booking),
+                    icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                    label: const Text('Chat with Host'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF7BA7D8),
+                      side: const BorderSide(color: Color(0xFF7BA7D8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               // Review button for completed bookings (only after checkout date has passed)
               if (status.toLowerCase() == 'completed' && _isStayEnded(booking['check_out'])) ...[
                 const SizedBox(height: 12),
@@ -636,29 +656,44 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   }
 
   Future<void> _openChat(Map<String, dynamic> booking) async {
-    // Get the booking ID and place ID for the chat
-    final bookingId = booking['booking_id'] ?? '';
-    final placeId = booking['place_id'] ?? '';
-    
-    if (bookingId.isEmpty || placeId.isEmpty) {
+    final bookingId = (booking['booking_id'] ?? '').toString();
+    final placeId = booking['place_id'];
+    final hostId = booking['host_id'];
+    final hostName = (booking['host_name'] ?? 'Host').toString();
+
+    if (bookingId.isEmpty || placeId == null || hostId == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cannot open chat: Missing booking or place information')),
+          const SnackBar(content: Text('Cannot open chat: Missing booking or host information')),
         );
       }
       return;
     }
 
-    // Navigate to chat screen - you can implement ChatScreen based on your needs
+    final placeIdInt = placeId is int ? placeId : int.tryParse(placeId.toString()) ?? 0;
+    final hostIdInt = hostId is int ? hostId : int.tryParse(hostId.toString()) ?? 0;
+
+    if (hostIdInt == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cannot open chat: Host information not available')),
+        );
+      }
+      return;
+    }
+
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Opening chat for booking $bookingId'),
-          duration: const Duration(seconds: 2),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            bookingId: bookingId,
+            placeId: placeIdInt,
+            hostName: hostName,
+            hostId: hostIdInt,
+          ),
         ),
       );
-      // TODO: Navigate to actual chat screen
-      // Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(bookingId: bookingId, placeId: placeId)));
     }
   }
 }

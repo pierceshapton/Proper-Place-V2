@@ -157,8 +157,15 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
             isEditing ? 'Edit your Proper Place site' : 'Submit Your Place'),
         elevation: 0,
       ),
+      resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
         child: Form(
           key: _formKey,
           child: Column(
