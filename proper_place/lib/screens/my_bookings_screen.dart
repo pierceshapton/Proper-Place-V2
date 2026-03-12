@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/services/notification_service.dart';
 import 'package:proper_place/screens/booking_detail_screen.dart';
 import 'package:proper_place/screens/review_submission_screen.dart';
 import 'package:proper_place/screens/chat_screen.dart';
@@ -19,6 +20,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   late Future<List<dynamic>> bookingsFuture;
   String guestId = 'temp-guest-id';
   String selectedTab = 'confirmed';
+  Map<int, int> _unreadByBooking = {};
 
   @override
   void initState() {
@@ -28,6 +30,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     // Initialize with temp ID first, then load real one
     bookingsFuture = ApiService.getGuestBookings(guestId: guestId);
     _loadRealUserIdAndRefresh();
+    _loadUnreadCounts();
+  }
+
+  Future<void> _loadUnreadCounts() async {
+    try {
+      final counts = await NotificationService().getUnreadByBooking();
+      if (mounted) {
+        setState(() {
+          _unreadByBooking = counts;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadBookingTabPreference() async {
@@ -325,6 +339,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       bookingsFuture = ApiService.getGuestBookings(guestId: guestId);
                     });
                     await bookingsFuture;
+                    _loadUnreadCounts();
                   },
                   child: filteredBookings.isEmpty
                       ? _buildEmptyState()
@@ -421,8 +436,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     final totalPrice = booking['total_price'] ?? '0';
     final isUpcoming = _isUpcoming(booking['check_out']);
     final placeId = booking['place_id'] ?? '';
-    
-    debugPrint('DEBUG: Building booking card - booking_id=$bookingId, place_id=$placeId, status=$status');
+    final bookingIdInt = int.tryParse(bookingIdStr) ?? 0;
+    final unreadCount = _unreadByBooking[bookingIdInt] ?? 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -469,13 +484,36 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       ),
                     ],
                   ),
-                  Text(
-                    '£${double.tryParse(totalPrice.toString())?.toStringAsFixed(0) ?? totalPrice}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF7BA7D8),
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '£${double.tryParse(totalPrice.toString())?.toStringAsFixed(0) ?? totalPrice}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF7BA7D8),
+                        ),
+                      ),
+                      if (unreadCount > 0) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$unreadCount new message${unreadCount > 1 ? 's' : ''}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -683,7 +721,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     }
 
     if (mounted) {
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ChatScreen(
@@ -694,6 +732,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           ),
         ),
       );
+      // Refresh unread counts after returning from chat
+      _loadUnreadCounts();
     }
   }
 }

@@ -224,6 +224,13 @@ async function getMessages(req, res, next) {
     const userId = req.user.userId;
     const otherUserId = parseInt(req.params.otherUserId);
 
+    // Mark incoming messages as delivered when fetching
+    await db.query(
+      `UPDATE messages SET delivered = true
+       WHERE sender_id = $1 AND receiver_id = $2 AND delivered = false`,
+      [otherUserId, userId]
+    );
+
     const result = await db.query(
       `SELECT 
         m.id,
@@ -231,6 +238,7 @@ async function getMessages(req, res, next) {
         m.receiver_id,
         m.content,
         m.attachment_url,
+        m.delivered,
         m.read,
         m.created_at,
         m.booking_id,
@@ -265,8 +273,8 @@ async function sendMessage(req, res, next) {
     }
 
     const result = await db.query(
-      `INSERT INTO messages (sender_id, receiver_id, content, booking_id, attachment_url, read, created_at)
-       VALUES ($1, $2, $3, $4, $5, false, NOW())
+      `INSERT INTO messages (sender_id, receiver_id, content, booking_id, attachment_url, delivered, read, created_at)
+       VALUES ($1, $2, $3, $4, $5, false, false, NOW())
        RETURNING *`,
       [userId, receiverId, content, bookingId || null, attachmentUrl || null]
     );
@@ -357,6 +365,13 @@ async function getMessagesByBooking(req, res, next) {
       return res.status(400).json({ error: 'Valid bookingId is required' });
     }
 
+    // Mark incoming messages as delivered when fetching
+    await db.query(
+      `UPDATE messages SET delivered = true
+       WHERE booking_id = $1 AND receiver_id = $2 AND delivered = false`,
+      [bookingId, userId]
+    );
+
     const result = await db.query(
       `SELECT 
         m.id,
@@ -364,6 +379,7 @@ async function getMessagesByBooking(req, res, next) {
         m.receiver_id,
         m.content,
         m.attachment_url,
+        m.delivered,
         m.read,
         m.created_at,
         m.booking_id,
@@ -394,5 +410,6 @@ module.exports = {
   getMessagesByBooking,
   sendMessage,
   markConversationAsRead,
+  markMessagesAsDelivered,
   clearAllMessages,
 };

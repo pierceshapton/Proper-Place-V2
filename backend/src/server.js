@@ -274,9 +274,16 @@ async function initializeDatabase() {
           booking_id INTEGER REFERENCES bookings(id) ON DELETE SET NULL,
           content TEXT NOT NULL,
           attachment_url VARCHAR(500),
+          delivered BOOLEAN DEFAULT false,
           read BOOLEAN DEFAULT false,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Add delivered column if missing (for existing databases)
+        DO $$ BEGIN
+          ALTER TABLE messages ADD COLUMN IF NOT EXISTS delivered BOOLEAN DEFAULT false;
+        EXCEPTION WHEN duplicate_column THEN NULL;
+        END $$;
 
         CREATE TABLE IF NOT EXISTS admin_logs (
           id SERIAL PRIMARY KEY,

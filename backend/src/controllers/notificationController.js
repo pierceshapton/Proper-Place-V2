@@ -148,8 +148,37 @@ async function markAllMessagesFromSenderAsRead(req, res, next) {
   }
 }
 
+/**
+ * GET /notifications/unread-by-booking
+ * Get unread message counts grouped by booking_id for the current user
+ */
+async function getUnreadByBooking(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    const result = await db.query(
+      `SELECT booking_id, COUNT(*) as unread_count
+       FROM messages
+       WHERE receiver_id = $1 AND read = false AND booking_id IS NOT NULL
+       GROUP BY booking_id`,
+      [userId]
+    );
+
+    const unreadByBooking = {};
+    for (const row of result.rows) {
+      unreadByBooking[row.booking_id] = parseInt(row.unread_count);
+    }
+
+    return res.json({ unreadByBooking });
+  } catch (error) {
+    logger.error('Error getting unread by booking', { error: error.message });
+    return next(error);
+  }
+}
+
 module.exports = {
   getNotificationCounts,
+  getUnreadByBooking,
   markMessageAsRead,
   markAllMessagesFromSenderAsRead,
 };

@@ -16,6 +16,7 @@ router.get('/conversations', chatController.getConversations);
 router.get('/conversations/:otherUserId/messages', chatController.getMessages);
 router.get('/bookings/:bookingId/messages', chatController.getMessagesByBooking);
 router.put('/conversations/:otherUserId/read', chatController.markConversationAsRead);
+router.put('/conversations/:otherUserId/delivered', chatController.markMessagesAsDelivered);
 
 // Message operations
 router.post('/messages', chatController.sendMessage);

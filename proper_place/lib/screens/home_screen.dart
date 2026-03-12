@@ -347,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _badgeCounts[1] = counts['siteSubmissions'] ?? 0; // Sites tab - pending approvals
         } else {
           // User mode: Map (0), Bookings (1), Saved (2), More (3)
-          _badgeCounts[1] = counts['pendingBookings'] ?? 0; // Bookings tab
+          _badgeCounts[1] = counts['unreadMessages'] ?? 0; // Bookings tab - unread messages
         }
       });
     } catch (error) {

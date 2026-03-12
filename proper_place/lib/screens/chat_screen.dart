@@ -57,6 +57,9 @@ class _ChatScreenState extends State<ChatScreen> {
         conversationMessages = await _chatService.getMessagesWithUser(widget.hostId);
       }
 
+      // Mark messages from host as read
+      await _chatService.markConversationAsRead(widget.hostId);
+
       setState(() {
         messages = conversationMessages.map((msg) {
           final senderId = msg['sender_id'] is int
@@ -171,7 +174,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.hostName),
+        title: const Text('Proper Place Booking Chat'),
         backgroundColor: const Color(0xFF7BA7D8),
         elevation: 0,
       ),

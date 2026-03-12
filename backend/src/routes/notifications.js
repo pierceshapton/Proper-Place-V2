@@ -9,6 +9,9 @@ router.use(authMiddleware);
 // Get notification counts
 router.get('/counts', notificationController.getNotificationCounts);
 
+// Get unread message counts grouped by booking
+router.get('/unread-by-booking', notificationController.getUnreadByBooking);
+
 // Mark a specific message as read
 router.patch('/messages/:messageId/read', notificationController.markMessageAsRead);
 

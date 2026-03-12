@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS messages (
   booking_id INTEGER REFERENCES bookings(id) ON DELETE SET NULL,
   content TEXT NOT NULL,
   attachment_url VARCHAR(500),
+  delivered BOOLEAN DEFAULT false,
   read BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

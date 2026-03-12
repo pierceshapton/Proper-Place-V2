@@ -82,6 +82,32 @@ class NotificationService {
     }
   }
 
+  /// Get unread message counts grouped by booking ID
+  Future<Map<int, int>> getUnreadByBooking() async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) return {};
+
+      final response = await http.get(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/notifications/unread-by-booking'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final map = data['unreadByBooking'] as Map<String, dynamic>? ?? {};
+        return map.map((k, v) => MapEntry(int.tryParse(k) ?? 0, (v as num).toInt()));
+      }
+      return {};
+    } catch (error) {
+      print('[NotificationService] Error getting unread by booking: $error');
+      return {};
+    }
+  }
+
   /// Mark a specific message as read
   Future<void> markMessageAsRead(int messageId) async {
     try {
