@@ -20,7 +20,7 @@ router.put('/conversations/:otherUserId/delivered', chatController.markMessagesA
 
 // Message operations
 router.post('/messages', chatController.sendMessage);
-router.delete('/messages/:id', chatController.deleteMessage);
 router.delete('/messages/clear-all', chatController.clearAllMessages);
+router.delete('/messages/:id', chatController.deleteMessage);
 
 module.exports = router;
