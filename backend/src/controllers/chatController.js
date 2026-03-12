@@ -400,6 +400,33 @@ async function getMessagesByBooking(req, res, next) {
   }
 }
 
+/**
+ * PUT /conversations/:otherUserId/delivered
+ * Mark all messages from a user as delivered
+ */
+async function markMessagesAsDelivered(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const otherUserId = parseInt(req.params.otherUserId);
+
+    const result = await db.query(
+      `UPDATE messages
+       SET delivered = true
+       WHERE sender_id = $1 AND receiver_id = $2 AND delivered = false
+       RETURNING id`,
+      [otherUserId, userId]
+    );
+
+    return res.json({
+      message: 'Messages marked as delivered',
+      messagesMarked: result.rows.length,
+    });
+  } catch (error) {
+    logger.error('Error marking messages as delivered', { error: error.message });
+    return next(error);
+  }
+}
+
 module.exports = {
   deleteContact,
   markContactAsUnread,

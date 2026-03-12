@@ -11,6 +11,7 @@ router.get('/dashboard', adminController.getDashboard);
 
 // Place moderation
 router.get('/places', adminController.getPlacesForModeration);
+router.patch('/places/:id', adminController.updatePlace);
 router.patch('/places/:id/approve', adminController.approvePlace);
 router.patch('/places/:id/reject', adminController.rejectPlace);
 

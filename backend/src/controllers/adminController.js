@@ -475,6 +475,55 @@ async function reopenPlace(req, res, next) {
   }
 }
 
+/**
+ * PATCH /admin/places/:id
+ * Update a place (owner_id, name, etc.)
+ */
+async function updatePlace(req, res, next) {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.userId;
+    const allowedFields = ['owner_id', 'name', 'description', 'price_per_night', 'capacity'];
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = $${paramCount}`);
+        values.push(req.body[field]);
+        paramCount++;
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'no_fields', message: 'No valid fields to update' });
+    }
+
+    values.push(id);
+    const result = await db.query(
+      `UPDATE places SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'place_not_found', message: 'Place not found' });
+    }
+
+    await db.query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'place_updated', 'place', id, JSON.stringify(req.body)]
+    );
+
+    logger.info('Place updated by admin', { adminId, placeId: id });
+    res.json({ place: result.rows[0] });
+  } catch (error) {
+    logger.error('Update place error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getDashboard,
   getPlacesForModeration,
@@ -483,6 +532,7 @@ module.exports = {
   reopenPlace,
   getUsers,
   updateUserRole,
+  updatePlace,
   seedTestMessages,
   cleanupAllData,
 };
