@@ -448,6 +448,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 9 error:', err.message);
     }
 
+    // Migration 10: Add delivered column to messages table
+    try {
+      console.log('[SERVER] Running migration 10: messages delivered column...');
+      await db.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS delivered BOOLEAN DEFAULT false`);
+      console.log('[SERVER] ✅ Migration 10 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 10 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
