@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/services/place_service.dart';
 import 'welcome_screen.dart';
 
 class MoreHostScreen extends StatefulWidget {
@@ -19,11 +20,13 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
 
   Map<String, dynamic>? user;
   bool isLoading = true;
+  List<Map<String, dynamic>> _rejectedPlaces = [];
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadRejectedPlaces();
   }
 
   Future<void> _loadUserData() async {
@@ -43,6 +46,23 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadRejectedPlaces() async {
+    try {
+      final places = await PlaceService.getHostPlaces();
+      final rejected = places
+          .where((p) => (p['approval_status'] ?? '') == 'rejected')
+          .map<Map<String, dynamic>>((p) => Map<String, dynamic>.from(p))
+          .toList();
+      if (mounted) {
+        setState(() {
+          _rejectedPlaces = rejected;
+        });
+      }
+    } catch (e) {
+      // Silently fail - this is optional info
     }
   }
 
@@ -297,6 +317,117 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
                     onTap: () => Navigator.pushNamed(context, '/host/reviews'),
                   ),
                   const SizedBox(height: 24),
+
+                  // Rejected Sites Section (only show if there are rejected places)
+                  if (_rejectedPlaces.isNotEmpty) ...[
+                    _buildSectionTitle('Rejected Sites'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'These sites were not approved. See the reason below.',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    ..._rejectedPlaces.map((place) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEF4444).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.cancel, color: Color(0xFFEF4444), size: 22),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        place['name'] ?? 'Unnamed Place',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        place['address'] ?? '',
+                                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (place['rejection_reason'] != null && place['rejection_reason'].toString().isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Reason for rejection:',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: Color(0xFFEF4444),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      place['rejection_reason'].toString(),
+                                      style: const TextStyle(fontSize: 13, color: Color(0xFF7F1D1D)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'No specific reason provided. Contact support for more details.',
+                                  style: TextStyle(fontSize: 13, color: Color(0xFF7F1D1D)),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    )),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Important Documents
                   _buildSectionTitle('Important Documents'),

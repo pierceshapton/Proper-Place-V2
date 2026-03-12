@@ -330,7 +330,7 @@ async function getHostPlaces(req, res, next) {
               latitude, longitude, price_per_night, capacity, amenities,
               image_urls as images, 
               COALESCE(business_image_urls, ARRAY[]::TEXT[]) as business_images,
-              approval_status, status, featured, rating, review_count,
+              approval_status, rejection_reason, status, featured, rating, review_count,
               place_type, opening_hours, kitchen_hours, food_menu_description,
               serves_food, created_at, updated_at
        FROM places 

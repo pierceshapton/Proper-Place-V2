@@ -122,10 +122,10 @@ async function rejectPlace(req, res, next) {
 
     const result = await db.query(
       `UPDATE places
-       SET approval_status = 'rejected', updated_at = NOW()
+       SET approval_status = 'rejected', rejection_reason = $2, updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [id]
+      [id, reason || null]
     );
 
     if (result.rows.length === 0) {

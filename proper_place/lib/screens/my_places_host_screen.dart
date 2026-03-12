@@ -34,8 +34,13 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
       setState(() => _isLoading = true);
       final places = await PlaceService.getHostPlaces();
       print('DEBUG: Loaded ${places.length} places');
+      // Filter out rejected places - those are shown in the More tab
+      final filteredPlaces = places.where((place) {
+        final approvalStatus = place['approval_status'] ?? 'pending';
+        return approvalStatus != 'rejected';
+      }).toList();
       setState(() {
-        hostPlaces = places.map<Map<String, dynamic>>((place) {
+        hostPlaces = filteredPlaces.map<Map<String, dynamic>>((place) {
           final approvalStatus = place['approval_status'] ?? 'pending';
           final availabilityStatus = place['status'] ?? 'available';
           final config = _statusConfig[approvalStatus] ?? _statusConfig['pending']!;

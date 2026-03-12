@@ -457,6 +457,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 10 error:', err.message);
     }
 
+    // Migration 11: Add rejection_reason column to places table
+    try {
+      console.log('[SERVER] Running migration 11: places rejection_reason column...');
+      await db.query(`ALTER TABLE places ADD COLUMN IF NOT EXISTS rejection_reason TEXT`);
+      console.log('[SERVER] ✅ Migration 11 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 11 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

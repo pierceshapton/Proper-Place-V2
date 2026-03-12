@@ -113,14 +113,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               Navigator.pop(context);
               try {
                 await ApiService.approvePlace(placeId: place['id']);
-                // Remove approved place from pending list
-                setState(() {
-                  _pendingPlaces.removeWhere((p) => p['id'] == place['id']);
-                });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('${place['name']} approved successfully')),
                 );
-                // Refresh notification counts after approval
+                // Refresh all lists and notification counts
+                _loadAllCounts();
                 widget.onRefresh?.call();
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -180,14 +177,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   placeId: place['id'],
                   reason: reasonController.text,
                 );
-                // Remove rejected place from pending list
-                setState(() {
-                  _pendingPlaces.removeWhere((p) => p['id'] == place['id']);
-                });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('${place['name']} rejected')),
                 );
-                // Refresh notification counts after rejection
+                // Refresh all lists and notification counts
+                _loadAllCounts();
                 widget.onRefresh?.call();
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
