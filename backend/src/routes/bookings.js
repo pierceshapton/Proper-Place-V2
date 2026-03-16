@@ -13,6 +13,7 @@ router.get('/availability/place/:placeId', bookingController.getPlaceAvailabilit
 router.get('/place/:placeId', bookingController.getPlaceBookings);
 
 // Protected routes
+router.get('/all', authMiddleware, bookingController.getAllBookings); // Admin: all bookings
 router.get('/', authMiddleware, bookingController.getBookings);
 router.get('/:id', authMiddleware, bookingController.getBookingDetail);
 router.post('/', authMiddleware, validationMiddleware('createBooking'), bookingController.createBooking);

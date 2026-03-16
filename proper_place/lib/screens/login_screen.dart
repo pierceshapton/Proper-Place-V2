@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/services/push_notification_service.dart';
 import 'package:proper_place/screens/signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -113,6 +114,11 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
       
+      // Register device token for push notifications
+      try {
+        await PushNotificationService.registerToken();
+      } catch (_) {}
+
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/home');
     } on ApiException catch (e) {

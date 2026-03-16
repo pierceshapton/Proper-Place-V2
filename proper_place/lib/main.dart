@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:proper_place/screens/welcome_screen.dart';
 import 'package:proper_place/screens/login_screen.dart';
 import 'package:proper_place/screens/signup_screen.dart';
@@ -12,6 +13,7 @@ import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/config/app_constants.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/services/payment_service.dart';
+import 'package:proper_place/services/push_notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +24,17 @@ Future<void> main() async {
     debugPrint('✅ Environment variables loaded successfully');
   } catch (e) {
     debugPrint('⚠️ Warning: Could not load .env file: $e');
+  }
+
+  // Initialize Firebase (required for push notifications)
+  try {
+    await Firebase.initializeApp();
+    debugPrint('✅ Firebase initialized');
+    // Initialize push notifications
+    final pushReady = await PushNotificationService.initialize();
+    debugPrint(pushReady ? '✅ Push notifications ready' : '⚠️ Push notifications not available');
+  } catch (e) {
+    debugPrint('⚠️ Firebase not configured - push notifications disabled: $e');
   }
 
   // Initialize Stripe payment service

@@ -362,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (userRole == 'admin' && isAdminMode) {
       return [
         {'icon': CupertinoIcons.house, 'label': 'Dashboard'},
-        {'icon': CupertinoIcons.person_2, 'label': 'Requests'},
+        {'icon': CupertinoIcons.calendar, 'label': 'Bookings'},
         {'icon': CupertinoIcons.checkmark_shield, 'label': 'Approvals'},
         {'icon': CupertinoIcons.chat_bubble, 'label': 'Chat'},
         {'icon': CupertinoIcons.ellipsis, 'label': 'More'},

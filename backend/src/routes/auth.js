@@ -3,6 +3,7 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { validationMiddleware } = require('../middleware/validation');
 const { authLimiter, registerLimiter } = require('../middleware/rateLimit');
 const authController = require('../controllers/authController');
+const pushService = require('../services/pushNotificationService');
 
 const router = express.Router();
 
@@ -14,5 +15,32 @@ router.post('/refresh', authLimiter, authController.refreshToken);
 // Protected routes
 router.get('/me', authMiddleware, authController.getCurrentUser);
 router.post('/logout', authMiddleware, authController.logout);
+
+// Device token registration for push notifications
+router.post('/device-token', authMiddleware, async (req, res) => {
+  try {
+    const { token, platform } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: 'token is required' });
+    }
+    await pushService.registerDeviceToken(req.user.userId, token, platform || 'ios');
+    res.json({ message: 'Device token registered' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to register device token' });
+  }
+});
+
+// Remove device token (on logout)
+router.delete('/device-token', authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (token) {
+      await pushService.removeDeviceToken(req.user.userId, token);
+    }
+    res.json({ message: 'Device token removed' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to remove device token' });
+  }
+});
 
 module.exports = router;

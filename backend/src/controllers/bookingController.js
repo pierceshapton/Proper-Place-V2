@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
+const pushService = require('../services/pushNotificationService');
 
 /**
  * Auto-complete bookings that have passed checkout at midday
@@ -210,6 +211,24 @@ async function createBooking(req, res, next) {
 
     logger.info('Booking created', { userId, bookingId: result.rows[0].id });
 
+    // Notify host about the new booking (fire-and-forget)
+    if (data.place_id) {
+      setImmediate(async () => {
+        try {
+          const placeRes = await db.query('SELECT name, owner_id FROM places WHERE id = $1', [data.place_id]);
+          const userRes = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
+          if (placeRes.rows[0]?.owner_id) {
+            await pushService.notifyNewBooking(
+              placeRes.rows[0].owner_id,
+              userRes.rows[0]?.name || 'A guest',
+              placeRes.rows[0].name,
+              result.rows[0].id
+            );
+          }
+        } catch (e) { /* ignore push errors */ }
+      });
+    }
+
     res.status(201).json({
       booking: result.rows[0],
     });
@@ -261,6 +280,15 @@ async function updateBooking(req, res, next) {
     );
 
     logger.info('Booking updated', { userId, bookingId: id, status });
+
+    // Notify booking owner about status change (fire-and-forget)
+    const booking = result.rows[0];
+    setImmediate(async () => {
+      try {
+        const placeRes = await db.query('SELECT name FROM places WHERE id = $1', [booking.place_id]);
+        await pushService.notifyBookingUpdate(booking.user_id, placeRes.rows[0]?.name || 'a site', status);
+      } catch (e) { /* ignore push errors */ }
+    });
 
     res.json({
       booking: result.rows[0],
@@ -464,6 +492,64 @@ async function getPlaceAvailability(req, res, next) {
   }
 }
 
+/**
+ * GET /bookings/all - Admin only: get all bookings system-wide
+ */
+async function getAllBookings(req, res, next) {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'forbidden', message: 'Admin access required' });
+    }
+
+    await autoCompleteBookings();
+
+    const { page = 1, limit = 50, status } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = `
+      SELECT b.*, 
+             u.name as guest_name, u.email as guest_email,
+             p.name as place_name, p.address as place_address,
+             p.owner_id as host_id, u_host.name as host_name
+      FROM bookings b
+      LEFT JOIN users u ON b.user_id = u.id
+      LEFT JOIN places p ON b.place_id = p.id
+      LEFT JOIN users u_host ON p.owner_id = u_host.id
+    `;
+    const params = [];
+    let paramCount = 1;
+
+    if (status) {
+      query += ` WHERE b.status = $${paramCount}`;
+      params.push(status);
+      paramCount++;
+    }
+
+    query += ` ORDER BY b.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(limit, offset);
+
+    const result = await db.query(query, params);
+
+    let countQuery = 'SELECT COUNT(*) FROM bookings';
+    if (status) countQuery += ` WHERE status = $1`;
+    const countResult = await db.query(countQuery, status ? [status] : []);
+    const total = parseInt(countResult.rows[0].count);
+
+    res.json({
+      bookings: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    logger.error('Get all bookings error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetail,
@@ -473,4 +559,5 @@ module.exports = {
   autoCompleteBookings,
   getPlaceBookings,
   getPlaceAvailability,
+  getAllBookings,
 };

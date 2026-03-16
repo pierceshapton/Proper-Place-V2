@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
+const pushService = require('../services/pushNotificationService');
 
 /**
  * GET /admin/dashboard
@@ -102,6 +103,12 @@ async function approvePlace(req, res, next) {
 
     logger.info('Place approved', { adminId, placeId: id });
 
+    // Notify host about approval (fire-and-forget)
+    const place = result.rows[0];
+    setImmediate(() => {
+      pushService.notifyPlaceReview(place.owner_id, place.name, true, null).catch(() => {});
+    });
+
     res.json({
       place: result.rows[0],
     });
@@ -143,6 +150,12 @@ async function rejectPlace(req, res, next) {
     );
 
     logger.info('Place rejected', { adminId, placeId: id });
+
+    // Notify host about rejection (fire-and-forget)
+    const place = result.rows[0];
+    setImmediate(() => {
+      pushService.notifyPlaceReview(place.owner_id, place.name, false, reason).catch(() => {});
+    });
 
     res.json({
       place: result.rows[0],

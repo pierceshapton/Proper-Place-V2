@@ -40,6 +40,7 @@ const contactsRoutes = require('./routes/contacts');
 const notificationsRoutes = require('./routes/notifications');
 const chatRoutes = require('./routes/chat');
 const uploadRoutes = require('./routes/upload');
+const pushService = require('./services/pushNotificationService');
 
 // User controller for user endpoints
 const userController = require('./controllers/userController');
@@ -466,6 +467,25 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 11 error:', err.message);
     }
 
+    // Migration 12: Create device_tokens table for push notifications
+    try {
+      console.log('[SERVER] Running migration 12: device_tokens table...');
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS device_tokens (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token TEXT NOT NULL,
+          platform VARCHAR(20) DEFAULT 'ios',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, token)
+        )
+      `);
+      console.log('[SERVER] ✅ Migration 12 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 12 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
@@ -597,6 +617,7 @@ async function initializeDatabase() {
 async function start() {
   try {
     await initializeDatabase();
+    pushService.initialize();
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);

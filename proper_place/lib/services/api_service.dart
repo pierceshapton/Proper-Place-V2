@@ -219,6 +219,22 @@ class ApiService {
     }
   }
 
+  /// Generic POST helper for use by other services
+  static Future<Map<String, dynamic>> post({
+    required String endpoint,
+    Map<String, dynamic>? body,
+  }) {
+    return _request(method: 'POST', endpoint: endpoint, body: body);
+  }
+
+  /// Generic DELETE helper for use by other services
+  static Future<Map<String, dynamic>> delete({
+    required String endpoint,
+    Map<String, dynamic>? body,
+  }) {
+    return _request(method: 'DELETE', endpoint: endpoint, body: body);
+  }
+
   /// Login user
   /// Returns: { access_token, user_id, email, name, role, message }
   static Future<Map<String, dynamic>> login({
@@ -446,6 +462,19 @@ class ApiService {
     final response = await _request(
       method: 'GET',
       endpoint: '/bookings/$placeId',
+    );
+    return response['bookings'] ?? [];
+  }
+
+  /// Admin: Get all bookings system-wide
+  static Future<List<dynamic>> getAllBookings({String? status}) async {
+    String endpoint = '/bookings/all';
+    if (status != null && status.isNotEmpty) {
+      endpoint += '?status=${Uri.encodeComponent(status)}';
+    }
+    final response = await _request(
+      method: 'GET',
+      endpoint: endpoint,
     );
     return response['bookings'] ?? [];
   }

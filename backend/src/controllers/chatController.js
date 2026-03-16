@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
+const pushService = require('../services/pushNotificationService');
 
 /**
  * DELETE /contacts/:id
@@ -287,6 +288,9 @@ async function sendMessage(req, res, next) {
       [userId]
     );
 
+    // Send push notification to receiver (fire-and-forget)
+    _notifyNewMessageAsync(receiverId, senderResult.rows[0]?.name || 'Someone', content);
+
     return res.status(201).json({
       message: {
         ...message,
@@ -298,6 +302,15 @@ async function sendMessage(req, res, next) {
     logger.error('Error sending message', { error: error.message });
     return next(error);
   }
+}
+
+/**
+ * Send push notification for new message (fire-and-forget, after response).
+ */
+function _notifyNewMessageAsync(receiverId, senderName, content) {
+  setImmediate(() => {
+    pushService.notifyNewMessage(receiverId, senderName, content).catch(() => {});
+  });
 }
 
 /**
