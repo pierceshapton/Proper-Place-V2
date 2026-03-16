@@ -272,46 +272,49 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
 
                     // Message input
-                    SafeArea(
-                      top: false,
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          border: Border(
-                            top: BorderSide(color: Colors.grey[200]!),
+                    Container(
+                      color: Colors.white,
+                      child: SafeArea(
+                        top: false,
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border(
+                              top: BorderSide(color: Colors.grey[200]!),
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _messageController,
-                                decoration: InputDecoration(
-                                  hintText: 'Type a message...',
-                                  hintStyle: TextStyle(color: Colors.grey[700]),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                    borderSide: BorderSide(color: Colors.grey[300]!),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _messageController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Type a message...',
+                                    hintStyle: TextStyle(color: Colors.grey[700]),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                      borderSide: BorderSide(color: Colors.grey[300]!),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 10,
+                                    ),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
+                                  maxLines: null,
+                                  textInputAction: TextInputAction.send,
+                                  onSubmitted: (_) => _sendMessage(),
                                 ),
-                                maxLines: null,
-                                textInputAction: TextInputAction.send,
-                                onSubmitted: (_) => _sendMessage(),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            FloatingActionButton(
-                              onPressed: _sendMessage,
-                              mini: true,
-                              backgroundColor: const Color(0xFF7BA7D8),
-                              child: const Icon(Icons.send),
-                            ),
-                          ],
+                              const SizedBox(width: 12),
+                              FloatingActionButton(
+                                onPressed: _sendMessage,
+                                mini: true,
+                                backgroundColor: const Color(0xFF7BA7D8),
+                                child: const Icon(Icons.send),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
