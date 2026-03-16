@@ -737,15 +737,6 @@ class ApiService {
     );
   }
 
-  /// Get host's bookings (for all their places)
-  static Future<List<dynamic>> getHostBookings() async {
-    final response = await _request(
-      method: 'GET',
-      endpoint: '/bookings/host',
-    );
-    return response['bookings'] ?? [];
-  }
-
   /// Submit contact message
   static Future<Map<String, dynamic>> submitContact({
     required int userId,

@@ -498,23 +498,36 @@ async function getPlaceAvailability(req, res, next) {
 async function getHostBookings(req, res, next) {
   try {
     const userId = req.user.userId;
+    const userRole = req.user.role;
 
     await autoCompleteBookings();
 
     const { page = 1, limit = 50, status } = req.query;
     const offset = (page - 1) * limit;
 
+    // Admin in host mode sees all bookings; regular hosts see only their places' bookings
+    const isAdmin = userRole === 'admin';
+
     let query = `
       SELECT b.*,
              u.name as guest_name, u.email as guest_email,
-             p.name as place_name, p.address as place_address
+             p.name as place_name, p.address as place_address,
+             p.owner_id as host_id, u_host.name as host_name
       FROM bookings b
       JOIN places p ON b.place_id = p.id
       LEFT JOIN users u ON b.user_id = u.id
-      WHERE p.owner_id = $1
+      LEFT JOIN users u_host ON p.owner_id = u_host.id
     `;
-    const params = [userId];
-    let paramCount = 2;
+    const params = [];
+    let paramCount = 1;
+
+    if (!isAdmin) {
+      query += ` WHERE p.owner_id = $${paramCount}`;
+      params.push(userId);
+      paramCount++;
+    } else {
+      query += ' WHERE 1=1';
+    }
 
     if (status) {
       query += ` AND b.status = $${paramCount}`;
@@ -527,9 +540,17 @@ async function getHostBookings(req, res, next) {
 
     const result = await db.query(query, params);
 
-    let countQuery = 'SELECT COUNT(*) FROM bookings b JOIN places p ON b.place_id = p.id WHERE p.owner_id = $1';
-    if (status) countQuery += ` AND b.status = $2`;
-    const countResult = await db.query(countQuery, status ? [userId, status] : [userId]);
+    let countQuery = isAdmin
+      ? 'SELECT COUNT(*) FROM bookings'
+      : 'SELECT COUNT(*) FROM bookings b JOIN places p ON b.place_id = p.id WHERE p.owner_id = $1';
+    const countParams = isAdmin ? [] : [userId];
+    if (status) {
+      countQuery += isAdmin
+        ? ` WHERE status = $1`
+        : ` AND b.status = $2`;
+      countParams.push(status);
+    }
+    const countResult = await db.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
