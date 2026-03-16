@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/chat_service.dart';
+import '../services/storage_service.dart';
 import 'login_screen.dart';
 
 class BookingsHostScreen extends StatefulWidget {
@@ -70,6 +72,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
 
         final bookingRecord = {
           'id': booking['id'] ?? '',
+          'guestId': booking['user_id'],
           'guestName': booking['guest_name'] ?? 'Guest',
           'placeName': booking['place_name'] ?? 'Unknown Place',
           'checkIn': checkInDate,
@@ -646,11 +649,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
             OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content:
-                          Text('Opening chat with ${booking['guestName']}')),
-                );
+                _openChatPopup(booking);
               },
               icon: const Icon(Icons.chat_bubble_outline),
               label: const Text('Send Message'),
@@ -733,6 +732,30 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     return true;
   }
 
+  void _openChatPopup(Map<String, dynamic> booking) {
+    final guestId = booking['guestId'];
+    final guestName = booking['guestName'] ?? 'Guest';
+    final placeName = booking['placeName'] ?? '';
+    final bookingId = booking['id'];
+
+    if (guestId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open chat — guest info missing')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => _ChatPopupDialog(
+        guestId: guestId is int ? guestId : int.parse(guestId.toString()),
+        guestName: guestName,
+        placeName: placeName,
+        bookingId: bookingId is int ? bookingId : int.tryParse(bookingId.toString()),
+      ),
+    );
+  }
+
   void _showCancelBookingDialog(Map<String, dynamic> booking) {
     showDialog(
       context: context,
@@ -801,5 +824,331 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
       'December'
     ];
     return '${weekdays[date.weekday % 7]}, ${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+}
+
+class _ChatPopupDialog extends StatefulWidget {
+  final int guestId;
+  final String guestName;
+  final String placeName;
+  final int? bookingId;
+
+  const _ChatPopupDialog({
+    required this.guestId,
+    required this.guestName,
+    required this.placeName,
+    this.bookingId,
+  });
+
+  @override
+  State<_ChatPopupDialog> createState() => _ChatPopupDialogState();
+}
+
+class _ChatPopupDialogState extends State<_ChatPopupDialog> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  List<Map<String, dynamic>> _messages = [];
+  bool _isLoading = true;
+  bool _isSending = false;
+  int? _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
+    final userId = await StorageService.getUserId();
+    _currentUserId = userId != null ? int.tryParse(userId) : null;
+    await _fetchMessages();
+  }
+
+  Future<void> _fetchMessages() async {
+    try {
+      final messages = await ChatService().getMessagesWithUser(widget.guestId);
+      if (mounted) {
+        setState(() {
+          _messages = messages;
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _sendMessage() async {
+    final content = _messageController.text.trim();
+    if (content.isEmpty || _isSending) return;
+
+    _messageController.clear();
+    setState(() => _isSending = true);
+
+    try {
+      final sentMessage = await ChatService().sendMessage(
+        receiverId: widget.guestId,
+        content: content,
+        bookingId: widget.bookingId,
+      );
+      if (mounted) {
+        setState(() {
+          _messages.add(sentMessage);
+          _isSending = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSending = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send: $e')),
+        );
+      }
+    }
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return '';
+    try {
+      final date = DateTime.parse(timestamp.toString()).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inMinutes < 1) return 'now';
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF7BA7D8),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _getInitials(widget.guestName),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.guestName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (widget.placeName.isNotEmpty)
+                            Text(
+                              widget.placeName,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.close, color: Colors.white, size: 22),
+                    ),
+                  ],
+                ),
+              ),
+              // Messages
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _messages.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.chat_bubble_outline, size: 40, color: Colors.grey[300]),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'No messages yet',
+                                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Send a message to start the conversation',
+                                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(12),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, i) {
+                              final message = _messages[i];
+                              final isMe = message['sender_id'] == _currentUserId;
+                              return Column(
+                                crossAxisAlignment: isMe
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    constraints: BoxConstraints(
+                                      maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isMe
+                                          ? const Color(0xFF7BA7D8)
+                                          : const Color(0xFFF3F4F6),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      message['content'] ?? '',
+                                      style: TextStyle(
+                                        color: isMe ? Colors.white : Colors.black,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _formatTimestamp(message['created_at']),
+                                    style: const TextStyle(
+                                      color: Color(0xFF9CA3AF),
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
+                              );
+                            },
+                          ),
+              ),
+              // Input
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        textInputAction: TextInputAction.send,
+                        decoration: InputDecoration(
+                          hintText: 'Type a message...',
+                          hintStyle: TextStyle(color: Colors.grey[500]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          isDense: true,
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _sendMessage,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _isSending
+                              ? Colors.grey[300]
+                              : const Color(0xFF7BA7D8),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: _isSending
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.send, size: 18, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
