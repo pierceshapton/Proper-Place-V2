@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../services/chat_service.dart';
 import '../services/storage_service.dart';
 
@@ -27,12 +28,17 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _error;
   late ChatService _chatService;
   int? _currentUserId;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _chatService = ChatService();
     _initAndLoad();
+    // Poll for status updates every 10 seconds
+    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _refreshStatuses();
+    });
   }
 
   Future<void> _initAndLoad() async {
@@ -71,7 +77,7 @@ class _ChatScreenState extends State<ChatScreen> {
             'timestamp': msg['created_at'] != null
                 ? DateTime.parse(msg['created_at'])
                 : DateTime.now(),
-            'status': 'read',
+            'status': _getMessageStatus(msg, senderId == _currentUserId),
           };
         }).toList();
         _isLoading = false;
@@ -87,7 +93,34 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _messageController.dispose();
+    _pollingTimer?.cancel();
     super.dispose();
+  }
+
+  String _getMessageStatus(Map<String, dynamic> msg, bool isMine) {
+    if (!isMine) return ''; // No receipts for incoming messages
+    final read = msg['read'] == true;
+    final delivered = msg['delivered'] == true;
+    if (read) return 'read';
+    if (delivered) return 'delivered';
+    return 'sent';
+  }
+
+  Future<void> _refreshStatuses() async {
+    if (!mounted || messages.isEmpty) return;
+    try {
+      final conversationMessages = await _chatService.getMessagesWithUser(widget.hostId);
+      if (!mounted) return;
+      setState(() {
+        for (int i = 0; i < messages.length && i < conversationMessages.length; i++) {
+          final msg = conversationMessages[i];
+          final senderId = msg['sender_id'] is int
+              ? msg['sender_id']
+              : int.tryParse(msg['sender_id'].toString()) ?? -1;
+          messages[i]['status'] = _getMessageStatus(msg, senderId == _currentUserId);
+        }
+      });
+    } catch (_) {}
   }
 
   void _sendMessage() async {
@@ -107,33 +140,24 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Send message via API
     try {
-      await _chatService.sendMessage(
+      final sentMsg = await _chatService.sendMessage(
         receiverId: widget.hostId,
         content: message,
         bookingId: int.tryParse(widget.bookingId),
       );
 
-      // Simulate message delivery after 500ms
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          setState(() {
-            if (messages.isNotEmpty) {
-              messages.last['status'] = 'delivered';
-            }
-          });
-        }
-      });
-
-      // Simulate message read after 2 seconds
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            if (messages.isNotEmpty) {
-              messages.last['status'] = 'read';
-            }
-          });
-        }
-      });
+      // Update with real status from server
+      if (mounted) {
+        setState(() {
+          final lastGuest = messages.lastWhere(
+            (m) => m['sender'] == 'guest' && m['message'] == message,
+            orElse: () => <String, dynamic>{},
+          );
+          if (lastGuest.isNotEmpty) {
+            lastGuest['status'] = _getMessageStatus(sentMsg, true);
+          }
+        });
+      }
     } catch (e) {
       print('Error sending message: $e');
       ScaffoldMessenger.of(context).showSnackBar(

@@ -181,6 +181,27 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
+  String _getMessageStatus(Map<String, dynamic> msg) {
+    final read = msg['read'] == true;
+    final delivered = msg['delivered'] == true;
+    if (read) return 'read';
+    if (delivered) return 'delivered';
+    return 'sent';
+  }
+
+  Widget _buildReadReceipt(String status) {
+    switch (status) {
+      case 'sent':
+        return Icon(Icons.done, size: 14, color: Colors.grey[500]);
+      case 'delivered':
+        return Icon(Icons.done_all, size: 14, color: Colors.grey[500]);
+      case 'read':
+        return const Icon(Icons.done_all, size: 14, color: Colors.blue);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -590,6 +611,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
                       itemBuilder: (context, i) {
                         final message = _messages[i];
                         final isMe = message['sender_id'] == _currentUserId;
+                        final status = isMe ? _getMessageStatus(message) : '';
                         return Column(
                           crossAxisAlignment:
                               isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -617,12 +639,22 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              _formatTimestamp(message['created_at']),
-                              style: const TextStyle(
-                                color: Color(0xFF9CA3AF),
-                                fontSize: 11,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                              children: [
+                                if (isMe && status.isNotEmpty) ...[
+                                  _buildReadReceipt(status),
+                                  const SizedBox(width: 4),
+                                ],
+                                Text(
+                                  _formatTimestamp(message['created_at']),
+                                  style: const TextStyle(
+                                    color: Color(0xFF9CA3AF),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                           ],

@@ -178,6 +178,27 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
+  String _getMessageStatus(Map<String, dynamic> msg) {
+    final read = msg['read'] == true;
+    final delivered = msg['delivered'] == true;
+    if (read) return 'read';
+    if (delivered) return 'delivered';
+    return 'sent';
+  }
+
+  Widget _buildReadReceipt(String status) {
+    switch (status) {
+      case 'sent':
+        return Icon(Icons.done, size: 14, color: Colors.grey[500]);
+      case 'delivered':
+        return Icon(Icons.done_all, size: 14, color: Colors.grey[500]);
+      case 'read':
+        return const Icon(Icons.done_all, size: 14, color: Colors.blue);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -554,13 +575,14 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
                       itemBuilder: (context, i) {
                         final msg = _messages[i];
                         final isMe = msg['sender_id'] == _currentUserId;
+                        final status = isMe ? _getMessageStatus(msg) : '';
 
                         return Align(
                           alignment: isMe
                               ? Alignment.centerRight
                               : Alignment.centerLeft,
                           child: Container(
-                            margin: const EdgeInsets.only(bottom: 12),
+                            margin: const EdgeInsets.only(bottom: 4),
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 14, vertical: 10),
                             constraints: BoxConstraints(
@@ -585,14 +607,23 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  _formatTimestamp(msg['created_at']),
-                                  style: TextStyle(
-                                    color: isMe
-                                        ? Colors.white70
-                                        : Colors.grey[600],
-                                    fontSize: 11,
-                                  ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isMe && status.isNotEmpty) ...[
+                                      _buildReadReceipt(status),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Text(
+                                      _formatTimestamp(msg['created_at']),
+                                      style: TextStyle(
+                                        color: isMe
+                                            ? Colors.white70
+                                            : Colors.grey[600],
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
