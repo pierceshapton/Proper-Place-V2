@@ -76,22 +76,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                // Host Requests card
-                _buildActionCard(
-                  title: 'Host Requests',
-                  description: 'Review and approve host applications',
-                  image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop',
-                  buttonLabel: 'Review Requests',
-                  buttonColor: const Color(0xFFA855F7),
-                  badgeCount: widget.badgeCounts?[1] ?? 0,
-                  onTap: () {
-                    // Switch to Requests tab (index 1)
-                    widget.onTabChanged?.call(1);
-                  },
-                  textColor: Colors.black,
-                ),
-                const SizedBox(height: 16),
-
                 // Approvals card
                 _buildActionCard(
                   title: 'Approvals',
@@ -99,40 +83,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   image: 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400&h=200&fit=crop',
                   buttonLabel: 'Manage Approvals',
                   buttonColor: const Color(0xFF3B82F6),
+                  badgeCount: widget.badgeCounts?[1] ?? 0,
+                  onTap: () {
+                    // Switch to Approvals tab (index 1)
+                    widget.onTabChanged?.call(1);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Chat card
+                _buildActionCard(
+                  title: 'Chat',
+                  description: 'Communicate with hosts and users',
+                  image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop',
+                  buttonLabel: 'View Messages',
+                  buttonColor: const Color(0xFF3B82F6),
                   badgeCount: widget.badgeCounts?[2] ?? 0,
                   onTap: () {
-                    // Switch to Approvals tab (index 2)
+                    // Switch to Chat tab (index 2)
                     widget.onTabChanged?.call(2);
                   },
                 ),
                 const SizedBox(height: 16),
 
-                // Host Chat card
+                // Settings / More card
                 _buildActionCard(
-                  title: 'Host Chat',
-                  description: 'Communicate with hosts via email',
-                  image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop',
-                  buttonLabel: 'Contact Hosts',
-                  buttonColor: const Color(0xFF3B82F6),
+                  title: 'Settings & Invites',
+                  description: 'Manage settings and send host invitations',
+                  image: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&h=200&fit=crop',
+                  buttonLabel: 'Manage',
+                  buttonColor: const Color(0xFFA855F7),
                   badgeCount: widget.badgeCounts?[3] ?? 0,
                   onTap: () {
-                    // Switch to Chat tab (index 3)
+                    // Switch to More tab (index 3)
                     widget.onTabChanged?.call(3);
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Host Invites card
-                _buildActionCard(
-                  title: 'Host Invites',
-                  description: 'Send invitations to new hosts to join the platform',
-                  image: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&h=200&fit=crop',
-                  buttonLabel: 'Manage Invites',
-                  buttonColor: const Color(0xFFA855F7),
-                  badgeCount: widget.badgeCounts?[4] ?? 0,
-                  onTap: () {
-                    // Switch to More tab (index 4)
-                    widget.onTabChanged?.call(4);
                   },
                 ),
 

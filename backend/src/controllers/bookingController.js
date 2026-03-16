@@ -493,6 +493,61 @@ async function getPlaceAvailability(req, res, next) {
 }
 
 /**
+ * GET /bookings/host/my-bookings - Get all bookings for the current host's places
+ */
+async function getHostBookings(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    await autoCompleteBookings();
+
+    const { page = 1, limit = 50, status } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = `
+      SELECT b.*,
+             u.name as guest_name, u.email as guest_email,
+             p.name as place_name, p.address as place_address
+      FROM bookings b
+      JOIN places p ON b.place_id = p.id
+      LEFT JOIN users u ON b.user_id = u.id
+      WHERE p.owner_id = $1
+    `;
+    const params = [userId];
+    let paramCount = 2;
+
+    if (status) {
+      query += ` AND b.status = $${paramCount}`;
+      params.push(status);
+      paramCount++;
+    }
+
+    query += ` ORDER BY b.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(limit, offset);
+
+    const result = await db.query(query, params);
+
+    let countQuery = 'SELECT COUNT(*) FROM bookings b JOIN places p ON b.place_id = p.id WHERE p.owner_id = $1';
+    if (status) countQuery += ` AND b.status = $2`;
+    const countResult = await db.query(countQuery, status ? [userId, status] : [userId]);
+    const total = parseInt(countResult.rows[0].count);
+
+    res.json({
+      bookings: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    logger.error('Get host bookings error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
  * GET /bookings/all - Admin only: get all bookings system-wide
  */
 async function getAllBookings(req, res, next) {
@@ -560,4 +615,5 @@ module.exports = {
   getPlaceBookings,
   getPlaceAvailability,
   getAllBookings,
+  getHostBookings,
 };

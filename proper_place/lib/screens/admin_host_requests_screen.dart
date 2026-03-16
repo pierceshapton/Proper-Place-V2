@@ -28,13 +28,17 @@ class _AdminHostRequestsScreenState extends State<AdminHostRequestsScreen> {
       _error = null;
     });
     try {
+      debugPrint('[AdminBookings] Fetching all bookings...');
       final bookings = await ApiService.getAllBookings();
+      debugPrint('[AdminBookings] Got ${bookings.length} bookings: ${bookings.map((b) => b['id']).toList()}');
       if (!mounted) return;
       setState(() {
-        _bookings = bookings.cast<Map<String, dynamic>>();
+        _bookings = List<Map<String, dynamic>>.from(bookings);
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[AdminBookings] Error loading bookings: $e');
+      debugPrint('[AdminBookings] Stack: $stack');
       if (!mounted) return;
       setState(() {
         _error = e.toString();
@@ -119,11 +123,39 @@ class _AdminHostRequestsScreenState extends State<AdminHostRequestsScreen> {
             ),
           ),
           // Content
+          if (!_isLoading && _error == null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                '${_bookings.length} total bookings · ${filteredBookings.length} shown',
+                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+              ),
+            ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text('Error: $_error'))
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                              const SizedBox(height: 16),
+                              Text('Failed to load bookings', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Text(_error!, style: TextStyle(color: Colors.grey[600], fontSize: 13), textAlign: TextAlign.center),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: _loadBookings,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
                     : filteredBookings.isEmpty
                         ? _buildEmptyState()
                         : RefreshIndicator(

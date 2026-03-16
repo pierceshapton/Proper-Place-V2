@@ -110,6 +110,10 @@ class _LoginScreenState extends State<LoginScreen> {
         if (user['role'] != null) {
           await StorageService.saveUserRole(user['role']);
           print('[Login] Saved role: ${user['role']}');
+          // Ensure admin mode is enabled for admin users
+          if (user['role'] == 'admin') {
+            await StorageService.setAdminMode(true);
+          }
         }
       }
       

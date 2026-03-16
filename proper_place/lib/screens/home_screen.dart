@@ -19,7 +19,6 @@ import 'reviews_host_screen.dart';
 import 'more_host_screen.dart';
 import 'chat_host_screen.dart';
 import 'admin_dashboard_screen.dart';
-import 'admin_host_requests_screen.dart';
 import 'admin_approvals_screen.dart';
 import 'admin_host_chat_screen.dart';
 import 'admin_contact_messages_screen.dart';
@@ -335,11 +334,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         
         // Map API counts to tab indices based on current mode
         if (userRole == 'admin' && isAdminMode) {
-          // Admin mode: Dashboard (0), Requests (1), Approvals (2), Chat (3), More (4)
-          _badgeCounts[1] = counts['pendingBookings'] ?? 0; // Requests tab - pending bookings
-          _badgeCounts[2] = counts['pendingApprovals'] ?? 0; // Approvals tab
-          _badgeCounts[3] = counts['unreadMessages'] ?? 0; // Chat tab
-          _badgeCounts[4] = counts['pendingHostApplications'] ?? 0; // More tab - host applications
+          // Admin mode: Dashboard (0), Approvals (1), Chat (2), More (3)
+          _badgeCounts[1] = counts['pendingApprovals'] ?? 0; // Approvals tab
+          _badgeCounts[2] = counts['unreadMessages'] ?? 0; // Chat tab
+          _badgeCounts[3] = counts['pendingHostApplications'] ?? 0; // More tab - host applications
         } else if (isHostMode) {
           // Host mode: Dashboard (0), Sites (1), Bookings (2), Chat (3), More (4)
           _badgeCounts[2] = counts['pendingBookings'] ?? 0; // Bookings tab
@@ -362,7 +360,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (userRole == 'admin' && isAdminMode) {
       return [
         {'icon': CupertinoIcons.house, 'label': 'Dashboard'},
-        {'icon': CupertinoIcons.calendar, 'label': 'Bookings'},
         {'icon': CupertinoIcons.checkmark_shield, 'label': 'Approvals'},
         {'icon': CupertinoIcons.chat_bubble, 'label': 'Chat'},
         {'icon': CupertinoIcons.ellipsis, 'label': 'More'},
@@ -400,12 +397,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           backgroundColor: Color(0xFF3B82F6),
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.people_outline),
-          activeIcon: Icon(Icons.people),
-          label: 'Host Requests',
-          backgroundColor: Color(0xFF3B82F6),
-        ),
-        BottomNavigationBarItem(
           icon: Icon(Icons.shield_outlined),
           activeIcon: Icon(Icons.shield),
           label: 'Approvals',
@@ -414,13 +405,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         BottomNavigationBarItem(
           icon: Icon(Icons.chat_outlined),
           activeIcon: Icon(Icons.chat),
-          label: 'Host Chat',
-          backgroundColor: Color(0xFF3B82F6),
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.mail_outlined),
-          activeIcon: Icon(Icons.mail),
-          label: 'User Messages',
+          label: 'Chat',
           backgroundColor: Color(0xFF3B82F6),
         ),
         BottomNavigationBarItem(
@@ -492,6 +477,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Get the appropriate screen for the current tab based on role and host mode
   Widget _getScreenForTab(int index) {
+    debugPrint('[HomeScreen] _getScreenForTab($index) role=$userRole adminMode=$isAdminMode hostMode=$isHostMode');
     // Admin in admin mode
     if (userRole == 'admin' && isAdminMode) {
       return index == 0
@@ -504,12 +490,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               badgeCounts: _badgeCounts,
             )
           : index == 1
-              ? const AdminHostRequestsScreen()
+              ? AdminApprovalsScreen(onRefresh: _loadNotificationCounts)
               : index == 2
-                  ? AdminApprovalsScreen(onRefresh: _loadNotificationCounts)
-                  : index == 3
-                      ? AdminHostChatScreen(onRefresh: _loadNotificationCounts)
-                      : const AdminMoreScreen();
+                  ? AdminHostChatScreen(onRefresh: _loadNotificationCounts)
+                  : const AdminMoreScreen();
     }
     // Host in host mode (or admin user in host mode)
     else if (isHostMode) {

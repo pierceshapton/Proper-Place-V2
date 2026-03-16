@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../services/place_service.dart';
 import 'login_screen.dart';
 
 class BookingsHostScreen extends StatefulWidget {
@@ -45,71 +44,46 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
         _error = null;
       });
 
-      // Get host's places
-      final places = await PlaceService.getHostPlaces();
-      if (places.isEmpty) {
-        setState(() {
-          _isLoading = false;
-          _bookingsByDate = {};
-        });
-        return;
-      }
+      // Fetch all bookings for host's places in one call
+      final bookings = await ApiService.getHostBookings();
 
-      // Aggregate bookings from all places
       Map<DateTime, List<Map<String, dynamic>>> bookingsByDate = {};
 
-      for (var place in places) {
-        final placeId = (place['id'] ?? place['place_id'] ?? '').toString();
-        if (placeId.isEmpty) continue;
+      for (var booking in bookings) {
+        final checkInStr = (booking['check_in_date'] ?? booking['check_in'] ?? '').toString();
+        final checkOutStr = (booking['check_out_date'] ?? booking['check_out'] ?? '').toString();
 
+        if (checkInStr.isEmpty) continue;
+
+        DateTime checkInDate;
+        DateTime checkOutDate;
         try {
-          final bookings = await ApiService.getBookingsForPlace(placeId: placeId);
-          
-          for (var booking in bookings) {
-            // Parse check-in date - ensure strings
-            final checkInStr = (booking['check_in'] ?? booking['check_in_date'] ?? '').toString();
-            final checkOutStr = (booking['check_out'] ?? booking['check_out_date'] ?? '').toString();
-            
-            if (checkInStr.isEmpty) continue;
-
-            // Parse dates
-            DateTime checkInDate;
-            DateTime checkOutDate;
-            try {
-              checkInDate = DateTime.parse(checkInStr);
-              checkOutDate = checkOutStr.isNotEmpty 
-                ? DateTime.parse(checkOutStr)
-                : checkInDate;
-            } catch (e) {
-              continue;
-            }
-
-            // Normalize to date only (no time)
-            final dateKey = DateTime(checkInDate.year, checkInDate.month, checkInDate.day);
-
-            // Create booking record
-            final bookingRecord = {
-              'id': booking['id'] ?? booking['booking_id'] ?? '',
-              'guestName': booking['guest_name'] ?? booking['user_name'] ?? 'Guest',
-              'placeName': place['name'] ?? 'Unknown Place',
-              'checkIn': checkInDate,
-              'checkOut': checkOutDate,
-              'status': _normalizeBookingStatus(booking['status'] ?? 'pending'),
-              'amount': _formatPrice(booking['total_price'] ?? 0),
-              'guestEmail': booking['guest_email'] ?? booking['user_email'] ?? '',
-              'guestPhone': booking['contact_phone'] ?? booking['phone'] ?? '',
-            };
-
-            // Add to map
-            if (bookingsByDate[dateKey] == null) {
-              bookingsByDate[dateKey] = [];
-            }
-            bookingsByDate[dateKey]!.add(bookingRecord);
-          }
+          checkInDate = DateTime.parse(checkInStr);
+          checkOutDate = checkOutStr.isNotEmpty
+              ? DateTime.parse(checkOutStr)
+              : checkInDate;
         } catch (e) {
-          print('Error loading bookings for place $placeId: $e');
           continue;
         }
+
+        final dateKey = DateTime(checkInDate.year, checkInDate.month, checkInDate.day);
+
+        final bookingRecord = {
+          'id': booking['id'] ?? '',
+          'guestName': booking['guest_name'] ?? 'Guest',
+          'placeName': booking['place_name'] ?? 'Unknown Place',
+          'checkIn': checkInDate,
+          'checkOut': checkOutDate,
+          'status': _normalizeBookingStatus(booking['status'] ?? 'pending'),
+          'amount': _formatPrice(booking['total_price'] ?? 0),
+          'guestEmail': booking['guest_email'] ?? '',
+          'guestPhone': booking['contact_phone'] ?? '',
+        };
+
+        if (bookingsByDate[dateKey] == null) {
+          bookingsByDate[dateKey] = [];
+        }
+        bookingsByDate[dateKey]!.add(bookingRecord);
       }
 
       setState(() {

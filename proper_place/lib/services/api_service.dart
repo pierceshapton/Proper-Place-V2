@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io' as io;
@@ -455,13 +456,26 @@ class ApiService {
     );
   }
 
-  /// Get bookings for a place
+  /// Get bookings for a place (public availability data)
   static Future<List<dynamic>> getBookingsForPlace({
     required String placeId,
   }) async {
     final response = await _request(
       method: 'GET',
-      endpoint: '/bookings/$placeId',
+      endpoint: '/bookings/place/$placeId',
+    );
+    return response['bookings'] ?? [];
+  }
+
+  /// Host: Get all bookings for the host's places (with guest info)
+  static Future<List<dynamic>> getHostBookings({String? status}) async {
+    String endpoint = '/bookings/host/my-bookings';
+    if (status != null && status.isNotEmpty) {
+      endpoint += '?status=${Uri.encodeComponent(status)}';
+    }
+    final response = await _request(
+      method: 'GET',
+      endpoint: endpoint,
     );
     return response['bookings'] ?? [];
   }
@@ -472,10 +486,13 @@ class ApiService {
     if (status != null && status.isNotEmpty) {
       endpoint += '?status=${Uri.encodeComponent(status)}';
     }
+    debugPrint('[ApiService] getAllBookings calling $endpoint');
     final response = await _request(
       method: 'GET',
       endpoint: endpoint,
     );
+    debugPrint('[ApiService] getAllBookings response keys: ${response.keys.toList()}');
+    debugPrint('[ApiService] getAllBookings bookings count: ${(response['bookings'] as List?)?.length ?? 'null'}');
     return response['bookings'] ?? [];
   }
 
