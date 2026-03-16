@@ -347,6 +347,43 @@ async function markConversationAsRead(req, res, next) {
 }
 
 /**
+ * PUT /bookings/:bookingId/read
+ * Mark all messages in a booking as read for the current user
+ */
+async function markBookingAsRead(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const bookingId = parseInt(req.params.bookingId);
+
+    if (!bookingId || isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Valid bookingId is required' });
+    }
+
+    const result = await db.query(
+      `UPDATE messages 
+       SET read = true
+       WHERE booking_id = $1 AND receiver_id = $2 AND read = false
+       RETURNING id`,
+      [bookingId, userId]
+    );
+
+    logger.info('Booking messages marked as read', {
+      userId,
+      bookingId,
+      messagesMarked: result.rows.length,
+    });
+
+    return res.json({
+      message: 'Booking messages marked as read',
+      messagesMarked: result.rows.length,
+    });
+  } catch (error) {
+    logger.error('Error marking booking as read', { error: error.message });
+    return next(error);
+  }
+}
+
+/**
  * DELETE /messages/clear-all
  * Clear all old messages (admin only, for fresh start)
  */
@@ -450,6 +487,7 @@ module.exports = {
   getMessagesByBooking,
   sendMessage,
   markConversationAsRead,
+  markBookingAsRead,
   markMessagesAsDelivered,
   clearAllMessages,
 };
