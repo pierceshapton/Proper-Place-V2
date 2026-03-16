@@ -497,18 +497,28 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       ),
                       if (unreadCount > 0) ...[
                         const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '$unreadCount new message${unreadCount > 1 ? 's' : ''}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        GestureDetector(
+                          onTap: () => _openChat(booking),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.chat_bubble, size: 10, color: Colors.white),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$unreadCount new message${unreadCount > 1 ? 's' : ''}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
