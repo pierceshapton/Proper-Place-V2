@@ -29,16 +29,25 @@ class _ChatScreenState extends State<ChatScreen> {
   late ChatService _chatService;
   int? _currentUserId;
   Timer? _pollingTimer;
+  String? _responseTimeLabel;
 
   @override
   void initState() {
     super.initState();
     _chatService = ChatService();
     _initAndLoad();
+    _loadResponseTime();
     // Poll for status updates every 3 seconds
     _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       _refreshStatuses();
     });
+  }
+
+  Future<void> _loadResponseTime() async {
+    final label = await _chatService.getResponseTimeLabel(widget.hostId);
+    if (mounted && label != null) {
+      setState(() => _responseTimeLabel = label);
+    }
   }
 
   Future<void> _initAndLoad() async {
@@ -247,6 +256,24 @@ class _ChatScreenState extends State<ChatScreen> {
                 )
               : Column(
                   children: [
+                    // Response time indicator
+                    if (_responseTimeLabel != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                        color: const Color(0xFFF0F4F8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Typically responds $_responseTimeLabel',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
                     // Messages list
                     Expanded(
                       child: messages.isEmpty

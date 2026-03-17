@@ -477,6 +477,75 @@ async function markMessagesAsDelivered(req, res, next) {
   }
 }
 
+/**
+ * GET /response-time/:hostId
+ * Calculate a host's typical response time based on their reply patterns
+ */
+async function getResponseTime(req, res, next) {
+  try {
+    const hostId = parseInt(req.params.hostId);
+    if (!hostId) {
+      return res.status(400).json({ error: 'Invalid host ID' });
+    }
+
+    // Find pairs: user message → next host reply in the same booking
+    // Calculate the median response time from the last 50 reply pairs
+    const result = await db.query(
+      `WITH reply_pairs AS (
+        SELECT
+          m1.created_at AS user_msg_time,
+          (
+            SELECT MIN(m2.created_at)
+            FROM messages m2
+            WHERE m2.sender_id = $1
+              AND m2.booking_id = m1.booking_id
+              AND m2.created_at > m1.created_at
+          ) AS host_reply_time
+        FROM messages m1
+        WHERE m1.receiver_id = $1
+          AND m1.booking_id IS NOT NULL
+        ORDER BY m1.created_at DESC
+        LIMIT 50
+      )
+      SELECT
+        EXTRACT(EPOCH FROM percentile_cont(0.5) WITHIN GROUP (ORDER BY host_reply_time - user_msg_time)) AS median_seconds,
+        COUNT(*) AS sample_size
+      FROM reply_pairs
+      WHERE host_reply_time IS NOT NULL`,
+      [hostId]
+    );
+
+    const row = result.rows[0];
+    const medianSeconds = row?.median_seconds ? parseFloat(row.median_seconds) : null;
+    const sampleSize = parseInt(row?.sample_size || 0);
+
+    let label = null;
+    if (sampleSize < 3 || medianSeconds === null) {
+      label = null; // Not enough data
+    } else if (medianSeconds < 300) {
+      label = 'within a few minutes';
+    } else if (medianSeconds < 3600) {
+      label = 'within an hour';
+    } else if (medianSeconds < 14400) {
+      label = 'within a few hours';
+    } else if (medianSeconds < 86400) {
+      label = 'within a day';
+    } else {
+      label = 'within a few days';
+    }
+
+    return res.json({
+      hostId,
+      medianSeconds: medianSeconds ? Math.round(medianSeconds) : null,
+      sampleSize,
+      label,
+    });
+  } catch (error) {
+    logger.error('Error getting response time', { error: error.message });
+    return next(error);
+  }
+}
+
 module.exports = {
   deleteContact,
   markContactAsUnread,
@@ -490,4 +559,5 @@ module.exports = {
   markBookingAsRead,
   markMessagesAsDelivered,
   clearAllMessages,
+  getResponseTime,
 };

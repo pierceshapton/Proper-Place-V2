@@ -363,4 +363,28 @@ class ChatService {
       rethrow;
     }
   }
+
+  /// Get typical response time for a host
+  Future<String?> getResponseTimeLabel(int hostId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) return null;
+
+      final response = await http.get(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/response-time/$hostId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['label'] as String?;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }

@@ -19,6 +19,9 @@ router.put('/bookings/:bookingId/read', chatController.markBookingAsRead);
 router.put('/conversations/:otherUserId/read', chatController.markConversationAsRead);
 router.put('/conversations/:otherUserId/delivered', chatController.markMessagesAsDelivered);
 
+// Response time
+router.get('/response-time/:hostId', chatController.getResponseTime);
+
 // Message operations
 router.post('/messages', chatController.sendMessage);
 router.delete('/messages/clear-all', chatController.clearAllMessages);
