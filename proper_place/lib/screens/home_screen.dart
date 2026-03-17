@@ -340,7 +340,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _badgeCounts[3] = counts['pendingHostApplications'] ?? 0; // More tab - host applications
         } else if (isHostMode) {
           // Host mode: Dashboard (0), Sites (1), Bookings (2), Chat (3), More (4)
-          _badgeCounts[2] = counts['pendingBookings'] ?? 0; // Bookings tab
+          // Don't overwrite bookings badge while host is viewing that tab (already marked seen)
+          if (_currentIndex != 2) {
+            _badgeCounts[2] = counts['pendingBookings'] ?? 0; // Bookings tab
+          }
           _badgeCounts[3] = counts['unreadMessages'] ?? 0; // Chat tab
           _badgeCounts[1] = counts['siteSubmissions'] ?? 0; // Sites tab - pending approvals
         } else {
