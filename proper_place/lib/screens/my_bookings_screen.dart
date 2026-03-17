@@ -33,8 +33,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     bookingsFuture = ApiService.getGuestBookings(guestId: guestId);
     _loadRealUserIdAndRefresh();
     _loadUnreadCounts();
-    // Poll for new unread messages every 10 seconds
-    _unreadPollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    // Poll for new unread messages every 2 seconds
+    _unreadPollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _loadUnreadCounts();
     });
   }

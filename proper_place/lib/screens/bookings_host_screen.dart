@@ -43,7 +43,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     _loadHostBookings();
     _loadUnreadCounts();
     _markBookingsAsSeen();
-    _unreadPollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _unreadPollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _loadUnreadCounts();
     });
   }

@@ -182,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     
     // Setup notification timer immediately (non-blocking)
     _notificationRefreshTimer = Timer.periodic(
-      const Duration(seconds: 10),
+      const Duration(seconds: 2),
       (_) => _loadNotificationCounts(),
     );
     
