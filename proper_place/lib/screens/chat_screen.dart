@@ -35,8 +35,8 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _chatService = ChatService();
     _initAndLoad();
-    // Poll for status updates every 10 seconds
-    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    // Poll for status updates every 3 seconds
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       _refreshStatuses();
     });
   }
@@ -63,8 +63,13 @@ class _ChatScreenState extends State<ChatScreen> {
         conversationMessages = await _chatService.getMessagesWithUser(widget.hostId);
       }
 
-      // Mark messages from host as read
-      await _chatService.markConversationAsRead(widget.hostId);
+      // Mark messages as read (by booking if available, otherwise by user)
+      final bookingIdForRead = bookingIdInt;
+      if (bookingIdForRead != null) {
+        await _chatService.markBookingAsRead(bookingIdForRead);
+      } else {
+        await _chatService.markConversationAsRead(widget.hostId);
+      }
 
       setState(() {
         messages = conversationMessages.map((msg) {
@@ -107,18 +112,38 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _refreshStatuses() async {
-    if (!mounted || messages.isEmpty) return;
+    if (!mounted) return;
     try {
-      final conversationMessages = await _chatService.getMessagesWithUser(widget.hostId);
+      // Use the same fetch method as _loadMessages to avoid index mismatch
+      final bookingIdInt = int.tryParse(widget.bookingId);
+      List<Map<String, dynamic>> conversationMessages;
+      if (bookingIdInt != null) {
+        conversationMessages = await _chatService.getMessagesByBooking(bookingIdInt);
+      } else {
+        conversationMessages = await _chatService.getMessagesWithUser(widget.hostId);
+      }
+      // Mark incoming messages as read (by booking if available, otherwise by user)
+      if (bookingIdInt != null) {
+        await _chatService.markBookingAsRead(bookingIdInt);
+      } else {
+        await _chatService.markConversationAsRead(widget.hostId);
+      }
       if (!mounted) return;
+      final newMessages = conversationMessages.map((msg) {
+        final senderId = msg['sender_id'] is int
+            ? msg['sender_id']
+            : int.tryParse(msg['sender_id'].toString()) ?? -1;
+        return {
+          'sender': senderId == _currentUserId ? 'guest' : 'host',
+          'message': msg['content'] ?? msg['message'] ?? '',
+          'timestamp': msg['created_at'] != null
+              ? DateTime.parse(msg['created_at'])
+              : DateTime.now(),
+          'status': _getMessageStatus(msg, senderId == _currentUserId),
+        };
+      }).toList();
       setState(() {
-        for (int i = 0; i < messages.length && i < conversationMessages.length; i++) {
-          final msg = conversationMessages[i];
-          final senderId = msg['sender_id'] is int
-              ? msg['sender_id']
-              : int.tryParse(msg['sender_id'].toString()) ?? -1;
-          messages[i]['status'] = _getMessageStatus(msg, senderId == _currentUserId);
-        }
+        messages = newMessages;
       });
     } catch (_) {}
   }
@@ -301,12 +326,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: SafeArea(
                         top: false,
                         child: Container(
-                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-                          decoration: BoxDecoration(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          decoration: const BoxDecoration(
                             color: Colors.white,
-                            border: Border(
-                              top: BorderSide(color: Colors.grey[200]!),
-                            ),
                           ),
                           child: Row(
                             children: [

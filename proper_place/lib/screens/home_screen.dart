@@ -182,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     
     // Setup notification timer immediately (non-blocking)
     _notificationRefreshTimer = Timer.periodic(
-      const Duration(seconds: 30),
+      const Duration(seconds: 10),
       (_) => _loadNotificationCounts(),
     );
     
@@ -345,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _badgeCounts[1] = counts['siteSubmissions'] ?? 0; // Sites tab - pending approvals
         } else {
           // User mode: Map (0), Bookings (1), Saved (2), More (3)
-          _badgeCounts[1] = counts['unreadMessages'] ?? 0; // Bookings tab - unread messages
+          _badgeCounts[1] = counts['pendingBookings'] ?? 0; // Bookings tab - pending bookings
         }
       });
     } catch (error) {

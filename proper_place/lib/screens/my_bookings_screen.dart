@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
@@ -21,6 +22,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   String guestId = 'temp-guest-id';
   String selectedTab = 'confirmed';
   Map<int, int> _unreadByBooking = {};
+  Timer? _unreadPollingTimer;
 
   @override
   void initState() {
@@ -31,6 +33,16 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     bookingsFuture = ApiService.getGuestBookings(guestId: guestId);
     _loadRealUserIdAndRefresh();
     _loadUnreadCounts();
+    // Poll for new unread messages every 10 seconds
+    _unreadPollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _loadUnreadCounts();
+    });
+  }
+
+  @override
+  void dispose() {
+    _unreadPollingTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadUnreadCounts() async {

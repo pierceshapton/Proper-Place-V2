@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../services/api_service.dart';
 import '../services/chat_service.dart';
 import '../services/storage_service.dart';
+import '../services/notification_service.dart';
 import 'login_screen.dart';
 
 class BookingsHostScreen extends StatefulWidget {
@@ -30,6 +32,8 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
 
   // Real bookings data - loaded from API
   Map<DateTime, List<Map<String, dynamic>>> _bookingsByDate = {};
+  Map<int, int> _unreadByBooking = {};
+  Timer? _unreadPollingTimer;
 
   @override
   void initState() {
@@ -37,6 +41,27 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     _selectedDate = DateTime.now();
     _focusedDate = DateTime.now();
     _loadHostBookings();
+    _loadUnreadCounts();
+    _unreadPollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _loadUnreadCounts();
+    });
+  }
+
+  @override
+  void dispose() {
+    _unreadPollingTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadUnreadCounts() async {
+    try {
+      final counts = await NotificationService().getUnreadByBooking();
+      if (mounted) {
+        setState(() {
+          _unreadByBooking = counts;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadHostBookings() async {
@@ -570,14 +595,45 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Amount
-          Text(
-            booking['amount'],
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+          // Amount and unread badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                booking['amount'],
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if ((_unreadByBooking[_bookingIdInt(booking)] ?? 0) > 0)
+                GestureDetector(
+                  onTap: () => _openChatPopup(booking),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.chat_bubble, size: 10, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_unreadByBooking[_bookingIdInt(booking)]} new message${_unreadByBooking[_bookingIdInt(booking)]! > 1 ? 's' : ''}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 16),
 
@@ -753,7 +809,13 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
         placeName: placeName,
         bookingId: bookingId is int ? bookingId : int.tryParse(bookingId.toString()),
       ),
-    );
+    ).then((_) => _loadUnreadCounts());
+  }
+
+  int _bookingIdInt(Map<String, dynamic> booking) {
+    final id = booking['id'];
+    if (id is int) return id;
+    return int.tryParse(id.toString()) ?? 0;
   }
 
   void _showCancelBookingDialog(Map<String, dynamic> booking) {
@@ -851,6 +913,7 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
   bool _isLoading = true;
   bool _isSending = false;
   int? _currentUserId;
+  Timer? _messagePollingTimer;
 
   @override
   void initState() {
@@ -862,6 +925,7 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _messagePollingTimer?.cancel();
     super.dispose();
   }
 
@@ -869,10 +933,37 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
     final userId = await StorageService.getUserId();
     _currentUserId = userId != null ? int.tryParse(userId) : null;
     await _fetchMessages();
+    // Start polling for new messages and status updates every 3 seconds
+    _messagePollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted) {
+        _messagePollingTimer?.cancel();
+        return;
+      }
+      try {
+        if (widget.bookingId != null) {
+          await ChatService().markBookingAsRead(widget.bookingId!);
+        } else {
+          await ChatService().markConversationAsRead(widget.guestId);
+        }
+        final messages = await ChatService().getMessagesWithUser(widget.guestId);
+        if (mounted) {
+          final oldCount = _messages.length;
+          setState(() {
+            _messages = messages;
+          });
+          if (messages.length > oldCount) _scrollToBottom();
+        }
+      } catch (_) {}
+    });
   }
 
   Future<void> _fetchMessages() async {
     try {
+      if (widget.bookingId != null) {
+        await ChatService().markBookingAsRead(widget.bookingId!);
+      } else {
+        await ChatService().markConversationAsRead(widget.guestId);
+      }
       final messages = await ChatService().getMessagesWithUser(widget.guestId);
       if (mounted) {
         setState(() {
@@ -949,6 +1040,28 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
     final parts = name.trim().split(' ');
     if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  String _getMessageStatus(Map<String, dynamic> msg, bool isMine) {
+    if (!isMine) return '';
+    final read = msg['read'] == true;
+    final delivered = msg['delivered'] == true;
+    if (read) return 'read';
+    if (delivered) return 'delivered';
+    return 'sent';
+  }
+
+  Widget _buildReadReceipt(String status) {
+    switch (status) {
+      case 'sent':
+        return Icon(Icons.done, size: 12, color: Colors.grey[500]);
+      case 'delivered':
+        return Icon(Icons.done_all, size: 12, color: Colors.grey[500]);
+      case 'read':
+        return const Icon(Icons.done_all, size: 12, color: Colors.blue);
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   @override
@@ -1077,12 +1190,22 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
                                     ),
                                   ),
                                   const SizedBox(height: 2),
-                                  Text(
-                                    _formatTimestamp(message['created_at']),
-                                    style: const TextStyle(
-                                      color: Color(0xFF9CA3AF),
-                                      fontSize: 10,
-                                    ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                                    children: [
+                                      if (isMe) ...[
+                                        _buildReadReceipt(_getMessageStatus(message, isMe)),
+                                        const SizedBox(width: 4),
+                                      ],
+                                      Text(
+                                        _formatTimestamp(message['created_at']),
+                                        style: const TextStyle(
+                                          color: Color(0xFF9CA3AF),
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   const SizedBox(height: 8),
                                 ],

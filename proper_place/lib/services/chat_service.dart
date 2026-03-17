@@ -334,4 +334,33 @@ class ChatService {
       rethrow;
     }
   }
+
+  Future<void> markBookingAsRead(int bookingId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('No auth token found');
+      }
+
+      final response = await http.put(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/bookings/$bookingId/read'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return;
+      } else if (response.statusCode == 401) {
+        await StorageService.clearUserData();
+        throw Exception('Session expired - please log in again');
+      } else {
+        throw Exception('Failed to mark booking as read: ${response.statusCode}');
+      }
+    } catch (error) {
+      print('[ChatService] Error marking booking as read: $error');
+      rethrow;
+    }
+  }
 }

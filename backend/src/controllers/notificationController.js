@@ -27,30 +27,32 @@ async function getNotificationCounts(req, res, next) {
       pendingHostApplications: 0,
     };
 
-    // Host or Admin: Get pending bookings for their places
-    if (userRole === 'host' || userRole === 'admin') {
-      let bookingsQuery;
-      let bookingsParams;
-
-      if (userRole === 'admin') {
-        // Admin sees all pending bookings
-        bookingsQuery = `
-          SELECT COUNT(*) as count FROM bookings 
-          WHERE status IN ('pending', 'confirmed')
-        `;
-        bookingsParams = [];
-      } else {
-        // Host sees pending bookings for their places
-        bookingsQuery = `
-          SELECT COUNT(b.id) as count FROM bookings b
-          JOIN places p ON b.place_id = p.id
-          WHERE p.owner_id = $1 AND b.status IN ('pending', 'confirmed')
-        `;
-        bookingsParams = [userId];
-      }
-
-      const bookingsResult = await db.query(bookingsQuery, bookingsParams);
+    // Get pending/new bookings count
+    if (userRole === 'admin') {
+      // Admin sees all pending bookings
+      const bookingsResult = await db.query(
+        `SELECT COUNT(*) as count FROM bookings WHERE status IN ('pending', 'confirmed')`
+      );
       counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);
+    } else if (userRole === 'host') {
+      // Host sees pending bookings for their places
+      const bookingsResult = await db.query(
+        `SELECT COUNT(b.id) as count FROM bookings b
+         JOIN places p ON b.place_id = p.id
+         WHERE p.owner_id = $1 AND b.status IN ('pending', 'confirmed')`,
+        [userId]
+      );
+      counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);
+    } else {
+      // User sees their own pending bookings
+      const bookingsResult = await db.query(
+        `SELECT COUNT(*) as count FROM bookings WHERE user_id = $1 AND status = 'pending'`,
+        [userId]
+      );
+      counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);
+    }
+
+    if (userRole === 'host' || userRole === 'admin') {
 
       // Host requests (place applications) - pending places awaiting approval from admin
       if (userRole === 'admin') {
