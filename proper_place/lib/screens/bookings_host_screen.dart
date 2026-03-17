@@ -952,7 +952,9 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
         } else {
           await ChatService().markConversationAsRead(widget.guestId);
         }
-        final messages = await ChatService().getMessagesWithUser(widget.guestId);
+        final messages = widget.bookingId != null
+            ? await ChatService().getMessagesByBooking(widget.bookingId!)
+            : await ChatService().getMessagesWithUser(widget.guestId);
         if (mounted) {
           final oldCount = _messages.length;
           setState(() {
@@ -971,7 +973,9 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
       } else {
         await ChatService().markConversationAsRead(widget.guestId);
       }
-      final messages = await ChatService().getMessagesWithUser(widget.guestId);
+      final messages = widget.bookingId != null
+          ? await ChatService().getMessagesByBooking(widget.bookingId!)
+          : await ChatService().getMessagesWithUser(widget.guestId);
       if (mounted) {
         setState(() {
           _messages = messages;
