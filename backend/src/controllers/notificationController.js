@@ -11,9 +11,9 @@ async function getNotificationCounts(req, res, next) {
     const userId = req.user.userId;
     const userRole = req.user.role;
 
-    // Unread messages count
+    // Unread messages count (only messages with a booking_id that the user can actually see)
     const messagesResult = await db.query(
-      `SELECT COUNT(*) as count FROM messages WHERE receiver_id = $1 AND read = false`,
+      `SELECT COUNT(*) as count FROM messages WHERE receiver_id = $1 AND read = false AND booking_id IS NOT NULL`,
       [userId]
     );
     const unreadMessages = parseInt(messagesResult.rows[0]?.count || 0);
