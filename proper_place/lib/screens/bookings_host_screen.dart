@@ -51,7 +51,6 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
   Future<void> _markBookingsAsSeen() async {
     try {
       await ApiService.markHostBookingsSeen();
-      widget.onRefresh?.call();
     } catch (_) {}
   }
 

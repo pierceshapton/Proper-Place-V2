@@ -345,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _badgeCounts[1] = counts['siteSubmissions'] ?? 0; // Sites tab - pending approvals
         } else {
           // User mode: Map (0), Bookings (1), Saved (2), More (3)
-          _badgeCounts[1] = counts['pendingBookings'] ?? 0; // Bookings tab - pending bookings
+          _badgeCounts[1] = counts['unreadMessages'] ?? 0; // Bookings tab - unread messages (no Chat tab in user mode)
         }
       });
     } catch (error) {
@@ -692,6 +692,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           onTap: (index) {
             setState(() {
               _currentIndex = index;
+              // Immediately clear host booking badge when tapping Bookings tab
+              if (isHostMode && index == 2) {
+                _badgeCounts[2] = 0;
+              }
             });
           },
           items: _getNavItems(),
