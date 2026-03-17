@@ -480,6 +480,14 @@ class ApiService {
     return response['bookings'] ?? [];
   }
 
+  /// Host: Mark all bookings as seen
+  static Future<void> markHostBookingsSeen() async {
+    await _request(
+      method: 'PUT',
+      endpoint: '/bookings/host/mark-seen',
+    );
+  }
+
   /// Admin: Get all bookings system-wide
   static Future<List<dynamic>> getAllBookings({String? status}) async {
     String endpoint = '/bookings/all';

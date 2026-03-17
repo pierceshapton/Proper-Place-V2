@@ -42,9 +42,17 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     _focusedDate = DateTime.now();
     _loadHostBookings();
     _loadUnreadCounts();
+    _markBookingsAsSeen();
     _unreadPollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _loadUnreadCounts();
     });
+  }
+
+  Future<void> _markBookingsAsSeen() async {
+    try {
+      await ApiService.markHostBookingsSeen();
+      widget.onRefresh?.call();
+    } catch (_) {}
   }
 
   @override

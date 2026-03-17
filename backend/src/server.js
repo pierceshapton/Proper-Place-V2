@@ -486,6 +486,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 12 error:', err.message);
     }
 
+    // Migration 13: Add host_seen column to bookings table
+    try {
+      console.log('[SERVER] Running migration 13: bookings host_seen column...');
+      await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS host_seen BOOLEAN DEFAULT true`);
+      console.log('[SERVER] ✅ Migration 13 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 13 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

@@ -35,11 +35,11 @@ async function getNotificationCounts(req, res, next) {
       );
       counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);
     } else if (userRole === 'host') {
-      // Host sees pending bookings for their places
+      // Host sees unseen bookings for their places
       const bookingsResult = await db.query(
         `SELECT COUNT(b.id) as count FROM bookings b
          JOIN places p ON b.place_id = p.id
-         WHERE p.owner_id = $1 AND b.status IN ('pending', 'confirmed')`,
+         WHERE p.owner_id = $1 AND b.status IN ('pending', 'confirmed') AND (b.host_seen = false OR b.host_seen IS NULL)`,
         [userId]
       );
       counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);

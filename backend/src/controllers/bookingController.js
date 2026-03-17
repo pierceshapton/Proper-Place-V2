@@ -187,8 +187,8 @@ async function createBooking(req, res, next) {
                              check_in_time, check_out_time,
                              number_of_nights, total_price, status,
                              early_checkin_fee, late_checkout_fee,
-                             van_registration, contact_phone, special_requests)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                             van_registration, contact_phone, special_requests, host_seen)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false)
        RETURNING *`,
       [
         userId,
@@ -626,6 +626,31 @@ async function getAllBookings(req, res, next) {
   }
 }
 
+/**
+ * PUT /bookings/host/mark-seen
+ * Mark all bookings for host's places as seen
+ */
+async function markBookingsSeen(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    const result = await db.query(
+      `UPDATE bookings b
+       SET host_seen = true
+       FROM places p
+       WHERE b.place_id = p.id AND p.owner_id = $1 AND (b.host_seen = false OR b.host_seen IS NULL)
+       RETURNING b.id`,
+      [userId]
+    );
+
+    logger.info('Bookings marked as seen', { userId, count: result.rows.length });
+    return res.json({ message: 'Bookings marked as seen', count: result.rows.length });
+  } catch (error) {
+    logger.error('Error marking bookings as seen', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetail,
@@ -637,4 +662,5 @@ module.exports = {
   getPlaceAvailability,
   getAllBookings,
   getHostBookings,
+  markBookingsSeen,
 };

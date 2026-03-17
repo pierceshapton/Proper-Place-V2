@@ -27,6 +27,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
   String? _error;
   int? _currentUserId;
   Timer? _pollingTimer;
+  Timer? _messagePollingTimer;
 
   @override
   void initState() {
@@ -34,7 +35,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
     _messageController = TextEditingController();
     _loadCurrentUser();
     _fetchConversations();
-    // Poll every 30 seconds for new messages
+    // Poll every 30 seconds for new conversations
     _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       _fetchConversations(showLoading: false);
     });
@@ -44,6 +45,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
   void dispose() {
     _messageController.dispose();
     _pollingTimer?.cancel();
+    _messagePollingTimer?.cancel();
     super.dispose();
   }
 
@@ -107,6 +109,8 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
         NotificationManager().refresh();
         widget.onRefresh?.call();
       }
+      // Start polling for new messages in this conversation
+      _startMessagePolling(otherUserId);
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -117,6 +121,30 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
         );
       }
     }
+  }
+
+  void _startMessagePolling(int otherUserId) {
+    _messagePollingTimer?.cancel();
+    _messagePollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted || _selectedPartnerId != otherUserId) {
+        _messagePollingTimer?.cancel();
+        return;
+      }
+      try {
+        await ChatService().markConversationAsRead(otherUserId);
+        final messages = await ChatService().getMessagesWithUser(otherUserId);
+        if (mounted && _selectedPartnerId == otherUserId) {
+          setState(() {
+            _messages = messages;
+            for (var conv in _conversations) {
+              if (conv['partnerId'] == otherUserId) {
+                conv['unreadCount'] = 0;
+              }
+            }
+          });
+        }
+      } catch (_) {}
+    });
   }
 
   Future<void> _sendMessage() async {
@@ -668,12 +696,9 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
           child: SafeArea(
             top: false,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-              decoration: BoxDecoration(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: Colors.grey[200]!),
-                ),
               ),
               child: Row(
                 children: [
