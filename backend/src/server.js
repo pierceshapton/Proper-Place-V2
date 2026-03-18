@@ -495,6 +495,24 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 13 error:', err.message);
     }
 
+    // Migration 14: Create chat_reopen_requests table
+    try {
+      console.log('[SERVER] Running migration 14: chat_reopen_requests table...');
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS chat_reopen_requests (
+          id SERIAL PRIMARY KEY,
+          booking_id INTEGER NOT NULL REFERENCES bookings(id),
+          requester_id INTEGER NOT NULL REFERENCES users(id),
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT NOW(),
+          responded_at TIMESTAMP
+        )
+      `);
+      console.log('[SERVER] ✅ Migration 14 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 14 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

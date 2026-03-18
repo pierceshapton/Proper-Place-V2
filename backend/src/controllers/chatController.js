@@ -263,6 +263,7 @@ async function getMessages(req, res, next) {
 /**
  * POST /messages
  * Send a new message
+ * Enforces 72-hour post-checkout chat window for completed bookings
  */
 async function sendMessage(req, res, next) {
   try {
@@ -271,6 +272,37 @@ async function sendMessage(req, res, next) {
 
     if (!receiverId || !content) {
       return res.status(400).json({ error: 'receiverId and content are required' });
+    }
+
+    // Enforce 72-hour chat window for completed bookings
+    if (bookingId) {
+      const bookingResult = await db.query(
+        `SELECT b.status, b.check_out_date, b.check_out_time, p.owner_id as host_id
+         FROM bookings b
+         LEFT JOIN places p ON b.place_id = p.id
+         WHERE b.id = $1`,
+        [bookingId]
+      );
+      const booking = bookingResult.rows[0];
+      if (booking) {
+        const status = (booking.status || '').toLowerCase();
+        if (status === 'completed' && booking.check_out_date) {
+          const checkOutTime = booking.check_out_time || '12:00';
+          const checkOutDateTime = new Date(`${booking.check_out_date.toISOString().split('T')[0]}T${checkOutTime}:00`);
+          const hoursSinceCheckout = (Date.now() - checkOutDateTime.getTime()) / (1000 * 60 * 60);
+
+          if (hoursSinceCheckout > 72) {
+            // Check if chat has been reopened
+            const reopenResult = await db.query(
+              `SELECT id FROM chat_reopen_requests WHERE booking_id = $1 AND status = 'approved' ORDER BY responded_at DESC LIMIT 1`,
+              [bookingId]
+            );
+            if (reopenResult.rows.length === 0) {
+              return res.status(403).json({ error: 'Chat closed', message: 'The chat window for this booking has closed (72 hours after checkout). Request to reopen to continue messaging.' });
+            }
+          }
+        }
+      }
     }
 
     const result = await db.query(
@@ -546,6 +578,142 @@ async function getResponseTime(req, res, next) {
   }
 }
 
+/**
+ * GET /bookings/:bookingId/status
+ * Get chat status for a booking (open, closing soon, closed, reopened)
+ */
+async function getChatStatus(req, res, next) {
+  try {
+    const bookingId = parseInt(req.params.bookingId);
+    if (!bookingId) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+
+    const bookingResult = await db.query(
+      `SELECT b.status, b.check_out_date, b.check_out_time
+       FROM bookings b WHERE b.id = $1`,
+      [bookingId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const booking = bookingResult.rows[0];
+    const status = (booking.status || '').toLowerCase();
+
+    // Not completed — chat is fully open
+    if (status !== 'completed') {
+      return res.json({ chatStatus: 'open', hoursRemaining: null, reopenRequestId: null, reopenStatus: null });
+    }
+
+    const checkOutTime = booking.check_out_time || '12:00';
+    const checkOutDateTime = new Date(`${booking.check_out_date.toISOString().split('T')[0]}T${checkOutTime}:00`);
+    const hoursSinceCheckout = (Date.now() - checkOutDateTime.getTime()) / (1000 * 60 * 60);
+
+    if (hoursSinceCheckout <= 72) {
+      const hoursRemaining = Math.max(0, Math.ceil(72 - hoursSinceCheckout));
+      return res.json({ chatStatus: 'closing_soon', hoursRemaining, reopenRequestId: null, reopenStatus: null });
+    }
+
+    // Past 72 hours — check for reopen requests
+    const reopenResult = await db.query(
+      `SELECT id, status, requester_id FROM chat_reopen_requests
+       WHERE booking_id = $1
+       ORDER BY created_at DESC LIMIT 1`,
+      [bookingId]
+    );
+
+    const reopenReq = reopenResult.rows[0];
+    if (reopenReq && reopenReq.status === 'approved') {
+      return res.json({ chatStatus: 'reopened', hoursRemaining: null, reopenRequestId: reopenReq.id, reopenStatus: 'approved' });
+    }
+
+    return res.json({
+      chatStatus: 'closed',
+      hoursRemaining: null,
+      reopenRequestId: reopenReq?.id || null,
+      reopenStatus: reopenReq?.status || null,
+      reopenRequesterId: reopenReq?.requester_id || null,
+    });
+  } catch (error) {
+    logger.error('Error getting chat status', { error: error.message });
+    return next(error);
+  }
+}
+
+/**
+ * POST /bookings/:bookingId/reopen
+ * Request to reopen chat for a completed booking (past 72hrs)
+ */
+async function requestChatReopen(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const bookingId = parseInt(req.params.bookingId);
+
+    if (!bookingId) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+
+    // Check if there's already a pending request
+    const existing = await db.query(
+      `SELECT id, status FROM chat_reopen_requests
+       WHERE booking_id = $1 AND status = 'pending'`,
+      [bookingId]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'A reopen request is already pending for this booking' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO chat_reopen_requests (booking_id, requester_id, status, created_at)
+       VALUES ($1, $2, 'pending', NOW())
+       RETURNING *`,
+      [bookingId, userId]
+    );
+
+    return res.status(201).json({ reopenRequest: result.rows[0] });
+  } catch (error) {
+    logger.error('Error requesting chat reopen', { error: error.message });
+    return next(error);
+  }
+}
+
+/**
+ * PUT /reopen/:requestId/respond
+ * Accept or decline a chat reopen request
+ */
+async function respondChatReopen(req, res, next) {
+  try {
+    const requestId = parseInt(req.params.requestId);
+    const { accept } = req.body;
+
+    if (typeof accept !== 'boolean') {
+      return res.status(400).json({ error: 'accept (boolean) is required' });
+    }
+
+    const newStatus = accept ? 'approved' : 'declined';
+
+    const result = await db.query(
+      `UPDATE chat_reopen_requests
+       SET status = $1, responded_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
+      [newStatus, requestId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Reopen request not found' });
+    }
+
+    return res.json({ reopenRequest: result.rows[0] });
+  } catch (error) {
+    logger.error('Error responding to chat reopen', { error: error.message });
+    return next(error);
+  }
+}
+
 module.exports = {
   deleteContact,
   markContactAsUnread,
@@ -560,4 +728,7 @@ module.exports = {
   markMessagesAsDelivered,
   clearAllMessages,
   getResponseTime,
+  requestChatReopen,
+  respondChatReopen,
+  getChatStatus,
 };

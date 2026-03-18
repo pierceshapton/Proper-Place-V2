@@ -598,6 +598,25 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   ),
                 ),
               ],
+              // Chat button for completed bookings (within 72hr window or reopened)
+              if (status.toLowerCase() == 'completed') ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openChat(booking),
+                    icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                    label: const Text('Chat with Host'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF7BA7D8),
+                      side: const BorderSide(color: Color(0xFF7BA7D8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               // Review button for completed bookings (only after checkout date has passed)
               if (status.toLowerCase() == 'completed' && _isStayEnded(booking['check_out'])) ...[
                 const SizedBox(height: 12),

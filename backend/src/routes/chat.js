@@ -22,6 +22,11 @@ router.put('/conversations/:otherUserId/delivered', chatController.markMessagesA
 // Response time
 router.get('/response-time/:hostId', chatController.getResponseTime);
 
+// Chat reopen requests
+router.get('/bookings/:bookingId/status', chatController.getChatStatus);
+router.post('/bookings/:bookingId/reopen', chatController.requestChatReopen);
+router.put('/reopen/:requestId/respond', chatController.respondChatReopen);
+
 // Message operations
 router.post('/messages', chatController.sendMessage);
 router.delete('/messages/clear-all', chatController.clearAllMessages);

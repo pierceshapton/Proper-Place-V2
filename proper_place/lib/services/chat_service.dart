@@ -387,4 +387,68 @@ class ChatService {
       return null;
     }
   }
+
+  /// Get chat status for a booking (open, closing_soon, closed, reopened)
+  Future<Map<String, dynamic>?> getChatStatus(int bookingId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) return null;
+
+      final response = await http.get(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/bookings/$bookingId/status'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Request to reopen a closed chat
+  Future<bool> requestChatReopen(int bookingId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) return false;
+
+      final response = await http.post(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/bookings/$bookingId/reopen'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      return response.statusCode == 201;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Respond to a chat reopen request (accept or decline)
+  Future<bool> respondChatReopen(int requestId, bool accept) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) return false;
+
+      final response = await http.put(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/reopen/$requestId/respond'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'accept': accept}),
+      ).timeout(const Duration(seconds: 10));
+
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 }

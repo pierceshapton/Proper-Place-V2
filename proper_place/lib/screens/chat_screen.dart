@@ -30,6 +30,12 @@ class _ChatScreenState extends State<ChatScreen> {
   int? _currentUserId;
   Timer? _pollingTimer;
   String? _responseTimeLabel;
+  String? _chatStatus; // open, closing_soon, closed, reopened
+  int? _hoursRemaining;
+  int? _reopenRequestId;
+  String? _reopenStatus; // pending, approved, declined
+  int? _reopenRequesterId;
+  bool _reopenRequesting = false;
 
   @override
   void initState() {
@@ -37,9 +43,11 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatService = ChatService();
     _initAndLoad();
     _loadResponseTime();
+    _loadChatStatus();
     // Poll for status updates every 3 seconds
     _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       _refreshStatuses();
+      _loadChatStatus();
     });
   }
 
@@ -47,6 +55,60 @@ class _ChatScreenState extends State<ChatScreen> {
     final label = await _chatService.getResponseTimeLabel(widget.hostId);
     if (mounted && label != null) {
       setState(() => _responseTimeLabel = label);
+    }
+  }
+
+  Future<void> _loadChatStatus() async {
+    final bookingIdInt = int.tryParse(widget.bookingId);
+    if (bookingIdInt == null) return;
+    final status = await _chatService.getChatStatus(bookingIdInt);
+    if (mounted && status != null) {
+      setState(() {
+        _chatStatus = status['chatStatus'] as String?;
+        _hoursRemaining = status['hoursRemaining'] as int?;
+        _reopenRequestId = status['reopenRequestId'] as int?;
+        _reopenStatus = status['reopenStatus'] as String?;
+        _reopenRequesterId = status['reopenRequesterId'] as int?;
+      });
+    }
+  }
+
+  Future<void> _requestReopen() async {
+    final bookingIdInt = int.tryParse(widget.bookingId);
+    if (bookingIdInt == null) return;
+    setState(() => _reopenRequesting = true);
+    final success = await _chatService.requestChatReopen(bookingIdInt);
+    if (mounted) {
+      setState(() => _reopenRequesting = false);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reopen request sent to host')),
+        );
+        _loadChatStatus();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('A reopen request is already pending'), backgroundColor: Colors.orange),
+        );
+      }
+    }
+  }
+
+  Future<void> _respondToReopen(bool accept) async {
+    if (_reopenRequestId == null) return;
+    try {
+      await _chatService.respondChatReopen(_reopenRequestId!, accept);
+      await _loadChatStatus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(accept ? 'Chat reopened' : 'Reopen request declined')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
     }
   }
 
@@ -257,7 +319,7 @@ class _ChatScreenState extends State<ChatScreen> {
               : Column(
                   children: [
                     // Response time indicator
-                    if (_responseTimeLabel != null)
+                    if (_responseTimeLabel != null && _chatStatus != 'closed')
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
@@ -270,6 +332,127 @@ class _ChatScreenState extends State<ChatScreen> {
                             Text(
                               'Typically responds $_responseTimeLabel',
                               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    // Chat window status banner
+                    if (_chatStatus == 'closing_soon' && _hoursRemaining != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                        color: const Color(0xFFFFF3CD),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.timer_outlined, size: 14, color: Colors.orange[700]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Chat closes in ${_hoursRemaining}h after checkout',
+                              style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_chatStatus == 'closed')
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                        color: const Color(0xFFF8D7DA),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.lock_outline, size: 14, color: Colors.red[700]),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Chat closed (72 hours after checkout)',
+                                  style: TextStyle(fontSize: 12, color: Colors.red[800]),
+                                ),
+                              ],
+                            ),
+                            // Host requested reopen — user can approve/decline
+                            if (_reopenStatus == 'pending' && _reopenRequesterId != null && _reopenRequesterId != _currentUserId) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                'Host has requested to reopen this chat',
+                                style: TextStyle(fontSize: 12, color: Colors.red[800], fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    height: 28,
+                                    child: ElevatedButton(
+                                      onPressed: () => _respondToReopen(true),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        textStyle: const TextStyle(fontSize: 12),
+                                      ),
+                                      child: const Text('Accept', style: TextStyle(color: Colors.white)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    height: 28,
+                                    child: ElevatedButton(
+                                      onPressed: () => _respondToReopen(false),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red[400],
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        textStyle: const TextStyle(fontSize: 12),
+                                      ),
+                                      child: const Text('Decline', style: TextStyle(color: Colors.white)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ]
+                            // User requested reopen — pending
+                            else if (_reopenStatus == 'pending' && _reopenRequesterId == _currentUserId)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Reopen request pending — waiting for host',
+                                  style: TextStyle(fontSize: 11, color: Colors.orange[800], fontStyle: FontStyle.italic),
+                                ),
+                              )
+                            // No request yet — show request button
+                            else if (_reopenStatus == null || _reopenStatus == 'declined') ...[
+                              const SizedBox(height: 6),
+                              SizedBox(
+                                height: 28,
+                                child: TextButton(
+                                  onPressed: _reopenRequesting ? null : _requestReopen,
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  ),
+                                  child: Text(
+                                    _reopenRequesting ? 'Sending...' : 'Request to reopen chat',
+                                    style: TextStyle(fontSize: 12, color: Colors.red[700], fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    if (_chatStatus == 'reopened')
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                        color: const Color(0xFFD4EDDA),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock_open, size: 14, color: Colors.green[700]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Chat reopened',
+                              style: TextStyle(fontSize: 12, color: Colors.green[800]),
                             ),
                           ],
                         ),
@@ -347,50 +530,51 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-                    // Message input
-                    Container(
-                      color: Colors.white,
-                      child: SafeArea(
-                        top: false,
-                        child: Container(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _messageController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Type a message...',
-                                    hintStyle: TextStyle(color: Colors.grey[700]),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(24),
-                                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    // Message input (hidden when chat is closed without reopen)
+                    if (_chatStatus != 'closed')
+                      Container(
+                        color: Colors.white,
+                        child: SafeArea(
+                          top: false,
+                          child: Container(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _messageController,
+                                    decoration: InputDecoration(
+                                      hintText: 'Type a message...',
+                                      hintStyle: TextStyle(color: Colors.grey[700]),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                        borderSide: BorderSide(color: Colors.grey[300]!),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 10,
+                                      ),
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 10,
-                                    ),
+                                    maxLines: null,
+                                    textInputAction: TextInputAction.send,
+                                    onSubmitted: (_) => _sendMessage(),
                                   ),
-                                  maxLines: null,
-                                  textInputAction: TextInputAction.send,
-                                  onSubmitted: (_) => _sendMessage(),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              FloatingActionButton(
-                                onPressed: _sendMessage,
-                                mini: true,
-                                backgroundColor: const Color(0xFF7BA7D8),
-                                child: const Icon(Icons.send),
-                              ),
-                            ],
+                                const SizedBox(width: 12),
+                                FloatingActionButton(
+                                  onPressed: _sendMessage,
+                                  mini: true,
+                                  backgroundColor: const Color(0xFF7BA7D8),
+                                  child: const Icon(Icons.send),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
     );
