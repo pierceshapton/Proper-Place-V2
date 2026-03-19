@@ -110,9 +110,16 @@ class _LoginScreenState extends State<LoginScreen> {
         if (user['role'] != null) {
           await StorageService.saveUserRole(user['role']);
           print('[Login] Saved role: ${user['role']}');
-          // Ensure admin mode is enabled for admin users
+          // Set default mode based on account type
           if (user['role'] == 'admin') {
             await StorageService.setAdminMode(true);
+            await StorageService.setHostMode(false);
+          } else if (user['role'] == 'host') {
+            await StorageService.setHostMode(true);
+            await StorageService.setAdminMode(false);
+          } else {
+            await StorageService.setHostMode(false);
+            await StorageService.setAdminMode(false);
           }
         }
       }

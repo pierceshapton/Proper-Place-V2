@@ -38,6 +38,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   double maxVehicleLength = 30.0; // Default 30ft
   double maxVehicleHeight = 12.0; // Default 12ft
   double maxVehicleWidth = 8.0; // Default 8ft
+  int numberOfVanSpaces = 1; // Number of van spaces available
   bool vehicleDimensionsConfirmed = false; // Track if host confirmed dimensions
   bool useMetricUnits = false; // Toggle between feet and metres
   
@@ -217,10 +218,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       businessNameController.text = site['name'] ?? site['business_name'] ?? '';
       businessDescriptionController.text = site['business_description'] ?? '';
       foodMenuController.text = site['food_menu_description'] ?? '';
-      maxVehicleLength = _parseDouble(site['max_vehicle_length_ft'] ?? site['capacity'] ?? site['max_vehicle_length'], 30);
+      maxVehicleLength = _parseDouble(site['max_vehicle_length_ft'] ?? site['max_vehicle_length'], 30);
       maxVehicleHeight = _parseDouble(site['max_vehicle_height_ft'], 12);
       // Clamp width to valid range (4-8ft)
       maxVehicleWidth = _parseDouble(site['max_vehicle_width_ft'], 8).clamp(4.0, 8.0);
+      numberOfVanSpaces = int.tryParse(site['capacity']?.toString() ?? '') ?? 1;
       vehicleDimensionsConfirmed = true; // Already set when editing
       
       // Load location data
@@ -436,7 +438,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'country': country.isNotEmpty ? country : 'UK',
       'latitude': latitude != 0 ? latitude : 51.5074, // Default to London
       'longitude': longitude != 0 ? longitude : -0.1278,
-      'capacity': maxVehicleLength.toInt(),
+      'capacity': numberOfVanSpaces,
       'max_vehicle_height_ft': maxVehicleHeight,
       'max_vehicle_width_ft': maxVehicleWidth,
       'max_vehicle_length_ft': maxVehicleLength,
@@ -475,7 +477,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'country': country,
       'latitude': latitude,
       'longitude': longitude,
-      'capacity': maxVehicleLength.toInt(),
+      'capacity': numberOfVanSpaces,
       'max_vehicle_height_ft': maxVehicleHeight,
       'max_vehicle_width_ft': maxVehicleWidth,
       'max_vehicle_length_ft': maxVehicleLength,
@@ -1161,6 +1163,57 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               ],
             ),
             const SizedBox(height: 16),
+
+            // Number of Van Spaces
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Number of Van Spaces *',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'How many vans can park at your site at the same time?',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: numberOfVanSpaces > 1 ? () => setState(() => numberOfVanSpaces--) : null,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: numberOfVanSpaces > 1 ? const Color(0xFF1B4332) : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.remove, color: numberOfVanSpaces > 1 ? Colors.white : Colors.grey[500]),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Text(
+                      '$numberOfVanSpaces',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 20),
+                    GestureDetector(
+                      onTap: numberOfVanSpaces < 50 ? () => setState(() => numberOfVanSpaces++) : null,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: numberOfVanSpaces < 50 ? const Color(0xFF1B4332) : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.add, color: numberOfVanSpaces < 50 ? Colors.white : Colors.grey[500]),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
 
             // Facilities Selection
             _buildFacilitiesSection(),
