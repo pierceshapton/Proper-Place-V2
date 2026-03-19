@@ -17,6 +17,7 @@ class HostCreateSiteScreen extends StatefulWidget {
 }
 
 class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
+  late TextEditingController siteNameController;
   late TextEditingController addressController;
   late TextEditingController descriptionController;
   late TextEditingController accessRouteController;
@@ -107,6 +108,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   @override
   void initState() {
     super.initState();
+    siteNameController = TextEditingController();
     addressController = TextEditingController();
     descriptionController = TextEditingController();
     accessRouteController = TextEditingController();
@@ -210,6 +212,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     
     setState(() {
       // Map backend field names to form fields
+      siteNameController.text = site['name'] ?? '';
       addressController.text = site['address'] ?? '';
       descriptionController.text = site['description'] ?? '';
       accessRouteController.text = site['access_route_description'] ?? '';
@@ -430,7 +433,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   // Build draft data with defaults for required fields
   Map<String, dynamic> _buildDraftData() {
     final data = {
-      'name': businessNameController.text.isNotEmpty ? businessNameController.text : 'Untitled Draft',
+      'name': siteNameController.text.isNotEmpty ? siteNameController.text : 'Untitled Draft',
       'address': addressController.text.isNotEmpty ? addressController.text : 'Address pending',
       'description': descriptionController.text.isNotEmpty ? descriptionController.text : 'Draft - description pending',
       'price_per_night': double.tryParse(priceController.text) ?? 0,
@@ -468,7 +471,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
   Map<String, dynamic> _buildSiteData() {
     final data = {
-      'name': (showBusinessInfo && businessNameController.text.isNotEmpty) ? businessNameController.text : 'Site',
+      'name': siteNameController.text,
       'address': addressController.text,
       'description': descriptionController.text,
       'access_route_description': accessRouteController.text,
@@ -557,6 +560,13 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
   Future<void> _submitSite() async {
     // Validate required fields
+    if (siteNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a name for your site')),
+      );
+      return;
+    }
+
     // Allow bypassing address verification if editing and address hasn't changed
     final isEditing = widget.siteToEdit != null;
     final addressUnchanged = isEditing && addressController.text == widget.siteToEdit!['address'];
@@ -680,6 +690,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   @override
   void dispose() {
     _priceFocusNode.removeListener(_onPriceFocusChange);
+    siteNameController.dispose();
     addressController.dispose();
     descriptionController.dispose();
     accessRouteController.dispose();
@@ -771,6 +782,35 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               }),
               onRemovePhoto: (index) => setState(() => supportingPhotos.removeAt(index)),
               onRemoveExistingUrl: (index) => setState(() => existingSupportingUrls.removeAt(index)),
+            ),
+            const SizedBox(height: 24),
+
+            // Site Name
+            Text(
+              'Site Name *',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Give your site a name that guests will see',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: siteNameController,
+              decoration: InputDecoration(
+                hintText: 'e.g. Sunny Meadow Farm, The Old Mill Parking',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFF1B4332), width: 2),
+                ),
+              ),
+              textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 24),
 
