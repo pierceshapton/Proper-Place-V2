@@ -38,7 +38,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   double maxVehicleLength = 30.0; // Default 30ft
   double maxVehicleHeight = 12.0; // Default 12ft
   double maxVehicleWidth = 8.0; // Default 8ft
-  int numberOfVanSpaces = 1; // Number of van spaces available
+  int numberOfVanSpaces = 0; // Number of van spaces available (0 = must be set)
   bool vehicleDimensionsConfirmed = false; // Track if host confirmed dimensions
   bool useMetricUnits = false; // Toggle between feet and metres
   
@@ -222,7 +222,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       maxVehicleHeight = _parseDouble(site['max_vehicle_height_ft'], 12);
       // Clamp width to valid range (4-8ft)
       maxVehicleWidth = _parseDouble(site['max_vehicle_width_ft'], 8).clamp(4.0, 8.0);
-      numberOfVanSpaces = int.tryParse(site['capacity']?.toString() ?? '') ?? 1;
+      numberOfVanSpaces = int.tryParse(site['capacity']?.toString() ?? '') ?? 0;
       vehicleDimensionsConfirmed = true; // Already set when editing
       
       // Load location data
@@ -587,6 +587,13 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     if (mainPhotoFile == null && widget.siteToEdit == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload a main photo')),
+      );
+      return;
+    }
+
+    if (numberOfVanSpaces < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please set the number of available van spaces')),
       );
       return;
     }
@@ -1181,15 +1188,15 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 Row(
                   children: [
                     GestureDetector(
-                      onTap: numberOfVanSpaces > 1 ? () => setState(() => numberOfVanSpaces--) : null,
+                      onTap: numberOfVanSpaces > 0 ? () => setState(() => numberOfVanSpaces--) : null,
                       child: Container(
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: numberOfVanSpaces > 1 ? const Color(0xFF1B4332) : Colors.grey[300],
+                          color: numberOfVanSpaces > 0 ? const Color(0xFF1B4332) : Colors.grey[300],
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(Icons.remove, color: numberOfVanSpaces > 1 ? Colors.white : Colors.grey[500]),
+                        child: Icon(Icons.remove, color: numberOfVanSpaces > 0 ? Colors.white : Colors.grey[500]),
                       ),
                     ),
                     const SizedBox(width: 20),

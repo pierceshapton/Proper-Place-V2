@@ -337,7 +337,9 @@ async function getHostPlaces(req, res, next) {
               COALESCE(business_image_urls, ARRAY[]::TEXT[]) as business_images,
               approval_status, rejection_reason, status, featured, rating, review_count,
               place_type, opening_hours, kitchen_hours, food_menu_description,
-              serves_food, created_at, updated_at
+              serves_food, business_description, access_route_description,
+              max_vehicle_height_ft, max_vehicle_width_ft, max_vehicle_length_ft,
+              website, created_at, updated_at
        FROM places 
        WHERE owner_id = $1 AND deleted_at IS NULL
        ORDER BY created_at DESC`,
