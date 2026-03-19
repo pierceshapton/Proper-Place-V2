@@ -667,27 +667,17 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          final approvalStatus = place['approval_status'];
-                          if (approvalStatus == 'draft' || approvalStatus == 'pending') {
-                            // Use full create/edit form for draft and pending sites
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => HostCreateSiteScreen(
-                                  siteToEdit: place['rawData'],
-                                ),
+                          // Use full create/edit form for all statuses
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HostCreateSiteScreen(
+                                siteToEdit: place['rawData'],
                               ),
-                            );
-                            if (result == true) {
-                              _loadPlaces();
-                            }
-                          } else {
-                            // Use simple edit form for approved sites
-                            Navigator.pushNamed(
-                              context,
-                              '/host_submit_place',
-                              arguments: place,
-                            );
+                            ),
+                          );
+                          if (result == true) {
+                            _loadPlaces();
                           }
                         },
                         icon: const Icon(Icons.edit, size: 18),
