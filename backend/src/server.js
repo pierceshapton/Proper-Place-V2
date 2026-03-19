@@ -513,6 +513,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 14 error:', err.message);
     }
 
+    // Migration 15: Add host_status_seen column to places table
+    try {
+      console.log('[SERVER] Running migration 15: places host_status_seen column...');
+      await db.query(`ALTER TABLE places ADD COLUMN IF NOT EXISTS host_status_seen BOOLEAN DEFAULT true`);
+      console.log('[SERVER] ✅ Migration 15 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 15 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
