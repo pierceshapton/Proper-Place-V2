@@ -845,23 +845,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
               ],
             ),
           ),
-        if (_chatStatus == 'reopened')
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-            color: const Color(0xFFD4EDDA),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.lock_open, size: 14, color: Colors.green[700]),
-                const SizedBox(width: 6),
-                Text(
-                  'Chat reopened',
-                  style: TextStyle(fontSize: 12, color: Colors.green[800]),
-                ),
-              ],
-            ),
-          ),
+
         // Messages
         Expanded(
           child: _isLoadingMessages

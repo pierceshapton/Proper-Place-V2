@@ -1310,23 +1310,7 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
                     ],
                   ),
                 ),
-              if (_chatStatus == 'reopened')
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                  color: const Color(0xFFD4EDDA),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.lock_open, size: 13, color: Colors.green[700]),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Chat reopened',
-                        style: TextStyle(fontSize: 11, color: Colors.green[800]),
-                      ),
-                    ],
-                  ),
-                ),
+
               // Messages
               Expanded(
                 child: _isLoading
