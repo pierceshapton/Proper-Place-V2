@@ -204,7 +204,7 @@ async function updatePlace(req, res, next) {
 
     // Check ownership
     const ownerResult = await db.query(
-      'SELECT owner_id FROM places WHERE id = $1',
+      'SELECT owner_id, approval_status FROM places WHERE id = $1',
       [id]
     );
 
@@ -222,6 +222,8 @@ async function updatePlace(req, res, next) {
       });
     }
 
+    const previousApprovalStatus = ownerResult.rows[0].approval_status;
+
     // Build dynamic UPDATE
     const fields = [];
     const values = [];
@@ -235,9 +237,9 @@ async function updatePlace(req, res, next) {
       'max_vehicle_width_ft', 'max_vehicle_length_ft',
     ];
 
-    // Admin can also reassign ownership
+    // Admin can also reassign ownership and approval status
     if (req.user.role === 'admin') {
-      allowedFields.push('owner_id');
+      allowedFields.push('owner_id', 'approval_status');
     }
 
     for (const field of allowedFields) {
@@ -246,6 +248,16 @@ async function updatePlace(req, res, next) {
         values.push(data[field]);
         paramCount++;
       }
+    }
+
+    // When a host edits an approved site, set it back to pending for admin review
+    if (req.user.role !== 'admin' && previousApprovalStatus === 'approved') {
+      fields.push(`approval_status = $${paramCount}`);
+      values.push('pending');
+      paramCount++;
+      fields.push(`host_status_seen = $${paramCount}`);
+      values.push(true);
+      paramCount++;
     }
 
     if (fields.length === 0) {

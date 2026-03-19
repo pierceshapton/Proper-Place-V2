@@ -667,8 +667,14 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       await StorageService.removeString('site_draft');
 
       if (mounted) {
+        final wasApproved = isEditing && widget.siteToEdit!['approval_status'] == 'approved';
+        final message = wasApproved
+            ? 'Changes submitted for admin review'
+            : isEditing
+                ? 'Site updated successfully! 🎉'
+                : 'Site submitted successfully! 🎉';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(isEditing ? 'Site updated successfully! 🎉' : 'Site submitted successfully! 🎉')),
+          SnackBar(content: Text(message)),
         );
         Navigator.pop(context, true); // Return true to refresh parent screen
       }
