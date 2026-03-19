@@ -35,6 +35,7 @@ const schemas = {
     max_vehicle_height_ft: Joi.number().min(0).max(20).optional().allow(null),
     max_vehicle_width_ft: Joi.number().min(0).max(15).optional().allow(null),
     max_vehicle_length_ft: Joi.number().min(0).max(50).optional().allow(null),
+    owner_id: Joi.number().integer().optional(),
   }).unknown(true),
 
   createBooking: Joi.object({

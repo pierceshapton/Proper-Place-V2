@@ -235,6 +235,11 @@ async function updatePlace(req, res, next) {
       'max_vehicle_width_ft', 'max_vehicle_length_ft',
     ];
 
+    // Admin can also reassign ownership
+    if (req.user.role === 'admin') {
+      allowedFields.push('owner_id');
+    }
+
     for (const field of allowedFields) {
       if (field in data) {
         fields.push(`${field} = $${paramCount}`);
