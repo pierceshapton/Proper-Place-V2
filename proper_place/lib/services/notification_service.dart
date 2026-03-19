@@ -213,4 +213,22 @@ class NotificationService {
       return 0;
     }
   }
+
+  /// Mark site status notifications as seen (called when host views Sites tab)
+  Future<void> markSiteNotificationsSeen() async {
+    try {
+      final token = await StorageService.getToken();
+      if (token == null) return;
+
+      await http.post(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/notifications/sites/mark-seen'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+    } catch (error) {
+      print('[NotificationService] Error marking sites as seen: $error');
+    }
+  }
 }

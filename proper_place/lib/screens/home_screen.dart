@@ -354,7 +354,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _badgeCounts[2] = counts['pendingBookings'] ?? 0; // Bookings tab
           }
           _badgeCounts[3] = counts['unreadMessages'] ?? 0; // Chat tab
-          _badgeCounts[1] = counts['siteSubmissions'] ?? 0; // Sites tab - pending approvals
+          // Don't show sites badge while host is viewing Sites tab (already marked seen)
+          if (_currentIndex != 1) {
+            _badgeCounts[1] = counts['siteSubmissions'] ?? 0; // Sites tab - status changes
+          }
         } else {
           // User mode: Map (0), Bookings (1), Saved (2), More (3)
           _badgeCounts[1] = counts['unreadMessages'] ?? 0; // Bookings tab - unread messages (no Chat tab in user mode)

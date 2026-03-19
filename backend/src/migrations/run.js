@@ -39,6 +39,7 @@ async function runMigrations() {
       '006_business_description.sql',
       '007_business_images.sql',
       '010_vehicle_restrictions.sql',
+      '011_site_status_seen.sql',
     ];
     
     for (const file of migrationFiles) {

@@ -18,4 +18,7 @@ router.patch('/messages/:messageId/read', notificationController.markMessageAsRe
 // Mark all messages from a sender as read
 router.patch('/messages/read-all', notificationController.markAllMessagesFromSenderAsRead);
 
+// Mark site status notifications as seen (host viewed Sites tab)
+router.post('/sites/mark-seen', notificationController.markSitesSeen);
+
 module.exports = router;

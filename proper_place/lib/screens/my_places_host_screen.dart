@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'host_create_site_screen.dart';
 import '../services/place_service.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import '../config/app_config.dart';
 
 class MyPlacesHostScreen extends StatefulWidget {
@@ -27,6 +28,8 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
   void initState() {
     super.initState();
     _loadPlaces();
+    // Mark site notifications as seen when host views this tab
+    NotificationService().markSiteNotificationsSeen();
   }
 
   Future<void> _loadPlaces() async {

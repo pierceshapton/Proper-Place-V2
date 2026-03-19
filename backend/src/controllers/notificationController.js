@@ -84,9 +84,9 @@ async function getNotificationCounts(req, res, next) {
           counts.pendingHostApplications = 0;
         }
       } else if (userRole === 'host') {
-        // Host sees their pending place submissions
+        // Host sees unseen status changes (approved/rejected) on their sites
         const hostAppsResult = await db.query(
-          `SELECT COUNT(*) as count FROM places WHERE owner_id = $1 AND approval_status = 'pending'`,
+          `SELECT COUNT(*) as count FROM places WHERE owner_id = $1 AND host_status_seen = false AND deleted_at IS NULL`,
           [userId]
         );
         counts.siteSubmissions = parseInt(hostAppsResult.rows[0]?.count || 0);
@@ -201,9 +201,31 @@ async function getUnreadByBooking(req, res, next) {
   }
 }
 
+/**
+ * POST /notifications/sites/mark-seen
+ * Mark all site status notifications as seen for the current host
+ */
+async function markSitesSeen(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    await db.query(
+      `UPDATE places SET host_status_seen = true WHERE owner_id = $1 AND host_status_seen = false`,
+      [userId]
+    );
+
+    logger.info('Site notifications marked as seen', { userId });
+    return res.json({ message: 'Sites marked as seen' });
+  } catch (error) {
+    logger.error('Error marking sites as seen', { error: error.message });
+    return next(error);
+  }
+}
+
 module.exports = {
   getNotificationCounts,
   getUnreadByBooking,
   markMessageAsRead,
   markAllMessagesFromSenderAsRead,
+  markSitesSeen,
 };
