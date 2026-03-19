@@ -37,6 +37,9 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
   int? _reopenRequesterId;
   bool _reopenRequesting = false;
 
+  // Track pending reopen requests per partnerId for list badges
+  Map<int, Map<String, dynamic>> _reopenRequests = {};
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +84,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
           _conversations = conversations;
           _isLoadingConversations = false;
         });
+        _loadReopenStatuses();
       }
     } catch (error) {
       if (mounted) {
@@ -89,6 +93,31 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
           _isLoadingConversations = false;
         });
       }
+    }
+  }
+
+  Future<void> _loadReopenStatuses() async {
+    final requests = <int, Map<String, dynamic>>{};
+    for (final conv in _conversations) {
+      final bookingId = conv['bookingId'];
+      if (bookingId == null) continue;
+      final bid = bookingId is int ? bookingId : int.tryParse(bookingId.toString());
+      if (bid == null) continue;
+      try {
+        final status = await ChatService().getChatStatus(bid);
+        if (status != null && status['reopenStatus'] == 'pending' &&
+            status['reopenRequesterId'] != _currentUserId) {
+          final partnerId = conv['partnerId'];
+          if (partnerId != null) {
+            requests[partnerId is int ? partnerId : int.parse(partnerId.toString())] = status;
+          }
+        }
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() {
+        _reopenRequests = requests;
+      });
     }
   }
 
@@ -489,6 +518,8 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
     final unreadCount = conversation['unreadCount'] ?? 0;
     final placeName = conversation['placeName'] ?? '';
     final partnerId = conversation['partnerId'];
+    final partnerIdInt = partnerId is int ? partnerId : int.tryParse(partnerId.toString()) ?? 0;
+    final hasPendingReopen = _reopenRequests.containsKey(partnerIdInt);
 
     return GestureDetector(
       onTap: () {
@@ -506,9 +537,9 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: hasPendingReopen ? const Color(0xFFFFF5F5) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: hasPendingReopen ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0)),
         ),
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -603,6 +634,32 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
                         ),
                     ],
                   ),
+                  if (hasPendingReopen) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFFCA5A5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lock_open, size: 12, color: Colors.red[700]),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Reopen requested',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.red[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
