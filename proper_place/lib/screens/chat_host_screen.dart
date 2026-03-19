@@ -129,15 +129,19 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
     });
 
     try {
-      // Mark conversation as read when opening it
-      await ChatService().markConversationAsRead(otherUserId);
+      // Fetch by booking if available (matches user chat behavior), else by user pair
+      final bookingId = _selectedConversation?['bookingId'];
+      final bid = bookingId != null ? (bookingId is int ? bookingId : int.tryParse(bookingId.toString())) : null;
       
-      final messages = await ChatService().getMessagesWithUser(otherUserId);
-      print('[ChatHost] Fetched ${messages.length} messages with user $otherUserId');
-      if (messages.isNotEmpty) {
-        print('[ChatHost] First msg sender_id: ${messages.first['sender_id']} (type: ${messages.first['sender_id'].runtimeType})');
-        print('[ChatHost] _currentUserId: $_currentUserId (type: ${_currentUserId.runtimeType})');
+      List<Map<String, dynamic>> messages;
+      if (bid != null) {
+        await ChatService().markBookingAsRead(bid);
+        messages = await ChatService().getMessagesByBooking(bid);
+      } else {
+        await ChatService().markConversationAsRead(otherUserId);
+        messages = await ChatService().getMessagesWithUser(otherUserId);
       }
+      print('[ChatHost] Fetched ${messages.length} messages (bookingId=$bid, partnerId=$otherUserId)');
       if (mounted) {
         setState(() {
           _messages = messages;
@@ -175,8 +179,17 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
         return;
       }
       try {
-        await ChatService().markConversationAsRead(otherUserId);
-        final messages = await ChatService().getMessagesWithUser(otherUserId);
+        final bookingId = _selectedConversation?['bookingId'];
+        final bid = bookingId != null ? (bookingId is int ? bookingId : int.tryParse(bookingId.toString())) : null;
+        
+        List<Map<String, dynamic>> messages;
+        if (bid != null) {
+          await ChatService().markBookingAsRead(bid);
+          messages = await ChatService().getMessagesByBooking(bid);
+        } else {
+          await ChatService().markConversationAsRead(otherUserId);
+          messages = await ChatService().getMessagesWithUser(otherUserId);
+        }
         if (mounted && _selectedPartnerId == otherUserId) {
           setState(() {
             _messages = messages;
