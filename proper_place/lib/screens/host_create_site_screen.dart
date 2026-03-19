@@ -1420,7 +1420,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                       ),
                     ),
                     child: Text(
-                      isSubmitting ? 'Submitting...' : 'Submit Site',
+                      isSubmitting
+                          ? 'Submitting...'
+                          : (widget.siteToEdit != null && widget.siteToEdit!['approval_status'] == 'approved')
+                              ? 'Submit Changes'
+                              : 'Submit Site',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
