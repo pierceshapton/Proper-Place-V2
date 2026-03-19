@@ -3,6 +3,25 @@ const logger = require('../utils/logger');
 const pushService = require('../services/pushNotificationService');
 
 /**
+ * For admin users acting as host, resolve the actual host_id from a booking.
+ * Returns the host_id if user is admin and the booking exists, otherwise returns the user's own id.
+ */
+async function _resolveEffectiveUserId(userId, userRole, bookingId) {
+  if (userRole === 'admin' && bookingId) {
+    const result = await db.query(
+      `SELECT p.owner_id as host_id FROM bookings b
+       JOIN places p ON b.place_id = p.id
+       WHERE b.id = $1`,
+      [bookingId]
+    );
+    if (result.rows.length > 0 && result.rows[0].host_id) {
+      return result.rows[0].host_id;
+    }
+  }
+  return userId;
+}
+
+/**
  * DELETE /contacts/:id
  * Delete a contact/conversation
  */
@@ -132,18 +151,34 @@ async function deleteMessage(req, res, next) {
 async function getConversations(req, res, next) {
   try {
     const userId = req.user.userId;
-    console.log('[ChatController] Getting conversations for userId:', userId);
+    const userRole = req.user.role;
+    console.log('[ChatController] Getting conversations for userId:', userId, 'role:', userRole);
 
+    // For admin users, also include conversations from places they manage
+    let effectiveUserIds = [userId];
+    if (userRole === 'admin') {
+      const hostsResult = await db.query(
+        `SELECT DISTINCT p.owner_id FROM places p WHERE p.owner_id IS NOT NULL`
+      );
+      const hostIds = hostsResult.rows.map(r => r.owner_id).filter(id => id !== userId);
+      effectiveUserIds = [...effectiveUserIds, ...hostIds];
+    }
+
+    // Build query for all effective user IDs
+    const placeholders = effectiveUserIds.map((_, i) => `$${i + 1}`).join(', ');
     const result = await db.query(
       `WITH conversation_partners AS (
         SELECT DISTINCT 
-          CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END as partner_id
+          CASE WHEN sender_id IN (${placeholders}) THEN receiver_id ELSE sender_id END as partner_id,
+          CASE WHEN sender_id IN (${placeholders}) THEN sender_id ELSE 
+            CASE WHEN receiver_id IN (${placeholders}) THEN receiver_id END
+          END as effective_user_id
         FROM messages
-        WHERE sender_id = $1 OR receiver_id = $1
+        WHERE sender_id IN (${placeholders}) OR receiver_id IN (${placeholders})
       ),
       latest_messages AS (
         SELECT DISTINCT ON (
-          CASE WHEN m.sender_id = $1 THEN m.receiver_id ELSE m.sender_id END
+          CASE WHEN m.sender_id IN (${placeholders}) THEN m.receiver_id ELSE m.sender_id END
         )
           m.id as message_id,
           m.content,
@@ -152,11 +187,11 @@ async function getConversations(req, res, next) {
           m.sender_id,
           m.receiver_id,
           m.booking_id,
-          CASE WHEN m.sender_id = $1 THEN m.receiver_id ELSE m.sender_id END as partner_id
+          CASE WHEN m.sender_id IN (${placeholders}) THEN m.receiver_id ELSE m.sender_id END as partner_id
         FROM messages m
-        WHERE m.sender_id = $1 OR m.receiver_id = $1
+        WHERE m.sender_id IN (${placeholders}) OR m.receiver_id IN (${placeholders})
         ORDER BY 
-          CASE WHEN m.sender_id = $1 THEN m.receiver_id ELSE m.sender_id END,
+          CASE WHEN m.sender_id IN (${placeholders}) THEN m.receiver_id ELSE m.sender_id END,
           m.created_at DESC
       ),
       unread_counts AS (
@@ -164,7 +199,7 @@ async function getConversations(req, res, next) {
           sender_id as partner_id,
           COUNT(*) as unread_count
         FROM messages
-        WHERE receiver_id = $1 AND read = false
+        WHERE receiver_id IN (${placeholders}) AND read = false
         GROUP BY sender_id
       )
       SELECT 
@@ -187,8 +222,9 @@ async function getConversations(req, res, next) {
       LEFT JOIN unread_counts uc ON uc.partner_id = lm.partner_id
       LEFT JOIN bookings b ON b.id = lm.booking_id
       LEFT JOIN places p ON p.id = b.place_id
+      WHERE lm.partner_id NOT IN (${placeholders})
       ORDER BY lm.created_at DESC`,
-      [userId]
+      effectiveUserIds
     );
 
     console.log('[ChatController] Found ' + result.rows.length + ' conversations for userId:', userId);
@@ -268,11 +304,15 @@ async function getMessages(req, res, next) {
 async function sendMessage(req, res, next) {
   try {
     const userId = req.user.userId;
+    const userRole = req.user.role;
     const { receiverId, content, bookingId, attachmentUrl } = req.body;
 
     if (!receiverId || !content) {
       return res.status(400).json({ error: 'receiverId and content are required' });
     }
+
+    // Resolve effective user: admin sends as the booking's host
+    const effectiveSenderId = await _resolveEffectiveUserId(userId, userRole, bookingId);
 
     // Enforce 72-hour chat window for completed bookings
     if (bookingId) {
@@ -310,15 +350,15 @@ async function sendMessage(req, res, next) {
       `INSERT INTO messages (sender_id, receiver_id, content, booking_id, attachment_url, delivered, read, created_at)
        VALUES ($1, $2, $3, $4, $5, false, false, NOW())
        RETURNING *`,
-      [userId, receiverId, content, bookingId || null, attachmentUrl || null]
+      [effectiveSenderId, receiverId, content, bookingId || null, attachmentUrl || null]
     );
 
     const message = result.rows[0];
 
-    // Get sender info
+    // Get sender info (use effective sender, not admin)
     const senderResult = await db.query(
       'SELECT name, email FROM users WHERE id = $1',
-      [userId]
+      [effectiveSenderId]
     );
 
     // Send push notification to receiver (fire-and-forget)
@@ -386,18 +426,22 @@ async function markConversationAsRead(req, res, next) {
 async function markBookingAsRead(req, res, next) {
   try {
     const userId = req.user.userId;
+    const userRole = req.user.role;
     const bookingId = parseInt(req.params.bookingId);
 
     if (!bookingId || isNaN(bookingId)) {
       return res.status(400).json({ error: 'Valid bookingId is required' });
     }
 
+    // Resolve effective user: admin acts as the booking's host
+    const effectiveUserId = await _resolveEffectiveUserId(userId, userRole, bookingId);
+
     const result = await db.query(
       `UPDATE messages 
        SET read = true
        WHERE booking_id = $1 AND receiver_id = $2 AND read = false
        RETURNING id`,
-      [bookingId, userId]
+      [bookingId, effectiveUserId]
     );
 
     logger.info('Booking messages marked as read', {
@@ -442,17 +486,21 @@ async function clearAllMessages(req, res, next) {
 async function getMessagesByBooking(req, res, next) {
   try {
     const userId = req.user.userId;
+    const userRole = req.user.role;
     const bookingId = parseInt(req.params.bookingId);
 
     if (!bookingId || isNaN(bookingId)) {
       return res.status(400).json({ error: 'Valid bookingId is required' });
     }
 
+    // Resolve effective user: admin acts as the booking's host
+    const effectiveUserId = await _resolveEffectiveUserId(userId, userRole, bookingId);
+
     // Mark incoming messages as delivered when fetching
     await db.query(
       `UPDATE messages SET delivered = true
        WHERE booking_id = $1 AND receiver_id = $2 AND delivered = false`,
-      [bookingId, userId]
+      [bookingId, effectiveUserId]
     );
 
     const result = await db.query(
@@ -473,7 +521,7 @@ async function getMessagesByBooking(req, res, next) {
       WHERE m.booking_id = $1
         AND (m.sender_id = $2 OR m.receiver_id = $2)
       ORDER BY m.created_at ASC`,
-      [bookingId, userId]
+      [bookingId, effectiveUserId]
     );
 
     return res.json({ messages: result.rows });
