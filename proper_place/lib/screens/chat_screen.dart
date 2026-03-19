@@ -348,7 +348,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             Icon(Icons.timer_outlined, size: 14, color: Colors.orange[700]),
                             const SizedBox(width: 6),
                             Text(
-                              'Chat closes in ${_hoursRemaining}h after checkout',
+                              'Chat closes in ${_hoursRemaining} hours',
                               style: TextStyle(fontSize: 12, color: Colors.orange[800]),
                             ),
                           ],

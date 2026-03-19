@@ -1221,7 +1221,7 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
                       Icon(Icons.timer_outlined, size: 13, color: Colors.orange[700]),
                       const SizedBox(width: 4),
                       Text(
-                        'Chat closes in ${_hoursRemaining}h after checkout',
+                        'Chat closes in ${_hoursRemaining} hours',
                         style: TextStyle(fontSize: 11, color: Colors.orange[800]),
                       ),
                     ],
