@@ -287,8 +287,9 @@ async function sendMessage(req, res, next) {
       if (booking) {
         const status = (booking.status || '').toLowerCase();
         if (status === 'completed' && booking.check_out_date) {
-          const checkOutTime = booking.check_out_time || '12:00';
-          const checkOutDateTime = new Date(`${booking.check_out_date.toISOString().split('T')[0]}T${checkOutTime}:00`);
+          const rawTime = booking.check_out_time || '12:00:00';
+          const checkOutTime = rawTime.length <= 5 ? rawTime + ':00' : rawTime;
+          const checkOutDateTime = new Date(`${booking.check_out_date.toISOString().split('T')[0]}T${checkOutTime}`);
           const hoursSinceCheckout = (Date.now() - checkOutDateTime.getTime()) / (1000 * 60 * 60);
 
           if (hoursSinceCheckout > 72) {
@@ -607,8 +608,9 @@ async function getChatStatus(req, res, next) {
       return res.json({ chatStatus: 'open', hoursRemaining: null, reopenRequestId: null, reopenStatus: null });
     }
 
-    const checkOutTime = booking.check_out_time || '12:00';
-    const checkOutDateTime = new Date(`${booking.check_out_date.toISOString().split('T')[0]}T${checkOutTime}:00`);
+    const rawTime = booking.check_out_time || '12:00:00';
+    const checkOutTime = rawTime.length <= 5 ? rawTime + ':00' : rawTime;
+    const checkOutDateTime = new Date(`${booking.check_out_date.toISOString().split('T')[0]}T${checkOutTime}`);
     const hoursSinceCheckout = (Date.now() - checkOutDateTime.getTime()) / (1000 * 60 * 60);
 
     if (hoursSinceCheckout <= 72) {

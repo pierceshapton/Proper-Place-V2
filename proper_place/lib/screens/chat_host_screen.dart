@@ -871,9 +871,10 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
+                      reverse: true,
                       itemCount: _messages.length,
                       itemBuilder: (context, i) {
-                        final message = _messages[i];
+                        final message = _messages[_messages.length - 1 - i];
                         final isMe = message['sender_id'] == _currentUserId;
                         final status = isMe ? _getMessageStatus(message) : '';
                         return Column(
