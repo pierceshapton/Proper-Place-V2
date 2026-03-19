@@ -12,9 +12,19 @@ async function getNotificationCounts(req, res, next) {
     const userRole = req.user.role;
 
     // Unread messages count (only messages with a booking_id that the user can actually see)
+    // For admin, also count messages sent to hosts of managed places
+    let effectiveReceiverIds = [userId];
+    if (userRole === 'admin') {
+      const hostsResult = await db.query(
+        `SELECT DISTINCT p.owner_id FROM places p WHERE p.owner_id IS NOT NULL AND p.owner_id != $1`,
+        [userId]
+      );
+      effectiveReceiverIds.push(...hostsResult.rows.map(r => r.owner_id));
+    }
+    const receiverPlaceholders = effectiveReceiverIds.map((_, i) => `$${i + 1}`).join(', ');
     const messagesResult = await db.query(
-      `SELECT COUNT(*) as count FROM messages WHERE receiver_id = $1 AND read = false AND booking_id IS NOT NULL`,
-      [userId]
+      `SELECT COUNT(*) as count FROM messages WHERE receiver_id IN (${receiverPlaceholders}) AND read = false AND booking_id IS NOT NULL`,
+      effectiveReceiverIds
     );
     const unreadMessages = parseInt(messagesResult.rows[0]?.count || 0);
 
@@ -157,13 +167,24 @@ async function markAllMessagesFromSenderAsRead(req, res, next) {
 async function getUnreadByBooking(req, res, next) {
   try {
     const userId = req.user.userId;
+    const userRole = req.user.role;
 
+    // For admin, also count messages sent to hosts of managed places
+    let effectiveReceiverIds = [userId];
+    if (userRole === 'admin') {
+      const hostsResult = await db.query(
+        `SELECT DISTINCT p.owner_id FROM places p WHERE p.owner_id IS NOT NULL AND p.owner_id != $1`,
+        [userId]
+      );
+      effectiveReceiverIds.push(...hostsResult.rows.map(r => r.owner_id));
+    }
+    const receiverPlaceholders = effectiveReceiverIds.map((_, i) => `$${i + 1}`).join(', ');
     const result = await db.query(
       `SELECT booking_id, COUNT(*) as unread_count
        FROM messages
-       WHERE receiver_id = $1 AND read = false AND booking_id IS NOT NULL
+       WHERE receiver_id IN (${receiverPlaceholders}) AND read = false AND booking_id IS NOT NULL
        GROUP BY booking_id`,
-      [userId]
+      effectiveReceiverIds
     );
 
     const unreadByBooking = {};
