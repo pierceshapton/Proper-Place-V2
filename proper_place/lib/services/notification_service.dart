@@ -50,7 +50,7 @@ class NotificationService {
   }
 
   /// Get all notification counts
-  Future<Map<String, dynamic>> getNotificationCounts({bool isRetry = false}) async {
+  Future<Map<String, dynamic>> getNotificationCounts({bool isRetry = false, String? mode}) async {
     try {
       final token = await StorageService.getToken();
       if (token == null) {
@@ -58,7 +58,7 @@ class NotificationService {
       }
 
       final response = await http.get(
-        Uri.parse('${AppConfig.properPlaceBackendUrl}/notifications/counts'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/notifications/counts${mode != null ? '?mode=$mode' : ''}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -70,7 +70,7 @@ class NotificationService {
       } else if (response.statusCode == 401 && !isRetry) {
         final refreshed = await _refreshAccessToken();
         if (refreshed) {
-          return getNotificationCounts(isRetry: true);
+          return getNotificationCounts(isRetry: true, mode: mode);
         }
         throw Exception('Unauthorized');
       } else {

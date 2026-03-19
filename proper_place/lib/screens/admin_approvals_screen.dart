@@ -66,8 +66,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         'address': place['address'] ?? '',
         'hostName': place['host_name'] ?? place['owner_name'] ?? 'Unknown Host',
         'hostEmail': place['host_email'] ?? place['owner_email'] ?? '',
-        'host_total_sites': place['host_total_sites'] ?? 0,
-        'host_approved_sites': place['host_approved_sites'] ?? 0,
+        'host_total_sites': int.tryParse(place['host_total_sites']?.toString() ?? '') ?? 0,
+        'host_approved_sites': int.tryParse(place['host_approved_sites']?.toString() ?? '') ?? 0,
         'host_joined_at': place['host_joined_at'] ?? '',
         'image': place['image_url'] ?? place['image'] ?? '',
         'status': status,
@@ -674,7 +674,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   }
 
   Widget _buildCollapsiblePlaceCard(Map<String, dynamic> place) {
-    final hostTotalSites = place['host_total_sites'] ?? place['raw']?['host_total_sites'] ?? 0;
+    final hostTotalSites = int.tryParse(place['host_total_sites']?.toString() ?? '') ?? int.tryParse(place['raw']?['host_total_sites']?.toString() ?? '') ?? 0;
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

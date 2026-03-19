@@ -322,7 +322,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Load notification counts from API
   Future<void> _loadNotificationCounts() async {
     try {
-      final counts = await _notificationService.getNotificationCounts().timeout(
+      // Determine current mode to pass to backend
+      String? mode;
+      if (userRole == 'admin' && isAdminMode) {
+        mode = 'admin';
+      } else if (isHostMode) {
+        mode = 'host';
+      } else {
+        mode = 'user';
+      }
+      final counts = await _notificationService.getNotificationCounts(mode: mode).timeout(
         const Duration(seconds: 5),
         onTimeout: () => <String, int>{},
       );

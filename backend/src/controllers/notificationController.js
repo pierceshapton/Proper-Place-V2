@@ -12,9 +12,11 @@ async function getNotificationCounts(req, res, next) {
     const userRole = req.user.role;
 
     // Unread messages count (only messages with a booking_id that the user can actually see)
-    // For admin, also count messages sent to hosts of managed places
+    // For admin in host/admin mode, also count messages sent to hosts of managed places
+    // In user mode, only count messages directly to the admin
+    const mode = req.query.mode || '';
     let effectiveReceiverIds = [userId];
-    if (userRole === 'admin') {
+    if (userRole === 'admin' && mode !== 'user') {
       const hostsResult = await db.query(
         `SELECT DISTINCT p.owner_id FROM places p WHERE p.owner_id IS NOT NULL AND p.owner_id != $1`,
         [userId]

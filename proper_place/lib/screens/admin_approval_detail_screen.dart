@@ -54,8 +54,8 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
 
   String get _hostName => widget.place['hostName'] ?? widget.place['host_name'] ?? 'Unknown Host';
   String get _hostEmail => widget.place['hostEmail'] ?? widget.place['host_email'] ?? '';
-  int get _hostTotalSites => widget.place['raw']?['host_total_sites'] ?? widget.place['host_total_sites'] ?? 0;
-  int get _hostApprovedSites => widget.place['raw']?['host_approved_sites'] ?? widget.place['host_approved_sites'] ?? 0;
+  int get _hostTotalSites => int.tryParse((widget.place['raw']?['host_total_sites'] ?? widget.place['host_total_sites'])?.toString() ?? '') ?? 0;
+  int get _hostApprovedSites => int.tryParse((widget.place['raw']?['host_approved_sites'] ?? widget.place['host_approved_sites'])?.toString() ?? '') ?? 0;
   String get _hostJoinedAt => widget.place['raw']?['host_joined_at'] ?? widget.place['host_joined_at'] ?? '';
   String get _status => widget.place['status']?.toString().toLowerCase() ?? 'pending';
   bool get _isPending => _status == 'pending';
