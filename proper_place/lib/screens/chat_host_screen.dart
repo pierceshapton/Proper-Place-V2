@@ -29,6 +29,14 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
   Timer? _pollingTimer;
   Timer? _messagePollingTimer;
 
+  // Chat status for reopen system
+  String? _chatStatus;
+  int? _hoursRemaining;
+  int? _reopenRequestId;
+  String? _reopenStatus;
+  int? _reopenRequesterId;
+  bool _reopenRequesting = false;
+
   @override
   void initState() {
     super.initState();
@@ -143,8 +151,71 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
             }
           });
         }
+        await _loadChatStatus();
       } catch (_) {}
     });
+  }
+
+  Future<void> _loadChatStatus() async {
+    final bookingId = _selectedConversation?['bookingId'];
+    if (bookingId == null) return;
+    final bid = bookingId is int ? bookingId : int.tryParse(bookingId.toString());
+    if (bid == null) return;
+    try {
+      final status = await ChatService().getChatStatus(bid);
+      if (mounted && status != null) {
+        setState(() {
+          _chatStatus = status['chatStatus'] as String?;
+          _hoursRemaining = status['hoursRemaining'] as int?;
+          _reopenRequestId = status['reopenRequestId'] as int?;
+          _reopenStatus = status['reopenStatus'] as String?;
+          _reopenRequesterId = status['reopenRequesterId'] as int?;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _requestReopen() async {
+    final bookingId = _selectedConversation?['bookingId'];
+    if (bookingId == null) return;
+    final bid = bookingId is int ? bookingId : int.tryParse(bookingId.toString());
+    if (bid == null) return;
+    setState(() => _reopenRequesting = true);
+    try {
+      await ChatService().requestChatReopen(bid);
+      await _loadChatStatus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reopen request sent')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _reopenRequesting = false);
+  }
+
+  Future<void> _respondToReopen(bool accept) async {
+    if (_reopenRequestId == null) return;
+    try {
+      await ChatService().respondChatReopen(_reopenRequestId!, accept);
+      await _loadChatStatus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(accept ? 'Chat reopened' : 'Reopen request declined')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -424,8 +495,13 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
         setState(() {
           _selectedPartnerId = partnerId;
           _selectedConversation = conversation;
+          _chatStatus = null;
+          _reopenRequestId = null;
+          _reopenStatus = null;
+          _reopenRequesterId = null;
         });
         _fetchMessages(partnerId);
+        _loadChatStatus();
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -559,6 +635,10 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
                     _selectedPartnerId = null;
                     _selectedConversation = null;
                     _messages = [];
+                    _chatStatus = null;
+                    _reopenRequestId = null;
+                    _reopenStatus = null;
+                    _reopenRequesterId = null;
                   });
                   // Refresh conversations to get updated previews
                   _fetchConversations(showLoading: false);
@@ -610,6 +690,121 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
             ],
           ),
         ),
+        // Chat status banners
+        if (_chatStatus == 'closing_soon' && _hoursRemaining != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+            color: const Color(0xFFFFF3CD),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.timer_outlined, size: 14, color: Colors.orange[700]),
+                const SizedBox(width: 6),
+                Text(
+                  'Chat closes in ${_hoursRemaining}h after checkout',
+                  style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                ),
+              ],
+            ),
+          ),
+        if (_chatStatus == 'closed')
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            color: const Color(0xFFF8D7DA),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.lock_outline, size: 14, color: Colors.red[700]),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Chat closed (72h after checkout)',
+                      style: TextStyle(fontSize: 12, color: Colors.red[800]),
+                    ),
+                  ],
+                ),
+                if (_reopenStatus == 'pending' && _reopenRequesterId != null && _reopenRequesterId != _currentUserId) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Guest has requested to reopen this chat',
+                    style: TextStyle(fontSize: 12, color: Colors.red[800], fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        height: 28,
+                        child: ElevatedButton(
+                          onPressed: () => _respondToReopen(true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          child: const Text('Accept', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 28,
+                        child: ElevatedButton(
+                          onPressed: () => _respondToReopen(false),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[400],
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          child: const Text('Decline', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (_reopenStatus == 'pending' && _reopenRequesterId == _currentUserId)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Reopen request pending — waiting for guest',
+                      style: TextStyle(fontSize: 11, color: Colors.orange[800], fontStyle: FontStyle.italic),
+                    ),
+                  )
+                else if (_reopenStatus == null || _reopenStatus == 'declined') ...[
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 28,
+                    child: TextButton(
+                      onPressed: _reopenRequesting ? null : _requestReopen,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      child: Text(
+                        _reopenRequesting ? 'Sending...' : 'Request to reopen chat',
+                        style: TextStyle(fontSize: 12, color: Colors.red[700], fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        if (_chatStatus == 'reopened')
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+            color: const Color(0xFFD4EDDA),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_open, size: 14, color: Colors.green[700]),
+                const SizedBox(width: 6),
+                Text(
+                  'Chat reopened',
+                  style: TextStyle(fontSize: 12, color: Colors.green[800]),
+                ),
+              ],
+            ),
+          ),
         // Messages
         Expanded(
           child: _isLoadingMessages
@@ -690,8 +885,9 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
                       },
                     ),
         ),
-        // Message input
-        Container(
+        // Message input (hidden when chat is closed)
+        if (_chatStatus != 'closed')
+          Container(
           color: Colors.white,
           child: SafeArea(
             top: false,
