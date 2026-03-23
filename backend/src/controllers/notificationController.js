@@ -24,6 +24,13 @@ async function getNotificationCounts(req, res, next) {
       effectiveReceiverIds.push(...hostsResult.rows.map(r => r.owner_id));
     }
     const receiverPlaceholders = effectiveReceiverIds.map((_, i) => `$${i + 1}`).join(', ');
+
+    // Mark all incoming messages as delivered (recipient's app is active)
+    await db.query(
+      `UPDATE messages SET delivered = true WHERE receiver_id IN (${receiverPlaceholders}) AND delivered = false`,
+      effectiveReceiverIds
+    );
+
     const messagesResult = await db.query(
       `SELECT COUNT(*) as count FROM messages WHERE receiver_id IN (${receiverPlaceholders}) AND read = false AND booking_id IS NOT NULL`,
       effectiveReceiverIds
