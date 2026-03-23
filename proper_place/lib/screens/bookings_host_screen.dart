@@ -232,6 +232,44 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     return _bookingsSpanningDate(day).isNotEmpty;
   }
 
+  /// Check if any booking spanning this date has unread messages
+  bool _hasUnreadOnDate(DateTime day) {
+    final bookings = _bookingsSpanningDate(day);
+    for (var b in bookings) {
+      final unread = _unreadByBooking[_bookingIdInt(b)] ?? 0;
+      if (unread > 0) return true;
+    }
+    return false;
+  }
+
+  /// Total unread count for bookings spanning this date
+  int _unreadCountOnDate(DateTime day) {
+    final bookings = _bookingsSpanningDate(day);
+    int total = 0;
+    for (var b in bookings) {
+      total += _unreadByBooking[_bookingIdInt(b)] ?? 0;
+    }
+    return total;
+  }
+
+  /// Count of pending bookings awaiting action
+  int get _pendingCount {
+    int count = 0;
+    for (var dateBookings in _bookingsByDate.values) {
+      for (var b in dateBookings) {
+        if (b['status'] == 'Pending') count++;
+      }
+    }
+    return count;
+  }
+
+  /// Total unread messages across all bookings
+  int get _totalUnread {
+    int total = 0;
+    _unreadByBooking.forEach((_, v) => total += v);
+    return total;
+  }
+
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Confirmed':
@@ -379,6 +417,43 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                       const SizedBox(height: 16),
 
                       if (_showCalendar) ...[
+                        // Notification banners
+                        if (_pendingCount > 0 || _totalUnread > 0)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7ED),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFFED7AA)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.notifications_active, size: 18, color: Color(0xFFF59E0B)),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text.rich(
+                                    TextSpan(
+                                      children: [
+                                        if (_pendingCount > 0)
+                                          TextSpan(
+                                            text: '$_pendingCount pending booking${_pendingCount > 1 ? 's' : ''}',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFF59E0B)),
+                                          ),
+                                        if (_pendingCount > 0 && _totalUnread > 0)
+                                          const TextSpan(text: '  ·  ', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                                        if (_totalUnread > 0)
+                                          TextSpan(
+                                            text: '$_totalUnread unread message${_totalUnread > 1 ? 's' : ''}',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFEF4444)),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         // Calendar view
                         _buildCalendar(),
                         const SizedBox(height: 16),
@@ -387,10 +462,12 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             _buildLegendDot(const Color(0xFF3B82F6), 'Check-in'),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 12),
                             _buildLegendDot(const Color(0xFFBFDBFE), 'Occupied'),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 12),
                             _buildLegendDot(const Color(0xFFFDE68A), 'Pending'),
+                            const SizedBox(width: 12),
+                            _buildLegendDot(const Color(0xFFEF4444), 'Unread'),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -575,6 +652,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     final hasSpanning = spanningBookings.isNotEmpty;
     final hasPending = spanningBookings.any((b) => b['status'] == 'Pending');
     final hasConfirmed = spanningBookings.any((b) => b['status'] == 'Confirmed');
+    final hasUnread = isCurrentMonth && _hasUnreadOnDate(day);
 
     Color bgColor;
     if (hasCheckIn && hasConfirmed) {
@@ -596,41 +674,60 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
               setState(() => _selectedDate = day);
             }
           : null,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(6),
-          border: isToday ? Border.all(color: const Color(0xFF3B82F6), width: 2) : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              day.day.toString(),
-              style: TextStyle(
-                color: (hasCheckIn && hasConfirmed)
-                    ? Colors.white
-                    : isCurrentMonth
-                        ? Colors.black
-                        : const Color(0xFFCBD5E1),
-                fontWeight: (hasSpanning || isToday) ? FontWeight.bold : FontWeight.normal,
-                fontSize: 13,
-              ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(6),
+              border: isToday ? Border.all(color: const Color(0xFF3B82F6), width: 2) : null,
             ),
-            if (hasSpanning && isCurrentMonth)
-              Container(
-                margin: const EdgeInsets.only(top: 1),
-                width: 4,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: (hasCheckIn && hasConfirmed) ? Colors.white : const Color(0xFF3B82F6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  day.day.toString(),
+                  style: TextStyle(
+                    color: (hasCheckIn && hasConfirmed)
+                        ? Colors.white
+                        : isCurrentMonth
+                            ? Colors.black
+                            : const Color(0xFFCBD5E1),
+                    fontWeight: (hasSpanning || isToday) ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 13,
+                  ),
+                ),
+                if (hasSpanning && isCurrentMonth)
+                  Container(
+                    margin: const EdgeInsets.only(top: 1),
+                    width: 4,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: (hasCheckIn && hasConfirmed) ? Colors.white : const Color(0xFF3B82F6),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Unread message notification dot
+          if (hasUnread)
+            Positioned(
+              top: -2,
+              right: -2,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEF4444),
                   shape: BoxShape.circle,
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -697,6 +794,19 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                 '${bookings.length} booking${bookings.length > 1 ? 's' : ''} on this date',
                 style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
               ),
+              if (_unreadCountOnDate(day) > 0) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.chat_bubble, size: 14, color: Color(0xFFEF4444)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_unreadCountOnDate(day)} unread message${_unreadCountOnDate(day) > 1 ? 's' : ''}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFEF4444)),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               const Divider(height: 1),
               const SizedBox(height: 12),
@@ -714,6 +824,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                     final nightOfStay = day.difference(DateTime(checkIn.year, checkIn.month, checkIn.day)).inDays + 1;
                     final status = b['status'] as String;
                     final statusColor = _getStatusColor(status);
+                    final unreadCount = _unreadByBooking[_bookingIdInt(b)] ?? 0;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -819,6 +930,50 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ],
+                        const SizedBox(height: 10),
+                        // Unread + Message row
+                        Row(
+                          children: [
+                            if (unreadCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.chat_bubble, size: 10, color: Colors.white),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$unreadCount new',
+                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            const Spacer(),
+                            SizedBox(
+                              height: 30,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _openChatPopup(b);
+                                },
+                                icon: const Icon(Icons.chat_bubble_outline, size: 13),
+                                label: const Text('Message', style: TextStyle(fontSize: 11)),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF3B82F6),
+                                  side: const BorderSide(color: Color(0xFF3B82F6)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     );
                   },
