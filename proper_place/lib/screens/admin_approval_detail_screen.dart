@@ -650,7 +650,11 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
                         const SizedBox(height: 12),
                         Text(
                           description,
-                          style: TextStyle(color: Colors.grey[700], height: 1.5, fontSize: 14),
+                          style: TextStyle(
+                            color: (_hasChanges && _isChanged('description')) ? Colors.orange[800] : Colors.grey[700],
+                            height: 1.5,
+                            fontSize: 14,
+                          ),
                         ),
                         if (_hasChanges && _isChanged('description') && _previousValue('description') != null) ...[
                           const SizedBox(height: 8),
@@ -677,7 +681,11 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
                           const SizedBox(height: 12),
                           Text(
                             raw['business_description'].toString(),
-                            style: TextStyle(color: Colors.grey[700], height: 1.5, fontSize: 14),
+                            style: TextStyle(
+                              color: (_hasChanges && _isChanged('business_description')) ? Colors.orange[800] : Colors.grey[700],
+                              height: 1.5,
+                              fontSize: 14,
+                            ),
                           ),
                           if (_hasChanges && _isChanged('business_description') && _previousValue('business_description') != null) ...[
                             const SizedBox(height: 8),
@@ -1144,10 +1152,13 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
   /// Renders a text field, showing the current value with inline change indicator
   Widget _buildFieldRow(String value, String field, {TextStyle? style}) {
     final changed = _hasChanges && _isChanged(field);
+    final effectiveStyle = changed
+        ? (style ?? const TextStyle()).copyWith(color: Colors.orange[800])
+        : style;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: style),
+        Text(value, style: effectiveStyle),
         if (changed && _previousValue(field) != null)
           Padding(
             padding: const EdgeInsets.only(top: 2),
@@ -1176,7 +1187,7 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: const TextStyle(fontSize: 13)),
+                Text(value, style: TextStyle(fontSize: 13, color: changed ? Colors.orange[800] : null)),
                 if (changed && _previousValue(field) != null)
                   Text(
                     'Was: ${_previousValue(field)}',
