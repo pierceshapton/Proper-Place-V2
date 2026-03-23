@@ -333,13 +333,19 @@ async function sendMessage(req, res, next) {
           const hoursSinceCheckout = (Date.now() - checkOutDateTime.getTime()) / (1000 * 60 * 60);
 
           if (hoursSinceCheckout > 72) {
-            // Check if chat has been reopened
+            // Check if chat has been reopened (and reopen window hasn't expired)
             const reopenResult = await db.query(
-              `SELECT id FROM chat_reopen_requests WHERE booking_id = $1 AND status = 'approved' ORDER BY responded_at DESC LIMIT 1`,
+              `SELECT id, responded_at FROM chat_reopen_requests WHERE booking_id = $1 AND status = 'approved' ORDER BY responded_at DESC LIMIT 1`,
               [bookingId]
             );
-            if (reopenResult.rows.length === 0) {
+            const reopenReq = reopenResult.rows[0];
+            if (!reopenReq) {
               return res.status(403).json({ error: 'Chat closed', message: 'The chat window for this booking has closed (72 hours after checkout). Request to reopen to continue messaging.' });
+            }
+            // Enforce 24-hour reopen window
+            const hoursSinceReopen = (Date.now() - new Date(reopenReq.responded_at).getTime()) / (1000 * 60 * 60);
+            if (hoursSinceReopen > 24) {
+              return res.status(403).json({ error: 'Chat closed', message: 'The reopened chat window has expired (24 hours). Request to reopen again to continue messaging.' });
             }
           }
         }
@@ -680,7 +686,7 @@ async function getChatStatus(req, res, next) {
 
     // Past 72 hours — check for reopen requests
     const reopenResult = await db.query(
-      `SELECT id, status, requester_id FROM chat_reopen_requests
+      `SELECT id, status, requester_id, responded_at FROM chat_reopen_requests
        WHERE booking_id = $1
        ORDER BY created_at DESC LIMIT 1`,
       [bookingId]
@@ -688,7 +694,14 @@ async function getChatStatus(req, res, next) {
 
     const reopenReq = reopenResult.rows[0];
     if (reopenReq && reopenReq.status === 'approved') {
-      return res.json({ chatStatus: 'reopened', hoursRemaining: null, reopenRequestId: reopenReq.id, reopenStatus: 'approved' });
+      // Check if the 24-hour reopen window has expired
+      const reopenedAt = new Date(reopenReq.responded_at);
+      const hoursSinceReopen = (Date.now() - reopenedAt.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceReopen <= 24) {
+        const hoursRemaining = Math.max(0, Math.ceil(24 - hoursSinceReopen));
+        return res.json({ chatStatus: 'reopened', hoursRemaining, reopenRequestId: reopenReq.id, reopenStatus: 'approved', reopenedAt: reopenedAt.toISOString() });
+      }
+      // Reopen window expired — treat as closed
     }
 
     return res.json({
@@ -697,6 +710,7 @@ async function getChatStatus(req, res, next) {
       reopenRequestId: reopenReq?.id || null,
       reopenStatus: reopenReq?.status || null,
       reopenRequesterId: reopenReq?.requester_id || null,
+      reopenedAt: (reopenReq && reopenReq.status === 'approved' && reopenReq.responded_at) ? new Date(reopenReq.responded_at).toISOString() : null,
     });
   } catch (error) {
     logger.error('Error getting chat status', { error: error.message });

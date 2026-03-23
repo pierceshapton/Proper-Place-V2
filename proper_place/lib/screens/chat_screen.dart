@@ -36,6 +36,7 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _reopenStatus; // pending, approved, declined
   int? _reopenRequesterId;
   bool _reopenRequesting = false;
+  DateTime? _reopenedAt;
 
   @override
   void initState() {
@@ -69,6 +70,8 @@ class _ChatScreenState extends State<ChatScreen> {
         _reopenRequestId = status['reopenRequestId'] as int?;
         _reopenStatus = status['reopenStatus'] as String?;
         _reopenRequesterId = status['reopenRequesterId'] as int?;
+        final reopenedAtStr = status['reopenedAt'] as String?;
+        _reopenedAt = reopenedAtStr != null ? DateTime.tryParse(reopenedAtStr) : null;
       });
     }
   }
@@ -290,6 +293,14 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  String _formatReopenDate(DateTime time) {
+    final local = time.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final amPm = local.hour < 12 ? 'AM' : 'PM';
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '${local.day}/${local.month}/${local.year} at $hour:$minute $amPm';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -350,6 +361,23 @@ class _ChatScreenState extends State<ChatScreen> {
                             Text(
                               'Chat closes in ${_hoursRemaining} hours',
                               style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_chatStatus == 'reopened' && _hoursRemaining != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                        color: const Color(0xFFD4EDDA),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock_open, size: 14, color: Colors.green[700]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Chat reopened — closes in ${_hoursRemaining} hours',
+                              style: TextStyle(fontSize: 12, color: Colors.green[800]),
                             ),
                           ],
                         ),
@@ -455,10 +483,44 @@ class _ChatScreenState extends State<ChatScreen> {
                               reverse: true,
                               itemCount: messages.length,
                               itemBuilder: (context, index) {
-                                final message = messages[messages.length - 1 - index];
+                                final msgIndex = messages.length - 1 - index;
+                                final message = messages[msgIndex];
                                 final isHost = message['sender'] == 'host';
 
-                                return Align(
+                                // Check if "Chat reopened" divider should appear before this message
+                                bool showReopenDivider = false;
+                                if (_reopenedAt != null) {
+                                  final msgTime = message['timestamp'] as DateTime;
+                                  if (!msgTime.isBefore(_reopenedAt!)) {
+                                    if (msgIndex == 0) {
+                                      showReopenDivider = true;
+                                    } else {
+                                      final prevTime = messages[msgIndex - 1]['timestamp'] as DateTime;
+                                      showReopenDivider = prevTime.isBefore(_reopenedAt!);
+                                    }
+                                  }
+                                }
+
+                                return Column(
+                                  children: [
+                                    if (showReopenDivider)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        child: Row(
+                                          children: [
+                                            Expanded(child: Divider(color: Colors.green[300], thickness: 1)),
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                                              child: Text(
+                                                'Chat reopened ${_formatReopenDate(_reopenedAt!)}',
+                                                style: TextStyle(fontSize: 11, color: Colors.green[700], fontWeight: FontWeight.w500),
+                                              ),
+                                            ),
+                                            Expanded(child: Divider(color: Colors.green[300], thickness: 1)),
+                                          ],
+                                        ),
+                                      ),
+                                    Align(
                                   alignment: isHost ? Alignment.centerLeft : Alignment.centerRight,
                                   child: Column(
                                     crossAxisAlignment:
@@ -509,6 +571,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ],
                   ),
+                ),
+                  ],
                 );
               },
             ),

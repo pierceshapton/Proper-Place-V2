@@ -1397,6 +1397,7 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
   String? _reopenStatus;
   int? _reopenRequesterId;
   bool _reopenRequesting = false;
+  DateTime? _reopenedAt;
 
   @override
   void initState() {
@@ -1455,6 +1456,8 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
           _reopenRequestId = status['reopenRequestId'];
           _reopenStatus = status['reopenStatus'];
           _reopenRequesterId = status['reopenRequesterId'];
+          final reopenedAtStr = status['reopenedAt'] as String?;
+          _reopenedAt = reopenedAtStr != null ? DateTime.tryParse(reopenedAtStr) : null;
         });
       }
     } catch (_) {}
@@ -1581,6 +1584,14 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
     }
   }
 
+  String _formatReopenDate(DateTime time) {
+    final local = time.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final amPm = local.hour < 12 ? 'AM' : 'PM';
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '${local.day}/${local.month}/${local.year} at $hour:$minute $amPm';
+  }
+
   String _getInitials(String name) {
     final parts = name.trim().split(' ');
     if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
@@ -1691,6 +1702,23 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
                       Text(
                         'Chat closes in ${_hoursRemaining} hours',
                         style: TextStyle(fontSize: 11, color: Colors.orange[800]),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_chatStatus == 'reopened' && _hoursRemaining != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  color: const Color(0xFFD4EDDA),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lock_open, size: 13, color: Colors.green[700]),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Chat reopened — closes in ${_hoursRemaining} hours',
+                        style: TextStyle(fontSize: 11, color: Colors.green[800]),
                       ),
                     ],
                   ),
@@ -1809,7 +1837,41 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
                             itemBuilder: (context, i) {
                               final message = _messages[i];
                               final isMe = message['sender_id'] == _currentUserId;
+
+                              // Check if "Chat reopened" divider should appear before this message
+                              bool showReopenDivider = false;
+                              if (_reopenedAt != null && message['created_at'] != null) {
+                                final msgTime = DateTime.tryParse(message['created_at'].toString());
+                                if (msgTime != null && !msgTime.isBefore(_reopenedAt!)) {
+                                  if (i == 0) {
+                                    showReopenDivider = true;
+                                  } else {
+                                    final prevTime = DateTime.tryParse(_messages[i - 1]['created_at'].toString());
+                                    showReopenDivider = prevTime != null && prevTime.isBefore(_reopenedAt!);
+                                  }
+                                }
+                              }
+
                               return Column(
+                                children: [
+                                  if (showReopenDivider)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      child: Row(
+                                        children: [
+                                          Expanded(child: Divider(color: Colors.green[300], thickness: 1)),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                            child: Text(
+                                              'Chat reopened ${_formatReopenDate(_reopenedAt!)}',
+                                              style: TextStyle(fontSize: 10, color: Colors.green[700], fontWeight: FontWeight.w500),
+                                            ),
+                                          ),
+                                          Expanded(child: Divider(color: Colors.green[300], thickness: 1)),
+                                        ],
+                                      ),
+                                    ),
+                                  Column(
                                 crossAxisAlignment: isMe
                                     ? CrossAxisAlignment.end
                                     : CrossAxisAlignment.start,
@@ -1855,6 +1917,8 @@ class _ChatPopupDialogState extends State<_ChatPopupDialog> {
                                     ],
                                   ),
                                   const SizedBox(height: 8),
+                                ],
+                              ),
                                 ],
                               );
                             },
