@@ -344,9 +344,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // Map API counts to tab indices based on current mode
         if (userRole == 'admin' && isAdminMode) {
           // Admin mode: Dashboard (0), Approvals (1), Chat (2), More (3)
-          _badgeCounts[1] = counts['pendingApprovals'] ?? 0; // Approvals tab
-          _badgeCounts[2] = counts['unreadMessages'] ?? 0; // Chat tab
-          _badgeCounts[3] = counts['pendingHostApplications'] ?? 0; // More tab - host applications
+          // Don't overwrite badge while admin is viewing that tab
+          if (_currentIndex != 1) {
+            _badgeCounts[1] = counts['pendingApprovals'] ?? 0; // Approvals tab
+          }
+          if (_currentIndex != 2) {
+            _badgeCounts[2] = counts['unreadMessages'] ?? 0; // Chat tab
+          }
+          if (_currentIndex != 3) {
+            _badgeCounts[3] = counts['pendingHostApplications'] ?? 0; // More tab
+          }
         } else if (isHostMode) {
           // Host mode: Dashboard (0), Sites (1), Bookings (2), Chat (3), More (4)
           // Don't overwrite bookings badge while host is viewing that tab (already marked seen)
@@ -707,9 +714,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           onTap: (index) {
             setState(() {
               _currentIndex = index;
-              // Immediately clear host booking badge when tapping Bookings tab
+              // Immediately clear badge when tapping a tab
               if (isHostMode && index == 2) {
                 _badgeCounts[2] = 0;
+              }
+              if (userRole == 'admin' && isAdminMode) {
+                _badgeCounts[index] = 0;
               }
             });
           },
