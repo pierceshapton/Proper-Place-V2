@@ -58,9 +58,38 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
   int get _hostApprovedSites => int.tryParse((widget.place['raw']?['host_approved_sites'] ?? widget.place['host_approved_sites'])?.toString() ?? '') ?? 0;
   String get _hostJoinedAt => widget.place['raw']?['host_joined_at'] ?? widget.place['host_joined_at'] ?? '';
   String get _status => widget.place['status']?.toString().toLowerCase() ?? 'pending';
-  bool get _isPending => _status == 'pending';
+  bool get _isPending => _status == 'pending' || _status == 'changes pending';
   bool get _isApproved => _status == 'approved';
   bool get _isRejected => _status == 'rejected';
+
+  // Change detection helpers
+  Map<String, dynamic>? get _previousData {
+    final raw = widget.place['raw'] ?? widget.place;
+    final prev = raw['previous_approved_data'];
+    if (prev is Map<String, dynamic>) return prev;
+    return null;
+  }
+
+  bool get _hasChanges => _previousData != null && _isPending;
+
+  bool _isChanged(String field) {
+    if (_previousData == null) return false;
+    final raw = widget.place['raw'] ?? widget.place;
+    final current = raw[field]?.toString() ?? '';
+    final previous = _previousData![field]?.toString() ?? '';
+    return current != previous;
+  }
+
+  bool _isAnyChanged(List<String> fields) {
+    return fields.any((f) => _isChanged(f));
+  }
+
+  String? _previousValue(String field) {
+    if (_previousData == null) return null;
+    final val = _previousData![field];
+    if (val == null) return null;
+    return val.toString();
+  }
 
   String _formatDate(String dateStr) {
     if (dateStr.isEmpty) return 'Unknown';
@@ -409,7 +438,9 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              _isPending ? 'PENDING APPROVAL' : (_isApproved ? 'APPROVED' : 'REJECTED'),
+                              _isPending 
+                                ? (_hasChanges ? 'CHANGES PENDING APPROVAL' : 'PENDING APPROVAL') 
+                                : (_isApproved ? 'APPROVED' : 'REJECTED'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -428,72 +459,92 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title and Price
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  color: Colors.white,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.place['name'] ?? 'Unnamed Site',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              fullAddress.isNotEmpty ? fullAddress : 'Address not provided',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                            ),
+                // Changes banner
+                if (_hasChanges)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    color: const Color(0xFFFFF8E1),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit_note, color: Color(0xFFF57F17), size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'This is a re-submission of a previously approved site. Changed fields are highlighted.',
+                            style: TextStyle(color: Colors.amber[900], fontSize: 13, fontWeight: FontWeight.w500),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '£${price.toStringAsFixed(0)}/night',
-                              style: const TextStyle(
-                                color: Color(0xFF3B82F6),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Title and Price
+                _wrapSection(
+                  changed: _hasChanges && _isAnyChanged(['name', 'address', 'city', 'country', 'price_per_night', 'capacity']),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    color: Colors.white,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildFieldRow(
+                          widget.place['name'] ?? 'Unnamed Site',
+                          'name',
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: _buildFieldRow(
+                                fullAddress.isNotEmpty ? fullAddress : 'Address not provided',
+                                'address',
+                                style: TextStyle(color: Colors.grey[600], fontSize: 14),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Icon(Icons.people, size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Up to $capacity guests',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Submitted: ${_formatDate(submittedAt)}',
-                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                      ),
-                    ],
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF3B82F6).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: _buildFieldRow(
+                                '£${price.toStringAsFixed(0)}/night',
+                                'price_per_night',
+                                style: const TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Icon(Icons.people, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            _buildFieldRow(
+                              'Up to $capacity guests',
+                              'capacity',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Submitted: ${_formatDate(submittedAt)}',
+                          style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
                 const SizedBox(height: 8),
 
-                // Host Information Card
+                // Host Information Card (never changes — always same host)
                 Container(
                   padding: const EdgeInsets.all(20),
                   color: Colors.white,
@@ -563,87 +614,178 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
 
                 const SizedBox(height: 8),
 
-                // Description
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  color: Colors.white,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Description',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        description,
-                        style: TextStyle(
-                          color: Colors.grey[700],
-                          height: 1.5,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Amenities
-                if (amenities is List && amenities.isNotEmpty)
-                  Container(
+                // Site Type & Details
+                _wrapSection(
+                  changed: _hasChanges && _isAnyChanged(['place_type', 'opening_hours']),
+                  child: Container(
                     padding: const EdgeInsets.all(20),
                     color: Colors.white,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Amenities',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        const Text('Site Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: (amenities as List).map((amenity) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.grey[300]!),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _getAmenityIcon(amenity.toString()),
-                                    size: 16,
-                                    color: Colors.grey[700],
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    amenity.toString(),
-                                    style: TextStyle(
-                                      color: Colors.grey[700],
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                        _buildDetailField('Type', _formatPlaceType(raw['place_type']?.toString() ?? 'private_land'), 'place_type'),
+                        if (raw['opening_hours'] != null && raw['opening_hours'].toString().isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _buildDetailField('Opening Hours', raw['opening_hours'].toString(), 'opening_hours'),
+                        ],
                       ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Description
+                _wrapSection(
+                  changed: _hasChanges && _isChanged('description'),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    color: Colors.white,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Description', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        Text(
+                          description,
+                          style: TextStyle(color: Colors.grey[700], height: 1.5, fontSize: 14),
+                        ),
+                        if (_hasChanges && _isChanged('description') && _previousValue('description') != null) ...[
+                          const SizedBox(height: 8),
+                          _buildPreviousValueLabel(_previousValue('description')!),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Business Description
+                if ((raw['business_description'] ?? '').toString().isNotEmpty)
+                  _wrapSection(
+                    changed: _hasChanges && _isChanged('business_description'),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      color: Colors.white,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Business Description', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          Text(
+                            raw['business_description'].toString(),
+                            style: TextStyle(color: Colors.grey[700], height: 1.5, fontSize: 14),
+                          ),
+                          if (_hasChanges && _isChanged('business_description') && _previousValue('business_description') != null) ...[
+                            const SizedBox(height: 8),
+                            _buildPreviousValueLabel(_previousValue('business_description')!),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+
+                if ((raw['business_description'] ?? '').toString().isNotEmpty) const SizedBox(height: 8),
+
+                // Access Route & Vehicle Restrictions
+                if ((raw['access_route_description'] ?? '').toString().isNotEmpty || 
+                    raw['max_vehicle_height_ft'] != null || raw['max_vehicle_width_ft'] != null || raw['max_vehicle_length_ft'] != null)
+                  _wrapSection(
+                    changed: _hasChanges && _isAnyChanged(['access_route_description', 'max_vehicle_height_ft', 'max_vehicle_width_ft', 'max_vehicle_length_ft']),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      color: Colors.white,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Access & Vehicle Info', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          if ((raw['access_route_description'] ?? '').toString().isNotEmpty) ...[
+                            _buildDetailField('Access Route', raw['access_route_description'].toString(), 'access_route_description'),
+                            const SizedBox(height: 8),
+                          ],
+                          if (raw['max_vehicle_height_ft'] != null)
+                            _buildDetailField('Max Height', '${raw['max_vehicle_height_ft']} ft', 'max_vehicle_height_ft'),
+                          if (raw['max_vehicle_width_ft'] != null)
+                            _buildDetailField('Max Width', '${raw['max_vehicle_width_ft']} ft', 'max_vehicle_width_ft'),
+                          if (raw['max_vehicle_length_ft'] != null)
+                            _buildDetailField('Max Length', '${raw['max_vehicle_length_ft']} ft', 'max_vehicle_length_ft'),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                if ((raw['access_route_description'] ?? '').toString().isNotEmpty || raw['max_vehicle_height_ft'] != null)
+                  const SizedBox(height: 8),
+
+                // Food & Kitchen
+                if ((raw['serves_food'] == true || raw['serves_food'] == 'true') || 
+                    (raw['kitchen_hours'] ?? '').toString().isNotEmpty || 
+                    (raw['food_menu_description'] ?? '').toString().isNotEmpty)
+                  _wrapSection(
+                    changed: _hasChanges && _isAnyChanged(['serves_food', 'kitchen_hours', 'food_menu_description']),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      color: Colors.white,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Food & Kitchen', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          if (raw['serves_food'] == true || raw['serves_food'] == 'true')
+                            _buildDetailField('Serves Food', 'Yes', 'serves_food'),
+                          if ((raw['kitchen_hours'] ?? '').toString().isNotEmpty)
+                            _buildDetailField('Kitchen Hours', raw['kitchen_hours'].toString(), 'kitchen_hours'),
+                          if ((raw['food_menu_description'] ?? '').toString().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            _buildDetailField('Menu', raw['food_menu_description'].toString(), 'food_menu_description'),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 8),
+
+                // Amenities
+                if (amenities is List && amenities.isNotEmpty)
+                  _wrapSection(
+                    changed: _hasChanges && _isChanged('amenities'),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      color: Colors.white,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Amenities', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: (amenities as List).map((amenity) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(_getAmenityIcon(amenity.toString()), size: 16, color: Colors.grey[700]),
+                                    const SizedBox(width: 6),
+                                    Text(amenity.toString(), style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 
@@ -966,6 +1108,121 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
         ],
       ),
     );
+  }
+
+  /// Wraps a section with an amber left border when it has changes
+  Widget _wrapSection({required bool changed, required Widget child}) {
+    if (!changed) return child;
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: Color(0xFFFFB300), width: 4)),
+      ),
+      child: Stack(
+        children: [
+          child,
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E1),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFFFFB300)),
+              ),
+              child: const Text(
+                'CHANGED',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFF57F17)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Renders a text field, showing the current value with inline change indicator
+  Widget _buildFieldRow(String value, String field, {TextStyle? style}) {
+    final changed = _hasChanges && _isChanged(field);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(value, style: style),
+        if (changed && _previousValue(field) != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              'Was: ${_previousValue(field)}',
+              style: TextStyle(fontSize: 11, color: Colors.grey[500], fontStyle: FontStyle.italic, decoration: TextDecoration.lineThrough),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Renders a label: value detail field with change info
+  Widget _buildDetailField(String label, String value, String field) {
+    final changed = _hasChanges && _isChanged(field);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500)),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: const TextStyle(fontSize: 13)),
+                if (changed && _previousValue(field) != null)
+                  Text(
+                    'Was: ${_previousValue(field)}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500], fontStyle: FontStyle.italic, decoration: TextDecoration.lineThrough),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shows a "Previously:" label with the old value
+  Widget _buildPreviousValueLabel(String previousValue) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Previously:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[500])),
+          const SizedBox(height: 4),
+          Text(
+            previousValue,
+            style: TextStyle(fontSize: 12, color: Colors.grey[500], fontStyle: FontStyle.italic, decoration: TextDecoration.lineThrough),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatPlaceType(String type) {
+    switch (type) {
+      case 'private_land': return 'Private Land';
+      case 'campsite': return 'Campsite';
+      case 'farm': return 'Farm';
+      case 'pub': return 'Pub';
+      case 'car_park': return 'Car Park';
+      case 'driveway': return 'Driveway';
+      default: return type.replaceAll('_', ' ');
+    }
   }
 
   IconData _getAmenityIcon(String amenity) {

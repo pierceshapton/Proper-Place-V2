@@ -202,9 +202,9 @@ async function updatePlace(req, res, next) {
     const userId = req.user.userId;
     const data = req.validatedBody;
 
-    // Check ownership
+    // Check ownership (fetch all columns so we can snapshot approved data)
     const ownerResult = await db.query(
-      'SELECT owner_id, approval_status FROM places WHERE id = $1',
+      'SELECT * FROM places WHERE id = $1',
       [id]
     );
 
@@ -250,8 +250,20 @@ async function updatePlace(req, res, next) {
       }
     }
 
-    // When a host edits an approved site, set it back to pending for admin review
+    // When a host edits an approved site, save the current data and set it back to pending
     if (req.user.role !== 'admin' && previousApprovalStatus === 'approved') {
+      // Snapshot the currently approved data so admin can see what changed
+      const previousData = { ...ownerResult.rows[0] };
+      delete previousData.previous_approved_data;
+      delete previousData.created_at;
+      delete previousData.updated_at;
+      delete previousData.deleted_at;
+      delete previousData.host_status_seen;
+
+      fields.push(`previous_approved_data = $${paramCount}`);
+      values.push(JSON.stringify(previousData));
+      paramCount++;
+
       fields.push(`approval_status = $${paramCount}`);
       values.push('pending');
       paramCount++;

@@ -81,7 +81,7 @@ async function approvePlace(req, res, next) {
 
     const result = await db.query(
       `UPDATE places
-       SET approval_status = 'approved', status = 'available', host_status_seen = false, updated_at = NOW()
+       SET approval_status = 'approved', status = 'available', host_status_seen = false, previous_approved_data = NULL, updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
       [id]
@@ -129,7 +129,7 @@ async function rejectPlace(req, res, next) {
 
     const result = await db.query(
       `UPDATE places
-       SET approval_status = 'rejected', rejection_reason = $2, host_status_seen = false, updated_at = NOW()
+       SET approval_status = 'rejected', rejection_reason = $2, host_status_seen = false, previous_approved_data = NULL, updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
       [id, reason || null]

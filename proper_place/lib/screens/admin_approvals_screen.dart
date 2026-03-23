@@ -60,6 +60,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
 
   List<Map<String, dynamic>> _mapPlaces(List places, String status) {
     return places.map((place) {
+      final hasChanges = place['previous_approved_data'] != null;
       return {
         'id': place['place_id'] ?? place['id'] ?? '',
         'name': place['name'] ?? 'Unnamed Place',
@@ -70,7 +71,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         'host_approved_sites': int.tryParse(place['host_approved_sites']?.toString() ?? '') ?? 0,
         'host_joined_at': place['host_joined_at'] ?? '',
         'image': place['image_url'] ?? place['image'] ?? '',
-        'status': status,
+        'status': status == 'Pending' && hasChanges ? 'Changes Pending' : status,
         'submissionDate': place['submitted_at'] ?? place['created_at'] ?? '',
         'description': place['description'] ?? '',
         'amenities': (place['amenities'] is List) ? place['amenities'] : [],
@@ -274,7 +275,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                     ? Colors.green
                     : place['status'] == 'Rejected'
                         ? Colors.red
-                        : Colors.amber,
+                        : place['status'] == 'Changes Pending'
+                            ? Colors.orange
+                            : Colors.amber,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -458,7 +461,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
             const SizedBox(height: 24),
 
             // Action buttons (only for Pending)
-            if (place['status'] == 'Pending')
+            if (place['status'] == 'Pending' || place['status'] == 'Changes Pending')
               Row(
                 children: [
                   Expanded(
@@ -718,7 +721,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       ? Colors.green
                       : place['status'] == 'Rejected'
                           ? Colors.red
-                          : Colors.amber,
+                          : place['status'] == 'Changes Pending'
+                              ? Colors.orange
+                              : Colors.amber,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -872,7 +877,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
             ),
             const SizedBox(height: 16),
             // Action Buttons (only for Pending)
-            if (place['status'] == 'Pending')
+            if (place['status'] == 'Pending' || place['status'] == 'Changes Pending')
               Row(
                 children: [
                   Expanded(
@@ -899,7 +904,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   ),
                 ],
               ),
-            if (place['status'] == 'Pending')
+            if (place['status'] == 'Pending' || place['status'] == 'Changes Pending')
               const SizedBox(height: 12),
             // View Full Details Button
             SizedBox(

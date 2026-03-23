@@ -522,6 +522,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 15 error:', err.message);
     }
 
+    // Migration 16: Add previous_approved_data column to places table (for tracking changes to approved sites)
+    try {
+      console.log('[SERVER] Running migration 16: places previous_approved_data column...');
+      await db.query(`ALTER TABLE places ADD COLUMN IF NOT EXISTS previous_approved_data JSONB`);
+      console.log('[SERVER] ✅ Migration 16 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 16 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
