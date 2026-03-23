@@ -22,6 +22,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
   bool _isLoading = true;
   String? _error;
   bool _sessionExpired = false;
+  bool _showCalendar = true; // true = calendar view, false = list view
 
   final List<String> _filters = [
     'Confirmed',
@@ -209,6 +210,28 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
         _bookingsByDate[dateKey]!.isNotEmpty;
   }
 
+  /// Returns all bookings that span the given date (check-in <= date < check-out)
+  List<Map<String, dynamic>> _bookingsSpanningDate(DateTime day) {
+    final d = DateTime(day.year, day.month, day.day);
+    final results = <Map<String, dynamic>>[];
+    for (var dateBookings in _bookingsByDate.values) {
+      for (var booking in dateBookings) {
+        final checkIn = booking['checkIn'] as DateTime;
+        final checkOut = booking['checkOut'] as DateTime;
+        final cin = DateTime(checkIn.year, checkIn.month, checkIn.day);
+        final cout = DateTime(checkOut.year, checkOut.month, checkOut.day);
+        if (!d.isBefore(cin) && d.isBefore(cout)) {
+          results.add(booking);
+        }
+      }
+    }
+    return results;
+  }
+
+  bool _hasBookingSpanning(DateTime day) {
+    return _bookingsSpanningDate(day).isNotEmpty;
+  }
+
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Confirmed':
@@ -306,61 +329,119 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      // Filter tabs
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: _filters.map((filter) {
-                            final isSelected = _selectedFilter == filter;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: FilterChip(
-                                label: Text(
-                                  filter,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.white
-                                        : const Color(0xFF64748B),
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                      // View toggle: Calendar / List
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _showCalendar = true),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _showCalendar ? const Color(0xFF4F46E5) : Colors.grey[100],
+                                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                                  border: Border.all(color: _showCalendar ? Colors.transparent : const Color(0xFFE2E8F0)),
                                 ),
-                                backgroundColor: isSelected
-                                    ? const Color(0xFF4F46E5)
-                                    : Colors.grey[100],
-                                side: BorderSide(
-                                  color: isSelected
-                                      ? Colors.transparent
-                                      : const Color(0xFFE2E8F0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.calendar_month, size: 16, color: _showCalendar ? Colors.white : const Color(0xFF64748B)),
+                                    const SizedBox(width: 6),
+                                    Text('Calendar', style: TextStyle(color: _showCalendar ? Colors.white : const Color(0xFF64748B), fontWeight: FontWeight.w600, fontSize: 13)),
+                                  ],
                                 ),
-                                onSelected: (selected) {
-                                  setState(() {
-                                    _selectedFilter = filter;
-                                  });
-                                },
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Bookings list
-                      if (_bookingsForSelectedDate.isEmpty)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 32),
-                            child: Text(
-                              'No bookings',
-                              style: TextStyle(
-                                color: Color(0xFF94A3B8),
-                                fontSize: 14,
                               ),
                             ),
                           ),
-                        )
-                      else
-                        ..._bookingsForSelectedDate
-                            .map((booking) => _buildBookingCard(booking)),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _showCalendar = false),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: !_showCalendar ? const Color(0xFF4F46E5) : Colors.grey[100],
+                                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                                  border: Border.all(color: !_showCalendar ? Colors.transparent : const Color(0xFFE2E8F0)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.list, size: 16, color: !_showCalendar ? Colors.white : const Color(0xFF64748B)),
+                                    const SizedBox(width: 6),
+                                    Text('List', style: TextStyle(color: !_showCalendar ? Colors.white : const Color(0xFF64748B), fontWeight: FontWeight.w600, fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      if (_showCalendar) ...[
+                        // Calendar view
+                        _buildCalendar(),
+                        const SizedBox(height: 16),
+                        // Legend
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildLegendDot(const Color(0xFF3B82F6), 'Check-in'),
+                            const SizedBox(width: 16),
+                            _buildLegendDot(const Color(0xFFBFDBFE), 'Occupied'),
+                            const SizedBox(width: 16),
+                            _buildLegendDot(const Color(0xFFFDE68A), 'Pending'),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: Text(
+                            'Tap a date to see booking details',
+                            style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                          ),
+                        ),
+                      ] else ...[
+                        // List view with filter tabs
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: _filters.map((filter) {
+                              final isSelected = _selectedFilter == filter;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: FilterChip(
+                                  label: Text(
+                                    filter,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : const Color(0xFF64748B),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  backgroundColor: isSelected ? const Color(0xFF4F46E5) : Colors.grey[100],
+                                  side: BorderSide(color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0)),
+                                  onSelected: (selected) {
+                                    setState(() => _selectedFilter = filter);
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        if (_bookingsForSelectedDate.isEmpty)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 32),
+                              child: Text(
+                                'No bookings',
+                                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                              ),
+                            ),
+                          )
+                        else
+                          ..._bookingsForSelectedDate.map((booking) => _buildBookingCard(booking)),
+                      ],
 
                       const SizedBox(height: 24),
                     ],
@@ -486,46 +567,278 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
 
   Widget _buildDayCell(DateTime day) {
     final isCurrentMonth = day.month == _focusedDate.month;
-    final isSelected = day.year == _selectedDate.year &&
-        day.month == _selectedDate.month &&
-        day.day == _selectedDate.day;
-    final hasBooking = _hasBooking(day) && isCurrentMonth;
+    final isToday = day.year == DateTime.now().year &&
+        day.month == DateTime.now().month &&
+        day.day == DateTime.now().day;
+    final spanningBookings = isCurrentMonth ? _bookingsSpanningDate(day) : <Map<String, dynamic>>[];
+    final hasCheckIn = _hasBooking(day) && isCurrentMonth;
+    final hasSpanning = spanningBookings.isNotEmpty;
+    final hasPending = spanningBookings.any((b) => b['status'] == 'Pending');
+    final hasConfirmed = spanningBookings.any((b) => b['status'] == 'Confirmed');
+
+    Color bgColor;
+    if (hasCheckIn && hasConfirmed) {
+      bgColor = const Color(0xFF3B82F6); // blue for check-in day
+    } else if (hasSpanning && hasConfirmed) {
+      bgColor = const Color(0xFFBFDBFE); // light blue for occupied
+    } else if (hasPending) {
+      bgColor = const Color(0xFFFDE68A); // yellow for pending
+    } else {
+      bgColor = Colors.transparent;
+    }
 
     return GestureDetector(
       onTap: isCurrentMonth
           ? () {
-              setState(() {
-                _selectedDate = day;
-              });
+              if (hasSpanning) {
+                _showDateBookingsPopup(day, spanningBookings);
+              }
+              setState(() => _selectedDate = day);
             }
           : null,
       child: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF3B82F6)
-              : hasBooking
-                  ? const Color(0xFFBFDBFE)
-                  : Colors.transparent,
+          color: bgColor,
           borderRadius: BorderRadius.circular(6),
+          border: isToday ? Border.all(color: const Color(0xFF3B82F6), width: 2) : null,
         ),
-        child: Center(
-          child: Text(
-            day.day.toString(),
-            style: TextStyle(
-              color: isSelected
-                  ? Colors.white
-                  : isCurrentMonth
-                      ? Colors.black
-                      : const Color(0xFFCBD5E1),
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              fontSize: 14,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              day.day.toString(),
+              style: TextStyle(
+                color: (hasCheckIn && hasConfirmed)
+                    ? Colors.white
+                    : isCurrentMonth
+                        ? Colors.black
+                        : const Color(0xFFCBD5E1),
+                fontWeight: (hasSpanning || isToday) ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
             ),
+            if (hasSpanning && isCurrentMonth)
+              Container(
+                margin: const EdgeInsets.only(top: 1),
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: (hasCheckIn && hasConfirmed) ? Colors.white : const Color(0xFF3B82F6),
+                  shape: BoxShape.circle,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+      ],
+    );
+  }
+
+  void _showDateBookingsPopup(DateTime day, List<Map<String, dynamic>> bookings) {
+    final dayStr = '${_weekdayName(day.weekday)}, ${day.day} ${_monthName(day.month)} ${day.year}';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.45,
+        minChildSize: 0.3,
+        maxChildSize: 0.8,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Date header
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 18, color: Color(0xFF3B82F6)),
+                  const SizedBox(width: 8),
+                  Text(
+                    dayStr,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${bookings.length} booking${bookings.length > 1 ? 's' : ''} on this date',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              // Bookings list
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  itemCount: bookings.length,
+                  separatorBuilder: (_, __) => const Divider(height: 24),
+                  itemBuilder: (context, i) {
+                    final b = bookings[i];
+                    final checkIn = b['checkIn'] as DateTime;
+                    final checkOut = b['checkOut'] as DateTime;
+                    final nights = checkOut.difference(checkIn).inDays;
+                    final nightOfStay = day.difference(DateTime(checkIn.year, checkIn.month, checkIn.day)).inDays + 1;
+                    final status = b['status'] as String;
+                    final statusColor = _getStatusColor(status);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Guest name + status
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  (b['guestName'] as String).isNotEmpty
+                                      ? (b['guestName'] as String)[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    color: Color(0xFF3B82F6),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    b['guestName'] ?? 'Guest',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                  Text(
+                                    b['placeName'] ?? '',
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                status,
+                                style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        // Dates + duration
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.login, size: 14, color: Color(0xFF10B981)),
+                                  const SizedBox(width: 6),
+                                  const Text('Check-in:  ', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                                  Text(_formatDateShort(checkIn), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.logout, size: 14, color: Color(0xFFEF4444)),
+                                  const SizedBox(width: 6),
+                                  const Text('Check-out: ', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                                  Text(_formatDateShort(checkOut), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.nightlight_round, size: 14, color: Color(0xFF6366F1)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$nights night${nights > 1 ? 's' : ''} total — night $nightOfStay of $nights',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF4F46E5)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Amount
+                        if (b['amount'] != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            b['amount'].toString(),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  String _weekdayName(int weekday) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return days[weekday - 1];
+  }
+
+  String _formatDateShort(DateTime date) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   Widget _buildBookingCard(Map<String, dynamic> booking) {
