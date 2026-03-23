@@ -393,14 +393,26 @@ function _notifyNewMessageAsync(receiverId, senderName, content) {
 async function markConversationAsRead(req, res, next) {
   try {
     const userId = req.user.userId;
+    const userRole = req.user.role;
     const otherUserId = parseInt(req.params.otherUserId);
 
+    // For admin, resolve all effective user IDs (admin acts as all hosts)
+    let effectiveReceiverIds = [userId];
+    if (userRole === 'admin') {
+      const hostsResult = await db.query(
+        `SELECT DISTINCT p.owner_id FROM places p WHERE p.owner_id IS NOT NULL`
+      );
+      const hostIds = hostsResult.rows.map(r => r.owner_id).filter(id => id !== userId);
+      effectiveReceiverIds = [userId, ...hostIds];
+    }
+
+    const placeholders = effectiveReceiverIds.map((_, i) => `$${i + 2}`).join(', ');
     const result = await db.query(
       `UPDATE messages 
        SET read = true
-       WHERE sender_id = $1 AND receiver_id = $2 AND read = false
+       WHERE sender_id = $1 AND receiver_id IN (${placeholders}) AND read = false
        RETURNING id`,
-      [otherUserId, userId]
+      [otherUserId, ...effectiveReceiverIds]
     );
 
     logger.info('Conversation marked as read', {
