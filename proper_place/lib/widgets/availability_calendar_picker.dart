@@ -200,7 +200,7 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
         : null;
     final dateOnly = DateTime(date.year, date.month, date.day);
     final isBeforeMin = minDateOnly != null && dateOnly.isBefore(minDateOnly);
-    final available = availData?['available'] ?? capacity ?? 10;
+    final available = availData?['available'] ?? capacity ?? 1;
     final isFull = availData?['isFull'] ?? false;
     final isToday = date.day == DateTime.now().day &&
         date.month == DateTime.now().month &&
