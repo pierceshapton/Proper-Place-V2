@@ -104,9 +104,16 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     // Draw a small circle at the bottom for marker pin effect
     canvas.drawCircle(Offset(size / 2, size - 5), 6, markerPaint);
 
-    // Add white border
+    // Add red outer border
+    final Paint redBorderPaint = Paint()
+      ..color = const Color(0xFFD32F2F)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8;
+    canvas.drawPath(tentPath, redBorderPaint);
+
+    // Add white inner border
     final Paint borderPaint = Paint()
-      ..color = Colors.white
+      ..color = const Color(0xFFD32F2F)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawPath(tentPath, borderPaint);
@@ -328,11 +335,13 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => _buildPlaceModal(place),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => _buildPlaceModal(place, setModalState),
+      ),
     );
   }
 
-  Widget _buildPlaceModal(Place place) {
+  Widget _buildPlaceModal(Place place, StateSetter setModalState) {
     return FutureBuilder<double>(
       future: _getAverageRating(place.placeId),
       builder: (context, snapshot) {
@@ -356,7 +365,8 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                     ),
                     onPressed: () {
                       _toggleFavorite(place.placeId);
-                      final isFavorite = !favoriteIds.contains(place.placeId);
+                      setModalState(() {}); // Update heart icon immediately
+                      final isFavorite = favoriteIds.contains(place.placeId);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
