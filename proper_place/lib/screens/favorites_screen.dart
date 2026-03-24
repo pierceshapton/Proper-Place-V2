@@ -295,7 +295,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Widget _buildFavoriteCard(Map<String, dynamic> place) {
-    final rawImageUrl = place['main_photo_url'] ?? place['image'] ?? '';
+    // Use first image from image_urls array, fallback to main_photo_url or image
+    final imageUrls = place['image_urls'];
+    final firstImageUrl = (imageUrls is List && imageUrls.isNotEmpty) ? imageUrls[0].toString() : '';
+    final rawImageUrl = firstImageUrl.isNotEmpty ? firstImageUrl : (place['main_photo_url'] ?? place['image'] ?? '');
     final imageUrl = Place.toFullImageUrl(rawImageUrl) ?? '';
     final rawPrice = place['price_per_night'] ?? place['price'] ?? '0';
     final price = (double.tryParse(rawPrice.toString()) ?? 0).toStringAsFixed(0);
