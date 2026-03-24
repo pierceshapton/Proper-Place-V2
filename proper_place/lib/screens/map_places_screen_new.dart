@@ -87,49 +87,52 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     final Canvas canvas = Canvas(pictureRecorder);
     const double size = 100;
 
-    // Draw marker background (tent shape)
-    final Paint markerPaint = Paint()
-      ..color = isFavorite ? Colors.red : const Color(0xFF7BA7D8)
-      ..style = PaintingStyle.fill;
-
-    // Draw tent shape - triangle
-    final Path tentPath = Path();
-    tentPath.moveTo(size / 2, 10); // Top point
-    tentPath.lineTo(size - 15, size - 20); // Bottom right
-    tentPath.lineTo(15, size - 20); // Bottom left
-    tentPath.close();
-
-    canvas.drawPath(tentPath, markerPaint);
-
-    // Draw a small circle at the bottom for marker pin effect
-    canvas.drawCircle(Offset(size / 2, size - 5), 6, markerPaint);
-
-    // Add red outer border
-    final Paint redBorderPaint = Paint()
-      ..color = const Color(0xFFD32F2F)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8;
-    canvas.drawPath(tentPath, redBorderPaint);
-
-    // Add white inner border
-    final Paint borderPaint = Paint()
-      ..color = const Color(0xFFD32F2F)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawPath(tentPath, borderPaint);
-
-    // Add heart icon on top if favorited
     if (isFavorite) {
-      final textPainter = TextPainter(
-        text: const TextSpan(
-          text: '★',
-          style: TextStyle(
-              fontSize: 20, color: Colors.red, fontWeight: FontWeight.bold),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, const Offset(35, 15));
+      // Draw heart shape for favourited places
+      final Paint fillPaint = Paint()
+        ..color = Colors.red
+        ..style = PaintingStyle.fill;
+
+      final Path heartPath = Path();
+      // Heart drawn centered in the 100x100 canvas
+      heartPath.moveTo(size / 2, 85); // Bottom tip
+      heartPath.cubicTo(size / 2 - 40, 55, 5, 35, 15, 20);
+      heartPath.cubicTo(25, 5, size / 2 - 5, 5, size / 2, 25);
+      heartPath.cubicTo(size / 2 + 5, 5, 75, 5, 85, 20);
+      heartPath.cubicTo(95, 35, size / 2 + 40, 55, size / 2, 85);
+      heartPath.close();
+
+      canvas.drawPath(heartPath, fillPaint);
+
+      // Dark red border
+      final Paint borderPaint = Paint()
+        ..color = const Color(0xFFB71C1C)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4;
+      canvas.drawPath(heartPath, borderPaint);
+    } else {
+      // Draw tent shape for non-favourited places
+      final Paint markerPaint = Paint()
+        ..color = const Color(0xFF7BA7D8)
+        ..style = PaintingStyle.fill;
+
+      final Path tentPath = Path();
+      tentPath.moveTo(size / 2, 10); // Top point
+      tentPath.lineTo(size - 15, size - 20); // Bottom right
+      tentPath.lineTo(15, size - 20); // Bottom left
+      tentPath.close();
+
+      canvas.drawPath(tentPath, markerPaint);
+
+      // Pin dot at bottom
+      canvas.drawCircle(Offset(size / 2, size - 5), 6, markerPaint);
+
+      // Red border
+      final Paint borderPaint = Paint()
+        ..color = const Color(0xFFD32F2F)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4;
+      canvas.drawPath(tentPath, borderPaint);
     }
 
     final ui.Image image = await pictureRecorder
