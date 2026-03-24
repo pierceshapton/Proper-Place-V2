@@ -22,7 +22,7 @@ export default function BecomeHostPage() {
               Turn Your Land Into Extra Income
             </h1>
             <p className="text-xl text-gray-200">
-              Welcome motorhome travellers to your farm, garden, or land and earn money from unused space.
+              Welcome motorhome guests to your farm, garden, or land and earn money from unused space.
             </p>
           </div>
         </div>
@@ -45,7 +45,7 @@ export default function BecomeHostPage() {
               },
               {
                 title: 'Welcome Guests',
-                desc: 'Accept booking requests and host respectful motorhome travellers'
+                desc: 'Accept booking requests and host respectful motorhome guests'
               },
             ].map((item, i) => (
               <div key={i} className="text-center">
@@ -75,7 +75,7 @@ export default function BecomeHostPage() {
             {[
               {
                 title: 'Farmland',
-                desc: 'A quiet corner of your farm is perfect for travellers seeking rural tranquility'
+                desc: 'A quiet corner of your farm is perfect for guests seeking rural tranquility'
               },
               {
                 title: 'Large Gardens',
@@ -158,7 +158,7 @@ export default function BecomeHostPage() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-lg">Meet Interesting People</h4>
-                    <p className="text-gray-600">Motorhome travellers are typically respectful, self-sufficient guests who love exploring.</p>
+                    <p className="text-gray-600">Motorhome owners are typically respectful, self-sufficient guests who love exploring.</p>
                   </div>
                 </li>
               </ul>

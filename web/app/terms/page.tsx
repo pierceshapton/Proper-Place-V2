@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
-  description: 'Terms of service for using the Proper Place motorhome stays platform. Rules and guidelines for travellers and hosts.',
+  description: 'Terms of service for using the Proper Place motorhome stays platform. Rules and guidelines for guests and hosts.',
   alternates: {
     canonical: 'https://proper-place.co.uk/terms',
   },
@@ -40,8 +40,8 @@ export default function TermsPage() {
 
             <h2 className="text-2xl font-bold mt-8 mb-4">2. Description of Service</h2>
             <p className="text-gray-600 mb-6">
-              Proper Place is a platform that connects motorhome travellers with landowners offering overnight 
-              parking spaces. We facilitate the connection between hosts and travellers but are not a party to 
+              Proper Place is a platform that connects motorhome owners with landowners offering overnight 
+              parking spaces. We facilitate the connection between hosts and guests but are not a party to 
               any agreement between them.
             </p>
 
@@ -64,8 +64,8 @@ export default function TermsPage() {
               <li>Maintaining appropriate insurance coverage</li>
             </ul>
 
-            <h2 className="text-2xl font-bold mt-8 mb-4">5. Traveller Responsibilities</h2>
-            <p className="text-gray-600 mb-4">As a traveller, you are responsible for:</p>
+            <h2 className="text-2xl font-bold mt-8 mb-4">5. Guest Responsibilities</h2>
+            <p className="text-gray-600 mb-4">As a guest, you are responsible for:</p>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-6">
               <li>Respecting the host's property and rules</li>
               <li>Leaving the site as you found it</li>
@@ -98,7 +98,7 @@ export default function TermsPage() {
 
             <h2 className="text-2xl font-bold mt-8 mb-4">9. Limitation of Liability</h2>
             <p className="text-gray-600 mb-6">
-              Proper Place acts as a platform connecting hosts and travellers. We are not responsible for 
+              Proper Place acts as a platform connecting hosts and guests. We are not responsible for 
               the actions of users or the condition of listed properties. Users engage with each other at 
               their own risk.
             </p>

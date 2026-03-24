@@ -4,7 +4,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Proper Place - Affordable Motorhome Overnight Stays UK',
-  description: 'Find affordable overnight motorhome stays across the UK. Proper Place connects motorhome travellers with landowners offering unique farm stays, coastal spots & countryside retreats from £10/night. Download the free app today.',
+  description: 'Find affordable overnight motorhome stays across the UK. Proper Place connects motorhome owners with landowners offering unique farm stays, coastal spots & countryside retreats from £10/night. Download the free app today.',
   keywords: [
     'motorhome overnight stays UK',
     'campervan parking sites',
@@ -95,7 +95,7 @@ export default function Home() {
                 Proper Place connects motorhome owners with landowners offering affordable overnight stays. Whether you're seeking a peaceful farm setting, a coastal view, or a convenient stopover, our community makes finding your next adventure simple.
               </p>
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
-                No more expensive campsites or uncertain wild camping. Our verified hosts offer safe, legal, and welcoming places for motorhome travellers at prices that won't break the bank.
+                No more expensive campsites or uncertain wild camping. Our verified hosts offer safe, legal, and welcoming places for motorhome owners at prices that won't break the bank.
               </p>
               <div className="bg-gray-100 rounded-xl p-6 text-center">
                 <p className="text-gray-500 italic">Community statistics coming soon</p>
@@ -155,7 +155,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* For Travellers */}
+      {/* For Motorhomers */}
       <section className="py-20 bg-white">
         <div className="container-md">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -168,7 +168,7 @@ export default function Home() {
               />
             </div>
             <div className="order-1 lg:order-2">
-              <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Travellers</span>
+              <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Motorhomers</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
                 Adventure Without the Premium Price
               </h2>
@@ -233,7 +233,7 @@ export default function Home() {
                 Turn Your Land Into Extra Income
               </h2>
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
-                Have unused land, a large garden, or farm space? Join hundreds of hosts earning extra income by welcoming respectful motorhome travellers.
+                Have unused land, a large garden, or farm space? Join hundreds of hosts earning extra income by welcoming respectful motorhome guests.
               </p>
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3">
@@ -258,7 +258,7 @@ export default function Home() {
                   <svg className="w-5 h-5 text-light-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-gray-700">Meet interesting travellers from around the country</span>
+                  <span className="text-gray-700">Meet interesting people from around the country</span>
                 </li>
               </ul>
               <Link href="/become-host" className="btn-primary inline-block">
@@ -307,7 +307,7 @@ export default function Home() {
             Start Your Next Adventure Today
           </h2>
           <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
-            Join thousands of motorhome travellers discovering affordable, unique places to stay across the UK.
+            Join thousands of motorhome owners discovering affordable, unique places to stay across the UK.
           </p>
           
           {/* App Download Buttons */}

@@ -3,7 +3,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'How It Works - Find & Book Motorhome Stays',
-  description: 'Learn how Proper Place works for motorhome travellers and hosts. Find stays, book securely, and enjoy unique overnight spots. List your land and earn extra income.',
+  description: 'Learn how Proper Place works for motorhome owners and hosts. Find stays, book securely, and enjoy unique overnight spots. List your land and earn extra income.',
   keywords: [
     'how to book motorhome stays',
     'list land for motorhomes',
@@ -30,16 +30,16 @@ export default function HowItWorksPage() {
             How <span className="text-light-blue">Proper Place</span> Works
           </h1>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Discover how easy it is to find your perfect overnight stay or list your space for motorhome travellers.
+            Discover how easy it is to find your perfect overnight stay or list your space for motorhome owners.
           </p>
         </div>
       </section>
 
-      {/* For Travellers */}
+      {/* For Motorhomers */}
       <section className="py-20 bg-white">
         <div className="container-md">
           <div className="text-center mb-16">
-            <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Travellers</span>
+            <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Motorhomers</span>
             <h2 className="text-3xl md:text-4xl font-bold mt-2">Find Your Perfect Stay</h2>
           </div>
           
@@ -73,7 +73,7 @@ export default function HowItWorksPage() {
                 4
               </div>
               <h3 className="text-xl font-bold mb-3">Enjoy & Review</h3>
-              <p className="text-gray-600">Arrive at your Proper Place, enjoy your stay, and leave a review to help other travellers.</p>
+              <p className="text-gray-600">Arrive at your Proper Place, enjoy your stay, and leave a review to help other motorhome owners.</p>
             </div>
           </div>
         </div>
@@ -109,7 +109,7 @@ export default function HowItWorksPage() {
                 3
               </div>
               <h3 className="text-xl font-bold mb-3">Accept Bookings</h3>
-              <p className="text-gray-600">Review booking requests from travellers. Chat with them before confirming their stay.</p>
+              <p className="text-gray-600">Review booking requests from guests. Chat with them before confirming their stay.</p>
             </div>
             
             <div className="text-center">
@@ -159,7 +159,7 @@ export default function HowItWorksPage() {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">Direct Messaging</h3>
-              <p className="text-gray-600">Chat directly with hosts or travellers before booking to ask questions and make arrangements.</p>
+              <p className="text-gray-600">Chat directly with hosts or guests before booking to ask questions and make arrangements.</p>
             </div>
             
             <div className="bg-gray-50 rounded-2xl p-8">

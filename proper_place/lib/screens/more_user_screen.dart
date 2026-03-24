@@ -533,7 +533,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
           Text(
             isApplicationPending
                 ? 'Your application is being reviewed by our team.'
-                : 'Turn your land into extra income by welcoming motorhome travellers.',
+                : 'Turn your land into extra income by welcoming the motorhome community.',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 14,

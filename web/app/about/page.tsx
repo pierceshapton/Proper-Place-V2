@@ -4,7 +4,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'About Us - Our Motorhome Community Story',
-  description: 'Learn about Proper Place - the UK motorhome community platform connecting travellers with affordable overnight stays on farms, vineyards, and countryside retreats.',
+  description: 'Learn about Proper Place - the UK motorhome community platform connecting owners with affordable overnight stays on farms, vineyards, and countryside retreats.',
   keywords: [
     'about Proper Place',
     'motorhome community UK',
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: 'About Proper Place - UK Motorhome Community',
-    description: 'Connecting motorhome travellers with unique, affordable overnight stays across the UK.',
+    description: 'Connecting motorhome owners with unique, affordable overnight stays across the UK.',
     url: 'https://proper-place.co.uk/about',
   },
   alternates: {
@@ -31,7 +31,7 @@ export default function AboutPage() {
             About <span className="text-light-blue">Proper</span> Place
           </h1>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            We're building a community that connects motorhome travellers with landowners offering unique, affordable overnight stays.
+            We're building a community that connects motorhome owners with landowners offering unique, affordable overnight stays.
           </p>
         </div>
       </section>
@@ -52,7 +52,7 @@ export default function AboutPage() {
               </p>
               <p className="text-gray-600 text-lg leading-relaxed">
                 We envisioned a platform where landowners could share their beautiful spaces — farms, vineyards, 
-                coastal spots, and countryside retreats — with respectful travellers looking for something different. 
+                coastal spots, and countryside retreats — with respectful motorhome owners looking for something different. 
                 A place where both hosts and guests benefit from genuine community connections.
               </p>
             </div>
@@ -78,7 +78,7 @@ export default function AboutPage() {
             </h2>
             <p className="text-gray-600 text-lg leading-relaxed">
               We believe that exploring the UK in a motorhome should be an affordable, enriching experience for everyone. 
-              Our mission is to create a trusted community where travellers discover hidden gems and landowners 
+              Our mission is to create a trusted community where motorhome owners discover hidden gems and landowners 
               generate extra income while meeting interesting people from across the country.
             </p>
           </div>
@@ -101,7 +101,7 @@ export default function AboutPage() {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">Community</h3>
-              <p className="text-gray-600">Building genuine connections between travellers and hosts who share a love for the great outdoors.</p>
+              <p className="text-gray-600">Building genuine connections between guests and hosts who share a love for the great outdoors.</p>
             </div>
             
             <div className="text-center p-8">
@@ -121,7 +121,7 @@ export default function AboutPage() {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">Affordability</h3>
-              <p className="text-gray-600">Quality stays shouldn't break the bank. We champion fair pricing that benefits both hosts and travellers.</p>
+              <p className="text-gray-600">Quality stays shouldn't break the bank. We champion fair pricing that benefits both hosts and guests.</p>
             </div>
           </div>
         </div>
@@ -134,7 +134,7 @@ export default function AboutPage() {
             Join the Proper Place Community
           </h2>
           <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-            Whether you're a traveller seeking adventure or a landowner with space to share, we'd love to have you.
+            Whether you're a motorhome owner seeking adventure or a landowner with space to share, we'd love to have you.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/browse" className="btn-primary bg-white text-light-blue hover:bg-gray-100 px-8 py-3 rounded-xl font-semibold transition-colors">

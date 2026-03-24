@@ -17,9 +17,9 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* For Travellers */}
+          {/* For Motorhomers */}
           <div>
-            <h4 className="font-semibold mb-4">For Travellers</h4>
+            <h4 className="font-semibold mb-4">For Motorhomers</h4>
             <ul className="space-y-2 text-gray-400 text-sm">
               <li><Link href="/download" className="hover:text-light-blue">Download the App</Link></li>
               <li><Link href="/browse" className="hover:text-light-blue">Find a Proper Place</Link></li>

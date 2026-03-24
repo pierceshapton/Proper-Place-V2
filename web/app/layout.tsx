@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     default: "Proper Place - Affordable Motorhome Stays Across the UK",
     template: "%s | Proper Place"
   },
-  description: "Find affordable overnight motorhome stays across the UK. Proper Place connects motorhome travellers with landowners offering unique farm stays, coastal spots & countryside retreats from £10/night.",
+  description: "Find affordable overnight motorhome stays across the UK. Proper Place connects motorhome owners with landowners offering unique farm stays, coastal spots & countryside retreats from £10/night.",
   keywords: [
     "motorhome stays UK",
     "campervan overnight parking",
@@ -93,7 +93,7 @@ const jsonLd = {
         height: 512,
       },
       sameAs: [],
-      description: 'Proper Place connects motorhome travellers with landowners offering affordable overnight stays across the UK.',
+      description: 'Proper Place connects motorhome owners with landowners offering affordable overnight stays across the UK.',
     },
     {
       '@type': 'WebSite',

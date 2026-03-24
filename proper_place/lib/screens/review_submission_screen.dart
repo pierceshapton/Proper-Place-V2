@@ -230,7 +230,7 @@ class _ReviewSubmissionScreenState extends State<ReviewSubmissionScreen> {
               controller: _commentController,
               maxLines: 6,
               decoration: InputDecoration(
-                hintText: 'Share your experience with other travelers...',
+                hintText: 'Share your experience with the motorhome community...',
                 hintStyle: TextStyle(color: Colors.grey[700]),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -270,7 +270,7 @@ class _ReviewSubmissionScreenState extends State<ReviewSubmissionScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Share photos from your stay to help other travelers',
+              'Share photos from your stay to help the motorhome community',
               style: TextStyle(color: Colors.grey[600], fontSize: 13),
             ),
             const SizedBox(height: 12),
