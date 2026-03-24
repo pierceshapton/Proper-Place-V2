@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/services/notification_service.dart';
@@ -20,7 +21,7 @@ class MyBookingsScreen extends StatefulWidget {
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
   late Future<List<dynamic>> bookingsFuture;
   String guestId = 'temp-guest-id';
-  String selectedTab = 'confirmed';
+  String selectedTab = 'all';
   Map<int, int> _unreadByBooking = {};
   Timer? _unreadPollingTimer;
 
@@ -238,8 +239,25 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const SizedBox.shrink(),
-        title: const Text('My Bookings'),
-        backgroundColor: const Color(0xFF7BA7D8),
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        title: const Text(
+          'My Bookings',
+          style: TextStyle(
+            color: Color(0xFF1A1A2E),
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: const Color(0xFFE8E8E8),
+            height: 1,
+          ),
+        ),
       ),
       body: FutureBuilder<List<dynamic>>(
         future: bookingsFuture,
@@ -273,77 +291,86 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Column(
-              children: [
-                // Filter tabs - always show
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        _buildFilterTab('Confirmed', 'confirmed'),
-                        const SizedBox(width: 8),
-                        _buildFilterTab('Pending', 'pending'),
-                        const SizedBox(width: 8),
-                        _buildFilterTab('Completed', 'completed'),
-                        const SizedBox(width: 8),
-                        _buildFilterTab('Cancelled', 'cancelled'),
-                      ],
-                    ),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.calendar_today, size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No bookings yet',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
-                ),
-                // Empty state
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.calendar_today, size: 48, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No bookings yet',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Start by booking a place from the map',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Start by booking a place from the map',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           }
 
           final bookings = snapshot.data ?? [];
-          final filteredBookings = bookings
-              .where((b) => (b['status'] ?? 'confirmed').toLowerCase() == selectedTab)
-              .toList();
+          final filteredBookings = selectedTab == 'all'
+              ? List<dynamic>.from(bookings)
+              : bookings
+                  .where((b) => (b['status'] ?? 'confirmed').toLowerCase() == selectedTab)
+                  .toList();
+          // Sort newest first by created_at
+          filteredBookings.sort((a, b) {
+            final aDate = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
+            final bDate = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
+            return bDate.compareTo(aDate);
+          });
 
           return Column(
             children: [
-              // Filter tabs - always show
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      _buildFilterTab('Confirmed', 'confirmed'),
-                      const SizedBox(width: 8),
-                      _buildFilterTab('Pending', 'pending'),
-                      const SizedBox(width: 8),
-                      _buildFilterTab('Completed', 'completed'),
-                      const SizedBox(width: 8),
-                      _buildFilterTab('Cancelled', 'cancelled'),
-                    ],
-                  ),
+              // Filter row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    if (selectedTab != 'all')
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A2E),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${selectedTab[0].toUpperCase()}${selectedTab.substring(1)}',
+                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () => setState(() => selectedTab = 'all'),
+                              child: const Icon(Icons.close, size: 16, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const Spacer(),
+                    PopupMenuButton<String>(
+                      icon: Icon(
+                        Icons.filter_list,
+                        color: selectedTab == 'all' ? const Color(0xFF6B7280) : const Color(0xFF1A1A2E),
+                      ),
+                      onSelected: (value) => setState(() => selectedTab = value),
+                      itemBuilder: (context) => [
+                        _buildFilterMenuItem('All', 'all'),
+                        _buildFilterMenuItem('Confirmed', 'confirmed'),
+                        _buildFilterMenuItem('Pending', 'pending'),
+                        _buildFilterMenuItem('Completed', 'completed'),
+                        _buildFilterMenuItem('Cancelled', 'cancelled'),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              // Content
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () async {
@@ -371,28 +398,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     );
   }
 
-  Widget _buildFilterTab(String label, String value) {
-    final isSelected = selectedTab == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedTab = value;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF7BA7D8) : Colors.grey[100],
-          border: isSelected ? null : Border.all(color: const Color(0xFFE2E8F0), width: 1),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+  PopupMenuEntry<String> _buildFilterMenuItem(String label, String value) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          if (selectedTab == value)
+            const Icon(Icons.check, size: 18, color: Color(0xFF1A1A2E))
+          else
+            const SizedBox(width: 18),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: selectedTab == value ? FontWeight.w700 : FontWeight.w500,
+              color: const Color(0xFF1A1A2E),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
