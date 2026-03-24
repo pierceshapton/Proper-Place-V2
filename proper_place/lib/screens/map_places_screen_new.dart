@@ -487,6 +487,27 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ),
+              // Facilities icons
+              if (place.amenitiesList.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: place.amenitiesList.map((facility) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_getFacilityIcon(facility), size: 18, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          facility,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ],
               const SizedBox(height: 20),
               // View Details & Book button
               SizedBox(
@@ -525,6 +546,15 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                         'amenities': place.amenities,
                         'host_name': place.hostName,
                         'capacity': place.capacity,
+                        'facilities': place.amenitiesList,
+                        'business_description': place.businessDescription,
+                        'access_route_description': place.accessRouteDescription,
+                        'max_vehicle_height_ft': place.maxVehicleHeightFt,
+                        'max_vehicle_width_ft': place.maxVehicleWidthFt,
+                        'max_vehicle_length_ft': place.maxVehicleLengthFt,
+                        'opening_hours': place.openingHours,
+                        'kitchen_hours': place.kitchenHours,
+                        'food_menu_description': place.foodMenuDescription,
                       };
                       Navigator.push(
                         context,
@@ -551,6 +581,18 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     );
       }
     );
+  }
+
+  IconData _getFacilityIcon(String facility) {
+    final lower = facility.toLowerCase();
+    if (lower.contains('wifi')) return Icons.wifi;
+    if (lower.contains('electric')) return Icons.bolt;
+    if (lower.contains('water') && lower.contains('drink')) return Icons.water_drop;
+    if (lower.contains('chemical') || lower.contains('toilet')) return Icons.delete_outline;
+    if (lower.contains('grey water') || lower.contains('gray water')) return Icons.water;
+    if (lower.contains('waste') || lower.contains('recycl')) return Icons.recycling;
+    if (lower.contains('restaurant') || lower.contains('pub') || lower.contains('food')) return Icons.restaurant;
+    return Icons.check_circle_outline;
   }
 
   /// Helper method to display place image with fallback to imageUrls

@@ -738,18 +738,143 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                         ),
                         const SizedBox(height: 12),
                         Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                          spacing: 16,
+                          runSpacing: 10,
                           children: [
                             for (var facility in facilities)
-                              Chip(
-                                label: Text(facility.toString()),
-                                backgroundColor: const Color(0xFF7BA7D8).withOpacity(0.1),
-                                labelStyle: const TextStyle(
-                                  color: Color(0xFF7BA7D8),
-                                ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(_getFacilityIcon(facility.toString()), size: 20, color: const Color(0xFF7BA7D8)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    facility.toString(),
+                                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                  ),
+                                ],
                               ),
                           ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+
+                  // Opening Hours
+                  if (widget.place['opening_hours'] != null &&
+                      widget.place['opening_hours'].toString().isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF86EFAC)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.access_time, color: Color(0xFF16A34A), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Opening Hours',
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF166534)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      widget.place['opening_hours'].toString(),
+                                      style: TextStyle(color: Colors.grey[700]),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+
+                  // Kitchen Hours
+                  if (widget.place['kitchen_hours'] != null &&
+                      widget.place['kitchen_hours'].toString().isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.restaurant_menu, color: Color(0xFFD97706), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Kitchen Hours',
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      widget.place['kitchen_hours'].toString(),
+                                      style: TextStyle(color: Colors.grey[700]),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+
+                  // Food Menu Description
+                  if (widget.place['food_menu_description'] != null &&
+                      widget.place['food_menu_description'].toString().isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFDF2F8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFF9A8D4)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.menu_book, color: Color(0xFFDB2777), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Food Menu',
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF9D174D)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      widget.place['food_menu_description'].toString(),
+                                      style: TextStyle(color: Colors.grey[700], height: 1.4),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 24),
                       ],
@@ -1121,6 +1246,18 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         ),
       ),
     );
+  }
+
+  IconData _getFacilityIcon(String facility) {
+    final lower = facility.toLowerCase();
+    if (lower.contains('wifi')) return Icons.wifi;
+    if (lower.contains('electric')) return Icons.bolt;
+    if (lower.contains('water') && lower.contains('drink')) return Icons.water_drop;
+    if (lower.contains('chemical') || lower.contains('toilet')) return Icons.delete_outline;
+    if (lower.contains('grey water') || lower.contains('gray water')) return Icons.water;
+    if (lower.contains('waste') || lower.contains('recycl')) return Icons.recycling;
+    if (lower.contains('restaurant') || lower.contains('pub') || lower.contains('food')) return Icons.restaurant;
+    return Icons.check_circle_outline;
   }
 
   Widget _buildVehicleSizeItem(String label, String value, IconData icon) {

@@ -34,6 +34,12 @@ class Place {
   final double? maxVehicleHeightFt;
   final double? maxVehicleWidthFt;
   final double? maxVehicleLengthFt;
+  final List<String> amenitiesList;
+  final String? businessDescription;
+  final String? accessRouteDescription;
+  final String? openingHours;
+  final String? kitchenHours;
+  final String? foodMenuDescription;
 
   Place({
     required this.placeId,
@@ -57,6 +63,12 @@ class Place {
     this.maxVehicleHeightFt,
     this.maxVehicleWidthFt,
     this.maxVehicleLengthFt,
+    this.amenitiesList = const [],
+    this.businessDescription,
+    this.accessRouteDescription,
+    this.openingHours,
+    this.kitchenHours,
+    this.foodMenuDescription,
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -100,6 +112,16 @@ class Place {
       maxVehicleHeightFt: double.tryParse((json['max_vehicle_height_ft'] ?? '').toString()),
       maxVehicleWidthFt: double.tryParse((json['max_vehicle_width_ft'] ?? '').toString()),
       maxVehicleLengthFt: double.tryParse((json['max_vehicle_length_ft'] ?? '').toString()),
+      amenitiesList: json['amenities'] is List
+          ? List<String>.from(json['amenities'])
+          : (json['amenities'] is String && json['amenities'].toString().isNotEmpty)
+              ? json['amenities'].toString().split(', ')
+              : [],
+      businessDescription: toStringOrNull(json['business_description']),
+      accessRouteDescription: toStringOrNull(json['access_route_description']),
+      openingHours: toStringOrNull(json['opening_hours']),
+      kitchenHours: toStringOrNull(json['kitchen_hours']),
+      foodMenuDescription: toStringOrNull(json['food_menu_description']),
     );
   }
 
@@ -126,6 +148,11 @@ class Place {
       'max_vehicle_height_ft': maxVehicleHeightFt,
       'max_vehicle_width_ft': maxVehicleWidthFt,
       'max_vehicle_length_ft': maxVehicleLengthFt,
+      'business_description': businessDescription,
+      'access_route_description': accessRouteDescription,
+      'opening_hours': openingHours,
+      'kitchen_hours': kitchenHours,
+      'food_menu_description': foodMenuDescription,
     };
   }
 }
