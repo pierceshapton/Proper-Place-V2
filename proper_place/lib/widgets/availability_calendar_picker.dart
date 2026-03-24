@@ -237,7 +237,13 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
       onTap: canSelect
           ? () {
               widget.onDateSelected(date);
-              Navigator.pop(context);
+              if (widget.isCheckIn) {
+                Navigator.pop(context);
+              } else {
+                Future.delayed(const Duration(seconds: 3), () {
+                  if (context.mounted) Navigator.pop(context);
+                });
+              }
             }
           : null,
       child: Container(
