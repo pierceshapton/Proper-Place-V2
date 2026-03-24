@@ -227,7 +227,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ),
           // Result count
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
