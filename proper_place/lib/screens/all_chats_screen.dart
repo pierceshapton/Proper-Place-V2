@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import 'package:proper_place/services/chat_service.dart';
@@ -39,19 +40,22 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
         title: const Text(
           'Messages',
           style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1A2E),
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
           ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: const Color(0xFFE8E8E8), height: 1),
         ),
       ),
       body: FutureBuilder<List<dynamic>>(

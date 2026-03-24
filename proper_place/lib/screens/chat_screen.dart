@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import '../services/chat_service.dart';
 import '../services/storage_service.dart';
@@ -305,9 +306,23 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Proper Place Booking Chat'),
-        backgroundColor: const Color(0xFF7BA7D8),
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        title: const Text(
+          'Booking Chat',
+          style: TextStyle(
+            color: Color(0xFF1A1A2E),
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: const Color(0xFFE8E8E8), height: 1),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
@@ -561,8 +562,23 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Booking Confirmation'),
-        backgroundColor: const Color(0xFF7BA7D8),
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        title: const Text(
+          'Booking Confirmation',
+          style: TextStyle(
+            color: Color(0xFF1A1A2E),
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: const Color(0xFFE8E8E8), height: 1),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
