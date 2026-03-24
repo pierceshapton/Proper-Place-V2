@@ -13,7 +13,7 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  String _selectedFilter = 'Stayed';
+  String _selectedFilter = 'All';
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _allPlaces = [];
   List<dynamic> _stavedPlaces = []; // Places from bookings
@@ -148,9 +148,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                _buildFilterTab('Stayed', 'Stayed'),
-                const SizedBox(width: 8),
                 _buildFilterTab('All', 'All'),
+                const SizedBox(width: 8),
+                _buildFilterTab('Stayed', 'Stayed'),
               ],
             ),
           ),
