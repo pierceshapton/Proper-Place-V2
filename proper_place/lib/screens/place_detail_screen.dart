@@ -453,7 +453,14 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFD32F2F), size: 24),
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(Icons.warning_rounded, color: const Color(0xFFB71C1C), size: 28),
+                        Icon(Icons.warning_amber_rounded, color: const Color(0xFFFFEBEE), size: 24),
+                        Icon(Icons.warning_amber_rounded, color: const Color(0xFFD32F2F), size: 22),
+                      ],
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
