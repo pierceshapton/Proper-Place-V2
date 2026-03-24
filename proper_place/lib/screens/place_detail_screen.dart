@@ -574,313 +574,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Business Description (if available)
-                  if (widget.place['business_description'] != null && 
-                      widget.place['business_description'].toString().isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'About This Business',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F4F8),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Text(
-                            widget.place['business_description'],
-                            style: TextStyle(
-                              color: Colors.grey[700],
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-
-                  // Access Route Description - Important for navigation
-                  if (widget.place['access_route_description'] != null && 
-                      widget.place['access_route_description'].toString().isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF7ED),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFFB923C)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.route, color: const Color(0xFFF97316), size: 22),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Access Route',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFC2410C),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'How to reach this site',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                widget.place['access_route_description'],
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-
-                  // Vehicle Size Limits - Important for motorhome users
-                  if (widget.place['max_vehicle_height_ft'] != null ||
-                      widget.place['max_vehicle_width_ft'] != null ||
-                      widget.place['max_vehicle_length_ft'] != null)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF93C5FD)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.directions_car, color: const Color(0xFF2563EB), size: 22),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Vehicle Size Limits',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E40AF),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Check your vehicle fits before booking',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  if (widget.place['max_vehicle_height_ft'] != null)
-                                    _buildVehicleSizeItem(
-                                      'Height',
-                                      '${widget.place['max_vehicle_height_ft']}ft',
-                                      Icons.height,
-                                    ),
-                                  if (widget.place['max_vehicle_width_ft'] != null)
-                                    _buildVehicleSizeItem(
-                                      'Width',
-                                      '${widget.place['max_vehicle_width_ft']}ft',
-                                      Icons.swap_horiz,
-                                    ),
-                                  if (widget.place['max_vehicle_length_ft'] != null)
-                                    _buildVehicleSizeItem(
-                                      'Length',
-                                      '${widget.place['max_vehicle_length_ft']}ft',
-                                      Icons.straighten,
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-
-                  // Facilities
-                  if (facilities.isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Facilities',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 10,
-                          children: [
-                            for (var facility in facilities)
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(_getFacilityIcon(facility.toString()), size: 20, color: const Color(0xFF7BA7D8)),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    facility.toString(),
-                                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-
-                  // Opening Hours
-                  if (widget.place['opening_hours'] != null &&
-                      widget.place['opening_hours'].toString().isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0FDF4),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFF86EFAC)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.access_time, color: Color(0xFF16A34A), size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Opening Hours',
-                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF166534)),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      widget.place['opening_hours'].toString(),
-                                      style: TextStyle(color: Colors.grey[700]),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-
-                  // Kitchen Hours
-                  if (widget.place['kitchen_hours'] != null &&
-                      widget.place['kitchen_hours'].toString().isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFFBEB),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFFDE68A)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.restaurant_menu, color: Color(0xFFD97706), size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Kitchen Hours',
-                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      widget.place['kitchen_hours'].toString(),
-                                      style: TextStyle(color: Colors.grey[700]),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-
-                  // Food Menu Description
-                  if (widget.place['food_menu_description'] != null &&
-                      widget.place['food_menu_description'].toString().isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFDF2F8),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFF9A8D4)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.menu_book, color: Color(0xFFDB2777), size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Food Menu',
-                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF9D174D)),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      widget.place['food_menu_description'].toString(),
-                                      style: TextStyle(color: Colors.grey[700], height: 1.4),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-
-                  // Booking Section
+                  // Booking Section (Calendar)
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[50],
@@ -1175,69 +869,366 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Reviews Section
-                  const Text(
-                    'Reviews',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  // Reviews Section (only show if populated)
                   if (isLoadingReviews)
                     const Center(child: CircularProgressIndicator())
-                  else if (reviews.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: Text(
-                          'No reviews at this site yet. Please leave a review after your stay to help out other guests!',
-                          textAlign: TextAlign.center,
+                  else if (reviews.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Reviews',
                           style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 14,
-                            fontStyle: FontStyle.italic,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    )
-                  else
-                    Column(
-                      children: reviews
-                          .map((review) => Card(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
+                        const SizedBox(height: 12),
+                        Column(
+                          children: reviews
+                              .map((review) => Card(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            review['user_name'] ?? 'Anonymous',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
                                           Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Icon(Icons.star,
-                                                  size: 16,
-                                                  color: Color(0xFFFFB800)),
-                                              Text('${review['rating']}'),
+                                              Text(
+                                                review['user_name'] ?? 'Anonymous',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.star,
+                                                      size: 16,
+                                                      color: Color(0xFFFFB800)),
+                                                  Text('${review['rating']}'),
+                                                ],
+                                              ),
                                             ],
                                           ),
+                                          const SizedBox(height: 8),
+                                          Text(review['comment'] ?? ''),
                                         ],
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text(review['comment'] ?? ''),
-                                    ],
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+
+                  // Facilities
+                  if (facilities.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Facilities',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 10,
+                          children: [
+                            for (var facility in facilities)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(_getFacilityIcon(facility.toString()), size: 20, color: const Color(0xFF7BA7D8)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    facility.toString(),
+                                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                                   ),
+                                ],
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+
+                  // Vehicle Size Limits
+                  if (widget.place['max_vehicle_height_ft'] != null ||
+                      widget.place['max_vehicle_width_ft'] != null ||
+                      widget.place['max_vehicle_length_ft'] != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF93C5FD)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.directions_car, color: const Color(0xFF2563EB), size: 22),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Vehicle Size Limits',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E40AF),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Check your vehicle fits before booking',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  if (widget.place['max_vehicle_height_ft'] != null)
+                                    _buildVehicleSizeItem(
+                                      'Height',
+                                      '${widget.place['max_vehicle_height_ft']}ft',
+                                      Icons.height,
+                                    ),
+                                  if (widget.place['max_vehicle_width_ft'] != null)
+                                    _buildVehicleSizeItem(
+                                      'Width',
+                                      '${widget.place['max_vehicle_width_ft']}ft',
+                                      Icons.swap_horiz,
+                                    ),
+                                  if (widget.place['max_vehicle_length_ft'] != null)
+                                    _buildVehicleSizeItem(
+                                      'Length',
+                                      '${widget.place['max_vehicle_length_ft']}ft',
+                                      Icons.straighten,
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+
+                  // Access Route Description
+                  if (widget.place['access_route_description'] != null && 
+                      widget.place['access_route_description'].toString().isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFB923C)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.route, color: const Color(0xFFF97316), size: 22),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Access Route',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFC2410C),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'How to reach this site',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                widget.place['access_route_description'],
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  height: 1.4,
                                 ),
-                              ))
-                          .toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+
+                  // Business Description (if available)
+                  if (widget.place['business_description'] != null && 
+                      widget.place['business_description'].toString().isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'About This Business',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F4F8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Text(
+                            widget.place['business_description'],
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+
+                  // Opening Hours
+                  if (widget.place['opening_hours'] != null &&
+                      widget.place['opening_hours'].toString().isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF86EFAC)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.access_time, color: Color(0xFF16A34A), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Opening Hours',
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF166534)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      widget.place['opening_hours'].toString(),
+                                      style: TextStyle(color: Colors.grey[700]),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+
+                  // Kitchen Hours
+                  if (widget.place['kitchen_hours'] != null &&
+                      widget.place['kitchen_hours'].toString().isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.restaurant_menu, color: Color(0xFFD97706), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Kitchen Hours',
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      widget.place['kitchen_hours'].toString(),
+                                      style: TextStyle(color: Colors.grey[700]),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+
+                  // Food Menu Description
+                  if (widget.place['food_menu_description'] != null &&
+                      widget.place['food_menu_description'].toString().isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFDF2F8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFF9A8D4)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.menu_book, color: Color(0xFFDB2777), size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Food Menu',
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF9D174D)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      widget.place['food_menu_description'].toString(),
+                                      style: TextStyle(color: Colors.grey[700], height: 1.4),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
                 ],
               ),
