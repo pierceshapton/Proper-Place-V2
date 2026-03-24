@@ -30,6 +30,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   List<Map<String, dynamic>> existingBookings = [];
   bool isLoadingReviews = true;
   bool isLoadingBookings = true;
+  List<String> _vehicleFitIssues = [];
   
   // Fee rate per hour for early/late times
   static const double hourlyFeeRate = 5.0;
@@ -40,6 +41,14 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     _imageController = PageController();
     _loadReviews();
     _loadExistingBookings();
+    _loadVehicleFit();
+  }
+
+  Future<void> _loadVehicleFit() async {
+    final issues = await _checkVehicleFit();
+    if (mounted) {
+      setState(() => _vehicleFitIssues = issues);
+    }
   }
 
   Future<void> _loadExistingBookings() async {
@@ -193,61 +202,6 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     return null;
   }
 
-  // Show warning dialog for vehicle size issues
-  Future<bool?> _showVehicleSizeWarning(List<String> issues) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 28),
-            const SizedBox(width: 8),
-            const Text('Vehicle Size Warning'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your vehicle may not fit this location:',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            ...issues.map((issue) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(issue, style: const TextStyle(fontSize: 13))),
-                ],
-              ),
-            )),
-            const SizedBox(height: 8),
-            Text(
-              'You can update your vehicle dimensions in Settings.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange[700],
-            ),
-            child: const Text('Book Anyway', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _selectDate(BuildContext context, {required bool isCheckIn}) async {
     // For checkout, start at checkout date or day after check-in
@@ -340,13 +294,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       return;
     }
 
-    // Check vehicle size compatibility
-    final vehicleFitIssues = await _checkVehicleFit();
-    if (vehicleFitIssues.isNotEmpty) {
-      final shouldProceed = await _showVehicleSizeWarning(vehicleFitIssues);
-      if (shouldProceed != true) {
-        return; // User cancelled
-      }
+    // Vehicle size check is now handled by the banner - block booking entirely
+    if (_vehicleFitIssues.isNotEmpty) {
+      return;
     }
 
     try {
@@ -495,6 +445,68 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Vehicle size warning banner
+            if (_vehicleFitIssues.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                color: const Color(0xFFFFF3E0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFF57C00), size: 24),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Your vehicle is too large for this site',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFE65100),
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _vehicleFitIssues.join(' \u2022 '),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFBF360C)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Hide unsuitable sites'),
+                            content: const Text(
+                              'You can hide all sites that are too small for your vehicle in the Settings page under Vehicle Dimensions.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFF57C00).withOpacity(0.15),
+                        ),
+                        child: const Icon(Icons.info_outline, color: Color(0xFFF57C00), size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // Image Gallery
             Container(
               height: 300,
@@ -641,23 +653,27 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                   const SizedBox(height: 24),
 
                   // Booking Section (Calendar)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Check-in & Check-out',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  IgnorePointer(
+                    ignoring: _vehicleFitIssues.isNotEmpty,
+                    child: Opacity(
+                      opacity: _vehicleFitIssues.isNotEmpty ? 0.4 : 1.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Check-in & Check-out',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                         const SizedBox(height: 8),
                         Text(
                           'Standard times are 12:00 (midday). Early arrival or late departure incurs additional fees.',
@@ -930,7 +946,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                             ),
                           ),
                         ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
