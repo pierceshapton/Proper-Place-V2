@@ -21,7 +21,7 @@ class PlaceDetailScreen extends StatefulWidget {
 
 class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   late PageController _imageController;
-  final int _currentImageIndex = 0;
+  int _currentImageIndex = 0;
   DateTime? _checkInDate;
   DateTime? _checkOutDate;
   TimeOfDay _checkInTime = const TimeOfDay(hour: 12, minute: 0); // Default midday
@@ -476,6 +476,11 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     final rawImageUrl = widget.place['image_url'] ??
         'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800';
     final imageUrl = Place.toFullImageUrl(rawImageUrl) ?? rawImageUrl;
+    // Build full image list from image_urls, falling back to single image_url
+    final rawImageUrls = widget.place['image_urls'] as List? ?? [];
+    final allImages = rawImageUrls.isNotEmpty
+        ? rawImageUrls.map((url) => Place.toFullImageUrl(url.toString()) ?? url.toString()).toList()
+        : [imageUrl];
     final priceRaw = widget.place['price_per_night'] ?? 50;
     final pricePerNight = priceRaw is String ? double.tryParse(priceRaw) ?? 50.0 : (priceRaw as num).toDouble();
     final rating = widget.place['rating'] ?? 4.5;
@@ -494,14 +499,75 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
             Container(
               height: 300,
               color: Colors.grey[300],
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.image, size: 48),
-                ),
-              ),
+              child: allImages.length > 1
+                  ? Stack(
+                      children: [
+                        PageView.builder(
+                          controller: _imageController,
+                          itemCount: allImages.length,
+                          onPageChanged: (index) {
+                            setState(() => _currentImageIndex = index);
+                          },
+                          itemBuilder: (context, index) {
+                            return Image.network(
+                              allImages[index],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.image, size: 48),
+                              ),
+                            );
+                          },
+                        ),
+                        // Image counter
+                        Positioned(
+                          bottom: 12,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(allImages.length, (index) {
+                              return Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.symmetric(horizontal: 3),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _currentImageIndex == index
+                                      ? Colors.white
+                                      : Colors.white.withOpacity(0.4),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                        // Image count badge
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${_currentImageIndex + 1}/${allImages.length}',
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image, size: 48),
+                      ),
+                    ),
             ),
 
             Padding(

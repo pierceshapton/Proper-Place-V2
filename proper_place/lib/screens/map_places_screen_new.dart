@@ -540,6 +540,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                         'address': place.address,
                         'price_per_night': place.pricePerNight,
                         'image_url': place.imageUrl ?? (place.imageUrls.isNotEmpty ? place.imageUrls.first : null),
+                        'image_urls': place.imageUrls,
                         'latitude': place.locationLat,
                         'longitude': place.locationLng,
                         'place_type': place.placeType,
