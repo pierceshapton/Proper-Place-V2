@@ -161,12 +161,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       ),
       body: Column(
         children: [
-          // Filter row
+          // Search bar + filter row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 4, 0),
             child: Row(
               children: [
-                if (_selectedFilter != 'All')
+                if (_selectedFilter != 'All') ...[
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
@@ -188,7 +188,29 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       ],
                     ),
                   ),
-                const Spacer(),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'Search places...',
+                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                      prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 20),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
                 PopupMenuButton<String>(
                   icon: Icon(
                     Icons.filter_list,
@@ -203,53 +225,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               ],
             ),
           ),
-          // Search bar with filter
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Search places...',
-                      hintStyle: TextStyle(color: Colors.grey[700]),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _loadPlaces();
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.refresh, color: Colors.grey[600], size: 20),
-                  ),
-                ),
-              ],
-            ),
-          ),
           // Result count
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
