@@ -297,7 +297,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget _buildFavoriteCard(Map<String, dynamic> place) {
     final rawImageUrl = place['main_photo_url'] ?? place['image'] ?? '';
     final imageUrl = Place.toFullImageUrl(rawImageUrl) ?? '';
-    final price = place['price_per_night'] ?? place['price'] ?? '0';
+    final rawPrice = place['price_per_night'] ?? place['price'] ?? '0';
+    final price = (double.tryParse(rawPrice.toString()) ?? 0).toStringAsFixed(0);
     
     return GestureDetector(
       onTap: () {
