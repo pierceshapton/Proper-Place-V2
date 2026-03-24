@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:proper_place/config/app_config.dart';
+import 'package:proper_place/services/storage_service.dart';
 
 /// Clean, minimal calendar picker showing available spaces per date
 class AvailabilityCalendarPicker extends StatefulWidget {
@@ -47,12 +48,16 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
       final fromDate = DateTime(currentMonth.year, currentMonth.month, 1);
       final toDate = DateTime(currentMonth.year, currentMonth.month + 3, 1).add(const Duration(days: -1));
 
+      final token = await StorageService.getToken();
       final response = await http.get(
         Uri.parse(
           '${AppConfig.properPlaceBackendUrl}/bookings/availability/place/${widget.placeId}'
           '?from_date=${fromDate.toIso8601String().split('T')[0]}'
           '&to_date=${toDate.toIso8601String().split('T')[0]}',
         ),
+        headers: {
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
