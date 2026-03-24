@@ -24,6 +24,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   String selectedTab = 'all';
   Map<int, int> _unreadByBooking = {};
   Timer? _unreadPollingTimer;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -43,6 +44,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   @override
   void dispose() {
     _unreadPollingTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -317,8 +319,30 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               : bookings
                   .where((b) => (b['status'] ?? 'confirmed').toLowerCase() == selectedTab)
                   .toList();
+          // Apply search filter
+          final query = _searchController.text.toLowerCase();
+          final searchedBookings = query.isEmpty
+              ? filteredBookings
+              : filteredBookings.where((b) {
+                  final id = (b['booking_id'] ?? b['id'] ?? '').toString().toLowerCase();
+                  final status = (b['status'] ?? '').toString().toLowerCase();
+                  final checkIn = (b['check_in'] ?? '').toString().toLowerCase();
+                  final checkOut = (b['check_out'] ?? '').toString().toLowerCase();
+                  final price = (b['total_price'] ?? '').toString().toLowerCase();
+                  final placeName = (b['place_name'] ?? b['name'] ?? '').toString().toLowerCase();
+                  final formattedCheckIn = _formatDate(b['check_in']).toLowerCase();
+                  final formattedCheckOut = _formatDate(b['check_out']).toLowerCase();
+                  return id.contains(query) ||
+                      status.contains(query) ||
+                      checkIn.contains(query) ||
+                      checkOut.contains(query) ||
+                      price.contains(query) ||
+                      placeName.contains(query) ||
+                      formattedCheckIn.contains(query) ||
+                      formattedCheckOut.contains(query);
+                }).toList();
           // Sort newest first by created_at
-          filteredBookings.sort((a, b) {
+          searchedBookings.sort((a, b) {
             final aDate = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
             final bDate = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
             return bDate.compareTo(aDate);
@@ -326,12 +350,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
           return Column(
             children: [
-              // Filter row
+              // Search + filter row
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 4, 0),
                 child: Row(
                   children: [
-                    if (selectedTab != 'all')
+                    if (selectedTab != 'all') ...[
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -353,7 +377,29 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                           ],
                         ),
                       ),
-                    const Spacer(),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Search bookings...',
+                          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                          prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 20),
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
                     PopupMenuButton<String>(
                       icon: Icon(
                         Icons.filter_list,
@@ -380,13 +426,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                     await bookingsFuture;
                     _loadUnreadCounts();
                   },
-                  child: filteredBookings.isEmpty
+                  child: searchedBookings.isEmpty
                       ? _buildEmptyState()
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
-                          itemCount: filteredBookings.length,
+                          itemCount: searchedBookings.length,
                           itemBuilder: (context, index) {
-                            return _buildBookingCard(filteredBookings[index]);
+                            return _buildBookingCard(searchedBookings[index]);
                           },
                         ),
                 ),
