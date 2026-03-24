@@ -366,7 +366,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
-            height: MediaQuery.of(context).size.height * 0.7,
+            height: MediaQuery.of(context).size.height * 0.85,
             child: Column(
               children: [
                 // Header
