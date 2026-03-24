@@ -449,11 +449,11 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
             if (_vehicleFitIssues.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                color: const Color(0xFFFFF3E0),
+                color: const Color(0xFFFFEBEE),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFF57C00), size: 24),
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFD32F2F), size: 24),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -463,14 +463,14 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                             'Your vehicle is too large for this site',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFE65100),
+                              color: Color(0xFFC62828),
                               fontSize: 14,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             _vehicleFitIssues.join(' \u2022 '),
-                            style: const TextStyle(fontSize: 12, color: Color(0xFFBF360C)),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFB71C1C)),
                           ),
                         ],
                       ),
@@ -498,9 +498,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFFF57C00).withOpacity(0.15),
+                          color: const Color(0xFFD32F2F).withOpacity(0.15),
                         ),
-                        child: const Icon(Icons.info_outline, color: Color(0xFFF57C00), size: 20),
+                        child: const Icon(Icons.info_outline, color: Color(0xFFD32F2F), size: 20),
                       ),
                     ),
                   ],
