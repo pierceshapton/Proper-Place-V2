@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
 const pushService = require('../services/pushNotificationService');
+const autoMessageController = require('./autoMessageController');
 
 /**
  * Auto-complete bookings that have passed checkout at midday
@@ -226,6 +227,15 @@ async function createBooking(req, res, next) {
             );
           }
         } catch (e) { /* ignore push errors */ }
+      });
+    }
+
+    // Send auto-messages for new booking (fire-and-forget)
+    if (data.place_id) {
+      setImmediate(async () => {
+        try {
+          await autoMessageController.sendOnBookingMessages(result.rows[0].id, data.place_id, userId);
+        } catch (e) { /* ignore auto-message errors */ }
       });
     }
 

@@ -449,30 +449,6 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Instant booking badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.flash_on, color: Colors.white, size: 16),
-                    SizedBox(width: 4),
-                    Text(
-                      'Instant Booking',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
               // Description
               Text(
                 place.description,

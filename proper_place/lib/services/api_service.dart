@@ -807,6 +807,26 @@ class ApiService {
     );
   }
 
+  /// Get auto-message templates for a place
+  static Future<Map<String, dynamic>> getAutoMessageTemplates({required int placeId}) async {
+    return _request(
+      method: 'GET',
+      endpoint: '/auto-messages/place/$placeId',
+    );
+  }
+
+  /// Save auto-message templates for a place
+  static Future<Map<String, dynamic>> saveAutoMessageTemplates({
+    required int placeId,
+    required List<Map<String, dynamic>> templates,
+  }) async {
+    return _request(
+      method: 'PUT',
+      endpoint: '/auto-messages/place/$placeId',
+      body: {'templates': templates},
+    );
+  }
+
   /// Get the API base URL (useful for debugging)
   static String getBaseUrl() => _baseUrl;
 }

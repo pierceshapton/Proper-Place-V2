@@ -40,6 +40,7 @@ const contactsRoutes = require('./routes/contacts');
 const notificationsRoutes = require('./routes/notifications');
 const chatRoutes = require('./routes/chat');
 const uploadRoutes = require('./routes/upload');
+const autoMessagesRoutes = require('./routes/autoMessages');
 const pushService = require('./services/pushNotificationService');
 
 // User controller for user endpoints
@@ -135,6 +136,7 @@ app.use('/notifications', notificationsRoutes);
 app.use('/chat', chatRoutes);
 app.use('/admin', adminRoutes);
 app.use('/upload', uploadRoutes);
+app.use('/auto-messages', autoMessagesRoutes);
 
 // User routes
 app.get('/users/:id', userController.getUserProfile);
@@ -531,6 +533,34 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 16 error:', err.message);
     }
 
+    // Migration 17: Create auto_message_templates and auto_message_log tables
+    try {
+      console.log('[SERVER] Running migration 17: auto_message_templates + auto_message_log tables...');
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS auto_message_templates (
+          id SERIAL PRIMARY KEY,
+          place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+          host_id INTEGER NOT NULL REFERENCES users(id),
+          trigger_type VARCHAR(50) NOT NULL,
+          message_content TEXT NOT NULL DEFAULT '',
+          enabled BOOLEAN NOT NULL DEFAULT true,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(place_id, trigger_type)
+        );
+        CREATE TABLE IF NOT EXISTS auto_message_log (
+          id SERIAL PRIMARY KEY,
+          booking_id INTEGER NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+          trigger_type VARCHAR(50) NOT NULL,
+          sent_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(booking_id, trigger_type)
+        );
+      `);
+      console.log('[SERVER] ✅ Migration 17 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 17 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
@@ -663,6 +693,16 @@ async function start() {
   try {
     await initializeDatabase();
     pushService.initialize();
+
+    // Start auto-message scheduler (runs every 15 minutes)
+    const autoMessageController = require('./controllers/autoMessageController');
+    setInterval(() => {
+      autoMessageController.processScheduledMessages();
+    }, 15 * 60 * 1000);
+    // Run once on startup after a short delay
+    setTimeout(() => autoMessageController.processScheduledMessages(), 30000);
+    console.log('[SERVER] Auto-message scheduler started (every 15 min)');
+
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);

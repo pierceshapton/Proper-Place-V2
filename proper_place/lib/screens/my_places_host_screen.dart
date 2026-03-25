@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'host_create_site_screen.dart';
+import 'auto_message_config_screen.dart';
 import '../services/place_service.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
@@ -726,6 +727,36 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                     ),
                   ],
                 ),
+                // Auto Messages button (only for approved places)
+                if (place['approval_status'] == 'approved') ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AutoMessageConfigScreen(
+                              placeId: place['rawData']['id'],
+                              placeName: place['name'] ?? 'Site',
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.message_outlined, size: 18),
+                      label: const Text('Auto Messages'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF3B82F6),
+                        side: const BorderSide(color: Color(0xFFBFDBFE)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
