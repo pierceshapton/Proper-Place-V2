@@ -32,6 +32,9 @@ class StorageService {
   static const String _vehicleUnitKey = 'vehicle_unit'; // 'ft' or 'm'
   static const String _sizeFilterEnabledKey = 'size_filter_enabled';
   
+  // Welcome popup key
+  static const String _hasSeenWelcomeKey = 'has_seen_welcome';
+  
   // Remember Me keys
   static const String _rememberMeKey = 'remember_me';
   static const String _rememberedEmailKey = 'remembered_email';
@@ -231,6 +234,7 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_hostModeKey);
     await prefs.remove(_adminModeKey);
+    await prefs.remove(_hasSeenWelcomeKey);
     _cachedToken = null; // Clear in-memory cache
   }
 
@@ -436,6 +440,17 @@ class StorageService {
     await prefs.setDouble(_vehicleWidthKey, width);
     await prefs.setDouble(_vehicleLengthKey, length);
     await prefs.setString(_vehicleUnitKey, unit);
+  }
+
+  // Welcome popup
+  static Future<bool> hasSeenWelcome() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_hasSeenWelcomeKey) ?? false;
+  }
+
+  static Future<void> setHasSeenWelcome(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_hasSeenWelcomeKey, value);
   }
 
   /// Generic method to save a string value

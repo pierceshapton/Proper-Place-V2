@@ -307,6 +307,13 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                     subtitle: 'Our terms and conditions',
                     onTap: () => _launchUrl('https://proper-place.co.uk/terms'),
                   ),
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    icon: Icons.lock_outline,
+                    title: 'Payment & Security',
+                    subtitle: 'How payments work on Proper Place',
+                    onTap: () => _showPaymentInfoDialog(),
+                  ),
                   const SizedBox(height: 24),
 
                   // Become a Host Section
@@ -354,6 +361,84 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
       ),
+    );
+  }
+
+  void _showPaymentInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_outline, size: 48, color: Color(0xFF4A7EB3)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Payment & Security',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+                ),
+                const SizedBox(height: 20),
+                _paymentInfoRow(Icons.credit_card_outlined, 'Secure Payments',
+                    'All payments are processed securely through Stripe, a PCI-DSS compliant payment provider trusted by millions of businesses worldwide.'),
+                const SizedBox(height: 14),
+                _paymentInfoRow(Icons.visibility_off_outlined, 'No Card Details Stored',
+                    'Proper Place never sees, stores or has access to your card details. All card information is handled entirely by Stripe.'),
+                const SizedBox(height: 14),
+                _paymentInfoRow(Icons.shield_outlined, 'Data Protection',
+                    'Your data is protected under UK GDPR. Read our Privacy Policy for full details on how we handle your information.'),
+                const SizedBox(height: 14),
+                _paymentInfoRow(Icons.support_agent_outlined, 'Payment Issues',
+                    'If you experience any payment issues, contact us via the Contact Us form in Help & Support.'),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4A7EB3),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Got It', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _paymentInfoRow(IconData icon, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F7FF),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 22, color: const Color(0xFF4A7EB3)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1A2E))),
+              const SizedBox(height: 2),
+              Text(description, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.3)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

@@ -198,6 +198,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // Now load places and notification counts
         _loadPlaces();
         _loadNotificationCounts();
+        
+        // Show welcome popup on first login
+        _checkShowWelcome();
       });
       
       // Handle navigation with selectedTab argument or static variable
@@ -238,6 +241,125 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _loadAdminMode();
       _loadNotificationCounts(); // Refresh notifications when app is resumed
     }
+  }
+
+  Future<void> _checkShowWelcome() async {
+    final hasSeen = await StorageService.hasSeenWelcome();
+    if (!hasSeen && mounted) {
+      await StorageService.setHasSeenWelcome(true);
+      if (mounted) _showWelcomeDialog();
+    }
+  }
+
+  void _showWelcomeDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.landscape_outlined, size: 56, color: Color(0xFF4A7EB3)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Welcome to Proper Place!',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                _welcomeStep(Icons.search, 'Find a Proper Place',
+                    'Browse unique overnight stops listed by hosts across the UK.'),
+                const SizedBox(height: 14),
+                _welcomeStep(Icons.calendar_today_outlined, 'Book Your Stay',
+                    'Select your dates, confirm the booking and message your host.'),
+                const SizedBox(height: 14),
+                _welcomeStep(Icons.directions_car_outlined, 'Arrive & Enjoy',
+                    'Follow the host\'s directions, check in and enjoy your stay.'),
+                const SizedBox(height: 14),
+                _welcomeStep(Icons.star_outline, 'Leave a Review',
+                    'Share your experience to help the motorhome community.'),
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F7FF),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.lock_outline, size: 22, color: Color(0xFF4A7EB3)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text('Secure Payments',
+                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1A2E))),
+                            SizedBox(height: 4),
+                            Text(
+                              'All payments are processed securely through Stripe. Proper Place never stores your card details.',
+                              style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4A7EB3),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Get Started', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _welcomeStep(IconData icon, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F7FF),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 22, color: const Color(0xFF4A7EB3)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1A2E))),
+              const SizedBox(height: 2),
+              Text(description, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.3)),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _loadUserRole() async {
