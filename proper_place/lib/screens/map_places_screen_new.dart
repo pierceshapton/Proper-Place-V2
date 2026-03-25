@@ -406,7 +406,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                             ],
                           )
                         : Text(
-                            'No ratings yet',
+                            'No reviews yet',
                             style: TextStyle(
                               color: Colors.grey[500],
                               fontSize: 14,
