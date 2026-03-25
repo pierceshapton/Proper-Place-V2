@@ -42,22 +42,24 @@ class CustomBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(top: 10, bottom: 16, left: 8, right: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAF9F6),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+      color: const Color(0xFFFAF9F6),
+      child: Container(
+        padding: const EdgeInsets.only(top: 10, bottom: 16, left: 8, right: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAF9F6),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
           ),
-        ],
-      ),
-      child: Row(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(
           items.length,
@@ -71,6 +73,7 @@ class CustomBottomNavBar extends StatelessWidget {
               badgeCounts?[index] ?? 0,
             ),
           ),
+        ),
         ),
       ),
     );
@@ -244,10 +247,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkShowWelcome() async {
-    final hasSeen = await StorageService.hasSeenWelcome();
-    if (!hasSeen && mounted) {
-      await StorageService.setHasSeenWelcome(true);
-      if (mounted) _showWelcomeDialog();
+    try {
+      final hasSeen = await StorageService.hasSeenWelcome();
+      debugPrint('[Welcome] hasSeenWelcome=$hasSeen, mounted=$mounted');
+      if (!hasSeen && mounted) {
+        await StorageService.setHasSeenWelcome(true);
+        debugPrint('[Welcome] Flag set, showing dialog');
+        if (mounted) {
+          // Small delay to ensure the home screen is fully rendered
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) _showWelcomeDialog();
+        }
+      }
+    } catch (e) {
+      debugPrint('[Welcome] Error: $e');
     }
   }
 

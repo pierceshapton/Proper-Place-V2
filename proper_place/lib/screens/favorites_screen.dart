@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../models/place.dart';
@@ -88,10 +89,30 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         }
       }
 
+      // Load local favorite IDs
+      Set<String> favoriteIds = {};
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final favoritesList = prefs.getStringList('favorite_places') ?? [];
+        favoriteIds = favoritesList.toSet();
+      } catch (e) {
+        debugPrint('Error loading favorites: $e');
+      }
+
+      // Filter places to only show user's favorites
+      final favoritePlaces = places.where((p) {
+        try {
+          final id = p['id']?.toString() ?? '';
+          return favoriteIds.contains(id);
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+
       // Update UI
       if (mounted) {
         setState(() {
-          _allPlaces = places;
+          _allPlaces = favoritePlaces;
           _stavedPlaces = places.where((p) {
             try {
               final id = p['id'] is int ? p['id'] : int.tryParse(p['id'].toString()) ?? 0;

@@ -235,6 +235,7 @@ class StorageService {
     await prefs.remove(_hostModeKey);
     await prefs.remove(_adminModeKey);
     await prefs.remove(_hasSeenWelcomeKey);
+    await prefs.remove('favorite_places');
     _cachedToken = null; // Clear in-memory cache
   }
 
