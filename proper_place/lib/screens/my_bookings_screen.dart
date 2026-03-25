@@ -122,6 +122,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     switch (status.toLowerCase()) {
       case 'confirmed':
         return Colors.green;
+      case 'current':
+        return Colors.blue;
       case 'cancelled':
         return Colors.red;
       case 'pending':
@@ -141,6 +143,26 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     } catch (e) {
       return false;
     }
+  }
+
+  bool _isCurrent(String? checkInDate, String? checkOutDate) {
+    if (checkInDate == null || checkOutDate == null) return false;
+    try {
+      final now = DateTime.now();
+      final checkIn = DateTime.parse(checkInDate);
+      final checkOut = DateTime.parse(checkOutDate);
+      return !now.isBefore(checkIn) && now.isBefore(checkOut);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  String _displayStatus(Map<String, dynamic> booking) {
+    final status = (booking['status'] ?? 'unknown').toString().toLowerCase();
+    if (status == 'confirmed' && _isCurrent(booking['check_in'], booking['check_out'])) {
+      return 'current';
+    }
+    return status;
   }
 
   // Check if stay has ended (checkout date is in the past)
@@ -316,9 +338,16 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           final bookings = snapshot.data ?? [];
           final filteredBookings = selectedTab == 'all'
               ? List<dynamic>.from(bookings)
-              : bookings
-                  .where((b) => (b['status'] ?? 'confirmed').toLowerCase() == selectedTab)
-                  .toList();
+              : selectedTab == 'current'
+                ? bookings.where((b) => _displayStatus(b) == 'current').toList()
+                : selectedTab == 'confirmed'
+                  ? bookings.where((b) {
+                      final s = (b['status'] ?? 'confirmed').toLowerCase();
+                      return s == 'confirmed' && !_isCurrent(b['check_in'], b['check_out']);
+                    }).toList()
+                  : bookings
+                      .where((b) => (b['status'] ?? 'confirmed').toLowerCase() == selectedTab)
+                      .toList();
           // Apply search filter
           final query = _searchController.text.toLowerCase();
           final searchedBookings = query.isEmpty
@@ -408,6 +437,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       onSelected: (value) => setState(() => selectedTab = value),
                       itemBuilder: (context) => [
                         _buildFilterMenuItem('All', 'all'),
+                        _buildFilterMenuItem('Current', 'current'),
                         _buildFilterMenuItem('Confirmed', 'confirmed'),
                         _buildFilterMenuItem('Pending', 'pending'),
                         _buildFilterMenuItem('Completed', 'completed'),
@@ -511,7 +541,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     final bookingIdShort = bookingIdStr.length >= 8 
         ? bookingIdStr.substring(0, 8).toUpperCase()
         : bookingIdStr.toUpperCase();
-    final status = booking['status'] ?? 'unknown';
+    final status = _displayStatus(booking);
     final checkIn = _formatDate(booking['check_in']);
     final checkOut = _formatDate(booking['check_out']);
     final totalPrice = booking['total_price'] ?? '0';
