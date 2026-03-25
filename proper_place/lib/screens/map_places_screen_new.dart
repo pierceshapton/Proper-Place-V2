@@ -449,20 +449,6 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Address
-              Row(
-                children: [
-                  const Icon(Icons.location_on, color: Colors.grey, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      place.address,
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
               // Instant booking badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
