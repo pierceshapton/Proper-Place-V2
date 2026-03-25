@@ -496,7 +496,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Type: ${place.placeType}',
+                    'Type: ${place.placeType!.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ')}',
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ),
