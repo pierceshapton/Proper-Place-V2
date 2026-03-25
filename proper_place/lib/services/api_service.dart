@@ -562,6 +562,8 @@ class ApiService {
           'check_out': booking['check_out_date'],
           'check_in_date': booking['check_in_date'], // Keep original for compatibility
           'check_out_date': booking['check_out_date'], // Keep original for compatibility
+          'check_in_time': booking['check_in_time'] ?? '12:00',
+          'check_out_time': booking['check_out_time'] ?? '12:00',
           'number_of_nights': booking['number_of_nights'],
           'total_price': booking['total_price'],
           'status': booking['status'],

@@ -145,12 +145,20 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     }
   }
 
-  bool _isCurrent(String? checkInDate, String? checkOutDate) {
+  bool _isCurrent(String? checkInDate, String? checkOutDate, String? checkInTime, String? checkOutTime) {
     if (checkInDate == null || checkOutDate == null) return false;
     try {
       final now = DateTime.now();
-      final checkIn = DateTime.parse(checkInDate);
-      final checkOut = DateTime.parse(checkOutDate);
+      final inParts = (checkInTime ?? '12:00').split(':');
+      final outParts = (checkOutTime ?? '12:00').split(':');
+      final checkIn = DateTime.parse(checkInDate).add(Duration(
+        hours: int.tryParse(inParts[0]) ?? 12,
+        minutes: inParts.length > 1 ? (int.tryParse(inParts[1]) ?? 0) : 0,
+      ));
+      final checkOut = DateTime.parse(checkOutDate).add(Duration(
+        hours: int.tryParse(outParts[0]) ?? 12,
+        minutes: outParts.length > 1 ? (int.tryParse(outParts[1]) ?? 0) : 0,
+      ));
       return !now.isBefore(checkIn) && now.isBefore(checkOut);
     } catch (e) {
       return false;
@@ -159,7 +167,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
   String _displayStatus(Map<String, dynamic> booking) {
     final status = (booking['status'] ?? 'unknown').toString().toLowerCase();
-    if (status == 'confirmed' && _isCurrent(booking['check_in'], booking['check_out'])) {
+    if (status == 'confirmed' && _isCurrent(booking['check_in'], booking['check_out'], booking['check_in_time'], booking['check_out_time'])) {
       return 'current';
     }
     return status;
@@ -343,7 +351,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 : selectedTab == 'confirmed'
                   ? bookings.where((b) {
                       final s = (b['status'] ?? 'confirmed').toLowerCase();
-                      return s == 'confirmed' && !_isCurrent(b['check_in'], b['check_out']);
+                      return s == 'confirmed' && !_isCurrent(b['check_in'], b['check_out'], b['check_in_time'], b['check_out_time']);
                     }).toList()
                   : bookings
                       .where((b) => (b['status'] ?? 'confirmed').toLowerCase() == selectedTab)
