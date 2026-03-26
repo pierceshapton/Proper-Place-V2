@@ -183,6 +183,26 @@ async function createBooking(req, res, next) {
     // Total price includes base price + time-based fees
     const totalPrice = basePrice + earlyCheckinFee + lateCheckoutFee;
 
+    // Check for overlapping bookings on the same site
+    const targetId = data.place_id || data.pub_id;
+    const targetColumn = data.place_id ? 'place_id' : 'pub_id';
+    if (targetId) {
+      const overlapResult = await db.query(
+        `SELECT id FROM bookings
+         WHERE ${targetColumn} = $1
+           AND status NOT IN ('cancelled', 'Cancelled')
+           AND check_in_date < $3
+           AND check_out_date > $2`,
+        [targetId, data.check_in_date, data.check_out_date]
+      );
+      if (overlapResult.rows.length > 0) {
+        return res.status(409).json({
+          error: 'dates_unavailable',
+          message: 'These dates are already booked. Please choose different dates.',
+        });
+      }
+    }
+
     const result = await db.query(
       `INSERT INTO bookings (user_id, place_id, pub_id, check_in_date, check_out_date,
                              check_in_time, check_out_time,
