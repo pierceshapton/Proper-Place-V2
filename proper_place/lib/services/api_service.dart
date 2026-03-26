@@ -511,6 +511,7 @@ class ApiService {
     required String checkIn,
     required String checkOut,
     required double totalPrice,
+    String? vanRegistration,
   }) async {
     return _request(
       method: 'POST',
@@ -519,6 +520,7 @@ class ApiService {
         'place_id': int.tryParse(placeId) ?? placeId,
         'check_in_date': checkIn,
         'check_out_date': checkOut,
+        if (vanRegistration != null) 'van_registration': vanRegistration,
       },
     );
   }

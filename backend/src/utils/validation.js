@@ -43,7 +43,13 @@ const schemas = {
     pub_id: Joi.number().integer(),
     check_in_date: Joi.date().iso().required(),
     check_out_date: Joi.date().iso().required(),
-    van_registration: Joi.string(),
+    van_registration: Joi.string().required().pattern(
+      /^[A-Za-z0-9]{2,8}$/,
+      'UK number plate'
+    ).messages({
+      'any.required': 'Van registration is required',
+      'string.pattern.name': 'Please enter a valid UK number plate (letters and digits only, 2-8 characters)',
+    }),
     contact_phone: Joi.string(),
     special_requests: Joi.string().max(1000),
   }),

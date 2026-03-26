@@ -25,6 +25,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   bool isSubmitting = false;
   Map<String, int> bookedSpaces = {};
   bool isLoadingBookings = true;
+  final TextEditingController _regController = TextEditingController();
+  String? _regError;
 
   @override
   void initState() {
@@ -33,6 +35,33 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     checkInDate = DateTime.now();
     checkOutDate = DateTime.now().add(const Duration(days: 1));
     _loadBookings();
+  }
+
+  @override
+  void dispose() {
+    _regController.dispose();
+    super.dispose();
+  }
+
+  /// Validates UK number plate formats:
+  /// Standard (post-2001): AB12 CDE
+  /// Prefix (1983-2001): A123 BCD
+  /// Suffix (1963-1983): ABC 123D
+  /// NI plates: ABC 1234
+  /// Personalised: A1, A1B, AB1, ABC1, A1 BCD, etc.
+  static bool isValidUkPlate(String plate) {
+    final cleaned = plate.replaceAll(RegExp(r'\s+'), '').toUpperCase();
+    if (cleaned.length < 2 || cleaned.length > 8) return false;
+    final patterns = [
+      RegExp(r'^[A-Z]{2}[0-9]{2}[A-Z]{3}$'),         // Standard: AB12CDE
+      RegExp(r'^[A-Z][0-9]{1,3}[A-Z]{3}$'),           // Prefix: A123BCD
+      RegExp(r'^[A-Z]{3}[0-9]{1,3}[A-Z]$'),           // Suffix: ABC123D
+      RegExp(r'^[A-Z]{1,3}[0-9]{1,4}$'),              // NI / personalised: ABC1234, A1, AB12
+      RegExp(r'^[0-9]{1,4}[A-Z]{1,3}$'),              // Reverse personalised: 1ABC, 12AB
+      RegExp(r'^[A-Z]{1,2}[0-9]{1,4}[A-Z]{1,3}$'),   // Mixed personalised: A1BCD, AB1C
+      RegExp(r'^[A-Z]{3}[0-9]{1,4}[A-Z]?$'),          // Dateless: ABC1234
+    ];
+    return patterns.any((p) => p.hasMatch(cleaned));
   }
 
   Future<void> _loadBookings() async {
@@ -371,6 +400,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 const SizedBox(height: 8),
                 Text('Check-in: ${_formatDate(checkInDate!)}'),
                 Text('Check-out: ${_formatDate(checkOutDate!)}'),
+                Text('Van Reg: ${_regController.text.trim().toUpperCase()}'),
                 const SizedBox(height: 8),
                 Text('Total: £${totalPrice.toStringAsFixed(0)}'),
               ],
@@ -440,6 +470,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         checkIn: _formatDate(checkInDate!),
         checkOut: _formatDate(checkOutDate!),
         totalPrice: totalPrice,
+        vanRegistration: _regController.text.trim().toUpperCase(),
       );
 
       debugPrint('✅ BOOKING: Booking created successfully');
@@ -758,6 +789,34 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Van Registration
+            const Text(
+              'Van Registration',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _regController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                hintText: 'e.g. AB12 CDE',
+                prefixIcon: const Icon(Icons.directions_car),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                errorText: _regError,
+              ),
+              onChanged: (_) {
+                if (_regError != null) setState(() => _regError = null);
+              },
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Required — UK format plates only',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 24),
+
             // Book Button
             SizedBox(
               width: double.infinity,
@@ -772,7 +831,18 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                   ),
                 ),
                 onPressed: availableOnCheckIn > 0 && checkInDate != null && checkOutDate != null && !isSubmitting
-                    ? () => _showConfirmationDialog(totalPrice)
+                    ? () {
+                        final reg = _regController.text.trim();
+                        if (reg.isEmpty) {
+                          setState(() => _regError = 'Van registration is required');
+                          return;
+                        }
+                        if (!isValidUkPlate(reg)) {
+                          setState(() => _regError = 'Please enter a valid UK number plate');
+                          return;
+                        }
+                        _showConfirmationDialog(totalPrice);
+                      }
                     : null,
                 child: isSubmitting
                     ? const SizedBox(
