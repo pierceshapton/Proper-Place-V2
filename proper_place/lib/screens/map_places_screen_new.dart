@@ -497,7 +497,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                         : Text(
                             'No reviews yet',
                             style: TextStyle(
-                              color: Colors.grey[500],
+                              color: Colors.black54,
                               fontSize: 14,
                               fontStyle: FontStyle.italic,
                             ),
@@ -541,14 +541,14 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
               // Description
               Text(
                 place.description,
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                style: const TextStyle(color: Colors.black, fontSize: 13),
               ),
               if (place.placeType != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Type: ${place.placeType!.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ')}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    style: const TextStyle(color: Colors.black, fontSize: 12),
                   ),
                 ),
               // Facilities icons
@@ -561,11 +561,11 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                     return Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(_getFacilityIcon(facility), size: 18, color: Colors.grey[600]),
+                        Icon(_getFacilityIcon(facility), size: 18, color: Colors.black),
                         const SizedBox(width: 4),
                         Text(
                           facility,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                          style: const TextStyle(fontSize: 12, color: Colors.black),
                         ),
                       ],
                     );
