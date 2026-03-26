@@ -129,6 +129,9 @@ app.get('/health', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/places', placesRoutes);
 app.use('/pubs', pubsRoutes);
+// Direct route for booking search - must be before the bookings router to avoid /:id conflict
+const bookingController = require('./controllers/bookingController');
+app.get('/bookings/search', authMiddleware, bookingController.searchBookings);
 app.use('/bookings', authMiddleware, bookingsRoutes);
 app.use('/payments', authMiddleware, paymentsRoutes);
 app.use('/reviews', reviewsRoutes);

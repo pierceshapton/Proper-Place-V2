@@ -18,9 +18,9 @@ router.get('/search', authMiddleware, bookingController.searchBookings); // Admi
 router.get('/host/my-bookings', authMiddleware, bookingController.getHostBookings); // Host: bookings for their places
 router.put('/host/mark-seen', authMiddleware, bookingController.markBookingsSeen); // Host: mark bookings as seen
 router.get('/', authMiddleware, bookingController.getBookings);
-router.get('/:id', authMiddleware, bookingController.getBookingDetail);
+router.get('/:id(\\d+)', authMiddleware, bookingController.getBookingDetail);
 router.post('/', authMiddleware, validationMiddleware('createBooking'), bookingController.createBooking);
-router.patch('/:id', authMiddleware, bookingController.updateBooking);
-router.delete('/:id', authMiddleware, bookingController.deleteBooking);
+router.patch('/:id(\\d+)', authMiddleware, bookingController.updateBooking);
+router.delete('/:id(\\d+)', authMiddleware, bookingController.deleteBooking);
 
 module.exports = router;
