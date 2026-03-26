@@ -26,10 +26,10 @@ Future<void> main() async {
 
   // Initialize Stripe payment service
   try {
-    // await PaymentService.initialize();
-    // debugPrint('✅ Payment service initialized');
+    await PaymentService.initialize();
+    debugPrint('✅ Payment service initialized');
   } catch (e) {
-    // debugPrint('⚠️ Warning: Stripe initialization failed: $e');
+    debugPrint('⚠️ Warning: Stripe initialization failed: $e');
   }
 
   // Print config on startup (for debugging)

@@ -356,9 +356,10 @@ class BookingDetailScreen extends StatelessWidget {
     final checkOut = _formatDate(booking['check_out']);
     final nights = _calculateNights();
     final bookingIdRaw = booking['booking_id']?.toString() ?? '';
-    final bookingId = bookingIdRaw.length >= 8 
+    final bookingRef = booking['booking_ref']?.toString();
+    final bookingId = bookingRef ?? (bookingIdRaw.length >= 8 
         ? bookingIdRaw.substring(0, 8).toUpperCase() 
-        : bookingIdRaw.toUpperCase();
+        : bookingIdRaw.toUpperCase());
     final status = booking['status'] ?? 'confirmed';
 
     return Scaffold(
@@ -491,7 +492,7 @@ class BookingDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _buildInfoRow(
-                    'Booking ID:',
+                    'Reference:',
                     bookingId,
                   ),
                   const SizedBox(height: 12),

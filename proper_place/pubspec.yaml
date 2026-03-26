@@ -2,7 +2,7 @@ name: proper_place
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+40
+version: 1.0.0+41
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -24,6 +24,8 @@ dependencies:
   flutter_stripe: ^11.0.0
   flutter_dotenv: ^5.1.0
   url_launcher: ^6.2.0
+  path_provider: ^2.1.0
+  connectivity_plus: ^6.0.0
 
 dev_dependencies:
   flutter_test:

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/storage_service.dart';
+import '../services/offline_service.dart';
+import 'home_screen.dart';
 import 'host_application_form_screen.dart';
+import 'offline_regions_screen.dart';
 import 'contact_us_form_screen.dart';
 import 'profile_screen.dart';
 import 'welcome_screen.dart';
@@ -24,7 +27,6 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
   String? _userName = 'User';
   String? _userRole = 'user';
   bool _isHostMode = false;
-  bool _isOfflineMode = false;
   bool _sizeFilterEnabled = false;
   String? _hostApplicationStatus;
   bool _isLoading = false;
@@ -42,7 +44,6 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
       final name = await StorageService.getUserName();
       final role = await StorageService.getUserRole();
       final hostMode = await StorageService.getHostMode();
-      final offlineMode = await StorageService.getOfflineMode();
       final hostAppStatus = await StorageService.getHostApplicationStatus();
       final sizeFilter = await StorageService.getSizeFilterEnabled();
 
@@ -51,7 +52,6 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
           _userName = name ?? 'User';
           _userRole = role ?? 'user';
           _isHostMode = hostMode;
-          _isOfflineMode = offlineMode;
           _hostApplicationStatus = hostAppStatus;
           _sizeFilterEnabled = sizeFilter;
         });
@@ -228,21 +228,30 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                     icon: Icons.map_outlined,
                     title: 'Find a Proper Place',
                     subtitle: 'Browse all available locations',
-                    onTap: () => Navigator.pushNamed(context, '/map'),
+                    onTap: () {
+                      HomeScreen.setNextTab(0);
+                      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+                    },
                   ),
                   const SizedBox(height: 12),
                   _buildActionCard(
                     icon: Icons.favorite_outline,
                     title: 'My Favourites',
                     subtitle: 'View your saved Proper Places',
-                    onTap: () => Navigator.pushNamed(context, '/favorites'),
+                    onTap: () {
+                      HomeScreen.setNextTab(2);
+                      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+                    },
                   ),
                   const SizedBox(height: 12),
                   _buildActionCard(
                     icon: Icons.calendar_today_outlined,
                     title: 'My Bookings',
                     subtitle: 'View your booking history',
-                    onTap: () => Navigator.pushNamed(context, '/bookings'),
+                    onTap: () {
+                      HomeScreen.setNextTab(1);
+                      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+                    },
                   ),
                   const SizedBox(height: 24),
 
@@ -955,40 +964,50 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
           const Divider(height: 1),
           const SizedBox(height: 16),
           // Offline Mode
-          Row(
-            children: [
-              const Icon(Icons.cloud_off_outlined, color: lightBlue, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Offline Mode',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const OfflineRegionsScreen()),
+              );
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                const Icon(Icons.cloud_download_outlined, color: lightBlue, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Offline Regions',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Browse without booking',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
+                      FutureBuilder<List<String>>(
+                        future: OfflineService.getDownloadedRegions(),
+                        builder: (context, snap) {
+                          final count = snap.data?.length ?? 0;
+                          return Text(
+                            count > 0
+                                ? '$count region${count == 1 ? '' : 's'} downloaded'
+                                : 'Download regions for offline use',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Switch(
-                value: _isOfflineMode,
-                onChanged: (value) async {
-                  await StorageService.setOfflineMode(value);
-                  setState(() => _isOfflineMode = value);
-                },
-                activeColor: lightBlue,
-              ),
-            ],
+                Icon(Icons.chevron_right, color: Colors.grey[400]),
+              ],
+            ),
           ),
         ],
       ),

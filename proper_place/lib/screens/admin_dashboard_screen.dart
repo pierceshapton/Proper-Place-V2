@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'admin_booking_search_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final Function(int)? onTabChanged;
@@ -87,6 +88,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   onTap: () {
                     // Switch to Approvals tab (index 1)
                     widget.onTabChanged?.call(1);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Bookings search card
+                _buildActionCard(
+                  title: 'Bookings',
+                  description: 'Search and manage bookings by reference, guest name, or site',
+                  image: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=400&h=200&fit=crop',
+                  buttonLabel: 'Search Bookings',
+                  buttonColor: const Color(0xFF3A6DB5),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AdminBookingSearchScreen()),
+                    );
                   },
                 ),
                 const SizedBox(height: 16),

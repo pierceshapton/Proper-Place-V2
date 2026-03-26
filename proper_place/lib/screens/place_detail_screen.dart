@@ -6,6 +6,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/services/payment_service.dart';
+import 'package:proper_place/screens/home_screen.dart';
 import 'package:proper_place/widgets/availability_calendar_picker.dart';
 
 class PlaceDetailScreen extends StatefulWidget {
@@ -23,6 +25,7 @@ class PlaceDetailScreen extends StatefulWidget {
 class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   late PageController _imageController;
   int _currentImageIndex = 0;
+  bool _isProcessingPayment = false;
   DateTime? _checkInDate;
   DateTime? _checkOutDate;
   TimeOfDay _checkInTime = const TimeOfDay(hour: 12, minute: 0); // Default midday
@@ -31,6 +34,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   List<Map<String, dynamic>> existingBookings = [];
   bool isLoadingReviews = true;
   bool isLoadingBookings = true;
+  int _siteCapacity = 1;
   List<String> _vehicleFitIssues = [];
   
   // Fee rate per hour for early/late times
@@ -55,6 +59,10 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   Future<void> _loadExistingBookings() async {
     try {
       final placeId = widget.place['id'];
+      // Load capacity from the place data or default to 1
+      final cap = widget.place['capacity'];
+      _siteCapacity = (cap is int ? cap : (cap is String ? int.tryParse(cap) ?? 1 : 1)).clamp(1, 9999);
+
       final response = await http.get(
         Uri.parse('${AppConfig.properPlaceBackendUrl}/bookings/place/$placeId'),
       );
@@ -134,35 +142,30 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     return basePrice + earlyCheckinFee + lateCheckoutFee;
   }
   
-  // Check if a date is booked (unavailable)
+  // Check if a date is fully booked (all spaces taken)
   bool _isDateBooked(DateTime date) {
+    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    int count = 0;
     for (var booking in existingBookings) {
-      final checkIn = DateTime.parse(booking['check_in_date'].toString().substring(0, 10));
-      final checkOut = DateTime.parse(booking['check_out_date'].toString().substring(0, 10));
-      
-      // Date is booked if it falls within an existing booking
-      // A date is available if it's the checkout date (person leaves at midday)
-      if (date.isAfter(checkIn.subtract(const Duration(days: 1))) && 
-          date.isBefore(checkOut)) {
-        return true;
+      final checkIn = booking['check_in_date'].toString().substring(0, 10);
+      final checkOut = booking['check_out_date'].toString().substring(0, 10);
+      if (dateStr.compareTo(checkIn) >= 0 && dateStr.compareTo(checkOut) < 0) {
+        count++;
       }
     }
-    return false;
+    return count >= _siteCapacity;
   }
   
-  // Check if selected date range conflicts with existing bookings
+  // Check if selected date range conflicts with existing bookings (any night at capacity)
   bool _hasConflict() {
     if (_checkInDate == null || _checkOutDate == null) return false;
     
-    for (var booking in existingBookings) {
-      final existingCheckIn = DateTime.parse(booking['check_in_date'].toString().substring(0, 10));
-      final existingCheckOut = DateTime.parse(booking['check_out_date'].toString().substring(0, 10));
-      
-      // Check for overlap
-      // New booking overlaps if: newCheckIn < existingCheckOut AND newCheckOut > existingCheckIn
-      if (_checkInDate!.isBefore(existingCheckOut) && _checkOutDate!.isAfter(existingCheckIn)) {
-        return true;
-      }
+    DateTime night = DateTime(_checkInDate!.year, _checkInDate!.month, _checkInDate!.day);
+    final checkOut = DateTime(_checkOutDate!.year, _checkOutDate!.month, _checkOutDate!.day);
+    
+    while (night.isBefore(checkOut)) {
+      if (_isDateBooked(night)) return true;
+      night = night.add(const Duration(days: 1));
     }
     return false;
   }
@@ -300,7 +303,56 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       return;
     }
 
+    setState(() => _isProcessingPayment = true);
+
     try {
+      // Re-check availability on the server before taking payment
+      final placeId = widget.place['id'];
+      try {
+        final availResp = await http.get(
+          Uri.parse('${AppConfig.properPlaceBackendUrl}/bookings/availability/place/$placeId'
+              '?from_date=${_checkInDate!.toIso8601String().substring(0, 10)}'
+              '&to_date=${_checkOutDate!.toIso8601String().substring(0, 10)}'),
+        );
+        if (availResp.statusCode == 200) {
+          final data = jsonDecode(availResp.body);
+          final availability = data['availability'] as Map<String, dynamic>? ?? {};
+          for (var entry in availability.entries) {
+            final dayData = entry.value as Map<String, dynamic>;
+            if (dayData['isFull'] == true) {
+              setState(() => _isProcessingPayment = false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Sorry, this site is fully booked on ${entry.key}. Please choose different dates.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                _loadExistingBookings();
+              }
+              return;
+            }
+          }
+        }
+      } catch (_) {
+        // If availability check fails, proceed and let backend reject if needed
+      }
+
+      // Process payment via Stripe
+      final paymentSuccess = await PaymentService.processPayment(
+        amount: totalPrice,
+        currency: 'GBP',
+        bookingId: 'booking_${DateTime.now().millisecondsSinceEpoch}',
+        context: context,
+      );
+
+      if (!paymentSuccess) {
+        // User cancelled or payment failed — don't create booking
+        setState(() => _isProcessingPayment = false);
+        return;
+      }
+
+      // Payment successful — now create the booking
       final token = await StorageService.getToken();
       // Format times as HH:mm
       final checkInTimeStr = '${_checkInTime.hour.toString().padLeft(2, '0')}:${_checkInTime.minute.toString().padLeft(2, '0')}';
@@ -319,25 +371,37 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           'check_in_time': checkInTimeStr,
           'check_out_time': checkOutTimeStr,
           'total_price': totalPrice,
-          'status': 'pending',
+          'status': 'confirmed',
         }),
       );
 
       if (response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Booking created successfully!')),
-        );
-        Navigator.of(context).pop();
+        final bookingData = jsonDecode(response.body)['booking'];
+        final bookingRef = bookingData?['booking_ref'];
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Booking confirmed! Ref: ${bookingRef ?? 'Success'}')),
+          );
+          // Navigate to Bookings tab (index 1 for user mode)
+          HomeScreen.setNextTab(1);
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+        }
       } else {
         final error = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error['message'] ?? 'Error creating booking')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error['message'] ?? 'Error creating booking')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error creating booking: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating booking: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessingPayment = false);
     }
   }
 
@@ -951,7 +1015,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
 
                         // Book Button
                         ElevatedButton(
-                          onPressed: _hasConflict() ? null : _createBooking,
+                          onPressed: (_hasConflict() || _isProcessingPayment) ? null : _createBooking,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF7BA7D8),
                             disabledBackgroundColor: Colors.grey[300],
@@ -960,7 +1024,13 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: const Text(
+                          child: _isProcessingPayment
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                              )
+                            : const Text(
                             'Book Now',
                             style: TextStyle(
                               fontSize: 16,

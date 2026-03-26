@@ -448,6 +448,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       final bookingData = booking['booking'] ?? booking;
       final normalizedBooking = {
         'booking_id': bookingData['id']?.toString() ?? '',
+        'booking_ref': bookingData['booking_ref'],
         'place_id': bookingData['place_id']?.toString() ?? '',
         'check_in': bookingData['check_in_date'] ?? '',
         'check_out': bookingData['check_out_date'] ?? '',
@@ -515,8 +516,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Booking ID: ${booking['booking_id'] ?? "N/A"}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  'Reference: ${booking['booking_ref'] ?? booking['booking_id'] ?? "N/A"}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 12),
                 Text('Place: ${widget.place.name}'),

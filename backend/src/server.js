@@ -41,6 +41,7 @@ const notificationsRoutes = require('./routes/notifications');
 const chatRoutes = require('./routes/chat');
 const uploadRoutes = require('./routes/upload');
 const autoMessagesRoutes = require('./routes/autoMessages');
+const hostLeadsRoutes = require('./routes/hostLeads');
 const pushService = require('./services/pushNotificationService');
 
 // User controller for user endpoints
@@ -137,6 +138,7 @@ app.use('/chat', chatRoutes);
 app.use('/admin', adminRoutes);
 app.use('/upload', uploadRoutes);
 app.use('/auto-messages', autoMessagesRoutes);
+app.use('/host-leads', hostLeadsRoutes);
 
 // User routes
 app.get('/users/:id', userController.getUserProfile);

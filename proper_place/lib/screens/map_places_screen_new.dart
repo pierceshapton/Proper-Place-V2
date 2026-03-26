@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/services/google_places_service.dart';
+import 'package:proper_place/services/offline_service.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/screens/place_detail_screen.dart';
 import 'package:proper_place/widgets/google_places_address_field.dart';
@@ -37,6 +40,40 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   double? startLat, startLng;
   double? destLat, destLng;
 
+  // Pending focus place (set before places are loaded)
+  Map<String, dynamic>? _pendingFocus;
+
+  // Connectivity monitoring for auto-sync
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  bool _isOnline = true;
+
+  /// Call this to refresh markers (e.g. after vehicle dimensions change)
+  void refreshMarkers() {
+    _updateMarkersForZoom();
+  }
+
+  /// Zoom to a specific place and open its detail popup
+  void focusOnPlace(String placeId, double lat, double lng) async {
+    if (places.isEmpty) {
+      // Places not loaded yet — store for later
+      _pendingFocus = {'id': placeId, 'lat': lat, 'lng': lng};
+      return;
+    }
+    _pendingFocus = null;
+    // Zoom in to ensure markers are visible
+    await mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(LatLng(lat, lng), 14),
+    );
+    // Wait for camera animation and markers to update
+    await Future.delayed(const Duration(milliseconds: 800));
+    await _updateMarkersForZoom();
+    // Find the place and show its detail popup
+    final place = places.where((p) => p.placeId == placeId).firstOrNull;
+    if (place != null && mounted) {
+      _showPlaceDetails(place);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +83,20 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   Future<void> _initializeMap() async {
     try {
       isOfflineMode = await StorageService.getOfflineMode();
+      _isOnline = await OfflineService.isOnline();
+
+      // Listen for connectivity changes — auto-sync when back online
+      _connectivitySub = Connectivity().onConnectivityChanged.listen((results) async {
+        final online = !results.contains(ConnectivityResult.none);
+        if (online && !_isOnline) {
+          // Just came back online — sync downloaded regions in background
+          _isOnline = true;
+          OfflineService.syncDownloadedRegions().then((_) {
+            if (mounted) _loadPlaces();
+          });
+        }
+        _isOnline = online;
+      });
 
       // Load cached map location
       final cachedLocation = await StorageService.getCachedMapLocation();
@@ -82,7 +133,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     }
   }
 
-  Future<BitmapDescriptor> _getCustomMarkerIcon(bool isFavorite) async {
+  Future<BitmapDescriptor> _getCustomMarkerIcon(bool isFavorite, {bool vehicleFits = true}) async {
     final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
     final Canvas canvas = Canvas(pictureRecorder);
     const double size = 100;
@@ -111,9 +162,12 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
         ..strokeWidth = 4;
       canvas.drawPath(heartPath, borderPaint);
     } else {
-      // Draw tent shape for non-favourited places
+      // Draw tent shape — orange if vehicle doesn't fit, blue if it does
+      final Color tentColor = vehicleFits ? const Color(0xFF7BA7D8) : const Color(0xFFFF9800);
+      final Color borderColor = vehicleFits ? const Color(0xFF3A6DB5) : const Color(0xFFE65100);
+
       final Paint markerPaint = Paint()
-        ..color = const Color(0xFF7BA7D8)
+        ..color = tentColor
         ..style = PaintingStyle.fill;
 
       final Path tentPath = Path();
@@ -127,9 +181,9 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       // Pin dot at bottom
       canvas.drawCircle(Offset(size / 2, size - 5), 6, markerPaint);
 
-      // Red border
+      // Border
       final Paint borderPaint = Paint()
-        ..color = const Color(0xFFD32F2F)
+        ..color = borderColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 4;
       canvas.drawPath(tentPath, borderPaint);
@@ -250,9 +304,19 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
 
   Future<void> _loadPlaces() async {
     try {
-      final placesData = await ApiService.getApprovedPlaces();
-      List<Place> loadedPlaces = (placesData)
-          .map((p) => Place.fromJson(p as Map<String, dynamic>))
+      List<Map<String, dynamic>> placesData;
+
+      // Use offline cache if we have downloaded regions and are offline
+      final downloadedRegions = await OfflineService.getDownloadedRegions();
+      if (!_isOnline && downloadedRegions.isNotEmpty) {
+        placesData = await OfflineService.getOfflinePlaces();
+      } else {
+        final raw = await ApiService.getApprovedPlaces();
+        placesData = raw.cast<Map<String, dynamic>>();
+      }
+
+      List<Place> loadedPlaces = placesData
+          .map((p) => Place.fromJson(p))
           .toList();
 
       // Apply vehicle size filter if enabled
@@ -290,6 +354,17 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       });
 
       await _updateMarkersForZoom();
+
+      // If there's a pending focus request, execute it now
+      if (_pendingFocus != null) {
+        final pf = _pendingFocus!;
+        // Small delay to let map controller be ready
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            focusOnPlace(pf['id'] as String, pf['lat'] as double, pf['lng'] as double);
+          }
+        });
+      }
     } catch (e) {
       print('Error loading places: $e');
       if (mounted) {
@@ -300,26 +375,40 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     }
   }
 
+  bool _vehicleFitsPlace(Place place, double userHeight, double userWidth, double userLength) {
+    // If place has no size limits, it fits all vehicles
+    if (place.maxVehicleHeightFt == null &&
+        place.maxVehicleWidthFt == null &&
+        place.maxVehicleLengthFt == null) {
+      return true;
+    }
+    if (place.maxVehicleHeightFt != null && place.maxVehicleHeightFt! < userHeight) return false;
+    if (place.maxVehicleWidthFt != null && place.maxVehicleWidthFt! < userWidth) return false;
+    if (place.maxVehicleLengthFt != null && place.maxVehicleLengthFt! < userLength) return false;
+    return true;
+  }
+
   Future<void> _updateMarkersForZoom() async {
     Set<Marker> newMarkers = {};
+
+    // Load user vehicle dimensions for marker colouring
+    final userHeight = await StorageService.getVehicleHeight();
+    final userWidth = await StorageService.getVehicleWidth();
+    final userLength = await StorageService.getVehicleLength();
+    final hasDimensions = userHeight > 0 || userWidth > 0 || userLength > 0;
 
     // Only show markers if zoomed in enough
     if (currentZoom >= MIN_ZOOM_FOR_MARKERS) {
       for (var place in places) {
         final isFavorite = favoriteIds.contains(place.placeId);
-        final markerIcon = await _getCustomMarkerIcon(isFavorite);
+        final fits = !hasDimensions || _vehicleFitsPlace(place, userHeight, userWidth, userLength);
+        final markerIcon = await _getCustomMarkerIcon(isFavorite, vehicleFits: fits);
 
         newMarkers.add(
           Marker(
             markerId: MarkerId(place.placeId),
             position: LatLng(place.locationLat, place.locationLng),
             icon: markerIcon,
-            infoWindow: InfoWindow(
-              title: place.name,
-              snippet:
-                  '${isFavorite ? '★ ' : ''}£${place.pricePerNight.toStringAsFixed(0)}/night',
-              onTap: () => _showPlaceDetails(place),
-            ),
             onTap: () => _showPlaceDetails(place),
           ),
         );
@@ -1013,6 +1102,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
     super.dispose();
   }
 }
@@ -1067,10 +1157,10 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     
     return Container(
-      height: MediaQuery.of(context).size.height * 0.35,
+      height: MediaQuery.of(context).size.height * 0.45 + bottomInset,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1163,7 +1253,7 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
                     ),
                   )
                 : ListView.builder(
-                    padding: EdgeInsets.only(bottom: bottomPadding + 16),
+                    padding: EdgeInsets.only(bottom: bottomInset + 16),
                     itemCount: _suggestions.length,
                     itemBuilder: (context, index) {
                       final suggestion = _suggestions[index];

@@ -362,6 +362,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               ? filteredBookings
               : filteredBookings.where((b) {
                   final id = (b['booking_id'] ?? b['id'] ?? '').toString().toLowerCase();
+                  final ref = (b['booking_ref'] ?? '').toString().toLowerCase();
                   final status = (b['status'] ?? '').toString().toLowerCase();
                   final checkIn = (b['check_in'] ?? '').toString().toLowerCase();
                   final checkOut = (b['check_out'] ?? '').toString().toLowerCase();
@@ -370,6 +371,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   final formattedCheckIn = _formatDate(b['check_in']).toLowerCase();
                   final formattedCheckOut = _formatDate(b['check_out']).toLowerCase();
                   return id.contains(query) ||
+                      ref.contains(query) ||
                       status.contains(query) ||
                       checkIn.contains(query) ||
                       checkOut.contains(query) ||
@@ -546,9 +548,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   Widget _buildBookingCard(Map<String, dynamic> booking) {
     final bookingId = booking['booking_id'] ?? 'N/A';
     final bookingIdStr = bookingId.toString();
-    final bookingIdShort = bookingIdStr.length >= 8 
+    final bookingRef = booking['booking_ref'];
+    final bookingIdShort = bookingRef ?? (bookingIdStr.length >= 8 
         ? bookingIdStr.substring(0, 8).toUpperCase()
-        : bookingIdStr.toUpperCase();
+        : bookingIdStr.toUpperCase());
     final status = _displayStatus(booking);
     final checkIn = _formatDate(booking['check_in']);
     final checkOut = _formatDate(booking['check_out']);
@@ -579,7 +582,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Booking #$bookingIdShort',
+                        bookingRef != null ? bookingRef : 'Booking #$bookingIdShort',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,

@@ -2,6 +2,30 @@ const db = require('../config/database');
 const logger = require('../utils/logger');
 const pushService = require('../services/pushNotificationService');
 const autoMessageController = require('./autoMessageController');
+const crypto = require('crypto');
+
+/**
+ * Generate a unique booking reference: PP-YYMMDD-XXXX
+ * PP = Proper Place, YYMMDD = date, XXXX = 4-char alphanumeric
+ */
+async function generateBookingRef() {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `PP-${yy}${mm}${dd}-`;
+
+  // Try up to 10 times to generate a unique ref
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const suffix = crypto.randomBytes(2).toString('hex').toUpperCase(); // 4 hex chars
+    const ref = `${datePrefix}${suffix}`;
+    const existing = await db.query('SELECT id FROM bookings WHERE booking_ref = $1', [ref]);
+    if (existing.rows.length === 0) return ref;
+  }
+  // Fallback: use timestamp-based suffix
+  const ts = Date.now().toString(36).toUpperCase().slice(-4);
+  return `${datePrefix}${ts}`;
+}
 
 /**
  * Auto-complete bookings that have passed checkout at midday
@@ -231,13 +255,16 @@ async function createBooking(req, res, next) {
       }
     }
 
+    // Generate unique booking reference
+    const bookingRef = await generateBookingRef();
+
     const result = await db.query(
       `INSERT INTO bookings (user_id, place_id, pub_id, check_in_date, check_out_date,
                              check_in_time, check_out_time,
                              number_of_nights, total_price, status,
                              early_checkin_fee, late_checkout_fee,
-                             van_registration, contact_phone, special_requests, host_seen)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false)
+                             van_registration, contact_phone, special_requests, host_seen, booking_ref)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, $16)
        RETURNING *`,
       [
         userId,
@@ -255,6 +282,7 @@ async function createBooking(req, res, next) {
         data.van_registration || null,
         data.contact_phone || null,
         data.special_requests || null,
+        bookingRef,
       ]
     );
 
@@ -709,6 +737,73 @@ async function markBookingsSeen(req, res, next) {
   }
 }
 
+/**
+ * GET /bookings/search?q=...
+ * Admin only: search bookings by reference, guest name, guest email, or place name
+ */
+async function searchBookings(req, res, next) {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'forbidden', message: 'Admin access required' });
+    }
+
+    const { q, page = 1, limit = 20 } = req.query;
+    if (!q || q.trim().length === 0) {
+      return res.status(400).json({ error: 'missing_query', message: 'Search query is required' });
+    }
+
+    const searchTerm = `%${q.trim()}%`;
+    const offset = (page - 1) * limit;
+
+    const query = `
+      SELECT b.*,
+             u.name as guest_name, u.email as guest_email, u.phone_number as guest_phone,
+             p.name as place_name, p.address as place_address,
+             p.owner_id as host_id, u_host.name as host_name, u_host.email as host_email
+      FROM bookings b
+      LEFT JOIN users u ON b.user_id = u.id
+      LEFT JOIN places p ON b.place_id = p.id
+      LEFT JOIN users u_host ON p.owner_id = u_host.id
+      WHERE b.booking_ref ILIKE $1
+         OR u.name ILIKE $1
+         OR u.email ILIKE $1
+         OR p.name ILIKE $1
+         OR CAST(b.id AS TEXT) = $2
+      ORDER BY b.created_at DESC
+      LIMIT $3 OFFSET $4
+    `;
+
+    const countQuery = `
+      SELECT COUNT(*) FROM bookings b
+      LEFT JOIN users u ON b.user_id = u.id
+      LEFT JOIN places p ON b.place_id = p.id
+      WHERE b.booking_ref ILIKE $1
+         OR u.name ILIKE $1
+         OR u.email ILIKE $1
+         OR p.name ILIKE $1
+         OR CAST(b.id AS TEXT) = $2
+    `;
+
+    const exactTerm = q.trim();
+    const result = await db.query(query, [searchTerm, exactTerm, limit, offset]);
+    const countResult = await db.query(countQuery, [searchTerm, exactTerm]);
+    const total = parseInt(countResult.rows[0].count);
+
+    res.json({
+      bookings: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    logger.error('Search bookings error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetail,
@@ -721,4 +816,5 @@ module.exports = {
   getAllBookings,
   getHostBookings,
   markBookingsSeen,
+  searchBookings,
 };

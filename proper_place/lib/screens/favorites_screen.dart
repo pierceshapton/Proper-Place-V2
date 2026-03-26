@@ -5,7 +5,7 @@ import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../models/place.dart';
 import 'place_detail_screen.dart';
-import 'map_places_screen_new.dart';
+import 'home_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -433,13 +433,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   right: 12,
                   child: GestureDetector(
                     onTap: () {
-                      // Navigate to map with this place
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MapPlacesScreen(),
-                        ),
-                      );
+                      final lat = double.tryParse(place['latitude']?.toString() ?? '') ?? 0;
+                      final lng = double.tryParse(place['longitude']?.toString() ?? '') ?? 0;
+                      final placeId = place['id']?.toString() ?? '';
+                      HomeScreen.setNextTab(0);
+                      HomeScreen.setFocusPlace(placeId, lat, lng);
+                      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

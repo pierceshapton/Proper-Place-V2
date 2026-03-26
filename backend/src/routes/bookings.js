@@ -14,6 +14,7 @@ router.get('/place/:placeId', bookingController.getPlaceBookings);
 
 // Protected routes
 router.get('/all', authMiddleware, bookingController.getAllBookings); // Admin: all bookings
+router.get('/search', authMiddleware, bookingController.searchBookings); // Admin: search bookings
 router.get('/host/my-bookings', authMiddleware, bookingController.getHostBookings); // Host: bookings for their places
 router.put('/host/mark-seen', authMiddleware, bookingController.markBookingsSeen); // Host: mark bookings as seen
 router.get('/', authMiddleware, bookingController.getBookings);

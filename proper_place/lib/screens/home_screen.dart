@@ -154,11 +154,21 @@ class HomeScreen extends StatefulWidget {
   static void setNextTab(int tabIndex) {
     _HomeScreenState.setNextTab(tabIndex);
   }
+
+  /// Static method to focus on a specific place on the map tab
+  static void setFocusPlace(String placeId, double lat, double lng) {
+    _HomeScreenState._pendingFocusPlace = {'id': placeId, 'lat': lat, 'lng': lng};
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Static field to allow setting tab from elsewhere (e.g., booking confirmation)
   static int? _nextTabIndex;
+  // Static field to focus on a specific place after switching to map tab
+  static Map<String, dynamic>? _pendingFocusPlace;
+  
+  // Global key for map screen to allow refreshing markers
+  final GlobalKey<dynamic> _mapKey = GlobalKey();
   
   List<Map<String, dynamic>> places = [];
   bool isLoading = true;
@@ -284,35 +294,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final allAgreed = agreedToTerms && agreedToPrivacy;
           return Dialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.landscape_outlined, size: 56, color: Color(0xFF4A7EB3)),
-                    const SizedBox(height: 16),
+                    const Icon(Icons.landscape_outlined, size: 48, color: Color(0xFF4A7EB3)),
+                    const SizedBox(height: 10),
                     const Text(
                       'Welcome to Proper Place!',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
                     _welcomeStep(Icons.search, 'Find a Proper Place',
                         'Browse unique overnight stops listed by hosts across the UK.'),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     _welcomeStep(Icons.calendar_today_outlined, 'Book Your Stay',
                         'Select your dates, confirm the booking and message your host.'),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     _welcomeStep(Icons.directions_car_outlined, 'Arrive & Enjoy',
                         'Follow the host\'s directions, check in and enjoy your stay.'),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     _welcomeStep(Icons.star_outline, 'Leave a Review',
                         'Share your experience to help the motorhome community.'),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF0F7FF),
                         borderRadius: BorderRadius.circular(12),
@@ -321,18 +332,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.lock_outline, size: 22, color: Color(0xFF4A7EB3)),
-                          const SizedBox(width: 10),
+                          const Icon(Icons.lock_outline, size: 20, color: Color(0xFF4A7EB3)),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: const [
                                 Text('Secure Payments',
-                                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1A2E))),
-                                SizedBox(height: 4),
+                                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1A1A2E))),
+                                SizedBox(height: 3),
                                 Text(
                                   'All payments are securely processed through a third party: Stripe. Proper Place does not see or hold any of your payment information.',
-                                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.3),
                                 ),
                               ],
                             ),
@@ -340,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
                     // Terms of Service checkbox
                     _policyCheckbox(
                       value: agreedToTerms,
@@ -349,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       linkText: 'Terms of Service',
                       url: 'https://proper-place.co.uk/terms',
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     // Privacy Policy checkbox
                     _policyCheckbox(
                       value: agreedToPrivacy,
@@ -358,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       linkText: 'Privacy Policy',
                       url: 'https://proper-place.co.uk/privacy',
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -366,10 +377,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: allAgreed ? const Color(0xFF4A7EB3) : const Color(0xFFD1D5DB),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('Get Started', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        child: const Text('Get Started', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ],
@@ -916,7 +927,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildPlacesView() {
-    return const MapPlacesScreen();
+    return MapPlacesScreen(key: _mapKey);
   }
 
   @override
@@ -944,6 +955,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           onTap: (index) {
             setState(() {
               _currentIndex = index;
+              // Refresh map markers when switching to map tab
+              if (index == 0 && _mapKey.currentState != null) {
+                try { (_mapKey.currentState as dynamic).refreshMarkers(); } catch (_) {}
+                // If there's a pending focus place, zoom to it
+                if (_pendingFocusPlace != null) {
+                  final fp = _pendingFocusPlace!;
+                  _pendingFocusPlace = null;
+                  try {
+                    (_mapKey.currentState as dynamic).focusOnPlace(
+                      fp['id'] as String, fp['lat'] as double, fp['lng'] as double,
+                    );
+                  } catch (_) {}
+                }
+              }
               // Immediately clear badge when tapping a tab
               if (isHostMode && index == 2) {
                 _badgeCounts[2] = 0;

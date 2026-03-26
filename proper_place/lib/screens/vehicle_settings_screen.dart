@@ -16,7 +16,6 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
   double _vehicleLength = 25.0;
   String _unit = 'ft';
   bool _isLoading = true;
-  bool _hasChanges = false;
 
   @override
   void initState() {
@@ -45,15 +44,6 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
       length: _vehicleLength,
       unit: _unit,
     );
-    setState(() => _hasChanges = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vehicle dimensions saved'),
-          backgroundColor: lightBlue,
-        ),
-      );
-    }
   }
 
   // Convert feet to metres
@@ -87,20 +77,7 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          if (_hasChanges)
-            TextButton(
-              onPressed: _saveVehicleDimensions,
-              child: const Text(
-                'Save',
-                style: TextStyle(
-                  color: lightBlue,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-        ],
+        actions: const [],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: lightBlue))
@@ -159,8 +136,8 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
                               onTap: () {
                                 setState(() {
                                   _unit = 'ft';
-                                  _hasChanges = true;
                                 });
+                                _saveVehicleDimensions();
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -185,8 +162,8 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
                               onTap: () {
                                 setState(() {
                                   _unit = 'm';
-                                  _hasChanges = true;
                                 });
+                                _saveVehicleDimensions();
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -222,8 +199,8 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
                       onChanged: (value) {
                         setState(() {
                           _vehicleHeight = value;
-                          _hasChanges = true;
                         });
+                        _saveVehicleDimensions();
                       },
                     ),
                     const SizedBox(height: 24),
@@ -239,8 +216,8 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
                       onChanged: (value) {
                         setState(() {
                           _vehicleWidth = value;
-                          _hasChanges = true;
                         });
+                        _saveVehicleDimensions();
                       },
                     ),
                     const SizedBox(height: 24),
@@ -256,34 +233,9 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
                       onChanged: (value) {
                         setState(() {
                           _vehicleLength = value;
-                          _hasChanges = true;
                         });
+                        _saveVehicleDimensions();
                       },
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Save Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _hasChanges ? _saveVehicleDimensions : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: lightBlue,
-                          disabledBackgroundColor: Colors.grey[300],
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          _hasChanges ? 'Save Dimensions' : 'No Changes',
-                          style: TextStyle(
-                            color: _hasChanges ? Colors.white : Colors.grey[500],
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 20),
                   ],
