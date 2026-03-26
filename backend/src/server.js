@@ -132,8 +132,6 @@ app.use('/pubs', pubsRoutes);
 // Direct route for booking search - must be before the bookings router to avoid /:id conflict
 const bookingController = require('./controllers/bookingController');
 app.get('/bookings/search', authMiddleware, bookingController.searchBookings);
-// Version check endpoint to verify deployment
-app.get('/bookings/version-check', (req, res) => res.json({ version: 'v3-search-fix', deployed: new Date().toISOString() }));
 app.use('/bookings', authMiddleware, bookingsRoutes);
 app.use('/payments', authMiddleware, paymentsRoutes);
 app.use('/reviews', reviewsRoutes);
