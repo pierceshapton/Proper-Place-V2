@@ -41,6 +41,7 @@ async function runMigrations() {
       '010_vehicle_restrictions.sql',
       '011_site_status_seen.sql',
       '012_host_leads.sql',
+      '013_booking_references.sql',
     ];
     
     for (const file of migrationFiles) {
