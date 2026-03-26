@@ -183,23 +183,51 @@ async function createBooking(req, res, next) {
     // Total price includes base price + time-based fees
     const totalPrice = basePrice + earlyCheckinFee + lateCheckoutFee;
 
-    // Check for overlapping bookings on the same site
+    // Check capacity – ensure no night in the requested range exceeds the site's capacity
     const targetId = data.place_id || data.pub_id;
     const targetColumn = data.place_id ? 'place_id' : 'pub_id';
+    const targetTable = data.place_id ? 'places' : 'pubs';
     if (targetId) {
+      // Get site capacity (default 1)
+      const capResult = await db.query(
+        `SELECT capacity FROM ${targetTable} WHERE id = $1`,
+        [targetId]
+      );
+      const capacity = (capResult.rows.length > 0 && capResult.rows[0].capacity) || 1;
+
+      // Get all overlapping bookings for this site
       const overlapResult = await db.query(
-        `SELECT id FROM bookings
+        `SELECT check_in_date, check_out_date FROM bookings
          WHERE ${targetColumn} = $1
            AND status NOT IN ('cancelled', 'Cancelled')
            AND check_in_date < $3
            AND check_out_date > $2`,
         [targetId, data.check_in_date, data.check_out_date]
       );
-      if (overlapResult.rows.length > 0) {
-        return res.status(409).json({
-          error: 'dates_unavailable',
-          message: 'These dates are already booked. Please choose different dates.',
-        });
+
+      // For each night in the requested range, count existing bookings
+      const reqCheckIn = new Date(data.check_in_date);
+      const reqCheckOut = new Date(data.check_out_date);
+      const night = new Date(reqCheckIn);
+      night.setHours(0, 0, 0, 0);
+
+      while (night < reqCheckOut) {
+        const nightStr = night.toISOString().split('T')[0];
+        let count = 0;
+        for (const b of overlapResult.rows) {
+          const bIn = b.check_in_date.toString().split('T')[0];
+          const bOut = b.check_out_date.toString().split('T')[0];
+          if (nightStr >= bIn && nightStr < bOut) {
+            count++;
+          }
+        }
+        if (count >= capacity) {
+          return res.status(409).json({
+            error: 'dates_unavailable',
+            message: `This site is fully booked on ${nightStr}. Please choose different dates.`,
+          });
+        }
+        night.setDate(night.getDate() + 1);
       }
     }
 
