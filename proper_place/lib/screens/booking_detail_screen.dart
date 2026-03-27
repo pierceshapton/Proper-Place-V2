@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/screens/chat_screen.dart';
@@ -93,8 +94,9 @@ class BookingDetailScreen extends StatelessWidget {
   }
 
   Future<void> _launchUrl(String url) async {
-    if (url.startsWith('http')) {
-      print('Opening: $url');
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
