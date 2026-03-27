@@ -47,13 +47,16 @@ async function getNotificationCounts(req, res, next) {
     };
 
     // Get pending/new bookings count
-    if (userRole === 'admin') {
+    // Use mode param so admin-in-host-mode gets host-style counts
+    const effectiveRole = (userRole === 'admin' && mode === 'host') ? 'host' : userRole;
+
+    if (effectiveRole === 'admin') {
       // Admin sees all pending bookings
       const bookingsResult = await db.query(
         `SELECT COUNT(*) as count FROM bookings WHERE status IN ('pending', 'confirmed')`
       );
       counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);
-    } else if (userRole === 'host') {
+    } else if (effectiveRole === 'host') {
       // Host sees unseen bookings for their places
       const bookingsResult = await db.query(
         `SELECT COUNT(b.id) as count FROM bookings b
@@ -71,10 +74,10 @@ async function getNotificationCounts(req, res, next) {
       counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);
     }
 
-    if (userRole === 'host' || userRole === 'admin') {
+    if (effectiveRole === 'host' || effectiveRole === 'admin') {
 
       // Host requests (place applications) - pending places awaiting approval from admin
-      if (userRole === 'admin') {
+      if (effectiveRole === 'admin') {
         const hostRequestsResult = await db.query(
           `SELECT COUNT(*) as count FROM places WHERE approval_status = 'pending' AND deleted_at IS NULL`
         );
@@ -90,7 +93,7 @@ async function getNotificationCounts(req, res, next) {
           // Table doesn't exist yet - ignore
           counts.pendingHostApplications = 0;
         }
-      } else if (userRole === 'host') {
+      } else if (effectiveRole === 'host') {
         // Host sees unseen status changes (approved/rejected) on their sites
         const hostAppsResult = await db.query(
           `SELECT COUNT(*) as count FROM places WHERE owner_id = $1 AND host_status_seen = false AND deleted_at IS NULL`,

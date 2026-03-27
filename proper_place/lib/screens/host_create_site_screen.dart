@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'dart:io';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/storage_service.dart';
 import '../services/image_picker_service.dart';
 import '../services/place_service.dart';
@@ -99,6 +102,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   double longitude = -2.5879; // Default Bristol
   String city = 'Bristol';
   String country = 'UK';
+  bool pinConfirmed = false;
+  GoogleMapController? _mapController;
 
   List<String> facilities = [];
   bool facilitiesLoading = true;
@@ -554,7 +559,12 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         city = result.city;
         country = result.country;
         addressVerified = true;
+        pinConfirmed = false;
       });
+      // Animate map to new location if map exists
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(LatLng(result.latitude, result.longitude)),
+      );
     }
   }
 
@@ -578,6 +588,13 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         );
         return;
       }
+    }
+
+    if (addressVerified && !pinConfirmed && !addressUnchanged) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please move the pin to the exact entrance of your property')),
+      );
+      return;
     }
 
     if (descriptionController.text.isEmpty) {
@@ -818,6 +835,15 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               ),
               textCapitalization: TextCapitalization.words,
             ),
+            const SizedBox(height: 16),
+
+            // Description Field
+            _buildTextField(
+              label: 'Site Description *',
+              hint: 'Describe your site, location, amenities...',
+              controller: descriptionController,
+              maxLines: 4,
+            ),
             const SizedBox(height: 24),
 
             // Location Type Selector
@@ -913,15 +939,107 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 ],
               ),
             ],
-            const SizedBox(height: 16),
 
-            // Description Field
-            _buildTextField(
-              label: 'Site Description *',
-              hint: 'Describe your site, location, amenities...',
-              controller: descriptionController,
-              maxLines: 4,
-            ),
+            // Pin-drop map (shown after address is verified)
+            if (addressVerified) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFB923C).withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.pin_drop, color: const Color(0xFFF97316), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Move the pin to the exact entrance of your property from the nearest road',
+                        style: TextStyle(fontSize: 13, color: const Color(0xFFC2410C), fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  height: 250,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: LatLng(latitude, longitude),
+                          zoom: 17,
+                        ),
+                        onMapCreated: (controller) {
+                          _mapController = controller;
+                        },
+                        onCameraMove: (position) {
+                          if (!pinConfirmed) {
+                            setState(() => pinConfirmed = true);
+                          }
+                        },
+                        onCameraIdle: () async {
+                          final region = await _mapController?.getVisibleRegion();
+                          if (region != null) {
+                            final center = LatLng(
+                              (region.northeast.latitude + region.southwest.latitude) / 2,
+                              (region.northeast.longitude + region.southwest.longitude) / 2,
+                            );
+                            setState(() {
+                              latitude = center.latitude;
+                              longitude = center.longitude;
+                            });
+                          }
+                        },
+                        gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+                          Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+                        },
+                        markers: const {},
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: true,
+                        mapToolbarEnabled: false,
+                      ),
+                      // Fixed center pin
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: Icon(
+                          Icons.location_pin,
+                          size: 48,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    pinConfirmed ? Icons.check_circle : Icons.info_outline,
+                    size: 16,
+                    color: pinConfirmed ? const Color(0xFF22C55E) : Colors.grey[500],
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    pinConfirmed
+                        ? 'Pin location confirmed'
+                        : 'Move the map to position the pin',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: pinConfirmed ? const Color(0xFF16A34A) : Colors.grey[500],
+                      fontWeight: pinConfirmed ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
 
             // Access Route Description Field
