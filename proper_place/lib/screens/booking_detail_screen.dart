@@ -50,19 +50,17 @@ class BookingDetailScreen extends StatelessWidget {
 
   Future<void> _openWazeDirections(BuildContext context) async {
     try {
-      final wazeUrl =
+      final wazeDeepLink =
           'waze://navigate?ll=${place.locationLat},${place.locationLng}';
-      final webUrl =
+      final wazeWebUrl =
           'https://waze.com/ul?ll=${place.locationLat},${place.locationLng}&navigate=yes';
 
-      if (Platform.isIOS) {
-        try {
-          await _launchUrl(wazeUrl);
-        } catch (e) {
-          await _launchUrl(webUrl);
-        }
+      // Try deep link first (opens Waze app if installed), fall back to web
+      final deepUri = Uri.parse(wazeDeepLink);
+      if (await canLaunchUrl(deepUri)) {
+        await launchUrl(deepUri, mode: LaunchMode.externalApplication);
       } else {
-        await _launchUrl(wazeUrl);
+        await _launchUrl(wazeWebUrl);
       }
     } catch (e) {
       if (context.mounted) {
