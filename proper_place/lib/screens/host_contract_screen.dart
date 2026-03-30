@@ -195,8 +195,15 @@ class _HostContractScreenState extends State<HostContractScreen> {
                   _sectionText(
                     'a) This Agreement takes effect when you accept it and remains in force for as long as you have an active listing on the Proper Place platform.\n\n'
                     'b) Either party may terminate this Agreement at any time. You may do so by removing all your listings and contacting us to close your Host account.\n\n'
-                    'c) On termination, any pending bookings must be honoured or properly cancelled in accordance with the cancellation policy. Proper Place will process any outstanding payouts owed to you.\n\n'
-                    'd) Clauses relating to limitation of liability, indemnity, and regulatory compliance shall survive termination of this Agreement.',
+                    'c) On termination, any pending bookings must be honoured or properly cancelled in accordance with the cancellation policy. Proper Place will process any outstanding payouts owed to you for completed bookings.\n\n'
+                    'd) Proper Place reserves the right to suspend, wind down, or permanently cease operation of the platform at any time and for any reason, including but not limited to commercial, financial, regulatory, or strategic reasons, with or without prior notice. In the event that Proper Place ceases to operate:\n\n'
+                    '    • Proper Place shall bear no liability whatsoever for any loss of income, revenue, bookings, business, profits, or anticipated savings suffered by you as a result of the platform ceasing to operate.\n\n'
+                    '    • Proper Place shall bear no liability for any consequential, indirect, or special losses of any kind, including but not limited to: loss of opportunity, costs of finding alternative booking platforms, marketing costs, reputational impact, loss of Guest relationships, or any other financial or non-financial loss.\n\n'
+                    '    • You acknowledge that your business and income are not dependent on the continued operation of the Proper Place platform and that Proper Place makes no guarantee, representation, or warranty that the platform will continue to operate for any period of time.\n\n'
+                    '    • Proper Place will use reasonable efforts to provide notice of any planned cessation but is not obligated to do so in all circumstances.\n\n'
+                    '    • Proper Place will process any outstanding payouts owed to you for bookings that were completed before the platform ceased to operate, subject to available funds and Stripe processing timelines.\n\n'
+                    'e) You agree that you shall have no claim against Proper Place, its directors, officers, shareholders, employees, or agents for any losses arising from the closure, suspension, or discontinuation of the platform.\n\n'
+                    'f) Clauses relating to limitation of liability, indemnity, regulatory compliance, and assumption of risk shall survive termination of this Agreement.',
                   ),
                   const SizedBox(height: 16),
                   _sectionTitle('11. Amendments'),
