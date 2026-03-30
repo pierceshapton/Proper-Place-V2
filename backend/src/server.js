@@ -566,6 +566,24 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 17 error:', err.message);
     }
 
+    // Migration 18: Create user_reviews table for hosts to rate guests
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS user_reviews (
+          id SERIAL PRIMARY KEY,
+          reviewer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          reviewed_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          booking_id INTEGER NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+          rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(booking_id)
+        );
+      `);
+      console.log('[SERVER] ✅ Migration 18 completed (user_reviews table)');
+    } catch (err) {
+      console.error('[SERVER] Migration 18 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

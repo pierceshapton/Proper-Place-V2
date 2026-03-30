@@ -694,6 +694,30 @@ class ApiService {
     );
   }
 
+  // ==================== GUEST REVIEW METHODS ====================
+
+  /// Rate a guest after a completed booking (host only)
+  static Future<Map<String, dynamic>> createGuestReview({
+    required int bookingId,
+    required int rating,
+  }) async {
+    return _request(
+      method: 'POST',
+      endpoint: '/bookings/$bookingId/guest-review',
+      body: {'rating': rating},
+    );
+  }
+
+  /// Get average guest rating for a user
+  static Future<Map<String, dynamic>> getGuestRating({
+    required int userId,
+  }) async {
+    return _request(
+      method: 'GET',
+      endpoint: '/bookings/guest-rating/$userId',
+    );
+  }
+
   // ==================== REVIEW METHODS ====================
 
   /// Get reviews for a place

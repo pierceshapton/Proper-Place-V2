@@ -114,6 +114,9 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
           'amount': _formatPrice(booking['total_price'] ?? 0),
           'guestEmail': booking['guest_email'] ?? '',
           'guestPhone': booking['contact_phone'] ?? '',
+          'guestAvgRating': booking['guest_avg_rating'] != null ? double.tryParse(booking['guest_avg_rating'].toString()) : null,
+          'guestReviewCount': booking['guest_review_count'] ?? 0,
+          'guestReviewed': booking['guest_reviewed'] == true,
         };
 
         if (bookingsByDate[dateKey] == null) {
@@ -1022,6 +1025,24 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              if (booking['guestAvgRating'] != null) ...[
+                const SizedBox(width: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.star, size: 14, color: Color(0xFFFBBF24)),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${booking['guestAvgRating']}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                    ),
+                    Text(
+                      ' (${booking['guestReviewCount']})',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    ),
+                  ],
+                ),
+              ],
               Container(
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
@@ -1148,9 +1169,106 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                     child: const Text('Cancel Booking'),
                   ),
                 ),
+              if (booking['status'] == 'Completed' && booking['guestReviewed'] != true)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showRateGuestDialog(booking),
+                    icon: const Icon(Icons.star_outline, size: 16),
+                    label: const Text('Rate Guest'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFFB923C),
+                      side: const BorderSide(color: Color(0xFFFB923C)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              if (booking['status'] == 'Completed' && booking['guestReviewed'] == true)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: null,
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Rated'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF94A3B8),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _showRateGuestDialog(Map<String, dynamic> booking) {
+    int selectedRating = 0;
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Rate ${booking['guestName']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('How was your experience with this guest?'),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final starNum = index + 1;
+                  return GestureDetector(
+                    onTap: () => setDialogState(() => selectedRating = starNum),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        starNum <= selectedRating ? Icons.star : Icons.star_border,
+                        color: const Color(0xFFFBBF24),
+                        size: 40,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: selectedRating > 0 ? () async {
+                Navigator.pop(context);
+                try {
+                  final bookingId = booking['id'] is int ? booking['id'] : int.parse(booking['id'].toString());
+                  await ApiService.createGuestReview(bookingId: bookingId, rating: selectedRating);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Guest rated successfully! ⭐')),
+                    );
+                    _loadHostBookings();
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to submit rating: $e')),
+                    );
+                  }
+                }
+              } : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF1B4332),
+              ),
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
       ),
     );
   }

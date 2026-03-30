@@ -17,10 +17,12 @@ router.get('/all', authMiddleware, bookingController.getAllBookings); // Admin: 
 router.get('/search', authMiddleware, bookingController.searchBookings); // Admin: search bookings
 router.get('/host/my-bookings', authMiddleware, bookingController.getHostBookings); // Host: bookings for their places
 router.put('/host/mark-seen', authMiddleware, bookingController.markBookingsSeen); // Host: mark bookings as seen
+router.get('/guest-rating/:userId(\\d+)', authMiddleware, bookingController.getGuestRating);
 router.get('/', authMiddleware, bookingController.getBookings);
 router.get('/:id(\\d+)', authMiddleware, bookingController.getBookingDetail);
 router.post('/', authMiddleware, validationMiddleware('createBooking'), bookingController.createBooking);
 router.patch('/:id(\\d+)', authMiddleware, bookingController.updateBooking);
+router.post('/:id(\\d+)/guest-review', authMiddleware, bookingController.createGuestReview);
 router.delete('/:id(\\d+)', authMiddleware, bookingController.deleteBooking);
 
 module.exports = router;

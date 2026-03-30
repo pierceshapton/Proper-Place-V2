@@ -598,11 +598,19 @@ async function getHostBookings(req, res, next) {
       SELECT b.*,
              u.name as guest_name, u.email as guest_email,
              p.name as place_name, p.address as place_address,
-             p.owner_id as host_id, u_host.name as host_name
+             p.owner_id as host_id, u_host.name as host_name,
+             ur_avg.average_rating as guest_avg_rating,
+             ur_avg.review_count as guest_review_count,
+             CASE WHEN ur_booking.id IS NOT NULL THEN true ELSE false END as guest_reviewed
       FROM bookings b
       JOIN places p ON b.place_id = p.id
       LEFT JOIN users u ON b.user_id = u.id
       LEFT JOIN users u_host ON p.owner_id = u_host.id
+      LEFT JOIN LATERAL (
+        SELECT ROUND(AVG(rating)::numeric, 1) as average_rating, COUNT(*) as review_count
+        FROM user_reviews WHERE reviewed_user_id = b.user_id
+      ) ur_avg ON true
+      LEFT JOIN user_reviews ur_booking ON ur_booking.booking_id = b.id
     `;
     const params = [];
     let paramCount = 1;
@@ -804,6 +812,87 @@ async function searchBookings(req, res, next) {
   }
 }
 
+/**
+ * POST /bookings/:id/guest-review
+ * Host rates a guest after a completed booking
+ */
+async function createGuestReview(req, res, next) {
+  try {
+    const bookingId = req.params.id;
+    const reviewerId = req.user.userId;
+    const { rating } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'invalid_rating', message: 'Rating must be between 1 and 5' });
+    }
+
+    // Verify the booking exists, is completed, and the reviewer is the host
+    const booking = await db.query(
+      `SELECT b.*, p.owner_id FROM bookings b
+       JOIN places p ON b.place_id = p.id
+       WHERE b.id = $1`,
+      [bookingId]
+    );
+
+    if (booking.rows.length === 0) {
+      return res.status(404).json({ error: 'not_found', message: 'Booking not found' });
+    }
+
+    const b = booking.rows[0];
+    const isHost = b.owner_id === reviewerId;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isHost && !isAdmin) {
+      return res.status(403).json({ error: 'forbidden', message: 'Only the host can review a guest' });
+    }
+
+    if (b.status !== 'completed') {
+      return res.status(400).json({ error: 'not_completed', message: 'Can only review guests after booking is completed' });
+    }
+
+    // Check if already reviewed
+    const existing = await db.query('SELECT id FROM user_reviews WHERE booking_id = $1', [bookingId]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'already_reviewed', message: 'Guest already reviewed for this booking' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO user_reviews (reviewer_id, reviewed_user_id, booking_id, rating)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [reviewerId, b.user_id, bookingId, rating]
+    );
+
+    logger.info('Guest review created', { bookingId, reviewerId, guestId: b.user_id, rating });
+    return res.status(201).json({ review: result.rows[0] });
+  } catch (error) {
+    logger.error('Create guest review error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * GET /bookings/guest-rating/:userId
+ * Get average guest rating for a user
+ */
+async function getGuestRating(req, res, next) {
+  try {
+    const userId = req.params.userId;
+    const result = await db.query(
+      `SELECT ROUND(AVG(rating)::numeric, 1) as average_rating, COUNT(*) as review_count
+       FROM user_reviews WHERE reviewed_user_id = $1`,
+      [userId]
+    );
+    const row = result.rows[0];
+    return res.json({
+      averageRating: row.average_rating ? parseFloat(row.average_rating) : null,
+      reviewCount: parseInt(row.review_count),
+    });
+  } catch (error) {
+    logger.error('Get guest rating error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetail,
@@ -817,4 +906,6 @@ module.exports = {
   getHostBookings,
   markBookingsSeen,
   searchBookings,
+  createGuestReview,
+  getGuestRating,
 };
