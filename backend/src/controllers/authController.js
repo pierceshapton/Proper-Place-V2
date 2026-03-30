@@ -2,13 +2,14 @@ const db = require('../config/database');
 const { hashPassword, verifyPassword } = require('../utils/hash');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 const logger = require('../utils/logger');
+const { recordReferral } = require('./referralController');
 
 /**
  * POST /auth/signup
  */
 async function signup(req, res, next) {
   try {
-    const { email, password, name } = req.validatedBody;
+    const { email, password, name, referral_code } = req.validatedBody;
 
     // Check if user exists
     const existingUser = await db.query(
@@ -28,15 +29,25 @@ async function signup(req, res, next) {
 
     // Create user
     const result = await db.query(
-      `INSERT INTO users (email, password_hash, name, verified)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO users (email, password_hash, name, verified, referred_by)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING id, email, name, role, created_at`,
-      [email, passwordHash, name, false]
+      [email, passwordHash, name, false, referral_code || null]
     );
 
     const user = result.rows[0];
     const accessToken = generateAccessToken(user.id, user.email, user.role);
     const refreshToken = generateRefreshToken(user.id);
+
+    // Record referral if a code was provided
+    if (referral_code) {
+      try {
+        await recordReferral(referral_code, email);
+        logger.info('Referral recorded', { referralCode: referral_code, newUserEmail: email });
+      } catch (refErr) {
+        logger.error('Referral recording failed (non-blocking)', { error: refErr.message });
+      }
+    }
 
     // Store refresh token
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days

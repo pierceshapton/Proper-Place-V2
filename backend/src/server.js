@@ -624,6 +624,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 21 error:', err.message);
     }
 
+    // Migration 22: Add referred_by column to users
+    try {
+      console.log('[SERVER] Running migration 22: referred_by column...');
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by VARCHAR(50)`);
+      console.log('[SERVER] ✅ Migration 22 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 22 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

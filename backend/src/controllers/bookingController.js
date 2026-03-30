@@ -959,6 +959,30 @@ async function approveBooking(req, res, next) {
 
     logger.info('Booking approved', { userId, bookingId: id });
 
+    // Check if this is the host's first confirmed booking — trigger referral bonus
+    setImmediate(async () => {
+      try {
+        // Count confirmed bookings for this host's places
+        const hostBookings = await db.query(
+          `SELECT COUNT(*) FROM bookings b
+           JOIN places p ON p.id = b.place_id
+           WHERE p.owner_id = $1 AND b.status = 'confirmed'`,
+          [booking.owner_id]
+        );
+        // If this is the first confirmed booking, complete any pending referral
+        if (parseInt(hostBookings.rows[0].count) === 1) {
+          const hostRow = await db.query('SELECT email FROM users WHERE id = $1', [booking.owner_id]);
+          if (hostRow.rows.length) {
+            const { completeReferral } = require('./referralController');
+            await completeReferral(hostRow.rows[0].email);
+            logger.info('Referral bonus triggered for host first booking', { hostId: booking.owner_id });
+          }
+        }
+      } catch (e) {
+        logger.error('Referral completion check failed (non-blocking)', { error: e.message });
+      }
+    });
+
     // Notify guest (fire-and-forget)
     setImmediate(async () => {
       try {

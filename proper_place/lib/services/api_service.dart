@@ -259,16 +259,21 @@ class ApiService {
     required String name,
     required String password,
     required String confirmPassword,
+    String? referralCode,
   }) async {
+    final body = <String, dynamic>{
+      'email': email,
+      'name': name,
+      'password': password,
+      'confirmPassword': confirmPassword,
+    };
+    if (referralCode != null && referralCode.isNotEmpty) {
+      body['referral_code'] = referralCode;
+    }
     return _request(
       method: 'POST',
       endpoint: _authSignupEndpoint,
-      body: {
-        'email': email,
-        'name': name,
-        'password': password,
-        'confirmPassword': confirmPassword,
-      },
+      body: body,
     );
   }
 

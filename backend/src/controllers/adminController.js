@@ -17,6 +17,12 @@ async function getDashboard(req, res, next) {
       "SELECT COUNT(*) FROM places WHERE approval_status = 'pending'"
     );
 
+    let pendingReferrals = 0;
+    try {
+      const refResult = await db.query("SELECT COUNT(*) FROM referrals WHERE status = 'pending'");
+      pendingReferrals = parseInt(refResult.rows[0].count);
+    } catch (e) { /* table may not exist yet */ }
+
     res.json({
       dashboard: {
         total_users: parseInt(userCount.rows[0].count),
@@ -24,6 +30,7 @@ async function getDashboard(req, res, next) {
         total_bookings: parseInt(bookingCount.rows[0].count),
         total_reviews: parseInt(reviewCount.rows[0].count),
         pending_approvals: parseInt(pendingPlaces.rows[0].count),
+        pending_referrals: pendingReferrals,
       },
     });
   } catch (error) {

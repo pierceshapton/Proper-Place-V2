@@ -25,4 +25,9 @@ router.post('/seed-test-messages', adminController.seedTestMessages);
 // Cleanup all mock data (WARNING: Destructive!)
 router.delete('/cleanup-all', adminController.cleanupAllData);
 
+// Referral management
+const referralController = require('../controllers/referralController');
+router.get('/referrals', referralController.getAllReferrals);
+router.patch('/referrals/:id/complete', referralController.adminCompleteReferral);
+
 module.exports = router;

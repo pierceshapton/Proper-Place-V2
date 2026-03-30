@@ -5,6 +5,7 @@ const schemas = {
     email: Joi.string().email().required(),
     password: Joi.string().min(8).required(),
     name: Joi.string().min(2).max(255).required(),
+    referral_code: Joi.string().max(50).optional().allow('', null),
   }),
 
   login: Joi.object({

@@ -113,9 +113,63 @@ const completeReferral = async (hostEmail) => {
   }
 };
 
+// Admin: Get all referrals across all hosts
+const getAllReferrals = async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT r.id, r.referrer_id, r.referred_email, r.status, r.created_at, r.bonus_paid_at,
+              referrer.name AS referrer_name, referrer.email AS referrer_email,
+              referred.name AS referred_name, referred.role AS referred_role
+       FROM referrals r
+       JOIN users referrer ON referrer.id = r.referrer_id
+       LEFT JOIN users referred ON referred.email = r.referred_email
+       ORDER BY r.created_at DESC`
+    );
+
+    const pending = result.rows.filter(r => r.status === 'pending');
+    const completed = result.rows.filter(r => r.status === 'completed');
+
+    return res.json({
+      total: result.rows.length,
+      pending_count: pending.length,
+      completed_count: completed.length,
+      total_paid: completed.length * 25,
+      referrals: result.rows,
+    });
+  } catch (err) {
+    console.error('[REFERRAL] Admin get all error:', err.message);
+    return res.status(500).json({ error: 'Failed to get referrals' });
+  }
+};
+
+// Admin: Manually mark a referral as completed
+const adminCompleteReferral = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await db.query(
+      `UPDATE referrals SET status = 'completed', bonus_paid_at = NOW()
+       WHERE id = $1 AND status = 'pending'
+       RETURNING *`,
+      [id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Referral not found or already completed' });
+    }
+
+    return res.json({ referral: result.rows[0], message: 'Referral marked as completed — £25 bonus due' });
+  } catch (err) {
+    console.error('[REFERRAL] Admin complete error:', err.message);
+    return res.status(500).json({ error: 'Failed to complete referral' });
+  }
+};
+
 module.exports = {
   getOrCreateReferralCode,
   getReferralStats,
   recordReferral,
   completeReferral,
+  getAllReferrals,
+  adminCompleteReferral,
 };
