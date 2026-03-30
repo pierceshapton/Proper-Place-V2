@@ -108,9 +108,10 @@ class _HostContractScreenState extends State<HostContractScreen> {
                     'a) You are the legal owner of, or have the legal right and all necessary permissions to offer, the listed site for motorhome/campervan/caravan parking.\n\n'
                     'b) All information provided in your listing is accurate, truthful, and not misleading. This includes but is not limited to: site description, photographs, available facilities, access routes, vehicle size restrictions, and pricing.\n\n'
                     'c) You are solely responsible for the condition, safety, and suitability of your site at all times. This includes ensuring safe access, adequate drainage, level ground where stated, and that all facilities described in your listing are operational and available.\n\n'
-                    'd) You will maintain appropriate public liability insurance for your site that covers the use of your land by visiting motorhome/campervan/caravan owners. Proper Place does not provide insurance cover of any kind.\n\n'
-                    'e) You will respond to booking requests and guest enquiries in a timely and professional manner.\n\n'
-                    'f) You will treat all Guests fairly and will not discriminate on the grounds of race, gender, sexuality, disability, religion, or any other protected characteristic.',
+                    'd) You will maintain appropriate public liability insurance for your site that covers the use of your land by visiting motorhome/campervan/caravan owners and their passengers. Proper Place does not provide insurance cover of any kind and strongly recommends a minimum of £1,000,000 public liability cover.\n\n'
+                    'e) You accept a duty of care to all visitors to your site. You must take all reasonable steps to identify and mitigate hazards on or around your site, including but not limited to: uneven ground, open water, unfenced drops, unstable structures, low-hanging branches, poor lighting, slippery surfaces, and any other conditions that could cause injury. Where hazards cannot be eliminated, you must provide adequate warnings.\n\n'
+                    'f) You will respond to booking requests and guest enquiries in a timely and professional manner.\n\n'
+                    'g) You will treat all Guests fairly and will not discriminate on the grounds of race, gender, sexuality, disability, religion, or any other protected characteristic.',
                   ),
                   const SizedBox(height: 16),
                   _sectionTitle('3. Planning & Regulatory Compliance'),
@@ -134,18 +135,25 @@ class _HostContractScreenState extends State<HostContractScreen> {
                   const SizedBox(height: 16),
                   _sectionTitle('5. Limitation of Liability & Indemnity'),
                   _sectionText(
-                    'a) Proper Place acts solely as a technology platform connecting Hosts and Guests. We are not a party to any arrangement between you and any Guest. We do not own, manage, or control any listed site.\n\n'
-                    'b) PROPER PLACE ACCEPTS ABSOLUTELY NO RESPONSIBILITY OR LIABILITY FOR:\n\n'
+                    'a) Proper Place acts solely as a technology platform connecting Hosts and Guests. We are not a party to any arrangement between you and any Guest. We do not own, manage, inspect, or control any listed site. We have no oversight of site conditions and make no representations or warranties about the safety, suitability, or legality of any site.\n\n'
+                    'b) TO THE FULLEST EXTENT PERMITTED BY LAW, PROPER PLACE, ITS DIRECTORS, OFFICERS, EMPLOYEES, AGENTS, AND AFFILIATES ACCEPT ABSOLUTELY NO RESPONSIBILITY OR LIABILITY FOR:\n\n'
+                    '    • Any personal injury, bodily harm, death, or illness suffered by any person on or around your site, whether Guest, passenger, child, pet owner, visitor, trespasser, or any third party, howsoever and whensoever caused, including but not limited to injuries arising from slips, trips, falls, uneven terrain, open water, animal encounters, adverse weather, fire, structural collapse, vehicle movement, or any other cause.\n\n'
                     '    • Any damage to your property, land, site, or any structures, fixtures, or fittings, howsoever caused, including but not limited to damage caused by Guests, their vehicles, passengers, pets, or any third party.\n\n'
-                    '    • Any personal injury, death, or illness suffered by any person on or around your site, including Guests, their passengers, or any third party.\n\n'
+                    '    • Any allergic reaction, illness, food poisoning, infection, insect bite, or other health issue suffered by any person during or after a stay at your site.\n\n'
+                    '    • Any accident, injury, or damage involving vehicles (including motorhomes, campervans, caravans, towing vehicles, bicycles, or any other vehicle) on, entering, or leaving your site.\n\n'
                     '    • Any loss of income, business interruption, or consequential loss arising from the use of the platform, technical failures, booking cancellations, or any other cause.\n\n'
                     '    • Any dispute between you and a Guest, including but not limited to disputes about site conditions, noise, behaviour, damage, refunds, or any other matter.\n\n'
                     '    • Any theft, loss, or damage to Guest property, vehicles, or possessions while on your site.\n\n'
-                    'c) You agree to indemnify, defend, and hold harmless Proper Place, its directors, officers, employees, and agents from and against any and all claims, demands, actions, damages, losses, costs, and expenses (including reasonable legal fees) arising out of or in connection with:\n\n'
+                    '    • Any injury to or caused by animals (including pets, livestock, or wildlife) on or near your site.\n\n'
+                    'c) You acknowledge that Proper Place does not inspect, visit, certify, or approve the physical condition of any site. Listing approval is a review of submitted information only and does not constitute an endorsement of safety or suitability.\n\n'
+                    'd) You agree to indemnify, defend, and hold harmless Proper Place, its directors, officers, employees, and agents from and against any and all claims, demands, actions, damages, losses, costs, and expenses (including reasonable legal fees) arising out of or in connection with:\n\n'
+                    '    • Any personal injury, death, illness, or bodily harm suffered by any person on or in connection with your site.\n'
                     '    • Your listing or the use of your site by any Guest.\n'
                     '    • Your breach of this Agreement.\n'
                     '    • Your failure to comply with any applicable laws, regulations, or planning requirements.\n'
-                    '    • Any claim by a Guest or third party related to conditions on your site.',
+                    '    • Any claim by a Guest or third party related to conditions on your site.\n'
+                    '    • Any claim arising from your failure to maintain adequate insurance.\n\n'
+                    'e) This indemnity applies regardless of whether the claim arises from your negligence, the negligence of any Guest, or any other cause, except to the extent that liability cannot be excluded by law.',
                   ),
                   const SizedBox(height: 16),
                   _sectionTitle('6. Cancellations & Refunds'),
@@ -188,7 +196,21 @@ class _HostContractScreenState extends State<HostContractScreen> {
                     'Proper Place reserves the right to update this Agreement from time to time. We will notify you of any material changes via email or in-app notification. Continued use of the platform after changes take effect constitutes acceptance of the revised Agreement.',
                   ),
                   const SizedBox(height: 16),
-                  _sectionTitle('12. Governing Law'),
+                  _sectionTitle('12. Assumption of Risk & Visitor Safety'),
+                  _sectionText(
+                    'a) You acknowledge that hosting Guests on your land inherently involves risks, including but not limited to: risk of personal injury, property damage, vehicle accidents, encounters with animals or wildlife, adverse weather events, and other hazards associated with rural, outdoor, or private land environments.\n\n'
+                    'b) You accept full and sole responsibility for the safety of all persons who visit your site as a result of a booking made through the Proper Place platform. This responsibility extends to Guests, their passengers (including children), pets, and any other persons accompanying or visiting the Guest.\n\n'
+                    'c) You are responsible for conducting your own risk assessment of your site and for taking all reasonable and proportionate measures to prevent foreseeable harm. This includes but is not limited to: maintaining paths and access ways, securing or fencing hazardous areas, providing adequate lighting, warning of known hazards, and ensuring compliance with the Occupiers\' Liability Acts 1957 and 1984 (or equivalent legislation in your jurisdiction).\n\n'
+                    'd) You accept that Proper Place has no ability to assess, inspect, monitor, or verify the physical safety or condition of your site at any time. Our listing review process is limited to the information you submit and does not constitute a safety inspection, certification, or endorsement.\n\n'
+                    'e) In the event that any Guest, visitor, or third party suffers personal injury, illness, death, or any other harm on or in connection with your site, you agree that:\n\n'
+                    '    • You will not seek to hold Proper Place liable in any way.\n'
+                    '    • You will indemnify Proper Place against any and all claims, costs, and expenses arising from such events.\n'
+                    '    • You will cooperate fully with any investigation by relevant authorities.\n'
+                    '    • You will notify Proper Place promptly of any serious incident occurring on your site.\n\n'
+                    'f) Nothing in this Agreement creates any duty of care owed by Proper Place to any Guest, visitor, or third party using or visiting your site.',
+                  ),
+                  const SizedBox(height: 16),
+                  _sectionTitle('13. Governing Law'),
                   _sectionText(
                     'This Agreement is governed by and construed in accordance with the laws of England and Wales. Any disputes arising from this Agreement shall be subject to the exclusive jurisdiction of the courts of England and Wales.',
                   ),
