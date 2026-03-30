@@ -22,6 +22,9 @@ router.get('/', authMiddleware, bookingController.getBookings);
 router.get('/:id(\\d+)', authMiddleware, bookingController.getBookingDetail);
 router.post('/', authMiddleware, validationMiddleware('createBooking'), bookingController.createBooking);
 router.patch('/:id(\\d+)', authMiddleware, bookingController.updateBooking);
+router.put('/:id(\\d+)/approve', authMiddleware, bookingController.approveBooking);
+router.put('/:id(\\d+)/reject', authMiddleware, bookingController.rejectBooking);
+router.post('/:id(\\d+)/cancel', authMiddleware, bookingController.cancelBooking);
 router.post('/:id(\\d+)/guest-review', authMiddleware, bookingController.createGuestReview);
 router.delete('/:id(\\d+)', authMiddleware, bookingController.deleteBooking);
 

@@ -18,7 +18,7 @@ class BookingsHostScreen extends StatefulWidget {
 class _BookingsHostScreenState extends State<BookingsHostScreen> {
   late DateTime _selectedDate;
   late DateTime _focusedDate;
-  String _selectedFilter = 'Confirmed';
+  String _selectedFilter = 'Pending';
   bool _isLoading = true;
   String? _error;
   bool _sessionExpired = false;
@@ -1153,7 +1153,38 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              if (_canCancelBooking(booking))
+              if (booking['status'] == 'Pending') ...[  
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showApproveDialog(booking),
+                    icon: const Icon(Icons.check_circle_outline, size: 16),
+                    label: const Text('Approve'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF10B981),
+                      side: const BorderSide(color: Color(0xFF10B981)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showRejectDialog(booking),
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text('Reject'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: const BorderSide(color: Color(0xFFEF4444)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              if (booking['status'] == 'Confirmed' && _canCancelBooking(booking))
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
@@ -1417,7 +1448,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Cancel Booking?'),
         content: Text(
-          'Are you sure you want to cancel the booking from ${booking['guestName']} for ${booking['placeName']}?\n\nThis action cannot be undone.',
+          'Are you sure you want to cancel the booking from ${booking['guestName']} for ${booking['placeName']}?\n\nThe guest will be refunded and this action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -1425,18 +1456,126 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
             child: const Text('Keep Booking'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Booking cancelled'),
-                  backgroundColor: Color(0xFFEF4444),
-                ),
-              );
-              // Refresh notification counts after cancellation
-              widget.onRefresh?.call();
+              try {
+                await ApiService.cancelBooking(bookingId: booking['id'].toString());
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Booking cancelled'),
+                      backgroundColor: Color(0xFFEF4444),
+                    ),
+                  );
+                  _loadHostBookings();
+                  widget.onRefresh?.call();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to cancel: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Cancel Booking',
+                style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showApproveDialog(Map<String, dynamic> booking) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Approve Booking?'),
+        content: Text(
+          'Approve the booking from ${booking['guestName']} for ${booking['placeName']}?\n\nThe guest\'s payment will be charged.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await ApiService.approveBooking(bookingId: booking['id'].toString());
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Booking approved!'),
+                      backgroundColor: Color(0xFF10B981),
+                    ),
+                  );
+                  _loadHostBookings();
+                  widget.onRefresh?.call();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to approve: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Approve',
+                style: TextStyle(color: Color(0xFF10B981))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRejectDialog(Map<String, dynamic> booking) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject Booking?'),
+        content: Text(
+          'Reject the booking from ${booking['guestName']} for ${booking['placeName']}?\n\nThe guest\'s payment hold will be released.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await ApiService.rejectBooking(bookingId: booking['id'].toString());
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Booking rejected'),
+                      backgroundColor: Color(0xFFEF4444),
+                    ),
+                  );
+                  _loadHostBookings();
+                  widget.onRefresh?.call();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to reject: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Reject',
                 style: TextStyle(color: Color(0xFFEF4444))),
           ),
         ],

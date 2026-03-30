@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const pushService = require('../services/pushNotificationService');
 const autoMessageController = require('./autoMessageController');
 const crypto = require('crypto');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_51SVJ2DCGmQVz0gpF9CcIAr4tsMN3LKFicySXcKQWB378Mi4BVrUI2UstMGxHzR8vomIV1EJ9fMLz7xiAkQDEqJzp00wfNviq5a');
 
 /**
  * Generate a unique booking reference: PP-YYMMDD-XXXX
@@ -263,8 +264,8 @@ async function createBooking(req, res, next) {
                              check_in_time, check_out_time,
                              number_of_nights, total_price, status,
                              early_checkin_fee, late_checkout_fee,
-                             van_registration, contact_phone, special_requests, host_seen, booking_ref)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, $16)
+                             van_registration, contact_phone, special_requests, host_seen, booking_ref, payment_intent_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, $16, $17)
        RETURNING *`,
       [
         userId,
@@ -276,19 +277,20 @@ async function createBooking(req, res, next) {
         checkOutTime,
         nights,
         totalPrice,
-        'confirmed',
+        'pending',
         earlyCheckinFee,
         lateCheckoutFee,
         data.van_registration || null,
         data.contact_phone || null,
         data.special_requests || null,
         bookingRef,
+        data.payment_intent_id || null,
       ]
     );
 
     logger.info('Booking created', { userId, bookingId: result.rows[0].id });
 
-    // Notify host about the new booking (fire-and-forget)
+    // Notify host about the new booking request (fire-and-forget)
     if (data.place_id) {
       setImmediate(async () => {
         try {
@@ -302,6 +304,19 @@ async function createBooking(req, res, next) {
               result.rows[0].id
             );
           }
+        } catch (e) { /* ignore push errors */ }
+      });
+    }
+
+    // Notify guest that their booking is pending approval
+    if (data.place_id) {
+      setImmediate(async () => {
+        try {
+          const placeRes = await db.query('SELECT name FROM places WHERE id = $1', [data.place_id]);
+          await pushService.sendToUser(userId, 'Booking Submitted', `Your booking at ${placeRes.rows[0]?.name || 'a site'} is pending host approval`, {
+            type: 'booking_update',
+            status: 'pending',
+          });
         } catch (e) { /* ignore push errors */ }
       });
     }
@@ -893,6 +908,225 @@ async function getGuestRating(req, res, next) {
   }
 }
 
+/**
+ * PUT /bookings/:id/approve
+ * Host approves a pending booking — captures the Stripe payment.
+ */
+async function approveBooking(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+    const userRole = req.user.role;
+
+    // Fetch booking + place owner
+    const bookingRes = await db.query(
+      `SELECT b.*, p.owner_id, p.name AS place_name
+       FROM bookings b
+       JOIN places p ON p.id = b.place_id
+       WHERE b.id = $1`,
+      [id]
+    );
+
+    if (bookingRes.rows.length === 0) {
+      return res.status(404).json({ error: 'booking_not_found', message: 'Booking not found' });
+    }
+
+    const booking = bookingRes.rows[0];
+
+    if (booking.owner_id !== userId && userRole !== 'admin') {
+      return res.status(403).json({ error: 'forbidden', message: 'Only the host or admin can approve bookings' });
+    }
+
+    if (booking.status !== 'pending') {
+      return res.status(400).json({ error: 'invalid_status', message: `Cannot approve a booking with status '${booking.status}'` });
+    }
+
+    // Capture the Stripe payment if a payment intent was stored
+    if (booking.payment_intent_id) {
+      try {
+        await stripe.paymentIntents.capture(booking.payment_intent_id);
+        logger.info('Stripe payment captured', { bookingId: id, paymentIntentId: booking.payment_intent_id });
+      } catch (stripeErr) {
+        logger.error('Stripe capture failed', { bookingId: id, error: stripeErr.message });
+        return res.status(502).json({ error: 'payment_capture_failed', message: 'Failed to capture payment. Please try again.' });
+      }
+    }
+
+    const result = await db.query(
+      'UPDATE bookings SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      ['confirmed', id]
+    );
+
+    logger.info('Booking approved', { userId, bookingId: id });
+
+    // Notify guest (fire-and-forget)
+    setImmediate(async () => {
+      try {
+        await pushService.sendToUser(booking.user_id, 'Booking Confirmed!', `Your booking at ${booking.place_name} has been approved by the host!`, {
+          type: 'booking_update',
+          status: 'confirmed',
+        });
+      } catch (e) { /* ignore */ }
+    });
+
+    res.json({ booking: result.rows[0] });
+  } catch (error) {
+    logger.error('Approve booking error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * PUT /bookings/:id/reject
+ * Host rejects a pending booking — cancels the Stripe payment hold.
+ */
+async function rejectBooking(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+    const userRole = req.user.role;
+
+    const bookingRes = await db.query(
+      `SELECT b.*, p.owner_id, p.name AS place_name
+       FROM bookings b
+       JOIN places p ON p.id = b.place_id
+       WHERE b.id = $1`,
+      [id]
+    );
+
+    if (bookingRes.rows.length === 0) {
+      return res.status(404).json({ error: 'booking_not_found', message: 'Booking not found' });
+    }
+
+    const booking = bookingRes.rows[0];
+
+    if (booking.owner_id !== userId && userRole !== 'admin') {
+      return res.status(403).json({ error: 'forbidden', message: 'Only the host or admin can reject bookings' });
+    }
+
+    if (booking.status !== 'pending') {
+      return res.status(400).json({ error: 'invalid_status', message: `Cannot reject a booking with status '${booking.status}'` });
+    }
+
+    // Cancel the Stripe payment hold if a payment intent was stored
+    if (booking.payment_intent_id) {
+      try {
+        await stripe.paymentIntents.cancel(booking.payment_intent_id);
+        logger.info('Stripe payment hold cancelled', { bookingId: id, paymentIntentId: booking.payment_intent_id });
+      } catch (stripeErr) {
+        logger.error('Stripe cancel failed', { bookingId: id, error: stripeErr.message });
+        // Continue with rejection even if Stripe cancel fails — the hold will expire
+      }
+    }
+
+    const result = await db.query(
+      'UPDATE bookings SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      ['cancelled', id]
+    );
+
+    logger.info('Booking rejected', { userId, bookingId: id });
+
+    // Notify guest (fire-and-forget)
+    setImmediate(async () => {
+      try {
+        await pushService.sendToUser(booking.user_id, 'Booking Not Approved', `Your booking at ${booking.place_name} was not approved by the host.`, {
+          type: 'booking_update',
+          status: 'cancelled',
+        });
+      } catch (e) { /* ignore */ }
+    });
+
+    res.json({ booking: result.rows[0] });
+  } catch (error) {
+    logger.error('Reject booking error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * PUT /bookings/:id/cancel
+ * Guest or host cancels a confirmed/pending booking.
+ */
+async function cancelBooking(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+    const userRole = req.user.role;
+
+    const bookingRes = await db.query(
+      `SELECT b.*, p.owner_id, p.name AS place_name
+       FROM bookings b
+       JOIN places p ON p.id = b.place_id
+       WHERE b.id = $1`,
+      [id]
+    );
+
+    if (bookingRes.rows.length === 0) {
+      return res.status(404).json({ error: 'booking_not_found', message: 'Booking not found' });
+    }
+
+    const booking = bookingRes.rows[0];
+
+    // Allow guest (booking owner), host (place owner), or admin
+    if (booking.user_id !== userId && booking.owner_id !== userId && userRole !== 'admin') {
+      return res.status(403).json({ error: 'forbidden', message: 'Cannot cancel this booking' });
+    }
+
+    if (booking.status === 'cancelled' || booking.status === 'Completed') {
+      return res.status(400).json({ error: 'invalid_status', message: `Cannot cancel a booking with status '${booking.status}'` });
+    }
+
+    // Cancel/refund Stripe payment if applicable
+    if (booking.payment_intent_id) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
+        if (pi.status === 'requires_capture') {
+          // Not yet captured — just cancel the hold
+          await stripe.paymentIntents.cancel(booking.payment_intent_id);
+        } else if (pi.status === 'succeeded') {
+          // Already captured — issue refund
+          await stripe.refunds.create({ payment_intent: booking.payment_intent_id });
+        }
+        logger.info('Stripe payment cancelled/refunded', { bookingId: id });
+      } catch (stripeErr) {
+        logger.error('Stripe cancel/refund failed', { bookingId: id, error: stripeErr.message });
+      }
+    }
+
+    const result = await db.query(
+      'UPDATE bookings SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      ['cancelled', id]
+    );
+
+    logger.info('Booking cancelled', { userId, bookingId: id });
+
+    // Notify the other party (fire-and-forget)
+    setImmediate(async () => {
+      try {
+        if (booking.user_id === userId) {
+          // Guest cancelled — notify host
+          const userRes = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
+          await pushService.sendToUser(booking.owner_id, 'Booking Cancelled', `${userRes.rows[0]?.name || 'A guest'} cancelled their booking at ${booking.place_name}`, {
+            type: 'booking_update',
+            status: 'cancelled',
+          });
+        } else {
+          // Host cancelled — notify guest
+          await pushService.sendToUser(booking.user_id, 'Booking Cancelled', `Your booking at ${booking.place_name} has been cancelled by the host.`, {
+            type: 'booking_update',
+            status: 'cancelled',
+          });
+        }
+      } catch (e) { /* ignore */ }
+    });
+
+    res.json({ booking: result.rows[0] });
+  } catch (error) {
+    logger.error('Cancel booking error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetail,
@@ -908,4 +1142,7 @@ module.exports = {
   searchBookings,
   createGuestReview,
   getGuestRating,
+  approveBooking,
+  rejectBooking,
+  cancelBooking,
 };

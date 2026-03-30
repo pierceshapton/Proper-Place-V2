@@ -17,10 +17,12 @@ router.post('/create-intent', async (req, res) => {
       });
     }
 
-    // Create a real Stripe payment intent
+    // Create a Stripe payment intent with manual capture
+    // Payment is authorised (held) now but only captured when host approves
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount), // Amount in smallest currency unit (pence)
       currency: currency.toLowerCase(),
+      capture_method: 'manual',
       automatic_payment_methods: {
         enabled: true,
       },

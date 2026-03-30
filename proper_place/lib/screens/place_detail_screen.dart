@@ -338,21 +338,21 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         // If availability check fails, proceed and let backend reject if needed
       }
 
-      // Process payment via Stripe
-      final paymentSuccess = await PaymentService.processPayment(
+      // Process payment via Stripe (authorises card but doesn't capture yet)
+      final paymentIntentId = await PaymentService.processPayment(
         amount: totalPrice,
         currency: 'GBP',
         bookingId: 'booking_${DateTime.now().millisecondsSinceEpoch}',
         context: context,
       );
 
-      if (!paymentSuccess) {
+      if (paymentIntentId == null) {
         // User cancelled or payment failed — don't create booking
         setState(() => _isProcessingPayment = false);
         return;
       }
 
-      // Payment successful — now create the booking
+      // Payment authorised — now create the booking (pending host approval)
       final token = await StorageService.getToken();
       // Format times as HH:mm
       final checkInTimeStr = '${_checkInTime.hour.toString().padLeft(2, '0')}:${_checkInTime.minute.toString().padLeft(2, '0')}';
@@ -371,7 +371,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           'check_in_time': checkInTimeStr,
           'check_out_time': checkOutTimeStr,
           'total_price': totalPrice,
-          'status': 'confirmed',
+          'payment_intent_id': paymentIntentId,
         }),
       );
 
@@ -380,7 +380,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         final bookingRef = bookingData?['booking_ref'];
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Booking confirmed! Ref: ${bookingRef ?? 'Success'}')),
+            SnackBar(content: Text('Booking submitted! Ref: ${bookingRef ?? 'Success'} — awaiting host approval')),
           );
           // Navigate to Bookings tab (index 1 for user mode)
           HomeScreen.setNextTab(1);

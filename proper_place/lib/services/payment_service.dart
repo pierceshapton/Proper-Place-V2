@@ -25,8 +25,8 @@ class PaymentService {
   }
 
   /// Process payment for a booking
-  /// Returns true if payment successful, false otherwise
-  static Future<bool> processPayment({
+  /// Returns the paymentIntentId if payment authorised, null otherwise
+  static Future<String?> processPayment({
     required double amount,
     required String currency,
     required String bookingId,
@@ -43,6 +43,8 @@ class PaymentService {
         currency: currency,
       );
       debugPrint('🟦 PAYMENT: Payment intent created: ${paymentIntentData['clientSecret'] != null}');
+
+      final paymentIntentId = paymentIntentData['paymentIntentId'] as String?;
 
       // Initialize payment sheet
       debugPrint('🟦 PAYMENT: Initializing payment sheet...');
@@ -63,9 +65,9 @@ class PaymentService {
       // Display payment sheet
       debugPrint('🟦 PAYMENT: Presenting payment sheet...');
       await Stripe.instance.presentPaymentSheet();
-      debugPrint('🟦 PAYMENT: ✅ Payment sheet presented and payment successful');
+      debugPrint('🟦 PAYMENT: ✅ Payment sheet presented and payment authorised');
 
-      return true;
+      return paymentIntentId;
     } on StripeException catch (e) {
       debugPrint('🔴 PAYMENT STRIPE ERROR: ${e.error.localizedMessage}');
       debugPrint('🔴 PAYMENT STRIPE ERROR Details: $e');
@@ -77,7 +79,7 @@ class PaymentService {
           ),
         );
       }
-      return false;
+      return null;
     } catch (e) {
       debugPrint('🔴 PAYMENT ERROR: $e');
       debugPrint('🔴 PAYMENT ERROR Type: ${e.runtimeType}');
@@ -89,7 +91,7 @@ class PaymentService {
           ),
         );
       }
-      return false;
+      return null;
     }
   }
 

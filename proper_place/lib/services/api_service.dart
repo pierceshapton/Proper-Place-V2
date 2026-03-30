@@ -602,6 +602,26 @@ class ApiService {
     );
   }
 
+  /// Host approves a pending booking
+  static Future<Map<String, dynamic>> approveBooking({
+    required String bookingId,
+  }) async {
+    return _request(
+      method: 'PUT',
+      endpoint: '/bookings/$bookingId/approve',
+    );
+  }
+
+  /// Host rejects a pending booking
+  static Future<Map<String, dynamic>> rejectBooking({
+    required String bookingId,
+  }) async {
+    return _request(
+      method: 'PUT',
+      endpoint: '/bookings/$bookingId/reject',
+    );
+  }
+
   /// Create payment intent with Stripe
   static Future<Map<String, dynamic>> createPaymentIntent({
     required int amount,
