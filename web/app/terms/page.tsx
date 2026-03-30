@@ -15,7 +15,7 @@ export default function TermsPage() {
       <section className="bg-dark-bg text-white py-16">
         <div className="container-md">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Terms of Service</h1>
-          <p className="text-gray-400">Last updated: February 2026</p>
+          <p className="text-gray-400">Last updated: March 2026</p>
         </div>
       </section>
 
@@ -74,16 +74,56 @@ export default function TermsPage() {
               <li>Arriving and departing at agreed times</li>
             </ul>
 
-            <h2 className="text-2xl font-bold mt-8 mb-4">6. Payments</h2>
-            <p className="text-gray-600 mb-6">
-              All payments are processed securely through our platform. Hosts set their own prices and 
+            <h2 className="text-2xl font-bold mt-8 mb-4">6. Payments, Authorisation &amp; Fund Holding</h2>
+            <p className="text-gray-600 mb-4">
+              All payments are processed securely through our platform via Stripe. Hosts set their own prices and 
               Proper Place may charge a service fee to facilitate bookings.
+            </p>
+            <p className="text-gray-600 mb-4">
+              <strong>6.1 Payment Authorisation.</strong> When a Guest submits a booking request, their chosen payment method is 
+              authorised for the full booking amount. This authorisation places a temporary hold on the funds but does not 
+              constitute a charge. No funds are transferred at this stage.
+            </p>
+            <p className="text-gray-600 mb-4">
+              <strong>6.2 Host Approval &amp; Payment Capture.</strong> Payment will be taken by Proper Place once the Host has 
+              approved the Guest&apos;s stay. If the Host does not approve the booking, the authorisation hold is released and 
+              no charge is made to the Guest&apos;s payment method.
+            </p>
+            <p className="text-gray-600 mb-4">
+              <strong>6.3 Fund Holding.</strong> Proper Place hold these funds until the stay has completed as insurance for 
+              all parties. Funds are held by Proper Place Ltd in a designated client account and are disbursed to the Host 
+              following the successful completion of the Guest&apos;s stay. This holding period serves as protection for both 
+              Hosts and Guests in the event of a dispute, cancellation, or damage claim.
+            </p>
+            <p className="text-gray-600 mb-4">
+              <strong>6.4 Release of Funds.</strong> Upon completion of the stay (defined as the check-out date and time having 
+              passed without an active dispute), funds will be released to the Host in accordance with the applicable 
+              disbursement schedule. Proper Place reserves the right to delay disbursement where a dispute has been raised 
+              or where there is a reasonable suspicion of fraud or breach of these Terms.
+            </p>
+            <p className="text-gray-600 mb-6">
+              <strong>6.5 Refunds.</strong> Where a booking is cancelled in accordance with the applicable cancellation policy, 
+              or where a Host rejects a booking request, the Guest shall receive a full refund of the authorised amount. 
+              Refund processing times may vary depending on the Guest&apos;s payment provider.
             </p>
 
             <h2 className="text-2xl font-bold mt-8 mb-4">7. Cancellation Policy</h2>
+            <p className="text-gray-600 mb-4">
+              <strong>7.1</strong> Guests may cancel a pending booking (prior to Host approval) at any time. The payment 
+              authorisation hold will be released and no charge will be made.
+            </p>
+            <p className="text-gray-600 mb-4">
+              <strong>7.2</strong> Guests may cancel a confirmed booking (after Host approval) up to 24 hours before the 
+              scheduled check-in time for a full refund. Cancellations made within 24 hours of check-in may be subject to 
+              a cancellation fee as determined by the Host&apos;s cancellation policy.
+            </p>
+            <p className="text-gray-600 mb-4">
+              <strong>7.3</strong> Hosts may reject a pending booking request at their discretion. The Guest&apos;s payment 
+              authorisation hold will be released immediately upon rejection.
+            </p>
             <p className="text-gray-600 mb-6">
-              Cancellation policies vary by listing. Please review the specific policy for each booking 
-              before confirming your reservation.
+              <strong>7.4</strong> Hosts may cancel a confirmed booking. In such cases, the Guest will receive a full 
+              refund and Proper Place may, at its discretion, assist the Guest in finding alternative accommodation.
             </p>
 
             <h2 className="text-2xl font-bold mt-8 mb-4">8. Prohibited Activities</h2>

@@ -1039,6 +1039,16 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Payment will be taken by Proper Place once the host has approved your stay. Proper Place hold these funds until the stay has completed as insurance for all parties.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF94A3B8),
+                            height: 1.4,
+                          ),
+                        ),
                           ],
                         ),
                       ),

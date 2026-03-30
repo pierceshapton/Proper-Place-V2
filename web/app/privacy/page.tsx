@@ -63,7 +63,9 @@ export default function PrivacyPage() {
             <h3 className="text-xl font-semibold mt-6 mb-3">Booking &amp; Transaction Data</h3>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
               <li>Booking history and preferences</li>
-              <li>Payment information (processed by Stripe - we do not store card details)</li>
+              <li>Payment information (processed by Stripe &mdash; we do not store card details)</li>
+              <li>Payment authorisation and capture status (pending, confirmed, refunded)</li>
+              <li>Fund holding records associated with completed stays</li>
               <li>Reviews and ratings</li>
             </ul>
 
@@ -94,6 +96,10 @@ export default function PrivacyPage() {
                   <tr>
                     <td className="px-4 py-3 text-sm text-gray-600">Processing bookings and payments</td>
                     <td className="px-4 py-3 text-sm text-gray-600">Contract performance</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-3 text-sm text-gray-600">Authorising and holding payment funds pending Host approval and stay completion</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">Contract performance / Legitimate interest</td>
                   </tr>
                   <tr>
                     <td className="px-4 py-3 text-sm text-gray-600">Sending booking confirmations and updates</td>
