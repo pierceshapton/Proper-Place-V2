@@ -738,6 +738,17 @@ class ApiService {
     );
   }
 
+  // ==================== REFERRAL METHODS ====================
+
+  /// Get or create referral code for current host
+  static Future<String> getReferralCode() async {
+    final response = await _request(
+      method: 'GET',
+      endpoint: '/referrals/code',
+    );
+    return response['referral_code'] ?? '';
+  }
+
   // ==================== REVIEW METHODS ====================
 
   /// Get reviews for a place

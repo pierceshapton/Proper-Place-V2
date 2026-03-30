@@ -42,6 +42,7 @@ const chatRoutes = require('./routes/chat');
 const uploadRoutes = require('./routes/upload');
 const autoMessagesRoutes = require('./routes/autoMessages');
 const hostLeadsRoutes = require('./routes/hostLeads');
+const referralRoutes = require('./routes/referrals');
 const pushService = require('./services/pushNotificationService');
 
 // User controller for user endpoints
@@ -142,6 +143,7 @@ app.use('/admin', adminRoutes);
 app.use('/upload', uploadRoutes);
 app.use('/auto-messages', autoMessagesRoutes);
 app.use('/host-leads', hostLeadsRoutes);
+app.use('/referrals', referralRoutes);
 
 // User routes
 app.get('/users/:id', userController.getUserProfile);
@@ -600,6 +602,26 @@ async function initializeDatabase() {
       console.log('[SERVER] ✅ Migration 20 completed');
     } catch (err) {
       console.error('[SERVER] Migration 20 error:', err.message);
+    }
+
+    // Migration 21: Add referrals table and referral_code column
+    try {
+      console.log('[SERVER] Running migration 21: referrals...');
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) UNIQUE`);
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS referrals (
+          id SERIAL PRIMARY KEY,
+          referrer_id INTEGER NOT NULL REFERENCES users(id),
+          referred_email VARCHAR(255) NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT NOW(),
+          bonus_paid_at TIMESTAMP,
+          UNIQUE(referrer_id, referred_email)
+        )
+      `);
+      console.log('[SERVER] ✅ Migration 21 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 21 error:', err.message);
     }
 
     // Always try to seed admin user if it doesn't exist
