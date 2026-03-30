@@ -11,6 +11,7 @@ router.get('/facilities', (req, res) => {
     'Grey water disposal point',
     'Waste recycling point',
     'Restaurant/Pub',
+    'Dog Friendly',
   ];
 
   res.json({

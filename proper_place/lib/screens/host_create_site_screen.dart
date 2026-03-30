@@ -159,6 +159,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
           'Grey water disposal point',
           'Waste recycling point',
           'Restaurant/Pub',
+          'Dog Friendly',
         ];
         selectedFacilities = {
           for (var facility in facilities) facility: false

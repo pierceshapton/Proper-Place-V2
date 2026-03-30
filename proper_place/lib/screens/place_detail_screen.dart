@@ -1509,6 +1509,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     if (lower.contains('grey water') || lower.contains('gray water')) return Icons.water;
     if (lower.contains('waste') || lower.contains('recycl')) return Icons.recycling;
     if (lower.contains('restaurant') || lower.contains('pub') || lower.contains('food')) return Icons.restaurant;
+    if (lower.contains('dog')) return Icons.pets;
     return Icons.check_circle_outline;
   }
 
