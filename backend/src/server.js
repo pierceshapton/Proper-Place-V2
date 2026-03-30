@@ -653,6 +653,24 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 24 error:', err.message);
     }
 
+    // Migration 25: Immutable contract acceptance audit log
+    try {
+      console.log('[SERVER] Running migration 25: Contract acceptances audit table...');
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS contract_acceptances (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          contract_version VARCHAR(10) NOT NULL,
+          accepted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          ip_address VARCHAR(45),
+          user_agent TEXT
+        )
+      `);
+      console.log('[SERVER] ✅ Migration 25 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 25 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

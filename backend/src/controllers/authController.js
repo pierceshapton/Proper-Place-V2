@@ -287,15 +287,43 @@ async function getHostContractStatus(req, res, next) {
 /**
  * POST /auth/accept-host-contract
  */
+const CURRENT_CONTRACT_VERSION = '1.0';
+
 async function acceptHostContract(req, res, next) {
   try {
     const userId = req.user.userId;
-    const version = req.body.version || '1.0';
+
+    // Check if already signed — cannot re-sign or unsign
+    const existing = await db.query(
+      `SELECT host_contract_accepted_at FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (existing.rows[0]?.host_contract_accepted_at) {
+      return res.status(409).json({
+        error: 'already_signed',
+        message: 'You have already signed the Host Agreement.',
+      });
+    }
+
+    // Version is set server-side, not from client
+    const version = CURRENT_CONTRACT_VERSION;
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null;
+    const userAgent = req.headers['user-agent'] || null;
+
+    // Update user record
     await db.query(
       `UPDATE users SET host_contract_accepted_at = NOW(), host_contract_version = $1 WHERE id = $2`,
       [version, userId]
     );
-    logger.info('Host contract accepted', { userId, version });
+
+    // Insert immutable audit record
+    await db.query(
+      `INSERT INTO contract_acceptances (user_id, contract_version, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4)`,
+      [userId, version, ip, userAgent]
+    );
+
+    logger.info('Host contract accepted', { userId, version, ip });
     res.json({ accepted: true, version });
   } catch (error) {
     logger.error('Accept host contract error', { error: error.message });
