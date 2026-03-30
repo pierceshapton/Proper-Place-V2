@@ -9,6 +9,7 @@ import '../services/place_service.dart';
 import '../services/google_places_service.dart';
 import '../services/api_service.dart';
 import '../config/app_config.dart';
+import 'host_contract_screen.dart';
 
 class HostCreateSiteScreen extends StatefulWidget {
   final Map<String, dynamic>? siteToEdit;
@@ -45,6 +46,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   int numberOfVanSpaces = 0; // Number of van spaces available (0 = must be set)
   bool vehicleDimensionsConfirmed = false; // Track if host confirmed dimensions
   bool useMetricUnits = false; // Toggle between feet and metres
+  bool _contractChecked = false;
   
   // Conversion helpers
   double feetToMetres(double feet) => feet * 0.3048;
@@ -125,6 +127,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     
     _priceFocusNode.addListener(_onPriceFocusChange);
 
+    // Check host contract for new sites
+    if (widget.siteToEdit == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkContract());
+    }
+
     // Load facilities first, then site data (to avoid race condition)
     _fetchFacilities().then((_) {
       if (widget.siteToEdit != null) {
@@ -133,6 +140,30 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         _loadDraft();
       }
     });
+  }
+
+  Future<void> _checkContract() async {
+    if (_contractChecked) return;
+    try {
+      final status = await ApiService.getHostContractStatus();
+      if (status['accepted'] == true) {
+        _contractChecked = true;
+        return;
+      }
+      if (!mounted) return;
+      final accepted = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const HostContractScreen()),
+      );
+      if (accepted == true) {
+        _contractChecked = true;
+      } else if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      // If check fails (e.g. network), allow through — server-side guard will catch it
+      _contractChecked = true;
+    }
   }
 
   Future<void> _fetchFacilities() async {

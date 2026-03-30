@@ -917,6 +917,23 @@ class ApiService {
 
   /// Get the API base URL (useful for debugging)
   static String getBaseUrl() => _baseUrl;
+
+  /// Check if host has accepted the contract
+  static Future<Map<String, dynamic>> getHostContractStatus() async {
+    return _request(
+      method: 'GET',
+      endpoint: '/auth/host-contract-status',
+    );
+  }
+
+  /// Accept the host contract
+  static Future<Map<String, dynamic>> acceptHostContract({required String version}) async {
+    return _request(
+      method: 'POST',
+      endpoint: '/auth/accept-host-contract',
+      body: {'version': version},
+    );
+  }
 }
 
 /// Custom exception for API errors

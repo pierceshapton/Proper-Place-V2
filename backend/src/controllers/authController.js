@@ -146,7 +146,8 @@ async function getCurrentUser(req, res, next) {
     const result = await db.query(
       `SELECT id, email, name, avatar_url, bio, phone_number, 
               vehicle_registration, vehicle_length, vehicle_height, vehicle_width,
-              dark_mode, offline_mode, role, verified, created_at
+              dark_mode, offline_mode, role, verified, created_at,
+              host_contract_accepted_at, host_contract_version
        FROM users WHERE id = $1`,
       [userId]
     );
@@ -258,10 +259,56 @@ async function logout(req, res, next) {
   }
 }
 
+/**
+ * GET /auth/host-contract-status
+ */
+async function getHostContractStatus(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const result = await db.query(
+      `SELECT host_contract_accepted_at, host_contract_version FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+    const user = result.rows[0];
+    res.json({
+      accepted: !!user.host_contract_accepted_at,
+      version: user.host_contract_version || null,
+      accepted_at: user.host_contract_accepted_at || null,
+    });
+  } catch (error) {
+    logger.error('Get host contract status error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * POST /auth/accept-host-contract
+ */
+async function acceptHostContract(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const version = req.body.version || '1.0';
+    await db.query(
+      `UPDATE users SET host_contract_accepted_at = NOW(), host_contract_version = $1 WHERE id = $2`,
+      [version, userId]
+    );
+    logger.info('Host contract accepted', { userId, version });
+    res.json({ accepted: true, version });
+  } catch (error) {
+    logger.error('Accept host contract error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   signup,
   login,
   getCurrentUser,
   refreshToken,
   logout,
+  getHostContractStatus,
+  acceptHostContract,
 };

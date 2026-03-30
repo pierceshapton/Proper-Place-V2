@@ -643,6 +643,16 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 23 error:', err.message);
     }
 
+    // Migration 24: Host contract acceptance tracking
+    try {
+      console.log('[SERVER] Running migration 24: Host contract columns...');
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS host_contract_accepted_at TIMESTAMP`);
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS host_contract_version VARCHAR(10)`);
+      console.log('[SERVER] ✅ Migration 24 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 24 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

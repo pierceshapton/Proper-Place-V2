@@ -16,6 +16,10 @@ router.post('/refresh', authLimiter, authController.refreshToken);
 router.get('/me', authMiddleware, authController.getCurrentUser);
 router.post('/logout', authMiddleware, authController.logout);
 
+// Host contract
+router.get('/host-contract-status', authMiddleware, authController.getHostContractStatus);
+router.post('/accept-host-contract', authMiddleware, authController.acceptHostContract);
+
 // Device token registration for push notifications
 router.post('/device-token', authMiddleware, async (req, res) => {
   try {
