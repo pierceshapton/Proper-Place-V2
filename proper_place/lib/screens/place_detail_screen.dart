@@ -84,8 +84,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
 
   Future<void> _loadReviews() async {
     try {
+      final placeId = widget.place['id'];
       final response = await http.get(
-        Uri.parse('${AppConfig.properPlaceBackendUrl}/reviews?place_id=${widget.place['id']}'),
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/reviews/places/$placeId/reviews'),
       );
 
       if (response.statusCode == 200) {
@@ -403,6 +404,35 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     } finally {
       if (mounted) setState(() => _isProcessingPayment = false);
     }
+  }
+
+  void _showFullScreenImage(BuildContext context, String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            elevation: 0,
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const Center(child: CircularProgressIndicator(color: Colors.white));
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _showOnMap(BuildContext context) {
@@ -1085,7 +1115,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
-                                                review['user_name'] ?? 'Anonymous',
+                                                review['user_name'] ?? review['name'] ?? 'Anonymous',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w600,
                                                 ),
@@ -1102,6 +1132,50 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                                           ),
                                           const SizedBox(height: 8),
                                           Text(review['comment'] ?? ''),
+                                          // Review photos
+                                          if (review['photo_urls'] != null && (review['photo_urls'] as List).isNotEmpty) ...[  
+                                            const SizedBox(height: 10),
+                                            SizedBox(
+                                              height: 180,
+                                              child: ListView.builder(
+                                                scrollDirection: Axis.horizontal,
+                                                itemCount: (review['photo_urls'] as List).length,
+                                                itemBuilder: (context, index) {
+                                                  final url = (review['photo_urls'] as List)[index];
+                                                  return GestureDetector(
+                                                    onTap: () => _showFullScreenImage(context, url.toString()),
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.only(right: 8),
+                                                      child: ClipRRect(
+                                                        borderRadius: BorderRadius.circular(10),
+                                                        child: Image.network(
+                                                          url.toString(),
+                                                          width: 240,
+                                                          height: 180,
+                                                          fit: BoxFit.cover,
+                                                          loadingBuilder: (context, child, progress) {
+                                                            if (progress == null) return child;
+                                                            return Container(
+                                                              width: 240,
+                                                              height: 180,
+                                                              color: Colors.grey[200],
+                                                              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                                            );
+                                                          },
+                                                          errorBuilder: (_, __, ___) => Container(
+                                                            width: 240,
+                                                            height: 180,
+                                                            color: Colors.grey[200],
+                                                            child: const Icon(Icons.broken_image, color: Colors.grey),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),

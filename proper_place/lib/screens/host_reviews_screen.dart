@@ -52,6 +52,7 @@ class _HostReviewsScreenState extends State<HostReviewsScreen> {
               'placeTitle': place['name'] ?? 'Unknown Place',
               'date': review['created_at'] ?? '',
               'text': review['comment'] ?? review['content'] ?? '',
+              'photo_urls': review['photo_urls'] ?? [],
             });
           }
         } catch (e) {
@@ -359,6 +360,38 @@ class _HostReviewsScreenState extends State<HostReviewsScreen> {
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
             ),
+            // Review photos
+            if (review['photo_urls'] != null && (review['photo_urls'] as List).isNotEmpty) ...[  
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: (review['photo_urls'] as List).length,
+                  itemBuilder: (context, index) {
+                    final url = (review['photo_urls'] as List)[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          url.toString(),
+                          width: 160,
+                          height: 120,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 160,
+                            height: 120,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.broken_image, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ),

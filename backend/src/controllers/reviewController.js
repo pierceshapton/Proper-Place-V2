@@ -11,7 +11,7 @@ async function getPlaceReviews(req, res, next) {
     const offset = (page - 1) * limit;
 
     const result = await db.query(
-      `SELECT r.*, u.name, u.avatar_url
+      `SELECT r.*, u.name AS user_name, u.avatar_url AS user_avatar
        FROM reviews r
        JOIN users u ON r.user_id = u.id
        WHERE r.place_id = $1
