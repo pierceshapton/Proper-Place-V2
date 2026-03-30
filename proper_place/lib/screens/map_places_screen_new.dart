@@ -33,6 +33,9 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   static const double MIN_ZOOM_FOR_MARKERS =
       11; // Show markers only when zoomed in to level 11+
 
+  // Facility filters
+  Set<String> _activeFacilityFilters = {};
+
   // Route planning
   double maxTimeOffRoute = 5.0;
   String? startAddress;
@@ -400,6 +403,15 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     // Only show markers if zoomed in enough
     if (currentZoom >= MIN_ZOOM_FOR_MARKERS) {
       for (var place in places) {
+        // Apply facility filters
+        if (_activeFacilityFilters.isNotEmpty) {
+          final placeAmenities = place.amenitiesList.map((a) => a.toLowerCase()).toSet();
+          final matches = _activeFacilityFilters.every(
+            (filter) => placeAmenities.any((a) => a.contains(filter.toLowerCase())),
+          );
+          if (!matches) continue;
+        }
+
         final isFavorite = favoriteIds.contains(place.placeId);
         final fits = !hasDimensions || _vehicleFitsPlace(place, userHeight, userWidth, userLength);
         final markerIcon = await _getCustomMarkerIcon(isFavorite, vehicleFits: fits);
@@ -648,6 +660,115 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     );
   }
 
+  void _showFacilityFilterSheet() {
+    final allFacilities = [
+      'WiFi',
+      'Electricity Hookup',
+      'Drinking water fill up point',
+      'Chemical toilet disposal point',
+      'Grey water disposal point',
+      'Waste recycling point',
+      'Restaurant/Pub',
+      'Dog Friendly',
+    ];
+
+    // Local copy for the sheet
+    Set<String> tempFilters = Set.from(_activeFacilityFilters);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Filter by Facilities', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  if (tempFilters.isNotEmpty)
+                    GestureDetector(
+                      onTap: () => setSheetState(() => tempFilters.clear()),
+                      child: const Text('Clear All', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: allFacilities.map((facility) {
+                  final isSelected = tempFilters.contains(facility);
+                  return FilterChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_getFacilityIcon(facility), size: 16,
+                          color: isSelected ? Colors.white : Colors.black87),
+                        const SizedBox(width: 6),
+                        Text(facility, style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black87,
+                          fontSize: 13,
+                        )),
+                      ],
+                    ),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setSheetState(() {
+                        if (selected) {
+                          tempFilters.add(facility);
+                        } else {
+                          tempFilters.remove(facility);
+                        }
+                      });
+                    },
+                    selectedColor: Colors.blue,
+                    backgroundColor: Colors.grey[100],
+                    checkmarkColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    setState(() {
+                      _activeFacilityFilters = tempFilters;
+                    });
+                    _updateMarkersForZoom();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    tempFilters.isEmpty ? 'Show All Sites' : 'Apply Filters (${tempFilters.length})',
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   IconData _getFacilityIcon(String facility) {
     final lower = facility.toLowerCase();
     if (lower.contains('wifi')) return Icons.wifi;
@@ -657,6 +778,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     if (lower.contains('grey water') || lower.contains('gray water')) return Icons.water;
     if (lower.contains('waste') || lower.contains('recycl')) return Icons.recycling;
     if (lower.contains('restaurant') || lower.contains('pub') || lower.contains('food')) return Icons.restaurant;
+    if (lower.contains('dog')) return Icons.pets;
     return Icons.check_circle_outline;
   }
 
@@ -1007,11 +1129,11 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                       child: GestureDetector(
                         onTap: _showSearchSheet,
                         child: Container(
-                          width: 48,
-                          height: 48,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.15),
@@ -1020,13 +1142,13 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                               ),
                             ],
                           ),
-                          child: const Icon(Icons.search, color: Colors.black87, size: 26),
+                          child: const Icon(Icons.search, color: Colors.black87, size: 22),
                         ),
                       ),
                     ),
                     // Left side - My Location button (below Search)
                     Positioned(
-                      top: 175,
+                      top: 165,
                       left: 16,
                       child: GestureDetector(
                         onTap: _getCurrentLocation,
@@ -1045,6 +1167,34 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                             ],
                           ),
                           child: const Icon(Icons.my_location, color: Colors.black87, size: 22),
+                        ),
+                      ),
+                    ),
+                    // Left side - Filter button (below My Location)
+                    Positioned(
+                      top: 215,
+                      left: 16,
+                      child: GestureDetector(
+                        onTap: _showFacilityFilterSheet,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _activeFacilityFilters.isNotEmpty ? Colors.blue : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.tune,
+                            color: _activeFacilityFilters.isNotEmpty ? Colors.white : Colors.black87,
+                            size: 22,
+                          ),
                         ),
                       ),
                     ),
