@@ -633,6 +633,16 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 22 error:', err.message);
     }
 
+    // Migration 23: Add Stripe Connect columns for referral payouts
+    try {
+      console.log('[SERVER] Running migration 23: Stripe Connect columns...');
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_account_id VARCHAR(255)`);
+      await db.query(`ALTER TABLE referrals ADD COLUMN IF NOT EXISTS stripe_transfer_id VARCHAR(255)`);
+      console.log('[SERVER] ✅ Migration 23 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 23 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

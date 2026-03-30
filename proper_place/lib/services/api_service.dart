@@ -754,6 +754,31 @@ class ApiService {
     return response['referral_code'] ?? '';
   }
 
+  /// Set up Stripe Connect for payout — returns onboarding URL
+  static Future<String> setupPayoutAccount() async {
+    final response = await _request(
+      method: 'POST',
+      endpoint: '/referrals/connect/setup',
+    );
+    return response['url'] ?? '';
+  }
+
+  /// Check Stripe Connect payout status
+  static Future<Map<String, dynamic>> getPayoutStatus() async {
+    return _request(
+      method: 'GET',
+      endpoint: '/referrals/connect/status',
+    );
+  }
+
+  /// Retry pending referral payouts
+  static Future<Map<String, dynamic>> retryPendingPayouts() async {
+    return _request(
+      method: 'POST',
+      endpoint: '/referrals/connect/retry-payouts',
+    );
+  }
+
   // ==================== REVIEW METHODS ====================
 
   /// Get reviews for a place

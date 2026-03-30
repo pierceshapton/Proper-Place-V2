@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/services/place_service.dart';
+import 'package:proper_place/services/api_service.dart';
 import 'welcome_screen.dart';
 
 class MoreHostScreen extends StatefulWidget {
@@ -144,6 +145,196 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
                 style: TextStyle(color: Color(0xFFD97706))),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showPayoutSetup() async {
+    // Show loading while fetching status
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: lightBlue)),
+    );
+
+    bool connected = false;
+    bool payoutsEnabled = false;
+
+    try {
+      final status = await ApiService.getPayoutStatus();
+      connected = status['connected'] == true;
+      payoutsEnabled = status['payouts_enabled'] == true;
+    } catch (e) {
+      // Default to not connected
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss loading
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            ),
+
+            Icon(
+              payoutsEnabled ? Icons.check_circle : Icons.account_balance,
+              color: payoutsEnabled ? const Color(0xFF10B981) : lightBlue,
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+
+            Text(
+              payoutsEnabled ? 'Payouts Active' : (connected ? 'Setup Incomplete' : 'Set Up Payouts'),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+            ),
+            const SizedBox(height: 12),
+
+            Text(
+              payoutsEnabled
+                  ? 'Your account is connected and ready to receive referral bonuses automatically.'
+                  : connected
+                      ? 'Your Stripe account is connected but needs more details before payouts can be sent.'
+                      : 'Connect your bank account via Stripe to receive £25 referral bonuses automatically when your referrals earn their first booking.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.5),
+            ),
+            const SizedBox(height: 24),
+
+            if (!payoutsEnabled)
+              GestureDetector(
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  // Show loading
+                  if (!mounted) return;
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => const Center(child: CircularProgressIndicator(color: lightBlue)),
+                  );
+
+                  try {
+                    final url = await ApiService.setupPayoutAccount();
+                    if (!mounted) return;
+                    Navigator.pop(context); // dismiss loading
+                    if (url.isNotEmpty) {
+                      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                    }
+                  } catch (e) {
+                    if (!mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+                    );
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: lightBlue,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.account_balance, color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        connected ? 'Complete Setup' : 'Connect Bank Account',
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            if (payoutsEnabled) ...[
+              GestureDetector(
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  if (!mounted) return;
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => const Center(child: CircularProgressIndicator(color: lightBlue)),
+                  );
+
+                  try {
+                    final result = await ApiService.retryPendingPayouts();
+                    if (!mounted) return;
+                    Navigator.pop(context);
+                    final paid = result['paid'] ?? 0;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(paid > 0 ? '£${paid * 25} paid out!' : 'No pending payouts'),
+                        backgroundColor: const Color(0xFF10B981),
+                      ),
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+                    );
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.refresh, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text('Collect Pending Bonuses', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Info box
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Color(0xFF64748B), size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Powered by Stripe. Your bank details are securely handled by Stripe and never stored by Proper Place.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -314,6 +505,13 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
                     title: 'Reviews',
                     subtitle: 'See what guests are saying',
                     onTap: () => Navigator.pushNamed(context, '/host/reviews'),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    icon: Icons.account_balance_outlined,
+                    title: 'Payout Setup',
+                    subtitle: 'Set up your bank for referral bonuses',
+                    onTap: _showPayoutSetup,
                   ),
                   const SizedBox(height: 24),
 
