@@ -48,7 +48,8 @@ async function getPlacesForModeration(req, res, next) {
     const offset = (page - 1) * limit;
 
     const result = await db.query(
-      `SELECT p.*, u.name as owner_name, u.email as owner_email
+      `SELECT p.*, u.name as owner_name, u.email as owner_email,
+              u.host_contract_accepted_at, u.host_contract_version
        FROM places p
        JOIN users u ON p.owner_id = u.id
        WHERE p.approval_status = $1
@@ -85,6 +86,20 @@ async function approvePlace(req, res, next) {
   try {
     const { id } = req.params;
     const adminId = req.user.userId;
+
+    // Check host has signed the contract before approving
+    const contractCheck = await db.query(
+      `SELECT u.host_contract_accepted_at
+       FROM places p JOIN users u ON p.owner_id = u.id
+       WHERE p.id = $1`,
+      [id]
+    );
+    if (contractCheck.rows.length > 0 && !contractCheck.rows[0].host_contract_accepted_at) {
+      return res.status(403).json({
+        error: 'contract_required',
+        message: 'Cannot approve: the host has not signed the Host Agreement yet.',
+      });
+    }
 
     const result = await db.query(
       `UPDATE places

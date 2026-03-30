@@ -75,6 +75,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         'submissionDate': place['submitted_at'] ?? place['created_at'] ?? '',
         'description': place['description'] ?? '',
         'amenities': (place['amenities'] is List) ? place['amenities'] : [],
+        'host_contract_signed': place['host_contract_accepted_at'] != null,
         'raw': place,
       };
     }).toList();

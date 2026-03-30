@@ -57,6 +57,7 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
   int get _hostTotalSites => int.tryParse((widget.place['raw']?['host_total_sites'] ?? widget.place['host_total_sites'])?.toString() ?? '') ?? 0;
   int get _hostApprovedSites => int.tryParse((widget.place['raw']?['host_approved_sites'] ?? widget.place['host_approved_sites'])?.toString() ?? '') ?? 0;
   String get _hostJoinedAt => widget.place['raw']?['host_joined_at'] ?? widget.place['host_joined_at'] ?? '';
+  bool get _hostContractSigned => widget.place['host_contract_signed'] == true || widget.place['raw']?['host_contract_accepted_at'] != null;
   String get _status => widget.place['status']?.toString().toLowerCase() ?? 'pending';
   bool get _isPending => _status == 'pending' || _status == 'changes pending';
   bool get _isApproved => _status == 'approved';
@@ -580,6 +581,40 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
                         'Total Sites',
                         '$_hostTotalSites site${_hostTotalSites == 1 ? '' : 's'} ($_hostApprovedSites approved)',
                       ),
+                      const SizedBox(height: 12),
+                      _buildHostInfoRow(
+                        Icons.description,
+                        'Host Agreement',
+                        _hostContractSigned ? 'Signed ✓' : 'Not signed',
+                      ),
+                      if (!_hostContractSigned)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.withOpacity(0.3)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'This host has not signed the Host Agreement. The site cannot be approved until the contract is signed.',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       if (_hostApprovedSites == 0 && _hostTotalSites == 1)
                         Padding(
                           padding: const EdgeInsets.only(top: 12),
@@ -864,7 +899,7 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
         Expanded(
           flex: 2,
           child: ElevatedButton(
-            onPressed: _isApproving || _isRejecting ? null : _approvePlace,
+            onPressed: _isApproving || _isRejecting || !_hostContractSigned ? null : _approvePlace,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -878,9 +913,9 @@ class _AdminApprovalDetailScreenState extends State<AdminApprovalDetailScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text(
-                    'Approve Site',
-                    style: TextStyle(
+                : Text(
+                    !_hostContractSigned ? 'Contract Not Signed' : 'Approve Site',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,

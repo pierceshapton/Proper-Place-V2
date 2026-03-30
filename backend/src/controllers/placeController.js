@@ -146,18 +146,6 @@ async function createPlace(req, res, next) {
     const userId = req.user.userId;
     const data = req.validatedBody;
 
-    // Require host contract acceptance before creating a site
-    const contractCheck = await db.query(
-      `SELECT host_contract_accepted_at FROM users WHERE id = $1`,
-      [userId]
-    );
-    if (!contractCheck.rows[0]?.host_contract_accepted_at) {
-      return res.status(403).json({
-        error: 'contract_required',
-        message: 'You must accept the Host Agreement before listing a site.',
-      });
-    }
-
     const result = await db.query(
       `INSERT INTO places (owner_id, name, description, address, city, country,
                            postal_code, latitude, longitude, price_per_night,
