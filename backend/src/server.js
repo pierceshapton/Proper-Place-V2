@@ -131,14 +131,6 @@ app.get('/health', (req, res) => {
 });
 
 // Temporary: clear all stripe_account_id values (remove after use)
-app.post('/admin/clear-stripe-accounts', authMiddleware, async (req, res) => {
-  try {
-    const db = require('./config/database');
-    const result = await db.query("UPDATE users SET stripe_account_id = NULL WHERE stripe_account_id IS NOT NULL RETURNING id, email");
-    res.json({ cleared: result.rows });
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
 // Routes
 app.use('/auth', authRoutes);
 app.use('/places', placesRoutes);
