@@ -16,6 +16,7 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
   bool _connected = false;
   bool _payoutsEnabled = false;
   bool _waitingForStripe = false; // True after we've opened the browser
+  bool _incomplete = false; // True when host returned without finishing
 
   @override
   void initState() {
@@ -48,6 +49,14 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
       // If already complete, go straight back to dashboard
       if (_payoutsEnabled && mounted) {
         _showSuccessAndPop();
+        return;
+      }
+      // If connected but not complete, show incomplete screen
+      if (_connected && mounted) {
+        setState(() {
+          _incomplete = true;
+          _loading = false;
+        });
         return;
       }
     } catch (_) {}
@@ -101,16 +110,12 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
       } catch (_) {}
     }
 
-    // Not complete yet — go back to setup view
+    // Not complete yet — show incomplete screen
     if (mounted) {
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Setup not complete yet. Please finish the Stripe form and come back.'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 4),
-        ),
-      );
+      setState(() {
+        _loading = false;
+        _incomplete = true;
+      });
     }
   }
 
@@ -157,7 +162,9 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
             ? const Center(child: CircularProgressIndicator(color: Color(0xFF5B8FC4)))
             : _payoutsEnabled
                 ? _buildComplete()
-                : _buildSetup(),
+                : _incomplete
+                    ? _buildIncomplete()
+                    : _buildSetup(),
       ),
     );
   }
@@ -191,6 +198,91 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
           const SizedBox(height: 24),
           const CircularProgressIndicator(color: Color(0xFF10B981), strokeWidth: 2),
           const Spacer(flex: 3),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncomplete() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 44),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Setup Incomplete',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'It looks like you left the Stripe form before finishing. Your payout account isn\u2019t ready yet \u2014 guests won\u2019t be able to book your site until this is complete.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, color: Colors.grey[600], height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFECACA)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.red.shade700, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Your bank details and identity verification are still needed.',
+                    style: TextStyle(fontSize: 13, color: Colors.red.shade900, fontWeight: FontWeight.w500, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _actionLoading ? null : () {
+                setState(() => _incomplete = false);
+                _setupStripe();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5B8FC4),
+                disabledBackgroundColor: Colors.grey[300],
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _actionLoading
+                  ? const SizedBox(
+                      height: 20, width: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.refresh, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Resume Setup',
+                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 32),
         ],
       ),
     );
