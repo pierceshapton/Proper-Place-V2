@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="400" height="100">
+  <!-- Option 5: Minimal & elegant - thin + thick weight contrast -->
+  <text x="200" y="62" text-anchor="middle" font-family="'Georgia', 'Times New Roman', serif" font-size="46" font-weight="400" letter-spacing="2" fill="#7BA7D8">
+    <tspan font-weight="300" font-style="italic">Proper</tspan>
+    <tspan dx="6" font-weight="700" font-style="normal" fill="#2C3E50">Place</tspan>
+  </text>
+  <!-- Elegant thin lines -->
+  <line x1="40" y1="75" x2="160" y2="75" stroke="#7BA7D8" stroke-width="0.75" opacity="0.5"/>
+  <line x1="240" y1="75" x2="360" y2="75" stroke="#7BA7D8" stroke-width="0.75" opacity="0.5"/>
+  <!-- Center diamond -->
+  <rect x="196" y="71" width="8" height="8" fill="#7BA7D8" transform="rotate(45, 200, 75)"/>
+</svg>

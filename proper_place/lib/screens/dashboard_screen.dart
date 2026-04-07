@@ -284,8 +284,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String? referralCode;
     try {
       final response = await ApiService.getReferralCode();
+      print('[REFERRAL DEBUG] API returned: "$response"');
       referralCode = response;
     } catch (e) {
+      print('[REFERRAL DEBUG] API call FAILED: $e');
       // Generate a local fallback code
       final randomHex = List.generate(8, (i) => '0123456789ABCDEF'[(DateTime.now().microsecond + i.hashCode) % 16]).join();
       referralCode = 'PP-$randomHex';

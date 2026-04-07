@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 4A: Typographic P — smooth bezier bowl, clean stem, triangle pin -->
+  <!-- Stem + Bowl as one path -->
+  <path d="
+    M52 10 L52 105
+    L75 105 L75 78
+    L100 78
+    C140 78 150 65 150 48
+    C150 28 138 10 100 10
+    Z
+  " fill="#7BA7D8"/>
+  <!-- Counter (bowl hole) -->
+  <ellipse cx="107" cy="44" rx="17" ry="17" fill="white"/>
+  <!-- Triangle pin -->
+  <path d="M52 120 L75 120 L63.5 186 Z" fill="#7BA7D8"/>
+</svg>

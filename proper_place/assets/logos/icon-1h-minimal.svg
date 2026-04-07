@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 1H: Minimal P-Pin — clean geometric construction, balanced proportions -->
+  <path d="
+    M65 18
+    L122 18
+    Q165 18 165 58
+    Q165 98 122 98
+    L95 98
+    L95 155
+    Q95 165 90 172
+    Q85 180 80 172
+    Q75 165 75 155
+    L75 98
+    L65 98
+    Q55 98 55 88
+    L55 28
+    Q55 18 65 18
+    Z
+  " fill="#7BA7D8"/>
+  <circle cx="122" cy="58" r="19" fill="white"/>
+</svg>

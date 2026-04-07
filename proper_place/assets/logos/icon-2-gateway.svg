@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- ICON 2: The Gateway — Two P's mirrored forming a gateway/arch -->
+  <!-- Like two pillars of a proper entrance -->
+  <g fill="#7BA7D8">
+    <!-- Left P -->
+    <path d="
+      M25 180 L25 20 L75 20 
+      Q100 20 100 45 Q100 70 75 70 L55 70 L55 180 Z
+    "/>
+    <!-- Right P (mirrored) -->
+    <path d="
+      M175 180 L175 20 L125 20 
+      Q100 20 100 45 Q100 70 125 70 L145 70 L145 180 Z
+    "/>
+  </g>
+</svg>

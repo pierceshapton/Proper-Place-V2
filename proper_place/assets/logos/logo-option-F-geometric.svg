@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 160" width="440" height="160">
+  <!-- Option F: Artistic stacked with geometric lines and shapes -->
+  <defs>
+    <linearGradient id="gradF" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7BA7D8"/>
+      <stop offset="100%" style="stop-color:#4A7EB3"/>
+    </linearGradient>
+  </defs>
+  <!-- Geometric background elements -->
+  <line x1="30" y1="20" x2="30" y2="140" stroke="#7BA7D8" stroke-width="1" opacity="0.15"/>
+  <line x1="410" y1="20" x2="410" y2="140" stroke="#7BA7D8" stroke-width="1" opacity="0.15"/>
+  <!-- Cross marks -->
+  <g opacity="0.2" stroke="#7BA7D8" stroke-width="1">
+    <line x1="25" y1="20" x2="35" y2="20"/>
+    <line x1="30" y1="15" x2="30" y2="25"/>
+    <line x1="405" y1="140" x2="415" y2="140"/>
+    <line x1="410" y1="135" x2="410" y2="145"/>
+  </g>
+  <!-- "proper" ultra light -->
+  <text x="220" y="68" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="56" font-weight="100" letter-spacing="16" fill="url(#gradF)">proper</text>
+  <!-- Decorative middle elements -->
+  <line x1="60" y1="84" x2="170" y2="84" stroke="#7BA7D8" stroke-width="0.5" opacity="0.5"/>
+  <circle cx="220" cy="84" r="3" fill="none" stroke="#7BA7D8" stroke-width="1" opacity="0.6"/>
+  <circle cx="220" cy="84" r="1" fill="#7BA7D8" opacity="0.8"/>
+  <line x1="270" y1="84" x2="380" y2="84" stroke="#7BA7D8" stroke-width="0.5" opacity="0.5"/>
+  <!-- "PLACE" heavy -->
+  <text x="220" y="130" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="56" font-weight="900" letter-spacing="16" fill="#1E293B">place</text>
+  <!-- Corner dots -->
+  <circle cx="50" cy="30" r="2" fill="#7BA7D8" opacity="0.2"/>
+  <circle cx="60" cy="25" r="1" fill="#7BA7D8" opacity="0.3"/>
+  <circle cx="390" cy="145" r="2" fill="#7BA7D8" opacity="0.2"/>
+  <circle cx="380" cy="148" r="1" fill="#7BA7D8" opacity="0.3"/>
+</svg>

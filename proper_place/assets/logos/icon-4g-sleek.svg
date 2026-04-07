@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 4G: Sleek — angled bowl, modern tech feel -->
+  <path d="
+    M55 5 L55 108
+    L80 108 L80 75
+    L110 75
+    C148 72 148 8 110 5
+    L80 5
+    Z
+  " fill="#7BA7D8"/>
+  <!-- D-shaped counter -->
+  <path d="
+    M80 20
+    L106 20
+    C132 22 132 58 106 60
+    L80 60
+    Z
+  " fill="white"/>
+  <!-- Triangle pin -->
+  <path d="M55 122 L80 122 L67.5 188 Z" fill="#7BA7D8"/>
+</svg>

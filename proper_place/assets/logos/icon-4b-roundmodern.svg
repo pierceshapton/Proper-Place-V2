@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 4B: Rounded modern P — circular bowl, even weight -->
+  <path d="
+    M55 8 L55 108
+    L80 108 L80 82
+    L95 82
+    C145 82 145 8 95 8
+    Z
+  " fill="#7BA7D8"/>
+  <!-- Circular counter -->
+  <circle cx="102" cy="45" r="18" fill="white"/>
+  <!-- Triangle pin -->
+  <path d="M55 122 L80 122 L67.5 188 Z" fill="#7BA7D8"/>
+</svg>

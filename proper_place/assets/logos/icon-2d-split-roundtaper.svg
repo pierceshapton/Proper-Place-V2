@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 2D: Split P — pin is a rounded rectangle tapering to point -->
+  <!-- Top: P bowl -->
+  <path d="
+    M62 18
+    L125 18
+    Q170 18 170 62
+    Q170 106 125 106
+    L62 106
+    Q50 106 50 94
+    L50 30
+    Q50 18 62 18
+    Z
+  " fill="#7BA7D8"/>
+  <ellipse cx="126" cy="62" rx="21" ry="22" fill="white"/>
+  <!-- Bottom: Rounded rect that tapers -->
+  <path d="
+    M68 118
+    Q68 114 72 114
+    L92 114
+    Q96 114 96 118
+    L90 160
+    Q86 178 82 178
+    Q78 178 74 160
+    Z
+  " fill="#7BA7D8"/>
+</svg>

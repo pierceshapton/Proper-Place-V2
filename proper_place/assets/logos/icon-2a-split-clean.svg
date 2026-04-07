@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 2A: Split P — clean gap between bowl and pin stem -->
+  <!-- Top: P bowl -->
+  <path d="
+    M65 20
+    L125 20
+    Q170 20 170 62
+    Q170 104 125 104
+    L65 104
+    Q55 104 55 94
+    L55 30
+    Q55 20 65 20
+    Z
+  " fill="#7BA7D8"/>
+  <ellipse cx="126" cy="62" rx="20" ry="22" fill="white"/>
+  <!-- Bottom: Pin stem (separated by gap) -->
+  <path d="
+    M70 116
+    L98 116
+    L92 168
+    Q88 184 84 184
+    Q80 184 76 168
+    Z
+  " fill="#7BA7D8"/>
+</svg>

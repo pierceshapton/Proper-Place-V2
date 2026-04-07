@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- ICON 1: The P-Pin — The letter P IS the location pin -->
+  <!-- The bowl of the P forms the pin head, the stem is the pin point -->
+  <path d="
+    M70 180
+    L70 55
+    Q70 20 105 20
+    L120 20
+    Q165 20 165 60
+    Q165 100 120 100
+    L100 100
+    L100 150
+    Z
+  " fill="#7BA7D8"/>
+  <!-- Negative space circle in the pin/bowl -->
+  <circle cx="118" cy="60" r="20" fill="white"/>
+</svg>

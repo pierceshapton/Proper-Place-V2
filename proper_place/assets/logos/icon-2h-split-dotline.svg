@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 2H: Split P — dot + line pin, most minimal -->
+  <!-- Top: P bowl -->
+  <path d="
+    M62 18
+    L125 18
+    Q170 18 170 62
+    Q170 106 125 106
+    L62 106
+    Q48 106 48 92
+    L48 32
+    Q48 18 62 18
+    Z
+  " fill="#7BA7D8"/>
+  <ellipse cx="126" cy="62" rx="21" ry="22" fill="white"/>
+  <!-- Bottom: Simple line + dot (like a map pin abstracted) -->
+  <line x1="82" y1="118" x2="82" y2="170" stroke="#7BA7D8" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="82" cy="180" r="6" fill="#7BA7D8"/>
+</svg>

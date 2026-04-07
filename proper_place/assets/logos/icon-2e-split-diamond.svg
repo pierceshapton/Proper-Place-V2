@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 2E: Split P — thin gap, pin diamond shape -->
+  <!-- Top: P bowl -->
+  <path d="
+    M60 16
+    L125 16
+    Q170 16 170 60
+    Q170 104 125 104
+    L60 104
+    Q48 104 48 92
+    L48 28
+    Q48 16 60 16
+    Z
+  " fill="#7BA7D8"/>
+  <ellipse cx="126" cy="60" rx="20" ry="22" fill="white"/>
+  <!-- Bottom: Diamond/kite shape pin -->
+  <path d="
+    M82 114
+    L96 148
+    L82 182
+    L68 148
+    Z
+  " fill="#7BA7D8"/>
+</svg>

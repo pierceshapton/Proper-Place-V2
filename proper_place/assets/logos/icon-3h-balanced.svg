@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 3H: Balanced P, medium everything, slightly rounded triangle tip -->
+  <path d="
+    M50 10
+    L115 10
+    Q150 10 150 46
+    Q150 82 115 82
+    L76 82
+    L76 108
+    L50 108
+    L50 10
+    Z
+  " fill="#7BA7D8"/>
+  <ellipse cx="116" cy="46" rx="14" ry="18" fill="white"/>
+  <!-- Triangle with rounded tip -->
+  <path d="
+    M54 122
+    L78 122
+    L68 178
+    Q66 186 64 186
+    Q62 186 60 178
+    Z
+  " fill="#7BA7D8"/>
+</svg>

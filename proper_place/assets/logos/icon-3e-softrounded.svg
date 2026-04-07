@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 3E: Slightly rounded P corners, proper letterform, softer triangle -->
+  <path d="
+    M52 12
+    Q52 8 56 8
+    L116 8
+    Q155 8 155 46
+    Q155 84 116 84
+    L78 84
+    L78 106
+    Q78 110 74 110
+    L56 110
+    Q52 110 52 106
+    Z
+  " fill="#7BA7D8"/>
+  <ellipse cx="117" cy="46" rx="16" ry="19" fill="white"/>
+  <!-- Softer triangle pin -->
+  <path d="
+    M56 124
+    Q56 120 60 120
+    L74 120
+    Q78 120 78 124
+    L70 182
+    Q67 188 64 182
+    Z
+  " fill="#7BA7D8"/>
+</svg>

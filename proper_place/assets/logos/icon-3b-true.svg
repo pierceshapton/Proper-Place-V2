@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 3B: True P shape, thinner bowl, triangle pin -->
+  <path d="
+    M50 12
+    L115 12
+    Q152 12 152 48
+    Q152 84 115 84
+    L78 84
+    L78 105
+    L50 105
+    L50 12
+    Z
+  " fill="#7BA7D8"/>
+  <ellipse cx="116" cy="48" rx="15" ry="18" fill="white"/>
+  <!-- Triangle pin, slightly softer -->
+  <path d="
+    M54 120
+    L78 120
+    L66 185
+    Z
+  " fill="#7BA7D8"/>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 1D: Elegant P-Pin — thinner, refined, premium look -->
+  <path d="
+    M80 180
+    L80 105
+    L118 105
+    Q158 105 158 65
+    Q158 25 118 25
+    L80 25
+    L68 25
+    L68 105
+    L68 154
+    L72 180
+    Q74 186 76 186
+    Q78 186 80 180
+    Z
+  " fill="#7BA7D8"/>
+  <ellipse cx="120" cy="65" rx="18" ry="20" fill="white"/>
+</svg>

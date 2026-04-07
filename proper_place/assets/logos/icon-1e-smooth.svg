@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 1E: Smooth P-Pin — all curves, no hard corners, organic feel -->
+  <path d="
+    M76 180
+    Q76 188 80 188
+    Q84 188 84 180
+    L90 115
+    Q92 105 105 105
+    L115 105
+    Q165 100 165 62
+    Q165 22 115 22
+    L85 22
+    Q65 22 65 42
+    L65 105
+    Q65 115 68 125
+    Z
+  " fill="#7BA7D8"/>
+  <circle cx="118" cy="62" r="20" fill="white"/>
+</svg>

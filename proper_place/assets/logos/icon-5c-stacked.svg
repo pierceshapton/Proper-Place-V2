@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 5C: Small P shares the stem of the big P (stacked bowls) -->
+  <rect x="48" y="5" width="22" height="103" fill="#7BA7D8"/>
+  <!-- Big bowl top -->
+  <circle cx="92" cy="32" r="30" fill="#7BA7D8"/>
+  <circle cx="92" cy="32" r="16" fill="white"/>
+  <!-- Small bowl below -->
+  <circle cx="85" cy="78" r="20" fill="#7BA7D8"/>
+  <circle cx="85" cy="78" r="11" fill="white"/>
+  <!-- Triangle pin -->
+  <path d="M48 120 L70 120 L59 186 Z" fill="#7BA7D8"/>
+</svg>

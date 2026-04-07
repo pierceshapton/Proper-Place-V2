@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 4E: Pinterest-style — tall oval bowl, slim stem -->
+  <path d="
+    M60 5 L60 108
+    L78 108 L78 76
+    L98 76
+    C145 76 145 5 98 5
+    Z
+  " fill="#7BA7D8"/>
+  <!-- Tall oval counter -->
+  <ellipse cx="102" cy="40" rx="16" ry="20" fill="white"/>
+  <!-- Slim triangle pin -->
+  <path d="M60 122 L78 122 L69 188 Z" fill="#7BA7D8"/>
+</svg>

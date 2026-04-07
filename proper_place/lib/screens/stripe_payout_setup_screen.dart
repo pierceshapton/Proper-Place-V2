@@ -120,26 +120,16 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
   }
 
   Widget _buildSetup() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         children: [
-          const Spacer(flex: 1),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Icons.account_balance, color: Color(0xFFD97706), size: 44),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Text(
             _connected ? 'Complete Your Setup' : 'Set Up Payouts',
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             _connected
                 ? 'Your Stripe account is linked but needs a few more details before payouts can be sent.'
@@ -147,26 +137,26 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, color: Colors.grey[600], height: 1.5),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
 
           _infoCard(
             Icons.account_balance_outlined,
             'Automatic Payouts',
             'After each completed booking, your payout is sent to your bank account automatically via Stripe.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _infoCard(
             Icons.schedule_outlined,
             'When You Get Paid',
             'Funds are held securely by Stripe until the guest\u2019s stay is complete. Your payout (minus 15% platform fee and Stripe processing fees) is then transferred.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _infoCard(
             Icons.security_outlined,
             'Secure & Simple',
             'Stripe handles everything \u2014 your bank details are never shared with us or guests. Setup takes about 2 minutes.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -189,7 +179,7 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
             ),
           ),
 
-          const Spacer(flex: 2),
+          const SizedBox(height: 32),
 
           SizedBox(
             width: double.infinity,
@@ -217,14 +207,6 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
                         ),
                       ],
                     ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'I\u2019ll do this later',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             ),
           ),
           const SizedBox(height: 24),

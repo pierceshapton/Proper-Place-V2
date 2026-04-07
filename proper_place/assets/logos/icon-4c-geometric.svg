@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 4C: Geometric P — the bowl is a perfect semicircle -->
+  <rect x="48" y="8" width="26" height="100" rx="3" fill="#7BA7D8"/>
+  <path d="
+    M74 8
+    L100 8
+    A37 37 0 0 1 100 82
+    L74 82
+    Z
+  " fill="#7BA7D8"/>
+  <!-- Semicircle counter -->
+  <path d="
+    M74 22
+    L96 22
+    A23 23 0 0 1 96 68
+    L74 68
+    Z
+  " fill="white"/>
+  <!-- Triangle pin -->
+  <path d="M48 122 L74 122 L61 188 Z" fill="#7BA7D8"/>
+</svg>

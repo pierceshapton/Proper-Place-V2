@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 5B: Small P sitting to the right, slightly overlapping -->
+  <rect x="32" y="5" width="22" height="103" fill="#7BA7D8"/>
+  <circle cx="76" cy="42" r="37" fill="#7BA7D8"/>
+  <circle cx="76" cy="42" r="20" fill="white"/>
+  <!-- Second smaller P to the right -->
+  <rect x="118" y="30" width="14" height="65" fill="#7BA7D8"/>
+  <circle cx="148" cy="55" r="24" fill="#7BA7D8"/>
+  <circle cx="148" cy="55" r="13" fill="white"/>
+  <!-- Triangle pin under big P -->
+  <path d="M32 120 L54 120 L43 186 Z" fill="#7BA7D8"/>
+</svg>

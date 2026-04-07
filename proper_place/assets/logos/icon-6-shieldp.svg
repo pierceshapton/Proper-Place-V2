@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- ICON 6: The Shield P — P inside a rounded square like an app icon shape -->
+  <!-- Think of it as the "Blue P" — Proper Place's signature mark -->
+  <rect x="10" y="10" width="180" height="180" rx="44" fill="#7BA7D8"/>
+  <!-- Bold white P -->
+  <path d="
+    M55 155 
+    L55 45 
+    L110 45 
+    Q150 45 150 82.5 
+    Q150 120 110 120 
+    L88 120 
+    L88 155 
+    Z
+  " fill="white"/>
+  <!-- P counter hole -->
+  <ellipse cx="112" cy="82.5" rx="16" ry="18" fill="#7BA7D8"/>
+</svg>

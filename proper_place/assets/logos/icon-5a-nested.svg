@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 5A: Small P nested inside the big P's counter (bowl hole) -->
+  <rect x="42" y="5" width="22" height="103" fill="#7BA7D8"/>
+  <circle cx="86" cy="42" r="37" fill="#7BA7D8"/>
+  <circle cx="86" cy="42" r="20" fill="white"/>
+  <!-- Small P inside the counter -->
+  <rect x="80" y="30" width="6" height="24" fill="#7BA7D8"/>
+  <circle cx="93" cy="38" r="8" fill="#7BA7D8"/>
+  <circle cx="93" cy="38" r="4.5" fill="white"/>
+  <!-- Triangle pin -->
+  <path d="M42 120 L64 120 L53 186 Z" fill="#7BA7D8"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 1A: Softened P-Pin — slightly rounded point, smoother curves -->
+  <path d="
+    M72 175
+    Q72 178 75 178
+    Q78 178 80 175
+    L88 120
+    L88 100
+    L120 100
+    Q160 100 160 65
+    Q160 30 120 30
+    L88 30
+    L72 30
+    Z
+  " fill="#7BA7D8"/>
+  <circle cx="120" cy="65" r="18" fill="white"/>
+</svg>

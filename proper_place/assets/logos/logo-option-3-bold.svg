@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 100" width="460" height="100">
+  <!-- Option 3: Bold single line with colour split -->
+  <defs>
+    <linearGradient id="bgline" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7BA7D8;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#7BA7D8;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+  <!-- Background accent bar -->
+  <rect x="0" y="25" width="230" height="55" rx="4" fill="url(#bgline)"/>
+  <!-- "Proper" in brand blue -->
+  <text x="10" y="70" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="54" font-weight="800" letter-spacing="2" fill="#7BA7D8">Proper</text>
+  <!-- "Place" in dark -->
+  <text x="248" y="70" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="54" font-weight="800" letter-spacing="2" fill="#1A2332">Place</text>
+</svg>

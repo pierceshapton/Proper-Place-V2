@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- 4H: Futura-style — perfectly geometric, large circular bowl on thin stem -->
+  <rect x="52" y="5" width="22" height="103" fill="#7BA7D8"/>
+  <!-- Bowl: perfect circle clipped to the right of stem -->
+  <circle cx="95" cy="42" r="37" fill="#7BA7D8"/>
+  <circle cx="95" cy="42" r="20" fill="white"/>
+  <!-- Triangle pin -->
+  <path d="M52 122 L74 122 L63 188 Z" fill="#7BA7D8"/>
+</svg>
