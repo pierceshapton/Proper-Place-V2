@@ -264,6 +264,7 @@ const createConnectAccount = async (req, res) => {
       const nameParts = (user.name || '').trim().split(/\s+/);
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || firstName;
+      const fullName = user.name || `${firstName} ${lastName}`.trim();
       const params = {
         type: 'express',
         country: 'GB',
@@ -279,6 +280,7 @@ const createConnectAccount = async (req, res) => {
           email: user.email,
         },
         business_profile: {
+          name: fullName,
           mcc: '7033',
           product_description: 'Host on Proper Place – renting out a camping/glamping site to guests via the Proper Place platform.',
         },
@@ -292,14 +294,13 @@ const createConnectAccount = async (req, res) => {
       return params;
     };
 
-    // If account exists, verify it's still valid on Stripe
+    // Always delete and recreate incomplete accounts to ensure all pre-fills are applied
+    // Express accounts can't have individual fields updated via API after creation
     if (accountId) {
       try {
         const existing = await stripe.accounts.retrieve(accountId);
-        // If onboarding not completed and phone is missing, delete and recreate
-        // Express accounts can't have individual fields updated via API
-        if (!existing.details_submitted && !existing.individual?.phone && user.phone_number) {
-          console.log(`[STRIPE] Account ${accountId} missing phone, deleting to recreate with pre-fill`);
+        if (!existing.details_submitted) {
+          console.log(`[STRIPE] Account ${accountId} incomplete, deleting to recreate with full pre-fill`);
           await stripe.accounts.del(accountId);
           accountId = null;
           await db.query('UPDATE users SET stripe_account_id = NULL WHERE id = $1', [userId]);
