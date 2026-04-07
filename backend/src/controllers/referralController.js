@@ -15,8 +15,11 @@ const getOrCreateReferralCode = async (req, res) => {
       [userId]
     );
 
-    if (existing.rows[0]?.referral_code) {
-      return res.json({ referral_code: existing.rows[0].referral_code });
+    const existingCode = existing.rows[0]?.referral_code;
+    // Return existing code if it's in the new random format (PP-<hex>)
+    // Auto-replace old broken codes like "PP-HOST-undefined" or name-based codes
+    if (existingCode && /^PP-[0-9A-F]{8}$/i.test(existingCode)) {
+      return res.json({ referral_code: existingCode });
     }
 
     // Generate a unique random referral code
