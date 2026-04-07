@@ -254,10 +254,7 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _actionLoading ? null : () {
-                setState(() => _incomplete = false);
-                _setupStripe();
-              },
+              onPressed: _actionLoading ? null : _setupStripe,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF5B8FC4),
                 disabledBackgroundColor: Colors.grey[300],
