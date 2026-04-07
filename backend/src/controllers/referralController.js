@@ -286,14 +286,38 @@ const createConnectAccount = async (req, res) => {
         metadata: { proper_place_user_id: String(userId) },
       };
 
-      // Pre-fill phone if available to avoid Stripe asking twice
+      // Pre-fill phone if available — Stripe requires E.164 format (+447...)
       if (user.phone_number) {
-        accountParams.individual.phone = user.phone_number;
+        let phone = user.phone_number.replace(/\s+/g, '');
+        if (!phone.startsWith('+')) phone = '+44' + phone.replace(/^0/, '');
+        accountParams.individual.phone = phone;
       }
 
       const account = await stripe.accounts.create(accountParams);
       accountId = account.id;
       await db.query('UPDATE users SET stripe_account_id = $1 WHERE id = $2', [accountId, userId]);
+    } else {
+      // Account already exists — update it with latest user data in case anything changed
+      const nameParts = (user.name || '').trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || firstName;
+      const updateParams = {
+        individual: {
+          first_name: firstName,
+          last_name: lastName,
+          email: user.email,
+        },
+      };
+      if (user.phone_number) {
+        let phone = user.phone_number.replace(/\s+/g, '');
+        if (!phone.startsWith('+')) phone = '+44' + phone.replace(/^0/, '');
+        updateParams.individual.phone = phone;
+      }
+      try {
+        await stripe.accounts.update(accountId, updateParams);
+      } catch (updateErr) {
+        console.warn('[STRIPE] Could not update existing account:', updateErr.message);
+      }
     }
 
     // Create onboarding link — only collect what's strictly needed (bank + ID verification)
