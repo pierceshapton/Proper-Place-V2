@@ -15,7 +15,7 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
   bool _actionLoading = false;
   bool _connected = false;
   bool _payoutsEnabled = false;
-  bool _stripeTabOpen = false; // Track whether we've already opened a Stripe tab
+  bool _waitingForStripe = false; // True after we've opened the browser
 
   @override
   void initState() {
@@ -32,9 +32,9 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // When user comes back from the browser, auto-check status
-    if (state == AppLifecycleState.resumed && _stripeTabOpen) {
-      _pollAfterReturn();
+    // When user returns from browser, automatically verify
+    if (state == AppLifecycleState.resumed && _waitingForStripe) {
+      _verifyCompletion();
     }
   }
 
@@ -44,30 +44,30 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
       final status = await ApiService.getPayoutStatus();
       _connected = status['connected'] == true;
       _payoutsEnabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
-      // Persist the result so the dashboard banner stays correct
       await StorageService.setStripePayoutsEnabled(_payoutsEnabled);
-    } catch (_) {
-      // On failure, keep defaults (false) — host must prove they're set up
-    }
+      // If already complete, go straight back to dashboard
+      if (_payoutsEnabled && mounted) {
+        _showSuccessAndPop();
+        return;
+      }
+    } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _setupStripe() async {
-    // If we already opened a tab, don't open another — just re-poll
-    if (_stripeTabOpen) {
-      await _pollAfterReturn();
-      return;
-    }
-
     setState(() => _actionLoading = true);
     try {
       final url = await ApiService.setupPayoutAccount();
       if (!mounted) return;
-      setState(() => _actionLoading = false);
       if (url.isNotEmpty) {
-        setState(() => _stripeTabOpen = true);
+        setState(() {
+          _actionLoading = false;
+          _waitingForStripe = true;
+        });
         await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-        // The lifecycle observer will call _pollAfterReturn when user comes back
+        // didChangeAppLifecycleState will handle the return
+      } else {
+        setState(() => _actionLoading = false);
       }
     } catch (e) {
       if (!mounted) return;
@@ -78,52 +78,87 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
     }
   }
 
-  Future<void> _pollAfterReturn() async {
+  Future<void> _verifyCompletion() async {
     if (!mounted) return;
-    setState(() => _loading = true);
-    for (int i = 0; i < 5; i++) {
+    setState(() {
+      _loading = true;
+      _waitingForStripe = false;
+    });
+
+    // Poll up to 6 times (12 seconds) for Stripe to propagate
+    for (int i = 0; i < 6; i++) {
       await Future.delayed(const Duration(seconds: 2));
       if (!mounted) return;
       try {
         final status = await ApiService.getPayoutStatus();
-        final enabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
         _connected = status['connected'] == true;
+        final enabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
         if (enabled) {
           await StorageService.setStripePayoutsEnabled(true);
-          if (mounted) {
-            setState(() {
-              _payoutsEnabled = true;
-              _connected = true;
-              _stripeTabOpen = false;
-              _loading = false;
-            });
-          }
+          _showSuccessAndPop();
           return;
         }
       } catch (_) {}
     }
-    // Still not complete — keep stripeTabOpen true so they can't open another tab
-    if (mounted) setState(() => _loading = false);
+
+    // Not complete yet — go back to setup view
+    if (mounted) {
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Setup not complete yet. Please finish the Stripe form and come back.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  void _showSuccessAndPop() {
+    if (!mounted) return;
+    setState(() {
+      _payoutsEnabled = true;
+      _loading = false;
+    });
+    // Show the success screen briefly, then auto-pop to dashboard
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) Navigator.pop(context, true);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text(
-          'Payout Setup',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
+    return PopScope(
+      canPop: _payoutsEnabled, // Only allow back if setup is complete
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !_payoutsEnabled) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please complete payout setup before continuing.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        appBar: AppBar(
+          title: const Text(
+            'Payout Setup',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black),
+          automaticallyImplyLeading: _payoutsEnabled, // Hide back arrow until complete
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFF5B8FC4)))
+            : _payoutsEnabled
+                ? _buildComplete()
+                : _buildSetup(),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF5B8FC4)))
-          : _payoutsEnabled
-              ? _buildComplete()
-              : _buildSetup(),
     );
   }
 
@@ -149,24 +184,13 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
           ),
           const SizedBox(height: 12),
           Text(
-            'Your Stripe account is connected and ready to receive payouts. After each completed booking, your earnings (minus the 15% platform fee and Stripe processing fees) are transferred automatically.',
+            'Your Stripe account is connected and ready to receive payouts. Returning to dashboard\u2026',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, color: Colors.grey[600], height: 1.5),
           ),
+          const SizedBox(height: 24),
+          const CircularProgressIndicator(color: Color(0xFF10B981), strokeWidth: 2),
           const Spacer(flex: 3),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF5B8FC4),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Done', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-            ),
-          ),
-          const SizedBox(height: 32),
         ],
       ),
     );
@@ -239,7 +263,7 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
             child: ElevatedButton(
               onPressed: _actionLoading ? null : _setupStripe,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _stripeTabOpen ? const Color(0xFF10B981) : const Color(0xFF5B8FC4),
+                backgroundColor: const Color(0xFF5B8FC4),
                 disabledBackgroundColor: Colors.grey[300],
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -252,30 +276,16 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          _stripeTabOpen ? Icons.refresh : Icons.account_balance,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                        const Icon(Icons.account_balance, color: Colors.white, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          _stripeTabOpen
-                              ? 'I\'ve Completed Setup'
-                              : (_connected ? 'Complete Setup' : 'Connect Bank Account'),
+                          _connected ? 'Complete Setup' : 'Connect Bank Account',
                           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
             ),
           ),
-          if (_stripeTabOpen) ...[
-            const SizedBox(height: 12),
-            Text(
-              'Already opened Stripe in your browser? Complete the form there, then tap the button above to verify.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey[500], height: 1.4),
-            ),
-          ],
           const SizedBox(height: 24),
         ],
       ),
