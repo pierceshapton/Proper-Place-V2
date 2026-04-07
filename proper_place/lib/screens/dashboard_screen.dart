@@ -198,7 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     // Then verify against the server and update cache
     try {
       final status = await ApiService.getPayoutStatus();
-      final enabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
+      final enabled = status['details_submitted'] == true;
       await StorageService.setStripePayoutsEnabled(enabled);
       if (mounted) {
         setState(() {

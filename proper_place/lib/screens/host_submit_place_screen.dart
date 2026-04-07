@@ -103,7 +103,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
     if (!isEditing) {
       try {
         final status = await ApiService.getPayoutStatus();
-        final payoutsEnabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
+        final payoutsEnabled = status['details_submitted'] == true;
         if (!payoutsEnabled && mounted) {
           final setupComplete = await Navigator.push<bool>(
             context,
@@ -111,7 +111,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
           );
           // Re-check after returning from setup
           final recheck = await ApiService.getPayoutStatus();
-          if (recheck['payouts_enabled'] != true || recheck['details_submitted'] != true) {
+          if (recheck['details_submitted'] != true) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

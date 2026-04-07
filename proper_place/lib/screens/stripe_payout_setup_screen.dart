@@ -44,9 +44,10 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
     try {
       final status = await ApiService.getPayoutStatus();
       _connected = status['connected'] == true;
-      _payoutsEnabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
+      final detailsSubmitted = status['details_submitted'] == true;
+      _payoutsEnabled = detailsSubmitted; // details_submitted means host completed the form
       await StorageService.setStripePayoutsEnabled(_payoutsEnabled);
-      // If already complete, go straight back to dashboard
+      // If details submitted (form completed), treat as success
       if (_payoutsEnabled && mounted) {
         _showSuccessAndPop();
         return;
@@ -101,8 +102,8 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
       try {
         final status = await ApiService.getPayoutStatus();
         _connected = status['connected'] == true;
-        final enabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
-        if (enabled) {
+        final detailsSubmitted = status['details_submitted'] == true;
+        if (detailsSubmitted) {
           await StorageService.setStripePayoutsEnabled(true);
           _showSuccessAndPop();
           return;
