@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:proper_place/services/api_service.dart';
+import 'package:proper_place/services/storage_service.dart';
 
 class StripePayoutSetupScreen extends StatefulWidget {
   const StripePayoutSetupScreen({super.key});
@@ -26,8 +27,12 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
     try {
       final status = await ApiService.getPayoutStatus();
       _connected = status['connected'] == true;
-      _payoutsEnabled = status['payouts_enabled'] == true;
-    } catch (_) {}
+      _payoutsEnabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
+      // Persist the result so the dashboard banner stays correct
+      await StorageService.setStripePayoutsEnabled(_payoutsEnabled);
+    } catch (_) {
+      // On failure, keep defaults (false) — host must prove they're set up
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -39,10 +44,32 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
       setState(() => _actionLoading = false);
       if (url.isNotEmpty) {
         await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-        // Re-check status when the user comes back
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) _checkStatus();
-        });
+        // Poll for status when user comes back — Stripe may take a moment to update
+        if (mounted) {
+          setState(() => _loading = true);
+          for (int i = 0; i < 5; i++) {
+            await Future.delayed(const Duration(seconds: 2));
+            if (!mounted) return;
+            try {
+              final status = await ApiService.getPayoutStatus();
+              final enabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
+              if (enabled) {
+                await StorageService.setStripePayoutsEnabled(true);
+                if (mounted) {
+                  setState(() {
+                    _payoutsEnabled = true;
+                    _connected = true;
+                    _loading = false;
+                  });
+                }
+                return;
+              }
+              _connected = status['connected'] == true;
+            } catch (_) {}
+          }
+          // If still not enabled after polling, update state with whatever we have
+          if (mounted) setState(() => _loading = false);
+        }
       }
     } catch (e) {
       if (!mounted) return;

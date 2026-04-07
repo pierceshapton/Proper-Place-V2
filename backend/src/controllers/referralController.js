@@ -325,10 +325,29 @@ const getConnectStatus = async (req, res) => {
     const accountId = userRow.rows[0]?.stripe_account_id;
 
     if (!accountId) {
-      return res.json({ connected: false, payouts_enabled: false });
+      return res.json({ connected: false, payouts_enabled: false, details_submitted: false });
     }
 
-    const account = await stripe.accounts.retrieve(accountId);
+    let account;
+    try {
+      account = await stripe.accounts.retrieve(accountId);
+    } catch (stripeErr) {
+      // If the Stripe account was deleted or doesn't exist, clear the stale reference
+      if (stripeErr.code === 'account_invalid' || stripeErr.statusCode === 404 || stripeErr.type === 'StripeInvalidRequestError') {
+        console.warn(`[STRIPE] Account ${accountId} no longer exists on Stripe — clearing DB reference`);
+        await db.query('UPDATE users SET stripe_account_id = NULL WHERE id = $1', [userId]);
+        return res.json({ connected: false, payouts_enabled: false, details_submitted: false });
+      }
+      throw stripeErr;
+    }
+
+    // If payouts are enabled, persist that fact so we don't lose it
+    if (account.payouts_enabled && account.details_submitted) {
+      await db.query(
+        `UPDATE users SET stripe_onboarding_complete = true WHERE id = $1 AND (stripe_onboarding_complete IS NULL OR stripe_onboarding_complete = false)`,
+        [userId]
+      );
+    }
 
     return res.json({
       connected: true,

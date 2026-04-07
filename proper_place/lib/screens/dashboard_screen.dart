@@ -19,7 +19,7 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   late ChatService _chatService;
   int _unreadCount = 0;
   int _totalBookings = 0;
@@ -29,14 +29,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _conversations = [];
   List<Map<String, dynamic>> _bookings = [];
-  bool _payoutsEnabled = true; // assume true until checked
+  bool _payoutsEnabled = false; // default false until confirmed by API
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _chatService = ChatService();
     _loadDataAndCalculateMetrics();
     _checkPayoutStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPayoutStatus();
+    }
   }
 
   Future<void> _loadDataAndCalculateMetrics() async {
@@ -173,14 +187,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _checkPayoutStatus() async {
+    // Load cached value first so banner shows immediately if needed
+    final cached = await StorageService.getStripePayoutsEnabled();
+    if (mounted) {
+      setState(() {
+        _payoutsEnabled = cached;
+      });
+    }
+
+    // Then verify against the server and update cache
     try {
       final status = await ApiService.getPayoutStatus();
+      final enabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
+      await StorageService.setStripePayoutsEnabled(enabled);
       if (mounted) {
         setState(() {
-          _payoutsEnabled = status['payouts_enabled'] == true;
+          _payoutsEnabled = enabled;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      // On API failure, keep cached value (which defaults to false)
+    }
   }
 
   void _showSalesSummaryPopup() {

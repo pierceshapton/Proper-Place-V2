@@ -24,6 +24,7 @@ class StorageService {
   static const String _mapZoomKey = 'map_last_zoom';
   static const String _hostApplicationStatusKey = 'host_application_status';
   static const String _hasUnreadNotificationsKey = 'has_unread_notifications';
+  static const String _stripePayoutsEnabledKey = 'stripe_payouts_enabled';
   
   // Vehicle dimensions keys
   static const String _vehicleHeightKey = 'vehicle_height_ft';
@@ -353,6 +354,18 @@ class StorageService {
   static Future<bool> getHasUnreadNotifications() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_hasUnreadNotificationsKey) ?? false;
+  }
+
+  // ===== Stripe Payout Status =====
+
+  static Future<void> setStripePayoutsEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_stripePayoutsEnabledKey, enabled);
+  }
+
+  static Future<bool> getStripePayoutsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_stripePayoutsEnabledKey) ?? false;
   }
 
   // ===== Vehicle Dimensions =====

@@ -688,6 +688,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 26 error:', err.message);
     }
 
+    // Migration 27: Track Stripe onboarding completion for hosts
+    try {
+      console.log('[SERVER] Running migration 27: Stripe onboarding complete flag...');
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_onboarding_complete BOOLEAN DEFAULT false`);
+      console.log('[SERVER] ✅ Migration 27 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 27 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

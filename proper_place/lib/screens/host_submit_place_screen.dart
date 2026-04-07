@@ -103,7 +103,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
     if (!isEditing) {
       try {
         final status = await ApiService.getPayoutStatus();
-        final payoutsEnabled = status['payouts_enabled'] == true;
+        final payoutsEnabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
         if (!payoutsEnabled && mounted) {
           final setupComplete = await Navigator.push<bool>(
             context,
@@ -111,7 +111,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
           );
           // Re-check after returning from setup
           final recheck = await ApiService.getPayoutStatus();
-          if (recheck['payouts_enabled'] != true) {
+          if (recheck['payouts_enabled'] != true || recheck['details_submitted'] != true) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -124,7 +124,19 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
             return;
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        // If we can't verify Stripe status, block submission — don't let hosts skip setup
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to verify payout setup. Please check your connection and try again.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
     }
 
     setState(() => isSubmitting = true);
