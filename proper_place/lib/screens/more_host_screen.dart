@@ -163,7 +163,7 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
     try {
       final status = await ApiService.getPayoutStatus();
       connected = status['connected'] == true;
-      payoutsEnabled = status['payouts_enabled'] == true;
+      payoutsEnabled = status['details_submitted'] == true;
     } catch (e) {
       // Default to not connected
     }
