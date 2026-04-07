@@ -265,9 +265,14 @@ const createConnectAccount = async (req, res) => {
         country: 'GB',
         email: user.email,
         capabilities: {
+          card_payments: { requested: true },
           transfers: { requested: true },
         },
         business_type: 'individual',
+        business_profile: {
+          mcc: '7033', // Trailer parks and campgrounds
+          product_description: 'Host on Proper Place – renting out a camping/glamping site to guests via the Proper Place platform.',
+        },
         metadata: { proper_place_user_id: String(userId) },
       });
       accountId = account.id;
