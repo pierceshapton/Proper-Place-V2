@@ -127,7 +127,15 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version: '2.1.0', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', version: '2.2.0', timestamp: new Date().toISOString() });
+});
+
+// Temporary: clear all stripe_account_id values (remove after use)
+app.post('/admin/clear-stripe-accounts', authMiddleware, async (req, res) => {
+  try {
+    const result = await db.query("UPDATE users SET stripe_account_id = NULL WHERE stripe_account_id IS NOT NULL RETURNING id, email");
+    res.json({ cleared: result.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // Routes
