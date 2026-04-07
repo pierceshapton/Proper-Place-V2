@@ -253,14 +253,19 @@ const createConnectAccount = async (req, res) => {
     const userId = req.user.userId || req.user.id;
 
     // Check if host already has an account
-    const userRow = await db.query('SELECT stripe_account_id, email, name FROM users WHERE id = $1', [userId]);
+    const userRow = await db.query('SELECT stripe_account_id, email, name, phone_number FROM users WHERE id = $1', [userId]);
     const user = userRow.rows[0];
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     let accountId = user.stripe_account_id;
 
     if (!accountId) {
-      const account = await stripe.accounts.create({
+      // Split name into first/last for Stripe
+      const nameParts = (user.name || '').trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || firstName;
+
+      const accountParams = {
         type: 'express',
         country: 'GB',
         email: user.email,
@@ -269,12 +274,24 @@ const createConnectAccount = async (req, res) => {
           transfers: { requested: true },
         },
         business_type: 'individual',
+        individual: {
+          first_name: firstName,
+          last_name: lastName,
+          email: user.email,
+        },
         business_profile: {
           mcc: '7033', // Trailer parks and campgrounds
           product_description: 'Host on Proper Place – renting out a camping/glamping site to guests via the Proper Place platform.',
         },
         metadata: { proper_place_user_id: String(userId) },
-      });
+      };
+
+      // Pre-fill phone if available to avoid Stripe asking twice
+      if (user.phone_number) {
+        accountParams.individual.phone = user.phone_number;
+      }
+
+      const account = await stripe.accounts.create(accountParams);
       accountId = account.id;
       await db.query('UPDATE users SET stripe_account_id = $1 WHERE id = $2', [accountId, userId]);
     }
