@@ -319,12 +319,11 @@ const createConnectAccount = async (req, res) => {
       await db.query('UPDATE users SET stripe_account_id = $1 WHERE id = $2', [accountId, userId]);
     }
 
-    // Create onboarding link — only collect what's strictly needed (bank + ID verification)
-    const baseUrl = process.env.APP_URL || 'https://proper-place.co.uk';
+    // Create onboarding link — redirect back to the app via custom URL scheme
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${baseUrl}/stripe-connect/refresh`,
-      return_url: `${baseUrl}/stripe-connect/complete`,
+      refresh_url: 'properplace://stripe-connect/refresh',
+      return_url: 'properplace://stripe-connect/complete',
       type: 'account_onboarding',
       collection_options: {
         fields: 'currently_due',
