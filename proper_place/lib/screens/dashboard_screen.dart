@@ -5,6 +5,7 @@ import 'package:proper_place/services/chat_service.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/place_service.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'stripe_payout_setup_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int) onTabChanged;
@@ -28,12 +29,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _conversations = [];
   List<Map<String, dynamic>> _bookings = [];
+  bool _payoutsEnabled = true; // assume true until checked
 
   @override
   void initState() {
     super.initState();
     _chatService = ChatService();
     _loadDataAndCalculateMetrics();
+    _checkPayoutStatus();
   }
 
   Future<void> _loadDataAndCalculateMetrics() async {
@@ -169,6 +172,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {});
   }
 
+  Future<void> _checkPayoutStatus() async {
+    try {
+      final status = await ApiService.getPayoutStatus();
+      if (mounted) {
+        setState(() {
+          _payoutsEnabled = status['payouts_enabled'] == true;
+        });
+      }
+    } catch (_) {}
+  }
+
   void _showSalesSummaryPopup() {
     showDialog(
       context: context,
@@ -273,10 +287,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       referralCode = response;
     } catch (e) {
       // Generate a local fallback code
-      final userId = await StorageService.getUserId();
-      final name = await StorageService.getUserName();
-      final cleanName = (name ?? 'HOST').replaceAll(RegExp(r'[^a-zA-Z]'), '').toUpperCase();
-      referralCode = 'PP-${cleanName.substring(0, cleanName.length > 4 ? 4 : cleanName.length)}-${userId ?? '0'}';
+      final randomHex = List.generate(8, (i) => '0123456789ABCDEF'[(DateTime.now().microsecond + i.hashCode) % 16]).join();
+      referralCode = 'PP-$randomHex';
     }
 
     if (!mounted) return;
@@ -530,6 +542,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Stripe payout setup banner
+          if (!_payoutsEnabled)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StripePayoutSetupScreen()),
+                  );
+                  _checkPayoutStatus();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFF59E0B)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.account_balance, color: Color(0xFFD97706), size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Set Up Payouts',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF92400E)),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Guests can\u2019t book until you connect your bank account. Tap to set up now.',
+                              style: TextStyle(fontSize: 13, color: Colors.brown[700], height: 1.3),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: Color(0xFFD97706)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
           // Unread Messages Card
           GestureDetector(
             onTap: () {

@@ -85,20 +85,20 @@ export default function TermsPage() {
               constitute a charge. No funds are transferred at this stage.
             </p>
             <p className="text-gray-600 mb-4">
-              <strong>6.2 Host Approval &amp; Payment Capture.</strong> Payment will be taken by Proper Place once the Host has 
-              approved the Guest&apos;s stay. If the Host does not approve the booking, the authorisation hold is released and 
-              no charge is made to the Guest&apos;s payment method.
+              <strong>6.2 Host Approval &amp; Payment Capture.</strong> Payment is captured by Stripe once the Host has 
+              approved the Guest&apos;s stay. If the Host does not approve the booking, the authorisation hold is released by Stripe and 
+              no charge is made to the Guest&apos;s payment method. Proper Place does not capture or process any payments directly.
             </p>
             <p className="text-gray-600 mb-4">
-              <strong>6.3 Fund Holding.</strong> Proper Place hold these funds until the stay has completed as insurance for 
-              all parties. Funds are held by Proper Place Ltd in a designated client account and are disbursed to the Host 
-              following the successful completion of the Guest&apos;s stay. This holding period serves as protection for both 
-              Hosts and Guests in the event of a dispute, cancellation, or damage claim.
+              <strong>6.3 Fund Holding.</strong> All captured funds are held securely by Stripe — not by Proper Place — until the 
+              stay has been completed. Proper Place never holds, controls, or has custody of Guest funds at any stage. 
+              Funds are disbursed to the Host by Stripe following the successful completion of the Guest&apos;s stay. 
+              This holding period serves as protection for both Hosts and Guests in the event of a dispute, cancellation, or damage claim.
             </p>
             <p className="text-gray-600 mb-4">
               <strong>6.4 Release of Funds.</strong> Upon completion of the stay (defined as the check-out date and time having 
-              passed without an active dispute), funds will be released to the Host in accordance with the applicable 
-              disbursement schedule. Proper Place reserves the right to delay disbursement where a dispute has been raised 
+              passed without an active dispute), Stripe will release funds to the Host in accordance with the applicable 
+              disbursement schedule. Proper Place may instruct Stripe to delay disbursement where a dispute has been raised 
               or where there is a reasonable suspicion of fraud or breach of these Terms.
             </p>
             <p className="text-gray-600 mb-6">

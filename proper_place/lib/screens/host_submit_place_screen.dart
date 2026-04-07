@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/image_picker_service.dart';
 import 'package:proper_place/widgets/google_places_address_field.dart';
+import 'package:proper_place/screens/stripe_payout_setup_screen.dart';
 import 'dart:io';
 
 class HostSubmitPlaceScreen extends StatefulWidget {
@@ -96,6 +97,34 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
         const SnackBar(content: Text('Please set location')),
       );
       return;
+    }
+
+    // For new submissions, require Stripe Connect before sending to admin
+    if (!isEditing) {
+      try {
+        final status = await ApiService.getPayoutStatus();
+        final payoutsEnabled = status['payouts_enabled'] == true;
+        if (!payoutsEnabled && mounted) {
+          final setupComplete = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const StripePayoutSetupScreen()),
+          );
+          // Re-check after returning from setup
+          final recheck = await ApiService.getPayoutStatus();
+          if (recheck['payouts_enabled'] != true) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Please complete payout setup to allow your site to be submitted to Proper Place.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
+            return;
+          }
+        }
+      } catch (_) {}
     }
 
     setState(() => isSubmitting = true);
@@ -390,6 +419,32 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+              // Payout setup notice for new submissions
+              if (!isEditing)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFF59E0B)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline, color: Color(0xFFD97706), size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'You\u2019ll need to set up your bank account via Stripe before your site can be submitted for approval. You\u2019ll be guided through this when you tap submit.',
+                            style: TextStyle(fontSize: 13, color: Colors.brown[800], height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               // Submit button
               SizedBox(
                 width: double.infinity,

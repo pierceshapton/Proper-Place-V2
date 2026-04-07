@@ -31,6 +31,7 @@ class PaymentService {
     required String currency,
     required String bookingId,
     required BuildContext context,
+    int? placeId,
   }) async {
     try {
       debugPrint('🟦 PAYMENT: Starting payment process for £${amount.toStringAsFixed(2)}');
@@ -41,6 +42,7 @@ class PaymentService {
       final paymentIntentData = await _createPaymentIntent(
         amount: (amount * 100).toInt(), // Convert to cents
         currency: currency,
+        placeId: placeId,
       );
       debugPrint('🟦 PAYMENT: Payment intent created: ${paymentIntentData['clientSecret'] != null}');
 
@@ -99,11 +101,13 @@ class PaymentService {
   static Future<Map<String, dynamic>> _createPaymentIntent({
     required int amount,
     required String currency,
+    int? placeId,
   }) async {
     try {
       final response = await ApiService.createPaymentIntent(
         amount: amount,
         currency: currency,
+        placeId: placeId,
       );
       return response;
     } catch (e) {

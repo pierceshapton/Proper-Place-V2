@@ -142,7 +142,7 @@ async function sendToUser(userId, title, body, data = {}) {
  * Notify host about a new booking.
  */
 async function notifyNewBooking(hostId, guestName, placeName, bookingId) {
-  await sendToUser(hostId, 'New Booking Request', `${guestName} booked ${placeName}`, {
+  await sendToUser(hostId, 'New Booking Request', `${guestName} has requested to book ${placeName}. You have 7 days to accept or decline — after that the booking will expire automatically.`, {
     type: 'new_booking',
     bookingId: String(bookingId),
   });

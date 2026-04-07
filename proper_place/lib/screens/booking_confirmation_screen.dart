@@ -559,6 +559,30 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                   statusDetail,
                   style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
                 ),
+                if (targetTab == 'pending') ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'The host has 7 days to accept your booking. If they don\'t respond, the hold on your card will be released and no payment will be taken.',
+                            style: TextStyle(fontSize: 13, color: Colors.orange.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

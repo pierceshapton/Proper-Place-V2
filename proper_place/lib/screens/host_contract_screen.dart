@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 
 class HostContractScreen extends StatefulWidget {
@@ -34,7 +35,9 @@ class _HostContractScreenState extends State<HostContractScreen> {
     try {
       await ApiService.acceptHostContract(version: '1.0');
       if (mounted) {
-        Navigator.pop(context, true);
+        // Show payout setup screen as the natural next step
+        await _showPayoutSetup();
+        if (mounted) Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -45,6 +48,16 @@ class _HostContractScreenState extends State<HostContractScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  /// Show full-screen payout setup after contract is signed
+  Future<void> _showPayoutSetup() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const _PayoutSetupScreen(),
+      ),
+    );
   }
 
   @override
@@ -133,12 +146,13 @@ class _HostContractScreenState extends State<HostContractScreen> {
                   const SizedBox(height: 16),
                   _sectionTitle('4. Payment Terms'),
                   _sectionText(
-                    'a) All bookings made through the Proper Place platform are processed via our secure payment system (Stripe). Guests pay at the time of booking.\n\n'
-                    'b) A payment hold is placed on the Guest\'s card at the time of booking. The charge is only captured once you, the Host, approve the booking. If you reject a booking, the hold is released and the Guest is not charged.\n\n'
-                    'c) Proper Place charges a platform commission of 15% on each completed booking. This commission is deducted before your payout.\n\n'
-                    'd) Payouts to Hosts are processed via Stripe Connect. You must set up a valid Stripe Connect account to receive payouts. Proper Place is not responsible for delays caused by incomplete or incorrect payment account details.\n\n'
-                    'e) The maximum nightly rate permitted on the platform is £20 per night. Proper Place reserves the right to amend this cap with reasonable notice.\n\n'
-                    'f) You are solely responsible for declaring all income received through the platform to the relevant tax authority (e.g., HMRC) and for paying any tax due. Proper Place does not provide tax advice.',
+                    'a) All bookings made through the Proper Place platform are processed via Stripe, a PCI-DSS compliant third-party payment processor. Proper Place does not process, hold, or have custody of any Guest funds at any stage of the transaction.\n\n'
+                    'b) A payment authorisation hold is placed on the Guest\'s card at the time of booking via Stripe. The charge is only captured by Stripe once you, the Host, approve the booking. If you reject a booking, the hold is released by Stripe and the Guest is not charged.\n\n'
+                    'c) All funds from captured payments are held by Stripe — not by Proper Place — until the booking is completed. This holding period serves as protection for both Hosts and Guests. Proper Place never holds, controls, or has access to Guest funds.\n\n'
+                    'd) Proper Place charges a platform commission of 15% on each completed booking. This commission is deducted by Stripe before your payout.\n\n'
+                    'e) Payouts to Hosts are processed via Stripe Connect. You must set up a valid Stripe Connect account to receive payouts. Proper Place is not responsible for delays caused by incomplete or incorrect payment account details.\n\n'
+                    'f) The maximum nightly rate permitted on the platform is £20 per night. Proper Place reserves the right to amend this cap with reasonable notice.\n\n'
+                    'g) You are solely responsible for declaring all income received through the platform to the relevant tax authority (e.g., HMRC) and for paying any tax due. Proper Place does not provide tax advice.',
                   ),
                   const SizedBox(height: 16),
                   _sectionTitle('5. Limitation of Liability & Indemnity'),
@@ -347,6 +361,166 @@ class _HostContractScreenState extends State<HostContractScreen> {
     return Text(
       text,
       style: const TextStyle(fontSize: 14, height: 1.6, color: Colors.black87),
+    );
+  }
+}
+
+/// Screen shown immediately after contract acceptance to set up Stripe payouts
+class _PayoutSetupScreen extends StatefulWidget {
+  const _PayoutSetupScreen();
+
+  @override
+  State<_PayoutSetupScreen> createState() => _PayoutSetupScreenState();
+}
+
+class _PayoutSetupScreenState extends State<_PayoutSetupScreen> {
+  bool _loading = false;
+
+  Future<void> _setupStripe() async {
+    setState(() => _loading = true);
+    try {
+      final url = await ApiService.setupPayoutAccount();
+      if (!mounted) return;
+      setState(() => _loading = false);
+      if (url.isNotEmpty) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error setting up payouts: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            children: [
+              const Spacer(flex: 2),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 44),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Agreement Signed!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Now let\u2019s set up your payouts',
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 32),
+
+              // Info cards
+              _infoCard(
+                Icons.account_balance_outlined,
+                'Automatic Payouts',
+                'After each booking is completed, your payout will be sent to your bank account automatically via Stripe.',
+              ),
+              const SizedBox(height: 12),
+              _infoCard(
+                Icons.schedule_outlined,
+                'When You Get Paid',
+                'Funds are held securely by Stripe (not Proper Place) until the guest\u2019s stay is complete. Once the booking concludes, your payout (minus 15% platform fee) is transferred automatically via Stripe.',
+              ),
+              const SizedBox(height: 12),
+              _infoCard(
+                Icons.security_outlined,
+                'Secure & Simple',
+                'Stripe handles everything \u2014 your bank details are never shared with us or guests. Setup takes about 2 minutes.',
+              ),
+
+              const Spacer(flex: 3),
+
+              // Primary CTA
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _setupStripe,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7BA7D8),
+                    disabledBackgroundColor: Colors.grey[300],
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          height: 20, width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.account_balance, color: Colors.white, size: 20),
+                            SizedBox(width: 8),
+                            Text('Set Up Payouts', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Skip option
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'I\u2019ll do this later',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'You can always set up payouts from your host settings.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoCard(IconData icon, String title, String desc) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: const Color(0xFF7BA7D8), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
+                const SizedBox(height: 4),
+                Text(desc, style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

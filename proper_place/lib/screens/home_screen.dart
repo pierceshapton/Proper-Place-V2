@@ -342,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1A1A2E))),
                                 SizedBox(height: 3),
                                 Text(
-                                  'All payments are securely processed through a third party: Stripe. Proper Place does not see or hold any of your payment information.',
+                                  'All payments are securely processed and held by Stripe, our third-party payment processor. Proper Place never holds, controls, or has access to your funds or payment information.',
                                   style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.3),
                                 ),
                               ],

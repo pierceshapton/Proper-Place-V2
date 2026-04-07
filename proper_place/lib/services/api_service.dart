@@ -631,14 +631,19 @@ class ApiService {
   static Future<Map<String, dynamic>> createPaymentIntent({
     required int amount,
     required String currency,
+    int? placeId,
   }) async {
+    final body = <String, dynamic>{
+      'amount': amount,
+      'currency': currency,
+    };
+    if (placeId != null) {
+      body['place_id'] = placeId;
+    }
     return _request(
       method: 'POST',
       endpoint: '/payments/create-intent',
-      body: {
-        'amount': amount,
-        'currency': currency,
-      },
+      body: body,
     );
   }
 

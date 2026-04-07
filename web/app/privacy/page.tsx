@@ -98,7 +98,7 @@ export default function PrivacyPage() {
                     <td className="px-4 py-3 text-sm text-gray-600">Contract performance</td>
                   </tr>
                   <tr>
-                    <td className="px-4 py-3 text-sm text-gray-600">Authorising and holding payment funds pending Host approval and stay completion</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">Facilitating payment authorisation and fund holding via Stripe (our third-party payment processor) pending Host approval and stay completion. All funds are held by Stripe, not Proper Place.</td>
                     <td className="px-4 py-3 text-sm text-gray-600">Contract performance / Legitimate interest</td>
                   </tr>
                   <tr>
@@ -142,7 +142,7 @@ export default function PrivacyPage() {
             <h2 className="text-2xl font-bold mt-8 mb-4">5. Data Sharing</h2>
             <p className="text-gray-600 mb-4">We share your data with the following third parties:</p>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-6">
-              <li><strong>Stripe:</strong> Payment processing (PCI-DSS compliant)</li>
+              <li><strong>Stripe:</strong> Payment processing, fund holding, and host payouts (PCI-DSS compliant). All customer funds are held by Stripe — Proper Place never holds or has custody of user funds.</li>
               <li><strong>DigitalOcean:</strong> Cloud hosting and database services (EU/UK data centres)</li>
               <li><strong>Google Maps:</strong> Location and mapping services</li>
               <li><strong>Email service providers:</strong> For transactional emails</li>

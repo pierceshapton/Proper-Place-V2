@@ -705,7 +705,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              Wrap(
+              Flexible(child: SingleChildScrollView(child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: allFacilities.map((facility) {
@@ -739,7 +739,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   );
                 }).toList(),
-              ),
+              ))),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,

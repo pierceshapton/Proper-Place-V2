@@ -208,7 +208,7 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
                   ? 'Your account is connected and ready to receive referral bonuses automatically.'
                   : connected
                       ? 'Your Stripe account is connected but needs more details before payouts can be sent.'
-                      : 'Connect your bank account via Stripe to receive £25 referral bonuses automatically when your referrals earn their first booking.',
+                      : 'Connect your bank account via Stripe to receive booking payouts automatically. Guests cannot book your site until this is set up.',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.5),
             ),

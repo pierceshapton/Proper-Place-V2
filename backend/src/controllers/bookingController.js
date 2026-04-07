@@ -39,20 +39,167 @@ async function autoCompleteBookings() {
     const result = await db.query(
       `UPDATE bookings 
        SET status = 'Completed', updated_at = NOW()
-       WHERE status != 'Cancelled' 
-         AND status != 'Completed'
+       WHERE status NOT IN ('cancelled', 'Cancelled', 'Completed')
          AND check_out_date < $1
-       RETURNING id, status`,
+       RETURNING id, status, charge_id, transfer_id, host_payout_status, place_id, total_price, booking_ref`,
       [now]
     );
     
     if (result.rows.length > 0) {
       logger.info('Auto-completed bookings', { count: result.rows.length, ids: result.rows.map(r => r.id) });
+
+      // Trigger host payouts for completed bookings that have a captured charge but no transfer yet
+      for (const booking of result.rows) {
+        if (booking.charge_id && !booking.transfer_id && booking.host_payout_status !== 'paid') {
+          setImmediate(async () => {
+            try {
+              await transferToHost(booking.id);
+            } catch (e) {
+              logger.error('Auto-payout failed for completed booking', { bookingId: booking.id, error: e.message });
+            }
+          });
+        }
+      }
     }
     
     return result.rows;
   } catch (error) {
     logger.error('Auto-complete bookings error', { error: error.message });
+  }
+}
+
+/**
+ * Transfer captured funds to host after booking completion.
+ * Called automatically when a booking is auto-completed.
+ */
+async function transferToHost(bookingId) {
+  const bookingRes = await db.query(
+    `SELECT b.*, p.owner_id, u.stripe_account_id
+     FROM bookings b
+     JOIN places p ON p.id = b.place_id
+     JOIN users u ON u.id = p.owner_id
+     WHERE b.id = $1`,
+    [bookingId]
+  );
+
+  if (bookingRes.rows.length === 0) return;
+  const booking = bookingRes.rows[0];
+
+  if (!booking.stripe_account_id) {
+    logger.warn('Host payout skipped: no Stripe Connect account', { bookingId, hostId: booking.owner_id });
+    await db.query(
+      `UPDATE bookings SET host_payout_status = 'awaiting_connect', updated_at = NOW() WHERE id = $1`,
+      [bookingId]
+    );
+    return;
+  }
+
+  if (booking.transfer_id || booking.host_payout_status === 'paid') return;
+  if (!booking.charge_id) {
+    logger.warn('Host payout skipped: no charge_id', { bookingId });
+    return;
+  }
+
+  // 15% platform commission
+  const totalPence = Math.round(parseFloat(booking.total_price) * 100);
+  const platformFee = Math.round(totalPence * 0.15);
+  const hostPayout = totalPence - platformFee;
+
+  const transfer = await stripe.transfers.create({
+    amount: hostPayout,
+    currency: 'gbp',
+    destination: booking.stripe_account_id,
+    source_transaction: booking.charge_id,
+    description: `Booking ${booking.booking_ref || booking.id} payout`,
+    metadata: {
+      booking_id: String(booking.id),
+      booking_ref: booking.booking_ref || '',
+      platform_fee: String(platformFee),
+    },
+  });
+
+  await db.query(
+    `UPDATE bookings SET transfer_id = $1, host_payout_status = 'paid', updated_at = NOW() WHERE id = $2`,
+    [transfer.id, booking.id]
+  );
+
+  logger.info('Host payout transferred', { bookingId, transferId: transfer.id, hostPayout, platformFee });
+
+  // Notify host
+  try {
+    await pushService.sendToUser(booking.owner_id, 'Payout Sent!',
+      `£${(hostPayout / 100).toFixed(2)} has been sent to your account for booking ${booking.booking_ref || booking.id}.`,
+      { type: 'payout', booking_id: String(booking.id) });
+  } catch (e) { /* ignore push errors */ }
+}
+
+/**
+ * Cancel expired payment authorizations.
+ * Stripe holds expire after 7 days. This cancels bookings where the host
+ * hasn't responded within 7 days and the auth is about to expire.
+ */
+async function cancelExpiredAuthorizations() {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Find pending bookings with payment authorizations older than 7 days
+    const result = await db.query(
+      `SELECT b.id, b.payment_intent_id, b.user_id, b.payment_authorized_at,
+              p.name AS place_name, p.owner_id
+       FROM bookings b
+       LEFT JOIN places p ON p.id = b.place_id
+       WHERE b.status = 'pending'
+         AND b.payment_intent_id IS NOT NULL
+         AND (
+           (b.payment_authorized_at IS NOT NULL AND b.payment_authorized_at < $1)
+           OR (b.payment_authorized_at IS NULL AND b.created_at < $1)
+         )`,
+      [sevenDaysAgo]
+    );
+
+    if (result.rows.length === 0) return;
+
+    logger.info('Found expired authorizations to cancel', { count: result.rows.length });
+
+    for (const booking of result.rows) {
+      try {
+        // Cancel the Stripe hold
+        await stripe.paymentIntents.cancel(booking.payment_intent_id);
+        logger.info('Expired auth cancelled', { bookingId: booking.id, paymentIntentId: booking.payment_intent_id });
+      } catch (stripeErr) {
+        // If it's already cancelled/expired, that's fine
+        logger.warn('Stripe cancel for expired auth failed (may already be expired)', {
+          bookingId: booking.id, error: stripeErr.message,
+        });
+      }
+
+      // Mark booking as cancelled
+      await db.query(
+        `UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
+        [booking.id]
+      );
+
+      // Notify guest
+      try {
+        await pushService.sendToUser(booking.user_id, 'Booking Expired',
+          `Your booking at ${booking.place_name || 'a site'} expired because the host didn't respond in time. Your card hold has been released.`,
+          { type: 'booking_update', status: 'expired' });
+      } catch (e) { /* ignore */ }
+
+      // Notify host
+      if (booking.owner_id) {
+        try {
+          await pushService.sendToUser(booking.owner_id, 'Booking Expired',
+            `A booking at ${booking.place_name || 'your site'} expired because it wasn't reviewed within 7 days.`,
+            { type: 'booking_update', status: 'expired' });
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    logger.info('Expired authorizations processed', { count: result.rows.length });
+  } catch (error) {
+    logger.error('Cancel expired authorizations error', { error: error.message });
   }
 }
 
@@ -313,7 +460,7 @@ async function createBooking(req, res, next) {
       setImmediate(async () => {
         try {
           const placeRes = await db.query('SELECT name FROM places WHERE id = $1', [data.place_id]);
-          await pushService.sendToUser(userId, 'Booking Submitted', `Your booking at ${placeRes.rows[0]?.name || 'a site'} is pending host approval`, {
+          await pushService.sendToUser(userId, 'Booking Submitted', `Your booking at ${placeRes.rows[0]?.name || 'a site'} is pending host approval. The host has 7 days to respond — if they don't, the hold on your card will be released and no payment will be taken.`, {
             type: 'booking_update',
             status: 'pending',
           });
@@ -942,10 +1089,34 @@ async function approveBooking(req, res, next) {
     }
 
     // Capture the Stripe payment if a payment intent was stored
+    let chargeId = null;
+    let transferId = null;
+    let hostPayoutStatus = 'pending';
     if (booking.payment_intent_id) {
       try {
-        await stripe.paymentIntents.capture(booking.payment_intent_id);
-        logger.info('Stripe payment captured', { bookingId: id, paymentIntentId: booking.payment_intent_id });
+        const captured = await stripe.paymentIntents.capture(booking.payment_intent_id);
+        // Extract the charge ID from the captured payment intent
+        if (captured.latest_charge) {
+          chargeId = captured.latest_charge;
+        } else if (captured.charges?.data?.length > 0) {
+          chargeId = captured.charges.data[0].id;
+        }
+
+        // If this was a destination charge, Stripe auto-transferred to the host
+        if (captured.transfer_data) {
+          hostPayoutStatus = 'paid';
+          // Retrieve the transfer ID from the charge for tracking
+          if (chargeId) {
+            try {
+              const charge = await stripe.charges.retrieve(chargeId);
+              transferId = charge.transfer || null;
+            } catch (e) {
+              logger.warn('Could not retrieve transfer ID from charge', { chargeId, error: e.message });
+            }
+          }
+        }
+
+        logger.info('Stripe payment captured', { bookingId: id, paymentIntentId: booking.payment_intent_id, chargeId, transferId, hostPayoutStatus });
       } catch (stripeErr) {
         logger.error('Stripe capture failed', { bookingId: id, error: stripeErr.message });
         return res.status(502).json({ error: 'payment_capture_failed', message: 'Failed to capture payment. Please try again.' });
@@ -953,8 +1124,8 @@ async function approveBooking(req, res, next) {
     }
 
     const result = await db.query(
-      'UPDATE bookings SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-      ['confirmed', id]
+      `UPDATE bookings SET status = 'confirmed', charge_id = $1, transfer_id = $2, host_payout_status = $3, updated_at = NOW() WHERE id = $4 RETURNING *`,
+      [chargeId, transferId, hostPayoutStatus, id]
     );
 
     logger.info('Booking approved', { userId, bookingId: id });
@@ -1169,4 +1340,6 @@ module.exports = {
   approveBooking,
   rejectBooking,
   cancelBooking,
+  cancelExpiredAuthorizations,
+  transferToHost,
 };

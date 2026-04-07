@@ -8,6 +8,7 @@ import 'package:proper_place/screens/host_submit_place_screen.dart';
 import 'package:proper_place/screens/admin_place_approval_screen.dart';
 import 'package:proper_place/screens/my_bookings_screen.dart';
 import 'package:proper_place/screens/booking_detail_screen.dart';
+import 'package:proper_place/screens/stripe_payout_setup_screen.dart';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/config/app_constants.dart';
 import 'package:proper_place/services/storage_service.dart';
@@ -151,6 +152,7 @@ class MyApp extends StatelessWidget {
         },
         '/admin_place_approval': (context) => const AdminPlaceApprovalScreen(),
         '/my_bookings': (context) => const MyBookingsScreen(),
+        '/stripe-payout-setup': (context) => const StripePayoutSetupScreen(),
         '/booking-detail': (context) {
           final args = ModalRoute.of(context)?.settings.arguments
               as Map<String, dynamic>?;

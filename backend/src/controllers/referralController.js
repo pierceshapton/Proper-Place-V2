@@ -1,5 +1,5 @@
 const db = require('../config/database');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_51SVJ2DCGmQVz0gpF9CcIAr4tsMN3LKFicySXcKQWB378Mi4BVrUI2UstMGxHzR8vomIV1EJ9fMLz7xiAkQDEqJzp00wfNviq5a');
 const pushService = require('../services/pushNotificationService');
 
 const BONUS_AMOUNT = 2500; // £25.00 in pence
@@ -7,7 +7,7 @@ const BONUS_AMOUNT = 2500; // £25.00 in pence
 // Generate a unique referral code for a host
 const getOrCreateReferralCode = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     // Check if user already has a referral code
     const existing = await db.query(
@@ -19,10 +19,9 @@ const getOrCreateReferralCode = async (req, res) => {
       return res.json({ referral_code: existing.rows[0].referral_code });
     }
 
-    // Generate a unique code: PP-<first4ofName>-<userId>
-    const userRow = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
-    const name = (userRow.rows[0]?.name || 'HOST').replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 4);
-    const code = `PP-${name}-${userId}`;
+    // Generate a unique random referral code
+    const randomSuffix = require('crypto').randomBytes(4).toString('hex').toUpperCase(); // 8 random hex chars
+    const code = `PP-${randomSuffix}`;
 
     await db.query(
       'UPDATE users SET referral_code = $1 WHERE id = $2',
@@ -39,7 +38,7 @@ const getOrCreateReferralCode = async (req, res) => {
 // Get referral stats for the current host
 const getReferralStats = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     const result = await db.query(
       `SELECT r.id, r.referred_email, r.status, r.created_at, r.bonus_paid_at,
@@ -248,7 +247,7 @@ const adminCompleteReferral = async (req, res) => {
 // Create a Stripe Connect Express account for a host and return onboarding link
 const createConnectAccount = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     // Check if host already has an account
     const userRow = await db.query('SELECT stripe_account_id, email, name FROM users WHERE id = $1', [userId]);
@@ -291,7 +290,7 @@ const createConnectAccount = async (req, res) => {
 // Check Stripe Connect account status for a host
 const getConnectStatus = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     const userRow = await db.query('SELECT stripe_account_id FROM users WHERE id = $1', [userId]);
     const accountId = userRow.rows[0]?.stripe_account_id;
@@ -317,7 +316,7 @@ const getConnectStatus = async (req, res) => {
 // Retry payout for pending referrals (when host sets up Stripe Connect)
 const retryPendingPayouts = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     const userRow = await db.query('SELECT stripe_account_id FROM users WHERE id = $1', [userId]);
     const accountId = userRow.rows[0]?.stripe_account_id;

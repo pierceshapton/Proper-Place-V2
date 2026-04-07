@@ -147,7 +147,7 @@ export default function BecomeHostPage() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-lg">Secure Payments</h4>
-                    <p className="text-gray-600">Payments are processed securely and transferred directly to your bank account.</p>
+                    <p className="text-gray-600">All payments are processed securely by Stripe and transferred directly to your bank account. Proper Place never holds your funds.</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-4">

@@ -345,6 +345,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         currency: 'GBP',
         bookingId: 'booking_${DateTime.now().millisecondsSinceEpoch}',
         context: context,
+        placeId: widget.place['id'] is int ? widget.place['id'] : int.tryParse(widget.place['id'].toString()),
       );
 
       if (paymentIntentId == null) {
@@ -381,7 +382,10 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         final bookingRef = bookingData?['booking_ref'];
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Booking submitted! Ref: ${bookingRef ?? 'Success'} — awaiting host approval')),
+            SnackBar(
+              content: Text('Booking submitted! Ref: ${bookingRef ?? 'Success'} — awaiting host approval (7 days to respond)'),
+              duration: const Duration(seconds: 4),
+            ),
           );
           // Navigate to Bookings tab (index 1 for user mode)
           HomeScreen.setNextTab(1);
@@ -1071,7 +1075,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Payment will be taken by Proper Place once the host has approved your stay. Proper Place hold these funds until the stay has completed as insurance for all parties.',
+                          'Your card will be authorised at the time of booking. Payment is only captured once the host approves your stay. All funds are held securely by Stripe (our payment processor) — not by Proper Place — until the stay has completed, as protection for all parties.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 11,

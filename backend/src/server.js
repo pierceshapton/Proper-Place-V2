@@ -43,6 +43,7 @@ const uploadRoutes = require('./routes/upload');
 const autoMessagesRoutes = require('./routes/autoMessages');
 const hostLeadsRoutes = require('./routes/hostLeads');
 const referralRoutes = require('./routes/referrals');
+const webhookRoutes = require('./routes/webhooks');
 const pushService = require('./services/pushNotificationService');
 
 // User controller for user endpoints
@@ -114,6 +115,9 @@ app.use(cors({
   },
   credentials: true,
 }));
+// Stripe webhooks need raw body for signature verification — mount BEFORE json parser
+app.use('/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
 app.use(morgan('combined'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -671,6 +675,18 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 25 error:', err.message);
     }
 
+    // Migration 26: Add Stripe payment tracking columns to bookings
+    try {
+      console.log('[SERVER] Running migration 26: Stripe payment tracking columns...');
+      await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS charge_id VARCHAR(255)`);
+      await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS transfer_id VARCHAR(255)`);
+      await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_authorized_at TIMESTAMP`);
+      await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS host_payout_status VARCHAR(50) DEFAULT 'pending'`);
+      console.log('[SERVER] ✅ Migration 26 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 26 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
@@ -812,6 +828,15 @@ async function start() {
     // Run once on startup after a short delay
     setTimeout(() => autoMessageController.processScheduledMessages(), 30000);
     console.log('[SERVER] Auto-message scheduler started (every 15 min)');
+
+    // Start expired authorization checker (runs every hour)
+    const bookingCtrl = require('./controllers/bookingController');
+    setInterval(() => {
+      bookingCtrl.cancelExpiredAuthorizations();
+    }, 60 * 60 * 1000); // every hour
+    // Run once on startup after a short delay
+    setTimeout(() => bookingCtrl.cancelExpiredAuthorizations(), 60000);
+    console.log('[SERVER] Expired authorization checker started (every 1 hour)');
 
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
