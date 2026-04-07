@@ -259,13 +259,12 @@ const createConnectAccount = async (req, res) => {
 
     let accountId = user.stripe_account_id;
 
-    if (!accountId) {
-      // Split name into first/last for Stripe
+    // Helper: build fresh account params with all pre-filled data
+    const buildAccountParams = () => {
       const nameParts = (user.name || '').trim().split(/\s+/);
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || firstName;
-
-      const accountParams = {
+      const params = {
         type: 'express',
         country: 'GB',
         email: user.email,
@@ -280,44 +279,43 @@ const createConnectAccount = async (req, res) => {
           email: user.email,
         },
         business_profile: {
-          mcc: '7033', // Trailer parks and campgrounds
+          mcc: '7033',
           product_description: 'Host on Proper Place – renting out a camping/glamping site to guests via the Proper Place platform.',
         },
         metadata: { proper_place_user_id: String(userId) },
       };
-
-      // Pre-fill phone if available — Stripe requires E.164 format (+447...)
       if (user.phone_number) {
         let phone = user.phone_number.replace(/\s+/g, '');
         if (!phone.startsWith('+')) phone = '+44' + phone.replace(/^0/, '');
-        accountParams.individual.phone = phone;
+        params.individual.phone = phone;
       }
+      return params;
+    };
 
-      const account = await stripe.accounts.create(accountParams);
+    // If account exists, verify it's still valid on Stripe
+    if (accountId) {
+      try {
+        const existing = await stripe.accounts.retrieve(accountId);
+        // If onboarding not completed and phone is missing, delete and recreate
+        // Express accounts can't have individual fields updated via API
+        if (!existing.details_submitted && !existing.individual?.phone && user.phone_number) {
+          console.log(`[STRIPE] Account ${accountId} missing phone, deleting to recreate with pre-fill`);
+          await stripe.accounts.del(accountId);
+          accountId = null;
+          await db.query('UPDATE users SET stripe_account_id = NULL WHERE id = $1', [userId]);
+        }
+      } catch (stripeErr) {
+        // Account deleted or invalid — clear and recreate
+        console.warn(`[STRIPE] Account ${accountId} invalid: ${stripeErr.message}, will recreate`);
+        accountId = null;
+        await db.query('UPDATE users SET stripe_account_id = NULL WHERE id = $1', [userId]);
+      }
+    }
+
+    if (!accountId) {
+      const account = await stripe.accounts.create(buildAccountParams());
       accountId = account.id;
       await db.query('UPDATE users SET stripe_account_id = $1 WHERE id = $2', [accountId, userId]);
-    } else {
-      // Account already exists — update it with latest user data in case anything changed
-      const nameParts = (user.name || '').trim().split(/\s+/);
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || firstName;
-      const updateParams = {
-        individual: {
-          first_name: firstName,
-          last_name: lastName,
-          email: user.email,
-        },
-      };
-      if (user.phone_number) {
-        let phone = user.phone_number.replace(/\s+/g, '');
-        if (!phone.startsWith('+')) phone = '+44' + phone.replace(/^0/, '');
-        updateParams.individual.phone = phone;
-      }
-      try {
-        await stripe.accounts.update(accountId, updateParams);
-      } catch (updateErr) {
-        console.warn('[STRIPE] Could not update existing account:', updateErr.message);
-      }
     }
 
     // Create onboarding link — only collect what's strictly needed (bank + ID verification)
