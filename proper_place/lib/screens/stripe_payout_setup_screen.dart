@@ -10,16 +10,32 @@ class StripePayoutSetupScreen extends StatefulWidget {
   State<StripePayoutSetupScreen> createState() => _StripePayoutSetupScreenState();
 }
 
-class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
+class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with WidgetsBindingObserver {
   bool _loading = true;
   bool _actionLoading = false;
   bool _connected = false;
   bool _payoutsEnabled = false;
+  bool _stripeTabOpen = false; // Track whether we've already opened a Stripe tab
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When user comes back from the browser, auto-check status
+    if (state == AppLifecycleState.resumed && _stripeTabOpen) {
+      _pollAfterReturn();
+    }
   }
 
   Future<void> _checkStatus() async {
@@ -37,39 +53,21 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
   }
 
   Future<void> _setupStripe() async {
+    // If we already opened a tab, don't open another — just re-poll
+    if (_stripeTabOpen) {
+      await _pollAfterReturn();
+      return;
+    }
+
     setState(() => _actionLoading = true);
     try {
       final url = await ApiService.setupPayoutAccount();
       if (!mounted) return;
       setState(() => _actionLoading = false);
       if (url.isNotEmpty) {
+        setState(() => _stripeTabOpen = true);
         await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-        // Poll for status when user comes back — Stripe may take a moment to update
-        if (mounted) {
-          setState(() => _loading = true);
-          for (int i = 0; i < 5; i++) {
-            await Future.delayed(const Duration(seconds: 2));
-            if (!mounted) return;
-            try {
-              final status = await ApiService.getPayoutStatus();
-              final enabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
-              if (enabled) {
-                await StorageService.setStripePayoutsEnabled(true);
-                if (mounted) {
-                  setState(() {
-                    _payoutsEnabled = true;
-                    _connected = true;
-                    _loading = false;
-                  });
-                }
-                return;
-              }
-              _connected = status['connected'] == true;
-            } catch (_) {}
-          }
-          // If still not enabled after polling, update state with whatever we have
-          if (mounted) setState(() => _loading = false);
-        }
+        // The lifecycle observer will call _pollAfterReturn when user comes back
       }
     } catch (e) {
       if (!mounted) return;
@@ -78,6 +76,34 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
         SnackBar(content: Text('Error setting up payouts: $e'), backgroundColor: Colors.red),
       );
     }
+  }
+
+  Future<void> _pollAfterReturn() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
+    for (int i = 0; i < 5; i++) {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      try {
+        final status = await ApiService.getPayoutStatus();
+        final enabled = status['payouts_enabled'] == true && status['details_submitted'] == true;
+        _connected = status['connected'] == true;
+        if (enabled) {
+          await StorageService.setStripePayoutsEnabled(true);
+          if (mounted) {
+            setState(() {
+              _payoutsEnabled = true;
+              _connected = true;
+              _stripeTabOpen = false;
+              _loading = false;
+            });
+          }
+          return;
+        }
+      } catch (_) {}
+    }
+    // Still not complete — keep stripeTabOpen true so they can't open another tab
+    if (mounted) setState(() => _loading = false);
   }
 
   @override
@@ -213,7 +239,7 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
             child: ElevatedButton(
               onPressed: _actionLoading ? null : _setupStripe,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF5B8FC4),
+                backgroundColor: _stripeTabOpen ? const Color(0xFF10B981) : const Color(0xFF5B8FC4),
                 disabledBackgroundColor: Colors.grey[300],
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -226,16 +252,30 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> {
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.account_balance, color: Colors.white, size: 20),
+                        Icon(
+                          _stripeTabOpen ? Icons.refresh : Icons.account_balance,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
-                          _connected ? 'Complete Setup' : 'Connect Bank Account',
+                          _stripeTabOpen
+                              ? 'I\'ve Completed Setup'
+                              : (_connected ? 'Complete Setup' : 'Connect Bank Account'),
                           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
             ),
           ),
+          if (_stripeTabOpen) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Already opened Stripe in your browser? Complete the form there, then tap the button above to verify.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey[500], height: 1.4),
+            ),
+          ],
           const SizedBox(height: 24),
         ],
       ),
