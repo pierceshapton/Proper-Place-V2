@@ -4,7 +4,7 @@ const { hashPassword, verifyPassword } = require('../utils/hash');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 const logger = require('../utils/logger');
 const { recordReferral } = require('./referralController');
-const { sendVerificationEmail } = require('../utils/email');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/email');
 
 /**
  * POST /auth/signup
@@ -443,6 +443,198 @@ p{color:#555;line-height:1.6;}</style>
 </head><body><div class="card"><div class="icon">${icon}</div><h1>${success ? 'Email Verified' : 'Verification Failed'}</h1><p>${message}</p></div></body></html>`;
 }
 
+/**
+ * POST /auth/forgot-password
+ * Sends a password reset email if the user exists and is verified.
+ * Always returns success to prevent email enumeration.
+ */
+async function forgotPassword(req, res, next) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: 'missing_email',
+        message: 'Email is required',
+      });
+    }
+
+    // Always return success to prevent email enumeration
+    const successResponse = {
+      message: 'If an account exists with that email, a password reset link has been sent.',
+    };
+
+    const result = await db.query(
+      'SELECT id, email, verified FROM users WHERE email = $1',
+      [email.toLowerCase().trim()]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].verified) {
+      // Don't reveal whether the account exists
+      return res.json(successResponse);
+    }
+
+    const user = result.rows[0];
+    const resetToken = crypto.randomUUID();
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.query(
+      `UPDATE users SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3`,
+      [resetToken, resetExpires, user.id]
+    );
+
+    // Send email (non-blocking)
+    sendPasswordResetEmail(user.email, resetToken).catch((err) => {
+      logger.error('Failed to send password reset email', { email: user.email, error: err.message });
+    });
+
+    logger.info('Password reset requested', { userId: user.id, email: user.email });
+    return res.json(successResponse);
+  } catch (error) {
+    logger.error('Forgot password error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * GET /auth/reset-password?token=xxx
+ * Shows a form to enter a new password (browser-based).
+ */
+async function showResetPasswordForm(req, res) {
+  const { token } = req.query;
+  if (!token) {
+    return res.status(400).send(resetHtmlPage(false, 'Missing reset token.'));
+  }
+
+  const result = await db.query(
+    `SELECT id FROM users WHERE password_reset_token = $1 AND password_reset_expires > NOW()`,
+    [token]
+  );
+
+  if (result.rows.length === 0) {
+    return res.status(400).send(resetHtmlPage(false, 'This reset link is invalid or has expired. Please request a new one from the app.'));
+  }
+
+  // Show password form
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reset Password – Proper Place</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+.card{background:#fff;border-radius:16px;padding:48px 32px;text-align:center;max-width:400px;width:90%;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+h1{color:#1a1a1a;font-size:22px;margin-bottom:12px;}
+p{color:#555;line-height:1.6;margin-bottom:20px;}
+input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:12px;box-sizing:border-box;}
+input:focus{outline:none;border-color:#2E7D32;}
+button{width:100%;padding:14px;background:#2E7D32;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;}
+button:hover{background:#256029;}
+.error{color:#C62828;font-size:14px;margin-bottom:12px;display:none;}
+</style></head><body>
+<div class="card">
+<h1>Reset Password</h1>
+<p>Enter your new password below.</p>
+<form id="resetForm" onsubmit="return handleSubmit(event)">
+<input type="password" id="password" placeholder="New password" minlength="6" required />
+<input type="password" id="confirm" placeholder="Confirm new password" minlength="6" required />
+<div class="error" id="error"></div>
+<button type="submit" id="btn">Reset Password</button>
+</form>
+</div>
+<script>
+async function handleSubmit(e){
+  e.preventDefault();
+  var pw=document.getElementById('password').value;
+  var cf=document.getElementById('confirm').value;
+  var err=document.getElementById('error');
+  var btn=document.getElementById('btn');
+  if(pw.length<6){err.textContent='Password must be at least 6 characters.';err.style.display='block';return false;}
+  if(pw!==cf){err.textContent='Passwords do not match.';err.style.display='block';return false;}
+  err.style.display='none';btn.textContent='Resetting...';btn.disabled=true;
+  try{
+    var r=await fetch(window.location.origin+'/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:'${token}',password:pw})});
+    var d=await r.json();
+    if(r.ok){document.querySelector('.card').innerHTML='<div style="font-size:48px;margin-bottom:16px;">✅</div><h1 style="color:#2E7D32;">Password Reset</h1><p>Your password has been updated. You can now log in with your new password in the app.</p>';}
+    else{err.textContent=d.message||'Reset failed. Try again.';err.style.display='block';btn.textContent='Reset Password';btn.disabled=false;}
+  }catch(ex){err.textContent='Network error. Please try again.';err.style.display='block';btn.textContent='Reset Password';btn.disabled=false;}
+  return false;
+}
+</script></body></html>`;
+  return res.send(html);
+}
+
+/**
+ * POST /auth/reset-password
+ * Actually resets the password given a valid token.
+ */
+async function resetPassword(req, res, next) {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({
+        error: 'missing_fields',
+        message: 'Token and password are required',
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: 'weak_password',
+        message: 'Password must be at least 6 characters',
+      });
+    }
+
+    const result = await db.query(
+      `SELECT id, email FROM users WHERE password_reset_token = $1 AND password_reset_expires > NOW()`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({
+        error: 'invalid_token',
+        message: 'This reset link is invalid or has expired. Please request a new one.',
+      });
+    }
+
+    const user = result.rows[0];
+    const passwordHash = await hashPassword(password);
+
+    await db.query(
+      `UPDATE users SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL WHERE id = $2`,
+      [passwordHash, user.id]
+    );
+
+    // Revoke all refresh tokens for security
+    await db.query(
+      'UPDATE refresh_tokens SET revoked = true WHERE user_id = $1',
+      [user.id]
+    );
+
+    logger.info('Password reset completed', { userId: user.id, email: user.email });
+
+    return res.json({
+      message: 'Password has been reset successfully. Please log in with your new password.',
+    });
+  } catch (error) {
+    logger.error('Reset password error', { error: error.message });
+    next(error);
+  }
+}
+
+/** Helper: simple HTML page for reset-password results */
+function resetHtmlPage(success, message) {
+  const color = success ? '#2E7D32' : '#C62828';
+  const icon = success ? '✅' : '❌';
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Password Reset – Proper Place</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+.card{background:#fff;border-radius:16px;padding:48px 32px;text-align:center;max-width:400px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+.icon{font-size:48px;margin-bottom:16px;}
+h1{color:${color};font-size:22px;margin-bottom:12px;}
+p{color:#555;line-height:1.6;}</style>
+</head><body><div class="card"><div class="icon">${icon}</div><h1>${success ? 'Password Reset' : 'Reset Failed'}</h1><p>${message}</p></div></body></html>`;
+}
+
 module.exports = {
   signup,
   login,
@@ -453,4 +645,7 @@ module.exports = {
   acceptHostContract,
   verifyEmail,
   resendVerification,
+  forgotPassword,
+  showResetPasswordForm,
+  resetPassword,
 };

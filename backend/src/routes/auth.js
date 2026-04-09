@@ -1,7 +1,7 @@
 const express = require('express');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { validationMiddleware } = require('../middleware/validation');
-const { authLimiter, registerLimiter } = require('../middleware/rateLimit');
+const { authLimiter, registerLimiter, passwordResetLimiter } = require('../middleware/rateLimit');
 const authController = require('../controllers/authController');
 const pushService = require('../services/pushNotificationService');
 
@@ -15,6 +15,11 @@ router.post('/refresh', authLimiter, authController.refreshToken);
 // Email verification
 router.get('/verify-email', authController.verifyEmail);
 router.post('/resend-verification', authMiddleware, authController.resendVerification);
+
+// Password reset
+router.post('/forgot-password', passwordResetLimiter, authController.forgotPassword);
+router.get('/reset-password', authController.showResetPasswordForm);
+router.post('/reset-password', passwordResetLimiter, authController.resetPassword);
 
 // Protected routes
 router.get('/me', authMiddleware, authController.getCurrentUser);

@@ -3,6 +3,7 @@ import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/screens/signup_screen.dart';
 import 'package:proper_place/screens/email_verification_screen.dart';
+import 'package:proper_place/screens/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -353,35 +354,62 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 6),
 
-                      // Remember Me Checkbox
+                      // Remember Me & Forgot Password Row
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: Checkbox(
-                              value: _rememberMe,
-                              onChanged: (value) {
-                                setState(() {
-                                  _rememberMe = value ?? false;
-                                });
-                              },
-                              activeColor: const Color(0xFF7BA7D8),
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rememberMe = value ?? false;
+                                    });
+                                  },
+                                  activeColor: const Color(0xFF7BA7D8),
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _rememberMe = !_rememberMe;
+                                  });
+                                },
+                                child: Text(
+                                  'Remember me',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
                           GestureDetector(
                             onTap: () {
-                              setState(() {
-                                _rememberMe = !_rememberMe;
-                              });
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ForgotPasswordScreen(
+                                    initialEmail: _emailController.text.trim().isNotEmpty
+                                        ? _emailController.text.trim()
+                                        : null,
+                                  ),
+                                ),
+                              );
                             },
-                            child: Text(
-                              'Remember me',
+                            child: const Text(
+                              'Forgot Password?',
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[700],
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF7BA7D8),
                               ),
                             ),
                           ),

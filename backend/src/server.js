@@ -708,6 +708,17 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 28 error:', err.message);
     }
 
+    // Migration 29: Password reset token columns
+    try {
+      console.log('[SERVER] Running migration 29: Password reset columns...');
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token UUID`);
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ`);
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users (password_reset_token) WHERE password_reset_token IS NOT NULL`);
+      console.log('[SERVER] ✅ Migration 29 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 29 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

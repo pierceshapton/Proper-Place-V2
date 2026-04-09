@@ -18,8 +18,8 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
   final _phoneController = TextEditingController();
   final _businessDescriptionController = TextEditingController();
   final _addressController = TextEditingController();
-  final _vanSpacesController = TextEditingController();
   final _referralCodeController = TextEditingController();
+  int? _vanSpaces;
   String _businessType = 'pub';
   double? _latitude;
   double? _longitude;
@@ -78,7 +78,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
         latitude: _latitude ?? 0,
         longitude: _longitude ?? 0,
         businessType: _businessType,
-        vanSpaces: int.parse(_vanSpacesController.text),
+        vanSpaces: _vanSpaces!,
         referralCode: _referralCodeController.text.trim().isNotEmpty
             ? _referralCodeController.text.trim()
             : null,
@@ -112,9 +112,6 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Become a Host'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
       ),
       resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
@@ -260,22 +257,25 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _vanSpacesController,
-                  keyboardType: TextInputType.number,
+                DropdownButtonFormField<int>(
+                  value: _vanSpaces,
                   decoration: InputDecoration(
-                    hintText: 'e.g., 5',
+                    hintText: 'Select number of spaces',
                     hintStyle: TextStyle(color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
+                  items: List.generate(25, (i) => i + 1)
+                      .map((n) => DropdownMenuItem(
+                            value: n,
+                            child: Text('$n'),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() => _vanSpaces = value),
                   validator: (value) {
-                    if (value?.isEmpty ?? true) {
+                    if (value == null) {
                       return 'Number of van spaces is required';
-                    }
-                    if (int.tryParse(value!) == null) {
-                      return 'Please enter a valid number';
                     }
                     return null;
                   },
@@ -430,7 +430,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
     _phoneController.dispose();
     _businessDescriptionController.dispose();
     _addressController.dispose();
-    _vanSpacesController.dispose();
+
     _referralCodeController.dispose();
     super.dispose();
   }

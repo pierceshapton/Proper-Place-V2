@@ -94,14 +94,19 @@ class _SignupScreenState extends State<SignupScreen> {
         await StorageService.saveRefreshToken(refreshToken);
       }
       await StorageService.saveUserName(name);
-      if (response['user_id'] != null) {
-        await StorageService.saveUserId(response['user_id']);
-      }
-      if (response['email'] != null) {
-        await StorageService.saveUserEmail(response['email']);
-      }
-      if (response['role'] != null) {
-        await StorageService.saveUserRole(response['role']);
+      
+      // Extract user data from nested 'user' object
+      final user = response['user'];
+      if (user != null) {
+        if (user['id'] != null) {
+          await StorageService.saveUserId(user['id'].toString());
+        }
+        if (user['email'] != null) {
+          await StorageService.saveUserEmail(user['email']);
+        }
+        if (user['role'] != null) {
+          await StorageService.saveUserRole(user['role']);
+        }
       }
 
       // Save vehicle dimensions

@@ -11,6 +11,7 @@ class ApiService {
   static const String _authLoginEndpoint = '/auth/login';
   static const String _authSignupEndpoint = '/auth/signup';
   static const String _authUserEndpoint = '/auth/user';
+  static const String _authForgotPasswordEndpoint = '/auth/forgot-password';
 
   /// Get the full API base URL from config
   static String get _baseUrl {
@@ -284,6 +285,17 @@ class ApiService {
     return _request(
       method: 'GET',
       endpoint: '$_authUserEndpoint/$userId',
+    );
+  }
+
+  /// Request password reset email
+  static Future<Map<String, dynamic>> forgotPassword({
+    required String email,
+  }) async {
+    return _request(
+      method: 'POST',
+      endpoint: _authForgotPasswordEndpoint,
+      body: {'email': email},
     );
   }
 

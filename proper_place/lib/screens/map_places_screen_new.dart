@@ -23,6 +23,7 @@ class MapPlacesScreen extends StatefulWidget {
 class _MapPlacesScreenState extends State<MapPlacesScreen> {
   GoogleMapController? mapController;
   Set<Marker> markers = {};
+  Set<Circle> _searchCircles = {};
   LatLng? currentLocation;
   bool isLoading = true;
   bool isOfflineMode = false;
@@ -269,7 +270,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       if (!isSanFrancisco) {
         setState(() {
           currentLocation = LatLng(position.latitude, position.longitude);
-          // Save the new location to cache for next time
+          // Save the new location to cache for next time (preserve current zoom)
           StorageService.cacheMapLocation(
             latitude: position.latitude,
             longitude: position.longitude,
@@ -277,31 +278,13 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
           );
         });
         print('Updated location to: ${position.latitude}, ${position.longitude}');
-        
-        // Animate camera to current location
-        mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(
-            LatLng(position.latitude, position.longitude),
-            14,
-          ),
-        );
+        // Don't auto-zoom — let the user control the map view.
+        // The blue dot shows their location anyway.
       } else {
         print('Detected simulator default location, keeping cached location');
-        // Still animate to cached location if available
-        if (currentLocation != null) {
-          mapController?.animateCamera(
-            CameraUpdate.newLatLngZoom(currentLocation!, 14),
-          );
-        }
       }
     } catch (e) {
       print('Error getting location: $e');
-      // On error, still try to animate to cached location
-      if (currentLocation != null) {
-        mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(currentLocation!, 14),
-        );
-      }
     }
   }
 
@@ -699,7 +682,13 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                   const Text('Filter by Facilities', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   if (tempFilters.isNotEmpty)
                     GestureDetector(
-                      onTap: () => setSheetState(() => tempFilters.clear()),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        setState(() {
+                          _activeFacilityFilters = {};
+                        });
+                        _updateMarkersForZoom();
+                      },
                       child: const Text('Clear All', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600)),
                     ),
                 ],
@@ -842,9 +831,21 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       builder: (context) => _MapSearchSheet(
         onLocationSelected: (lat, lng, address) {
           Navigator.pop(context);
-          // Zoom to level 12 - enough to see the area and show site markers (markers appear at zoom 11+)
+          final searchLatLng = LatLng(lat, lng);
+          setState(() {
+            _searchCircles = {
+              Circle(
+                circleId: const CircleId('search_result'),
+                center: searchLatLng,
+                radius: 500,
+                fillColor: const Color(0xFF3B82F6).withOpacity(0.15),
+                strokeColor: const Color(0xFF3B82F6),
+                strokeWidth: 2,
+              ),
+            };
+          });
           mapController?.animateCamera(
-            CameraUpdate.newLatLngZoom(LatLng(lat, lng), 12),
+            CameraUpdate.newLatLngZoom(searchLatLng, 12),
           );
         },
       ),
@@ -1087,6 +1088,11 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                         currentZoom = cameraPosition.zoom;
                         _updateMarkersForZoom();
 
+                        // Clear search circle when user pans/zooms
+                        if (_searchCircles.isNotEmpty) {
+                          setState(() => _searchCircles = {});
+                        }
+
                         // Save map location to cache
                         StorageService.cacheMapLocation(
                           latitude: cameraPosition.target.latitude,
@@ -1097,9 +1103,10 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                       initialCameraPosition: CameraPosition(
                         target:
                             currentLocation ?? const LatLng(54.5973, -3.4360),
-                        zoom: 6,
+                        zoom: currentZoom,
                       ),
                       markers: markers,
+                      circles: _searchCircles,
                       mapType: mapType,
                       myLocationEnabled: true,
                       myLocationButtonEnabled: false,
@@ -1310,7 +1317,7 @@ class _MapSearchSheetState extends State<_MapSearchSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     
     return Container(
-      height: MediaQuery.of(context).size.height * 0.45 + bottomInset,
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
