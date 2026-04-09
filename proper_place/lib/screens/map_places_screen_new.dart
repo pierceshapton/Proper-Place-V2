@@ -1077,12 +1077,6 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                     GoogleMap(
                       onMapCreated: (controller) {
                         mapController = controller;
-                        // Animate to current location after map is created
-                        if (currentLocation != null) {
-                          mapController?.animateCamera(
-                            CameraUpdate.newLatLngZoom(currentLocation!, 12),
-                          );
-                        }
                       },
                       onCameraMove: (CameraPosition cameraPosition) {
                         currentZoom = cameraPosition.zoom;
