@@ -104,6 +104,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           });
           _loadUser();
         }
+      } else {
+        debugPrint('Profile update failed: ${response.statusCode} ${response.body}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to save (${response.statusCode})'), backgroundColor: Colors.red),
+          );
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

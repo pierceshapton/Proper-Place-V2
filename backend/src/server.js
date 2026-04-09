@@ -27,6 +27,7 @@ const morgan = require('morgan');
 const logger = require('./utils/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { authMiddleware, adminMiddleware } = require('./middleware/auth');
+const { validationMiddleware } = require('./middleware/validation');
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -152,7 +153,7 @@ app.use('/referrals', referralRoutes);
 
 // User routes
 app.get('/users/:id', userController.getUserProfile);
-app.patch('/users/:id', authMiddleware, userController.updateProfile);
+app.patch('/users/:id', authMiddleware, validationMiddleware('updateProfile'), userController.updateProfile);
 app.delete('/users/:id', authMiddleware, userController.deleteAccount);
 app.get('/users/:id/export', authMiddleware, userController.exportUserData); // GDPR Article 20
 
