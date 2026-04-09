@@ -87,13 +87,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated!')),
-        );
-        setState(() {
-          isEditing = false;
-        });
-        _loadUser();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Saved!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        if (widget.startInEditMode && mounted) {
+          Navigator.of(context).pop();
+        } else {
+          setState(() {
+            isEditing = false;
+          });
+          _loadUser();
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
