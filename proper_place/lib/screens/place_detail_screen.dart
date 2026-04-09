@@ -8,6 +8,7 @@ import 'package:proper_place/models/place.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/services/payment_service.dart';
 import 'package:proper_place/screens/home_screen.dart';
+import 'package:proper_place/screens/profile_screen.dart';
 import 'package:proper_place/widgets/availability_calendar_picker.dart';
 
 class PlaceDetailScreen extends StatefulWidget {
@@ -36,8 +37,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   bool isLoadingBookings = true;
   int _siteCapacity = 1;
   List<String> _vehicleFitIssues = [];
-  final TextEditingController _vanRegController = TextEditingController();
-  String? _vanRegError;
+  String? _userVanReg;
   
   // Fee rate per hour for early/late times
   static const double hourlyFeeRate = 5.0;
@@ -49,6 +49,27 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     _loadReviews();
     _loadExistingBookings();
     _loadVehicleFit();
+    _loadUserVanReg();
+  }
+
+  Future<void> _loadUserVanReg() async {
+    try {
+      final token = await StorageService.getToken();
+      final response = await http.get(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/auth/me'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final reg = data['user']?['vehicle_registration'];
+        if (mounted && reg != null && reg.toString().isNotEmpty) {
+          setState(() => _userVanReg = reg.toString());
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadVehicleFit() async {
@@ -306,17 +327,17 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       return;
     }
 
-    // Validate van registration
-    final vanReg = _vanRegController.text.trim().toUpperCase();
-    if (vanReg.isEmpty) {
-      setState(() => _vanRegError = 'Van registration is required');
+    // Check van registration is set in profile
+    if (_userVanReg == null || _userVanReg!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please set your van registration in your profile (More > Profile) before booking'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
       return;
     }
-    if (!RegExp(r'^[A-Za-z0-9]{2,8}$').hasMatch(vanReg)) {
-      setState(() => _vanRegError = 'Please enter a valid UK number plate (2-8 letters/digits)');
-      return;
-    }
-    setState(() => _vanRegError = null);
 
     setState(() => _isProcessingPayment = true);
 
@@ -386,7 +407,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           'check_out_date': _checkOutDate!.toIso8601String(),
           'check_in_time': checkInTimeStr,
           'check_out_time': checkOutTimeStr,
-          'van_registration': _vanRegController.text.trim().toUpperCase(),
+          'van_registration': _userVanReg,
           'total_price': totalPrice,
           'payment_intent_id': paymentIntentId,
         }),
@@ -979,30 +1000,49 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Van Registration
-                        TextField(
-                          controller: _vanRegController,
-                          textCapitalization: TextCapitalization.characters,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
-                            LengthLimitingTextInputFormatter(8),
-                          ],
-                          decoration: InputDecoration(
-                            labelText: 'Van Registration',
-                            hintText: 'e.g. AB12CDE',
-                            prefixIcon: const Icon(Icons.directions_car, color: Color(0xFF7BA7D8)),
-                            errorText: _vanRegError,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0xFF7BA7D8)),
-                            ),
+                        // Van Registration (from profile)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[300]!),
                           ),
-                          onChanged: (_) {
-                            if (_vanRegError != null) setState(() => _vanRegError = null);
-                          },
+                          child: Row(
+                            children: [
+                              const Icon(Icons.directions_car, color: Color(0xFF7BA7D8), size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Van Reg: ',
+                                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                              ),
+                              Text(
+                                _userVanReg ?? 'Not set',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: _userVanReg != null ? Colors.grey[800] : Colors.red,
+                                ),
+                              ),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                                  );
+                                  _loadUserVanReg();
+                                },
+                                child: const Text(
+                                  'Edit',
+                                  style: TextStyle(
+                                    color: Color(0xFF7BA7D8),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 16),
 
@@ -1601,7 +1641,6 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   @override
   void dispose() {
     _imageController.dispose();
-    _vanRegController.dispose();
     super.dispose();
   }
 }

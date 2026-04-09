@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/screens/login_screen.dart';
@@ -16,6 +17,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _vanRegController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -40,6 +42,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _vanRegController.dispose();
     super.dispose();
   }
 
@@ -81,6 +84,7 @@ class _SignupScreenState extends State<SignupScreen> {
         name: name,
         password: password,
         confirmPassword: confirmPassword,
+        vehicleRegistration: _vanRegController.text.trim().toUpperCase(),
       );
 
       if (!mounted) return;
@@ -367,6 +371,67 @@ class _SignupScreenState extends State<SignupScreen> {
                             decoration: InputDecoration(
                               hintText: 'Confirm your password',
                               hintStyle: TextStyle(color: Colors.grey[700]),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF7BA7D8),
+                                  width: 2,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Van Registration Field
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Van Registration',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Required for booking — can be changed later in your profile',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _vanRegController,
+                            textCapitalization: TextCapitalization.characters,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
+                              LengthLimitingTextInputFormatter(8),
+                            ],
+                            decoration: InputDecoration(
+                              hintText: 'e.g. AB12CDE',
+                              hintStyle: TextStyle(color: Colors.grey[700]),
+                              prefixIcon: const Icon(Icons.directions_car, color: Color(0xFF7BA7D8)),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(

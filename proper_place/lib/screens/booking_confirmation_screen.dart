@@ -5,6 +5,10 @@ import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/services/payment_service.dart';
 import 'package:proper_place/screens/home_screen.dart';
+import 'package:proper_place/screens/profile_screen.dart';
+import 'package:proper_place/config/app_config.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class BookingConfirmationScreen extends StatefulWidget {
   final Place place;
@@ -25,8 +29,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   bool isSubmitting = false;
   Map<String, int> bookedSpaces = {};
   bool isLoadingBookings = true;
-  final TextEditingController _regController = TextEditingController();
-  String? _regError;
+  String? _userVanReg;
 
   @override
   void initState() {
@@ -35,12 +38,27 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     checkInDate = DateTime.now();
     checkOutDate = DateTime.now().add(const Duration(days: 1));
     _loadBookings();
+    _loadUserVanReg();
   }
 
-  @override
-  void dispose() {
-    _regController.dispose();
-    super.dispose();
+  Future<void> _loadUserVanReg() async {
+    try {
+      final token = await StorageService.getToken();
+      final response = await http.get(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/auth/me'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final reg = data['user']?['vehicle_registration'];
+        if (mounted && reg != null && reg.toString().isNotEmpty) {
+          setState(() => _userVanReg = reg.toString());
+        }
+      }
+    } catch (_) {}
   }
 
   /// Validates UK number plate formats:
@@ -400,7 +418,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 const SizedBox(height: 8),
                 Text('Check-in: ${_formatDate(checkInDate!)}'),
                 Text('Check-out: ${_formatDate(checkOutDate!)}'),
-                Text('Van Reg: ${_regController.text.trim().toUpperCase()}'),
+                Text('Van Reg: ${_userVanReg ?? "Not set"}'),
                 const SizedBox(height: 8),
                 Text('Total: £${totalPrice.toStringAsFixed(0)}'),
               ],
@@ -470,7 +488,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         checkIn: _formatDate(checkInDate!),
         checkOut: _formatDate(checkOutDate!),
         totalPrice: totalPrice,
-        vanRegistration: _regController.text.trim().toUpperCase(),
+        vanRegistration: _userVanReg ?? '',
       );
 
       debugPrint('✅ BOOKING: Booking created successfully');
@@ -813,31 +831,49 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Van Registration
-            const Text(
-              'Van Registration',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _regController,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                hintText: 'e.g. AB12 CDE',
-                prefixIcon: const Icon(Icons.directions_car),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                errorText: _regError,
+            // Van Registration (from profile)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
               ),
-              onChanged: (_) {
-                if (_regError != null) setState(() => _regError = null);
-              },
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Required — UK format plates only',
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              child: Row(
+                children: [
+                  const Icon(Icons.directions_car, color: Color(0xFF7BA7D8), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Van Reg: ',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  ),
+                  Text(
+                    _userVanReg ?? 'Not set',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: _userVanReg != null ? Colors.grey[800] : Colors.red,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                      );
+                      _loadUserVanReg();
+                    },
+                    child: const Text(
+                      'Edit',
+                      style: TextStyle(
+                        color: Color(0xFF7BA7D8),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -856,13 +892,14 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 ),
                 onPressed: availableOnCheckIn > 0 && checkInDate != null && checkOutDate != null && !isSubmitting
                     ? () {
-                        final reg = _regController.text.trim();
-                        if (reg.isEmpty) {
-                          setState(() => _regError = 'Van registration is required');
-                          return;
-                        }
-                        if (!isValidUkPlate(reg)) {
-                          setState(() => _regError = 'Please enter a valid UK number plate');
+                        if (_userVanReg == null || _userVanReg!.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please set your van registration in your profile (More > Profile) before booking'),
+                              backgroundColor: Colors.red,
+                              duration: Duration(seconds: 4),
+                            ),
+                          );
                           return;
                         }
                         _showConfirmationDialog(totalPrice);

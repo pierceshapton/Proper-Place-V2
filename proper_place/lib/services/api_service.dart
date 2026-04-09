@@ -261,6 +261,7 @@ class ApiService {
     required String password,
     required String confirmPassword,
     String? referralCode,
+    String? vehicleRegistration,
   }) async {
     final body = <String, dynamic>{
       'email': email,
@@ -270,6 +271,9 @@ class ApiService {
     };
     if (referralCode != null && referralCode.isNotEmpty) {
       body['referral_code'] = referralCode;
+    }
+    if (vehicleRegistration != null && vehicleRegistration.isNotEmpty) {
+      body['vehicle_registration'] = vehicleRegistration;
     }
     return _request(
       method: 'POST',
