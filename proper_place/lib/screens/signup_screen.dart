@@ -424,8 +424,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             controller: _vanRegController,
                             textCapitalization: TextCapitalization.characters,
                             inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
-                              LengthLimitingTextInputFormatter(8),
+                              FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 \-]')),
+                              LengthLimitingTextInputFormatter(15),
                             ],
                             decoration: InputDecoration(
                               hintText: 'e.g. AB12CDE',

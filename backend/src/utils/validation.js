@@ -48,11 +48,11 @@ const schemas = {
     check_in_time: Joi.string().pattern(/^\d{2}:\d{2}$/).optional(),
     check_out_time: Joi.string().pattern(/^\d{2}:\d{2}$/).optional(),
     van_registration: Joi.string().required().pattern(
-      /^[A-Za-z0-9]{2,8}$/,
-      'UK number plate'
+      /^[A-Za-z0-9][A-Za-z0-9 \-]{0,13}[A-Za-z0-9]$/,
+      'European number plate'
     ).messages({
       'any.required': 'Van registration is required',
-      'string.pattern.name': 'Please enter a valid UK number plate (letters and digits only, 2-8 characters)',
+      'string.pattern.name': 'Please enter a valid number plate (2-15 characters, letters, digits, spaces or hyphens)',
     }),
     contact_phone: Joi.string(),
     special_requests: Joi.string().max(1000),

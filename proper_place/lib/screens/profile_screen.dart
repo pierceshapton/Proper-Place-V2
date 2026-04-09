@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:proper_place/config/app_config.dart';
@@ -82,7 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'name': _nameController.text,
           'phone_number': _phoneController.text,
           'bio': _bioController.text,
-          'vehicle_registration': _vehicleRegController.text,
+          'vehicle_registration': _vehicleRegController.text.trim().toUpperCase(),
         }),
       );
 
@@ -338,7 +339,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 TextField(
                   controller: _vehicleRegController,
                   enabled: isEditing,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 \-]')),
+                    LengthLimitingTextInputFormatter(15),
+                  ],
                   decoration: InputDecoration(
+                    hintText: 'e.g. AB12CDE',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
