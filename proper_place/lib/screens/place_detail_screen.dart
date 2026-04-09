@@ -1028,7 +1028,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                               GestureDetector(
                                 onTap: () async {
                                   await Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                                    MaterialPageRoute(builder: (_) => const ProfileScreen(startInEditMode: true)),
                                   );
                                   _loadUserVanReg();
                                 },

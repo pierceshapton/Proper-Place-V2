@@ -859,7 +859,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                   GestureDetector(
                     onTap: () async {
                       await Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                        MaterialPageRoute(builder: (_) => const ProfileScreen(startInEditMode: true)),
                       );
                       _loadUserVanReg();
                     },

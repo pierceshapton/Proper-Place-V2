@@ -6,7 +6,9 @@ import 'package:proper_place/services/storage_service.dart';
 import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final bool startInEditMode;
+
+  const ProfileScreen({super.key, this.startInEditMode = false});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -15,7 +17,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? user;
   bool isLoading = true;
-  bool isEditing = false;
+  late bool isEditing;
 
   // Edit controllers
   late TextEditingController _nameController;
@@ -27,6 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    isEditing = widget.startInEditMode;
     _nameController = TextEditingController();
     _emailController = TextEditingController();
     _phoneController = TextEditingController();
