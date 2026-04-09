@@ -312,27 +312,31 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
         final userWidth = await StorageService.getVehicleWidth();
         final userLength = await StorageService.getVehicleLength();
         
-        loadedPlaces = loadedPlaces.where((place) {
-          // If place has no size limits, it's considered to fit all vehicles
-          if (place.maxVehicleHeightFt == null && 
-              place.maxVehicleWidthFt == null && 
-              place.maxVehicleLengthFt == null) {
+        // Only filter if user has actually set dimensions
+        final hasDimensions = userHeight != null || userWidth != null || userLength != null;
+        if (hasDimensions) {
+          loadedPlaces = loadedPlaces.where((place) {
+            // If place has no size limits, it's considered to fit all vehicles
+            if (place.maxVehicleHeightFt == null && 
+                place.maxVehicleWidthFt == null && 
+                place.maxVehicleLengthFt == null) {
+              return true;
+            }
+            
+            // Check each dimension - place must accommodate user's vehicle
+            if (userHeight != null && place.maxVehicleHeightFt != null && place.maxVehicleHeightFt! < userHeight) {
+              return false;
+            }
+            if (userWidth != null && place.maxVehicleWidthFt != null && place.maxVehicleWidthFt! < userWidth) {
+              return false;
+            }
+            if (userLength != null && place.maxVehicleLengthFt != null && place.maxVehicleLengthFt! < userLength) {
+              return false;
+            }
+            
             return true;
-          }
-          
-          // Check each dimension - place must accommodate user's vehicle
-          if (place.maxVehicleHeightFt != null && place.maxVehicleHeightFt! < userHeight) {
-            return false;
-          }
-          if (place.maxVehicleWidthFt != null && place.maxVehicleWidthFt! < userWidth) {
-            return false;
-          }
-          if (place.maxVehicleLengthFt != null && place.maxVehicleLengthFt! < userLength) {
-            return false;
-          }
-          
-          return true;
-        }).toList();
+          }).toList();
+        }
       }
 
       setState(() {
@@ -361,16 +365,16 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     }
   }
 
-  bool _vehicleFitsPlace(Place place, double userHeight, double userWidth, double userLength) {
+  bool _vehicleFitsPlace(Place place, double? userHeight, double? userWidth, double? userLength) {
     // If place has no size limits, it fits all vehicles
     if (place.maxVehicleHeightFt == null &&
         place.maxVehicleWidthFt == null &&
         place.maxVehicleLengthFt == null) {
       return true;
     }
-    if (place.maxVehicleHeightFt != null && place.maxVehicleHeightFt! < userHeight) return false;
-    if (place.maxVehicleWidthFt != null && place.maxVehicleWidthFt! < userWidth) return false;
-    if (place.maxVehicleLengthFt != null && place.maxVehicleLengthFt! < userLength) return false;
+    if (userHeight != null && place.maxVehicleHeightFt != null && place.maxVehicleHeightFt! < userHeight) return false;
+    if (userWidth != null && place.maxVehicleWidthFt != null && place.maxVehicleWidthFt! < userWidth) return false;
+    if (userLength != null && place.maxVehicleLengthFt != null && place.maxVehicleLengthFt! < userLength) return false;
     return true;
   }
 
@@ -381,7 +385,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     final userHeight = await StorageService.getVehicleHeight();
     final userWidth = await StorageService.getVehicleWidth();
     final userLength = await StorageService.getVehicleLength();
-    final hasDimensions = userHeight > 0 || userWidth > 0 || userLength > 0;
+    final hasDimensions = userHeight != null || userWidth != null || userLength != null;
 
     // Only show markers if zoomed in enough
     if (currentZoom >= MIN_ZOOM_FOR_MARKERS) {

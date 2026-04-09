@@ -379,10 +379,10 @@ class StorageService {
     await prefs.setDouble(_vehicleHeightKey, height);
   }
 
-  /// Get vehicle height in feet (default 12ft)
-  static Future<double> getVehicleHeight() async {
+  /// Get vehicle height in feet (null if not set)
+  static Future<double?> getVehicleHeight() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_vehicleHeightKey) ?? 12.0;
+    return prefs.getDouble(_vehicleHeightKey);
   }
 
   /// Save vehicle width in feet
@@ -391,10 +391,10 @@ class StorageService {
     await prefs.setDouble(_vehicleWidthKey, width);
   }
 
-  /// Get vehicle width in feet (default 8ft)
-  static Future<double> getVehicleWidth() async {
+  /// Get vehicle width in feet (null if not set)
+  static Future<double?> getVehicleWidth() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_vehicleWidthKey) ?? 8.0;
+    return prefs.getDouble(_vehicleWidthKey);
   }
 
   /// Save vehicle length in feet
@@ -403,10 +403,10 @@ class StorageService {
     await prefs.setDouble(_vehicleLengthKey, length);
   }
 
-  /// Get vehicle length in feet (default 25ft)
-  static Future<double> getVehicleLength() async {
+  /// Get vehicle length in feet (null if not set)
+  static Future<double?> getVehicleLength() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_vehicleLengthKey) ?? 25.0;
+    return prefs.getDouble(_vehicleLengthKey);
   }
 
   /// Save vehicle unit preference ('ft' or 'm')
@@ -437,9 +437,9 @@ class StorageService {
   static Future<Map<String, dynamic>> getVehicleDimensions() async {
     final prefs = await SharedPreferences.getInstance();
     return {
-      'height': prefs.getDouble(_vehicleHeightKey) ?? 12.0,
-      'width': prefs.getDouble(_vehicleWidthKey) ?? 8.0,
-      'length': prefs.getDouble(_vehicleLengthKey) ?? 25.0,
+      'height': prefs.getDouble(_vehicleHeightKey),
+      'width': prefs.getDouble(_vehicleWidthKey),
+      'length': prefs.getDouble(_vehicleLengthKey),
       'unit': prefs.getString(_vehicleUnitKey) ?? 'ft',
       'filterEnabled': prefs.getBool(_sizeFilterEnabledKey) ?? false,
     };

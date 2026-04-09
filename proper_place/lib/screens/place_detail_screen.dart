@@ -176,23 +176,23 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     final issues = <String>[];
     final userDimensions = await StorageService.getVehicleDimensions();
     
-    final userHeight = userDimensions['height'] as double;
-    final userWidth = userDimensions['width'] as double;
-    final userLength = userDimensions['length'] as double;
+    final userHeight = userDimensions['height'] as double?;
+    final userWidth = userDimensions['width'] as double?;
+    final userLength = userDimensions['length'] as double?;
     
     // Parse place limits
     final maxHeight = _parseDouble(widget.place['max_vehicle_height_ft']);
     final maxWidth = _parseDouble(widget.place['max_vehicle_width_ft']);
     final maxLength = _parseDouble(widget.place['max_vehicle_length_ft']);
     
-    // Check each dimension
-    if (maxHeight != null && userHeight > maxHeight) {
+    // Check each dimension (only if user has set it)
+    if (userHeight != null && maxHeight != null && userHeight > maxHeight) {
       issues.add('Your vehicle height (${userHeight.toStringAsFixed(1)}ft) exceeds the maximum allowed (${maxHeight.toStringAsFixed(1)}ft)');
     }
-    if (maxWidth != null && userWidth > maxWidth) {
+    if (userWidth != null && maxWidth != null && userWidth > maxWidth) {
       issues.add('Your vehicle width (${userWidth.toStringAsFixed(1)}ft) exceeds the maximum allowed (${maxWidth.toStringAsFixed(1)}ft)');
     }
-    if (maxLength != null && userLength > maxLength) {
+    if (userLength != null && maxLength != null && userLength > maxLength) {
       issues.add('Your vehicle length (${userLength.toStringAsFixed(0)}ft) exceeds the maximum allowed (${maxLength.toStringAsFixed(0)}ft)');
     }
     
