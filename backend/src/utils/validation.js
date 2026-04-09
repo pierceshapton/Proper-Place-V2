@@ -69,12 +69,12 @@ const schemas = {
 
   updateProfile: Joi.object({
     name: Joi.string().min(2).max(255),
-    bio: Joi.string().max(500),
-    phone_number: Joi.string(),
-    vehicle_registration: Joi.string(),
-    vehicle_length: Joi.number().positive(),
-    vehicle_height: Joi.number().positive(),
-    vehicle_width: Joi.number().positive(),
+    bio: Joi.string().max(500).allow('', null),
+    phone_number: Joi.string().allow('', null),
+    vehicle_registration: Joi.string().max(20).allow('', null),
+    vehicle_length: Joi.number().positive().allow(null),
+    vehicle_height: Joi.number().positive().allow(null),
+    vehicle_width: Joi.number().positive().allow(null),
     dark_mode: Joi.boolean(),
     offline_mode: Joi.boolean(),
   }),
