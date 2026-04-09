@@ -1096,7 +1096,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                       },
                       initialCameraPosition: CameraPosition(
                         target:
-                            currentLocation ?? const LatLng(54.5973, -3.4360),
+                            currentLocation ?? const LatLng(54.8, -2.8),
                         zoom: currentZoom,
                       ),
                       markers: markers,

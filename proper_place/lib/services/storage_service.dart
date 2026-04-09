@@ -325,9 +325,9 @@ class StorageService {
   /// Get cached map location
   static Future<Map<String, double>> getCachedMapLocation() async {
     final prefs = await SharedPreferences.getInstance();
-    final lat = prefs.getDouble(_mapLatKey) ?? 54.5; // Default to UK center
-    final lng = prefs.getDouble(_mapLngKey) ?? -3.5;
-    final zoom = prefs.getDouble(_mapZoomKey) ?? 6.0;
+    final lat = prefs.getDouble(_mapLatKey) ?? 54.8; // Default to UK center
+    final lng = prefs.getDouble(_mapLngKey) ?? -2.8;
+    final zoom = prefs.getDouble(_mapZoomKey) ?? 5.7;
     return {'latitude': lat, 'longitude': lng, 'zoom': zoom};
   }
 
