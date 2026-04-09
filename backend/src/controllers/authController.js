@@ -13,10 +13,10 @@ async function signup(req, res, next) {
   try {
     const { email, password, name, referral_code } = req.validatedBody;
 
-    // Check if user exists
+    // Check if user exists (case-insensitive)
     const existingUser = await db.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
+      [email.trim()]
     );
 
     if (existingUser.rows.length > 0) {
@@ -92,11 +92,11 @@ async function login(req, res, next) {
   try {
     const { email, password } = req.validatedBody;
 
-    // Find user
+    // Find user (case-insensitive)
     const result = await db.query(
       `SELECT id, email, name, password_hash, role, verified
-       FROM users WHERE email = $1`,
-      [email]
+       FROM users WHERE LOWER(email) = LOWER($1)`,
+      [email.trim()]
     );
 
     if (result.rows.length === 0) {
@@ -465,8 +465,8 @@ async function forgotPassword(req, res, next) {
     };
 
     const result = await db.query(
-      'SELECT id, email, verified FROM users WHERE email = $1',
-      [email.toLowerCase().trim()]
+      'SELECT id, email, verified FROM users WHERE LOWER(email) = LOWER($1)',
+      [email.trim()]
     );
 
     if (result.rows.length === 0 || !result.rows[0].verified) {
