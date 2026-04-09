@@ -559,6 +559,39 @@ async function updatePlace(req, res, next) {
   }
 }
 
+/**
+ * POST /admin/users/:id/reset-password
+ * Admin-only: reset a user's password
+ */
+async function resetUserPassword(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const { hashPassword } = require('../utils/hash');
+    const passwordHash = await hashPassword(password);
+
+    const result = await db.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id, email, name',
+      [passwordHash, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    logger.info('Admin reset user password', { adminId: req.user.userId, targetUser: result.rows[0].email });
+    res.json({ message: 'Password reset successfully', user: result.rows[0] });
+  } catch (error) {
+    logger.error('Admin reset password error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getDashboard,
   getPlacesForModeration,
@@ -570,4 +603,5 @@ module.exports = {
   updatePlace,
   seedTestMessages,
   cleanupAllData,
+  resetUserPassword,
 };
