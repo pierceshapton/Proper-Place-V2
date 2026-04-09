@@ -697,6 +697,17 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 27 error:', err.message);
     }
 
+    // Migration 28: Email verification token columns
+    try {
+      console.log('[SERVER] Running migration 28: Email verification columns...');
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token UUID`);
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires TIMESTAMPTZ`);
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_users_email_verification_token ON users (email_verification_token) WHERE email_verification_token IS NOT NULL`);
+      console.log('[SERVER] ✅ Migration 28 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 28 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
