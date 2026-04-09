@@ -44,6 +44,8 @@ const schemas = {
     pub_id: Joi.number().integer(),
     check_in_date: Joi.date().iso().required(),
     check_out_date: Joi.date().iso().required(),
+    check_in_time: Joi.string().pattern(/^\d{2}:\d{2}$/).optional(),
+    check_out_time: Joi.string().pattern(/^\d{2}:\d{2}$/).optional(),
     van_registration: Joi.string().required().pattern(
       /^[A-Za-z0-9]{2,8}$/,
       'UK number plate'
@@ -53,6 +55,8 @@ const schemas = {
     }),
     contact_phone: Joi.string(),
     special_requests: Joi.string().max(1000),
+    payment_intent_id: Joi.string().optional(),
+    total_price: Joi.number().optional(),
   }),
 
   createReview: Joi.object({

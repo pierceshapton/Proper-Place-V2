@@ -36,6 +36,8 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   bool isLoadingBookings = true;
   int _siteCapacity = 1;
   List<String> _vehicleFitIssues = [];
+  final TextEditingController _vanRegController = TextEditingController();
+  String? _vanRegError;
   
   // Fee rate per hour for early/late times
   static const double hourlyFeeRate = 5.0;
@@ -304,6 +306,18 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       return;
     }
 
+    // Validate van registration
+    final vanReg = _vanRegController.text.trim().toUpperCase();
+    if (vanReg.isEmpty) {
+      setState(() => _vanRegError = 'Van registration is required');
+      return;
+    }
+    if (!RegExp(r'^[A-Za-z0-9]{2,8}$').hasMatch(vanReg)) {
+      setState(() => _vanRegError = 'Please enter a valid UK number plate (2-8 letters/digits)');
+      return;
+    }
+    setState(() => _vanRegError = null);
+
     setState(() => _isProcessingPayment = true);
 
     try {
@@ -372,6 +386,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           'check_out_date': _checkOutDate!.toIso8601String(),
           'check_in_time': checkInTimeStr,
           'check_out_time': checkOutTimeStr,
+          'van_registration': _vanRegController.text.trim().toUpperCase(),
           'total_price': totalPrice,
           'payment_intent_id': paymentIntentId,
         }),
@@ -961,6 +976,33 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                                 ),
                               ),
                           ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Van Registration
+                        TextField(
+                          controller: _vanRegController,
+                          textCapitalization: TextCapitalization.characters,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
+                            LengthLimitingTextInputFormatter(8),
+                          ],
+                          decoration: InputDecoration(
+                            labelText: 'Van Registration',
+                            hintText: 'e.g. AB12CDE',
+                            prefixIcon: const Icon(Icons.directions_car, color: Color(0xFF7BA7D8)),
+                            errorText: _vanRegError,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFF7BA7D8)),
+                            ),
+                          ),
+                          onChanged: (_) {
+                            if (_vanRegError != null) setState(() => _vanRegError = null);
+                          },
                         ),
                         const SizedBox(height: 16),
 
@@ -1559,6 +1601,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   @override
   void dispose() {
     _imageController.dispose();
+    _vanRegController.dispose();
     super.dispose();
   }
 }
