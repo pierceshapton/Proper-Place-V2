@@ -88,7 +88,6 @@ class _ContactUsFormScreenState extends State<ContactUsFormScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.only(

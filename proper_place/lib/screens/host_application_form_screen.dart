@@ -113,7 +113,6 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
       appBar: AppBar(
         title: const Text('Become a Host'),
       ),
-      resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.only(

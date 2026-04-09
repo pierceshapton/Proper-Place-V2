@@ -734,7 +734,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     final showToolbar = _priceFocusNode.hasFocus && keyboardHeight > 0;
     
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,

@@ -158,7 +158,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.only(

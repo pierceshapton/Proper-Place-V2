@@ -165,7 +165,6 @@ class _ReviewSubmissionScreenState extends State<ReviewSubmissionScreen> {
           child: Container(color: const Color(0xFFE8E8E8), height: 1),
         ),
       ),
-      resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.only(

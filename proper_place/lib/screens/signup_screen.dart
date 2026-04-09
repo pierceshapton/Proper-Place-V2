@@ -151,7 +151,6 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

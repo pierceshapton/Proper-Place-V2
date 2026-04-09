@@ -198,7 +198,6 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
             isEditing ? 'Edit your Proper Place site' : 'Submit Your Place'),
         elevation: 0,
       ),
-      resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.only(
