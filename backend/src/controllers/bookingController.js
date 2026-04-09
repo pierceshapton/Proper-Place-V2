@@ -306,6 +306,31 @@ async function createBooking(req, res, next) {
       });
     }
 
+    // Check if user already has an active booking for overlapping dates (any place)
+    const userOverlapResult = await db.query(
+      `SELECT id, booking_ref, check_in_date, check_out_date, place_id, pub_id
+       FROM bookings
+       WHERE user_id = $1
+         AND status NOT IN ('cancelled', 'Cancelled')
+         AND check_in_date < $3
+         AND check_out_date > $2`,
+      [userId, data.check_in_date, data.check_out_date]
+    );
+
+    if (userOverlapResult.rows.length > 0) {
+      const existing = userOverlapResult.rows[0];
+      const isSamePlace = (data.place_id && existing.place_id == data.place_id) ||
+                          (data.pub_id && existing.pub_id == data.pub_id);
+      const msg = isSamePlace
+        ? 'You already have an active booking at this site for those dates.'
+        : 'You already have a booking for overlapping dates. You can only have one booking at a time.';
+      return res.status(409).json({
+        error: 'duplicate_booking',
+        message: msg,
+        existing_booking_ref: existing.booking_ref,
+      });
+    }
+
     // Default times to 12:00 (midday)
     const checkInTime = data.check_in_time || '12:00';
     const checkOutTime = data.check_out_time || '12:00';
