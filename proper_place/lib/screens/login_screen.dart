@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/screens/signup_screen.dart';
+import 'package:proper_place/screens/email_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -125,6 +126,18 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       
       if (!mounted) return;
+      
+      // Check if email is verified
+      if (user != null && user['verified'] != true) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationScreen(
+                email: user['email'] ?? _emailController.text),
+          ),
+        );
+        return;
+      }
+      
       Navigator.of(context).pushReplacementNamed('/home');
     } on ApiException catch (e) {
       if (mounted) {

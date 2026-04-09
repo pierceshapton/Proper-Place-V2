@@ -12,6 +12,10 @@ router.post('/signup', registerLimiter, validationMiddleware('signup'), authCont
 router.post('/login', authLimiter, validationMiddleware('login'), authController.login);
 router.post('/refresh', authLimiter, authController.refreshToken);
 
+// Email verification
+router.get('/verify-email', authController.verifyEmail);
+router.post('/resend-verification', authMiddleware, authController.resendVerification);
+
 // Protected routes
 router.get('/me', authMiddleware, authController.getCurrentUser);
 router.post('/logout', authMiddleware, authController.logout);

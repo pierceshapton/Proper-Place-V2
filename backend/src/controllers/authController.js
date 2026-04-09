@@ -1,8 +1,10 @@
+const crypto = require('crypto');
 const db = require('../config/database');
 const { hashPassword, verifyPassword } = require('../utils/hash');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 const logger = require('../utils/logger');
 const { recordReferral } = require('./referralController');
+const { sendVerificationEmail } = require('../utils/email');
 
 /**
  * POST /auth/signup
@@ -27,17 +29,26 @@ async function signup(req, res, next) {
     // Hash password
     const passwordHash = await hashPassword(password);
 
+    // Generate email verification token
+    const verificationToken = crypto.randomUUID();
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     // Create user
     const result = await db.query(
-      `INSERT INTO users (email, password_hash, name, verified, referred_by)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO users (email, password_hash, name, verified, referred_by, email_verification_token, email_verification_expires)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, email, name, role, created_at`,
-      [email, passwordHash, name, false, referral_code || null]
+      [email, passwordHash, name, false, referral_code || null, verificationToken, verificationExpires]
     );
 
     const user = result.rows[0];
     const accessToken = generateAccessToken(user.id, user.email, user.role);
     const refreshToken = generateRefreshToken(user.id);
+
+    // Send verification email (non-blocking)
+    sendVerificationEmail(email, verificationToken).catch((err) => {
+      logger.error('Failed to send verification email', { email, error: err.message });
+    });
 
     // Record referral if a code was provided
     if (referral_code) {
@@ -83,7 +94,7 @@ async function login(req, res, next) {
 
     // Find user
     const result = await db.query(
-      `SELECT id, email, name, password_hash, role
+      `SELECT id, email, name, password_hash, role, verified
        FROM users WHERE email = $1`,
       [email]
     );
@@ -128,6 +139,7 @@ async function login(req, res, next) {
         email: user.email,
         name: user.name,
         role: user.role,
+        verified: user.verified,
       },
     });
   } catch (error) {
@@ -331,6 +343,106 @@ async function acceptHostContract(req, res, next) {
   }
 }
 
+/**
+ * GET /auth/verify-email?token=xxx
+ */
+async function verifyEmail(req, res, next) {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).send(verifyHtmlPage(false, 'Missing verification token.'));
+    }
+
+    const result = await db.query(
+      `UPDATE users
+         SET verified = true,
+             email_verification_token = NULL,
+             email_verification_expires = NULL
+       WHERE email_verification_token = $1
+         AND email_verification_expires > NOW()
+         AND verified = false
+       RETURNING id, email`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      // Check if already verified
+      const alreadyVerified = await db.query(
+        `SELECT id FROM users WHERE verified = true AND email_verification_token IS NULL AND id IN (
+           SELECT id FROM users WHERE email_verification_token = $1
+         )`,
+        [token]
+      );
+      if (alreadyVerified.rows.length > 0) {
+        return res.send(verifyHtmlPage(true, 'Your email is already verified. You can return to the app.'));
+      }
+      return res.status(400).send(verifyHtmlPage(false, 'Invalid or expired verification link. Please request a new one from the app.'));
+    }
+
+    logger.info('Email verified', { userId: result.rows[0].id, email: result.rows[0].email });
+    return res.send(verifyHtmlPage(true, 'Your email has been verified! You can return to the app.'));
+  } catch (error) {
+    logger.error('Email verification error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * POST /auth/resend-verification
+ */
+async function resendVerification(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    const userResult = await db.query(
+      'SELECT id, email, verified FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.verified) {
+      return res.json({ message: 'Email already verified', verified: true });
+    }
+
+    const verificationToken = crypto.randomUUID();
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await db.query(
+      `UPDATE users SET email_verification_token = $1, email_verification_expires = $2 WHERE id = $3`,
+      [verificationToken, verificationExpires, userId]
+    );
+
+    await sendVerificationEmail(user.email, verificationToken);
+
+    logger.info('Verification email resent', { userId, email: user.email });
+    res.json({ message: 'Verification email sent' });
+  } catch (error) {
+    logger.error('Resend verification error', { error: error.message });
+    next(error);
+  }
+}
+
+/** Helper: simple HTML page for verify-email redirect */
+function verifyHtmlPage(success, message) {
+  const color = success ? '#2E7D32' : '#C62828';
+  const icon = success ? '✅' : '❌';
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Email Verification – Proper Place</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+.card{background:#fff;border-radius:16px;padding:48px 32px;text-align:center;max-width:400px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+.icon{font-size:48px;margin-bottom:16px;}
+h1{color:${color};font-size:22px;margin-bottom:12px;}
+p{color:#555;line-height:1.6;}</style>
+</head><body><div class="card"><div class="icon">${icon}</div><h1>${success ? 'Email Verified' : 'Verification Failed'}</h1><p>${message}</p></div></body></html>`;
+}
+
 module.exports = {
   signup,
   login,
@@ -339,4 +451,6 @@ module.exports = {
   logout,
   getHostContractStatus,
   acceptHostContract,
+  verifyEmail,
+  resendVerification,
 };

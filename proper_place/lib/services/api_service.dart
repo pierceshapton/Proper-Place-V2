@@ -695,22 +695,27 @@ class ApiService {
     required double longitude,
     required String businessType,
     required int vanSpaces,
+    String? referralCode,
   }) async {
+    final body = <String, dynamic>{
+      'user_id': userId,
+      'contact_name': contactName,
+      'email': email,
+      'phone': phone,
+      'business_description': businessDescription,
+      'address': address,
+      'latitude': latitude,
+      'longitude': longitude,
+      'business_type': businessType,
+      'van_spaces': vanSpaces,
+    };
+    if (referralCode != null && referralCode.isNotEmpty) {
+      body['referral_code'] = referralCode;
+    }
     return _request(
       method: 'POST',
       endpoint: '/host-applications',
-      body: {
-        'user_id': userId,
-        'contact_name': contactName,
-        'email': email,
-        'phone': phone,
-        'business_description': businessDescription,
-        'address': address,
-        'latitude': latitude,
-        'longitude': longitude,
-        'business_type': businessType,
-        'van_spaces': vanSpaces,
-      },
+      body: body,
     );
   }
 
@@ -937,6 +942,22 @@ class ApiService {
       method: 'POST',
       endpoint: '/auth/accept-host-contract',
       body: {'version': version},
+    );
+  }
+
+  /// Resend email verification link
+  static Future<Map<String, dynamic>> resendVerification() async {
+    return _request(
+      method: 'POST',
+      endpoint: '/auth/resend-verification',
+    );
+  }
+
+  /// Get current user profile (includes `verified` field)
+  static Future<Map<String, dynamic>> getCurrentUser() async {
+    return _request(
+      method: 'GET',
+      endpoint: '/auth/me',
     );
   }
 }

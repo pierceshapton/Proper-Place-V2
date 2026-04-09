@@ -213,8 +213,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _loadPlaces();
         _loadNotificationCounts();
         
-        // Show welcome popup on first login
-        _checkShowWelcome();
+        // Onboarding tutorial will be added here later
+        // _checkShowWelcome();
       });
       
       // Handle navigation with selectedTab argument or static variable

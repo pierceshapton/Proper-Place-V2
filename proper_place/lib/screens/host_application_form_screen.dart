@@ -19,6 +19,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
   final _businessDescriptionController = TextEditingController();
   final _addressController = TextEditingController();
   final _vanSpacesController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   String _businessType = 'pub';
   double? _latitude;
   double? _longitude;
@@ -78,6 +79,9 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
         longitude: _longitude ?? 0,
         businessType: _businessType,
         vanSpaces: int.parse(_vanSpacesController.text),
+        referralCode: _referralCodeController.text.trim().isNotEmpty
+            ? _referralCodeController.text.trim()
+            : null,
       );
 
       // Save application status
@@ -335,6 +339,26 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                   ),
                 const SizedBox(height: 24),
 
+                // Referral Code (optional)
+                const Text(
+                  'Referral Code (optional)',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _referralCodeController,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    hintText: 'e.g. PP-ABC123',
+                    hintStyle: TextStyle(color: Colors.grey[400]),
+                    prefixIcon: Icon(Icons.card_giftcard, color: Colors.grey[400]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Submit Button
                 SizedBox(
                   width: double.infinity,
@@ -407,6 +431,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
     _businessDescriptionController.dispose();
     _addressController.dispose();
     _vanSpacesController.dispose();
+    _referralCodeController.dispose();
     super.dispose();
   }
 }
