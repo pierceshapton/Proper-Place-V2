@@ -1,4 +1,4 @@
-package com.example.proper_place
+package com.properplace.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/screens/chat_screen.dart';
+import 'package:proper_place/screens/home_screen.dart';
 
 class BookingDetailScreen extends StatelessWidget {
   final Map<String, dynamic> booking;
@@ -475,6 +476,51 @@ class BookingDetailScreen extends StatelessWidget {
               ),
             ),
 
+            // Pending status info banner
+            if (status.toLowerCase() == 'pending')
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.schedule, color: Colors.orange.shade700, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Booking Pending Approval',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: Colors.orange.shade900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'The host has 7 days to accept your booking. If they don\'t respond, the hold on your card will be released and no payment will be taken.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.orange.shade800,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             const Divider(),
 
             // Booking Information
@@ -608,6 +654,30 @@ class BookingDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Show on Map button
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      HomeScreen.setNextTab(0);
+                      HomeScreen.setFocusPlace(
+                        place.placeId,
+                        place.locationLat,
+                        place.locationLng,
+                      );
+                      // Pop back to home screen
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                    icon: const Icon(Icons.map, size: 18),
+                    label: const Text('Show on Map'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF7BA7D8),
+                      backgroundColor: Colors.grey[50],
+                      side: const BorderSide(color: Color(0xFF7BA7D8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   // Chat button - appears for confirmed/pending bookings within 72 hours
                   if ((booking['status']?.toLowerCase() == 'confirmed' || booking['status']?.toLowerCase() == 'pending') &&
                       _isChatAvailable(

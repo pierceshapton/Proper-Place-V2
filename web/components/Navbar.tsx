@@ -16,7 +16,7 @@ export default function Navbar() {
         <Link href="/" className="text-xl lg:text-2xl font-bold flex items-center gap-2 lg:gap-3 flex-shrink-0">
           <Image
             src="/logo-192.png"
-            alt="Proper Place Van"
+            alt="Proper Place"
             width={80}
             height={80}
             className="object-contain w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20"

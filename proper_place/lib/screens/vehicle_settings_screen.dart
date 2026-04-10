@@ -27,10 +27,9 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
     final dimensions = await StorageService.getVehicleDimensions();
     if (mounted) {
       setState(() {
-        _vehicleHeight = (dimensions['height'] as double?) ?? 0.0;
-        // Clamp width to valid range (4-8ft)
-        _vehicleWidth = ((dimensions['width'] as double?) ?? 0.0).clamp(4.0, 8.0);
-        _vehicleLength = (dimensions['length'] as double?) ?? 0.0;
+        _vehicleHeight = ((dimensions['height'] as double?) ?? 3.3).clamp(3.3, 16.4);
+        _vehicleWidth = ((dimensions['width'] as double?) ?? 4.0).clamp(4.0, 8.0);
+        _vehicleLength = ((dimensions['length'] as double?) ?? 6.6).clamp(6.6, 49.2);
         _unit = dimensions['unit'] as String;
         _isLoading = false;
       });

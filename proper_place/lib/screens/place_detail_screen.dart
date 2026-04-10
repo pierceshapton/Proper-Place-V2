@@ -33,6 +33,10 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   TimeOfDay _checkOutTime = const TimeOfDay(hour: 12, minute: 0); // Default midday
   List<Map<String, dynamic>> reviews = [];
   List<Map<String, dynamic>> existingBookings = [];
+  Set<DateTime> _userBookedDates = {};
+  Set<DateTime> _userCheckoutDates = {};
+  Map<DateTime, double> _userCheckinHours = {};
+  Map<DateTime, double> _userCheckoutHours = {};
   bool isLoadingReviews = true;
   bool isLoadingBookings = true;
   int _siteCapacity = 1;
@@ -50,6 +54,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     _loadExistingBookings();
     _loadVehicleFit();
     _loadUserVanReg();
+    _loadUserBookedDates();
   }
 
   Future<void> _loadUserVanReg() async {
@@ -67,6 +72,68 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         final reg = data['user']?['vehicle_registration'];
         if (mounted && reg != null && reg.toString().isNotEmpty) {
           setState(() => _userVanReg = reg.toString());
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadUserBookedDates() async {
+    try {
+      final userId = await StorageService.getUserId();
+      if (userId == null) return;
+      final token = await StorageService.getToken();
+      final response = await http.get(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/bookings'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final bookings = data['bookings'] as List? ?? [];
+        final dates = <DateTime>{};
+        final checkoutDates = <DateTime>{};
+        final checkinHours = <DateTime, double>{};
+        final checkoutHours = <DateTime, double>{};
+        for (final b in bookings) {
+          final status = (b['status'] ?? '').toString().toLowerCase();
+          if (status == 'cancelled') continue;
+          final checkIn = DateTime.tryParse(b['check_in_date']?.toString() ?? '');
+          final checkOut = DateTime.tryParse(b['check_out_date']?.toString() ?? '');
+          if (checkIn != null && checkOut != null) {
+            final startDay = DateTime(checkIn.year, checkIn.month, checkIn.day);
+            final end = DateTime(checkOut.year, checkOut.month, checkOut.day);
+            
+            // Parse check-in time (e.g. "14:00:00" or "14:00")
+            final ciTimeStr = (b['check_in_time'] ?? '12:00').toString();
+            final ciParts = ciTimeStr.split(':');
+            final ciHour = double.tryParse(ciParts[0]) ?? 12.0;
+            final ciMin = ciParts.length > 1 ? (double.tryParse(ciParts[1]) ?? 0.0) : 0.0;
+            
+            // Parse check-out time
+            final coTimeStr = (b['check_out_time'] ?? '12:00').toString();
+            final coParts = coTimeStr.split(':');
+            final coHour = double.tryParse(coParts[0]) ?? 12.0;
+            final coMin = coParts.length > 1 ? (double.tryParse(coParts[1]) ?? 0.0) : 0.0;
+            
+            var d = startDay;
+            while (!d.isAfter(end)) {
+              dates.add(d);
+              d = d.add(const Duration(days: 1));
+            }
+            checkoutDates.add(end);
+            checkinHours[startDay] = ciHour + ciMin / 60.0;
+            checkoutHours[end] = coHour + coMin / 60.0;
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _userBookedDates = dates;
+            _userCheckoutDates = checkoutDates;
+            _userCheckinHours = checkinHours;
+            _userCheckoutHours = checkoutHours;
+          });
         }
       }
     } catch (_) {}
@@ -232,36 +299,23 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
 
 
   void _selectDate(BuildContext context, {required bool isCheckIn}) async {
-    // For checkout, start at checkout date or day after check-in
-    final initialDate = isCheckIn 
-      ? (_checkInDate ?? DateTime.now())
-      : (_checkOutDate ?? (_checkInDate?.add(const Duration(days: 1)) ?? DateTime.now().add(const Duration(days: 1))));
-    
-    // Minimum date for checkout is the day after check-in
-    final minDateForCheckout = isCheckIn 
-      ? null 
-      : (_checkInDate?.add(const Duration(days: 1)) ?? DateTime.now().add(const Duration(days: 1)));
+    final initialDate = _checkInDate ?? DateTime.now();
 
     showDialog(
       context: context,
       builder: (context) => AvailabilityCalendarPicker(
         placeId: int.parse(widget.place['id'].toString()),
         initialDate: initialDate,
-        isCheckIn: isCheckIn,
-        minDate: minDateForCheckout,
         checkInDate: _checkInDate,
         checkOutDate: _checkOutDate,
-        onDateSelected: (picked) {
+        userBookedDates: _userBookedDates,
+        userCheckoutDates: _userCheckoutDates,
+        userCheckinHours: _userCheckinHours,
+        userCheckoutHours: _userCheckoutHours,
+        onRangeSelected: (checkIn, checkOut) {
           setState(() {
-            if (isCheckIn) {
-              _checkInDate = picked;
-              // Set checkout to at least the day after check-in
-              if (_checkOutDate == null || _checkOutDate!.isBefore(picked.add(const Duration(days: 1)))) {
-                _checkOutDate = picked.add(const Duration(days: 1));
-              }
-            } else {
-              _checkOutDate = picked;
-            }
+            _checkInDate = checkIn;
+            _checkOutDate = checkOut;
           });
         },
       ),
@@ -415,17 +469,27 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
 
       if (response.statusCode == 201) {
         final bookingData = jsonDecode(response.body)['booking'];
-        final bookingRef = bookingData?['booking_ref'];
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Booking submitted! Ref: ${bookingRef ?? 'Success'} — awaiting host approval (7 days to respond)'),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-          // Navigate to Bookings tab (index 1 for user mode)
+          // Build booking map for detail screen
+          final normalizedBooking = {
+            'booking_id': bookingData?['id']?.toString() ?? '',
+            'booking_ref': bookingData?['booking_ref'],
+            'place_id': bookingData?['place_id']?.toString() ?? widget.place['id']?.toString() ?? '',
+            'check_in': bookingData?['check_in_date'] ?? _checkInDate!.toIso8601String(),
+            'check_out': bookingData?['check_out_date'] ?? _checkOutDate!.toIso8601String(),
+            'status': bookingData?['status'] ?? 'pending',
+            'total_price': bookingData?['total_price'] ?? totalPrice,
+          };
+          final place = Place.fromJson(widget.place);
+
+          // Navigate to Bookings tab with booking detail on top
+          final navigator = Navigator.of(context);
           HomeScreen.setNextTab(1);
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          navigator.pushNamedAndRemoveUntil('/home', (route) => false);
+          navigator.pushNamed('/booking-detail', arguments: {
+            'booking': normalizedBooking,
+            'place': place,
+          });
         }
       } else {
         final error = jsonDecode(response.body);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -137,66 +138,69 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     }
   }
 
+  // Cache for marker icons to avoid reloading PNGs repeatedly
+  final Map<String, BitmapDescriptor> _markerIconCache = {};
+
   Future<BitmapDescriptor> _getCustomMarkerIcon(bool isFavorite, {bool vehicleFits = true}) async {
-    final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
-    final Canvas canvas = Canvas(pictureRecorder);
-    const double size = 100;
-
     if (isFavorite) {
-      // Draw heart shape for favourited places
-      final Paint fillPaint = Paint()
-        ..color = Colors.red
-        ..style = PaintingStyle.fill;
-
-      final Path heartPath = Path();
-      // Heart drawn centered in the 100x100 canvas
-      heartPath.moveTo(size / 2, 85); // Bottom tip
-      heartPath.cubicTo(size / 2 - 40, 55, 5, 35, 15, 20);
-      heartPath.cubicTo(25, 5, size / 2 - 5, 5, size / 2, 25);
-      heartPath.cubicTo(size / 2 + 5, 5, 75, 5, 85, 20);
-      heartPath.cubicTo(95, 35, size / 2 + 40, 55, size / 2, 85);
-      heartPath.close();
-
-      canvas.drawPath(heartPath, fillPaint);
-
-      // Dark red border
-      final Paint borderPaint = Paint()
-        ..color = const Color(0xFFB71C1C)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4;
-      canvas.drawPath(heartPath, borderPaint);
-    } else {
-      // Draw tent shape — orange if vehicle doesn't fit, blue if it does
-      final Color tentColor = vehicleFits ? const Color(0xFF7BA7D8) : const Color(0xFFFF9800);
-      final Color borderColor = vehicleFits ? const Color(0xFF3A6DB5) : const Color(0xFFE65100);
-
-      final Paint markerPaint = Paint()
-        ..color = tentColor
-        ..style = PaintingStyle.fill;
-
-      final Path tentPath = Path();
-      tentPath.moveTo(size / 2, 10); // Top point
-      tentPath.lineTo(size - 15, size - 20); // Bottom right
-      tentPath.lineTo(15, size - 20); // Bottom left
-      tentPath.close();
-
-      canvas.drawPath(tentPath, markerPaint);
-
-      // Pin dot at bottom
-      canvas.drawCircle(Offset(size / 2, size - 5), 6, markerPaint);
-
-      // Border
-      final Paint borderPaint = Paint()
-        ..color = borderColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4;
-      canvas.drawPath(tentPath, borderPaint);
+      const String cacheKey = 'heart_red';
+      if (_markerIconCache.containsKey(cacheKey)) {
+        return _markerIconCache[cacheKey]!;
+      }
+      final descriptor = await _buildHeartMarker();
+      _markerIconCache[cacheKey] = descriptor;
+      return descriptor;
     }
 
-    final ui.Image image = await pictureRecorder
-        .endRecording()
-        .toImage(size.toInt(), size.toInt());
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    final String assetName = vehicleFits
+        ? 'assets/images/map_pin_blue.png'
+        : 'assets/images/map_pin_orange.png';
+
+    if (_markerIconCache.containsKey(assetName)) {
+      return _markerIconCache[assetName]!;
+    }
+
+    final ByteData data = await rootBundle.load(assetName);
+    final ui.Codec codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(),
+      targetWidth: 75,
+    );
+    final ui.FrameInfo fi = await codec.getNextFrame();
+    final ByteData? byteData = await fi.image.toByteData(format: ui.ImageByteFormat.png);
+    final descriptor = BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+    _markerIconCache[assetName] = descriptor;
+    return descriptor;
+  }
+
+  Future<BitmapDescriptor> _buildHeartMarker() async {
+    const double size = 90;
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+
+    final heartPath = Path();
+    const double w = size;
+    const double h = size;
+    // Heart shape centered in the canvas
+    heartPath.moveTo(w * 0.5, h * 0.85);
+    heartPath.cubicTo(w * 0.15, h * 0.55, -w * 0.05, h * 0.25, w * 0.25, h * 0.1);
+    heartPath.cubicTo(w * 0.38, h * 0.02, w * 0.5, h * 0.15, w * 0.5, h * 0.25);
+    heartPath.cubicTo(w * 0.5, h * 0.15, w * 0.62, h * 0.02, w * 0.75, h * 0.1);
+    heartPath.cubicTo(w * 1.05, h * 0.25, w * 0.85, h * 0.55, w * 0.5, h * 0.85);
+    heartPath.close();
+
+    // Fill
+    canvas.drawPath(heartPath, Paint()
+      ..color = const Color(0xFFE53935)
+      ..style = PaintingStyle.fill);
+
+    // Border
+    canvas.drawPath(heartPath, Paint()
+      ..color = const Color(0xFFB71C1C)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5);
+
+    final ui.Image image = await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
   }
 

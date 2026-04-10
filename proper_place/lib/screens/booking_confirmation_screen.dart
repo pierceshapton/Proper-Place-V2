@@ -506,7 +506,14 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       };
 
       if (mounted) {
-        _showBookingSuccessDialog(normalizedBooking);
+        // Navigate to Bookings tab with booking detail on top
+        final navigator = Navigator.of(context);
+        HomeScreen.setNextTab(1);
+        navigator.pushNamedAndRemoveUntil('/home', (route) => false);
+        navigator.pushNamed('/booking-detail', arguments: {
+          'booking': normalizedBooking,
+          'place': widget.place,
+        });
       }
     } catch (e) {
       debugPrint('❌ BOOKING: Booking error: $e');

@@ -312,8 +312,8 @@ async function createBooking(req, res, next) {
        FROM bookings
        WHERE user_id = $1
          AND status NOT IN ('cancelled', 'Cancelled')
-         AND check_in_date < $3
-         AND check_out_date > $2`,
+         AND check_in_date <= $3
+         AND check_out_date >= $2`,
       [userId, data.check_in_date, data.check_out_date]
     );
 

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Proper Place Brochure Card - Design 1</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --paper: #f7f3eb;
+    --paper-strong: #efe7db;
+    --ink: #213248;
+    --muted: #617388;
+    --brand: #5ea0dc;
+    --brand-deep: #3c7fba;
+    --line: rgba(33, 50, 72, 0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #d8d4ce;
+    color: var(--ink);
+    font-family: 'Manrope', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    padding: 40px;
+  }
+
+  h2 {
+    color: #5c5c5c;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+  }
+
+  .card {
+    width: 6in;
+    height: 4in;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--paper);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.14);
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .logo svg {
+    display: block;
+    width: 54px;
+    height: auto;
+  }
+
+  .front {
+    display: grid;
+    grid-template-columns: 1.02fr 0.98fr;
+  }
+
+  .front .brand-panel {
+    background: linear-gradient(180deg, #66a7df 0%, #4e8fcc 100%);
+    color: white;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  .front .brand-panel::after {
+    content: '';
+    position: absolute;
+    inset: 16px 16px auto auto;
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.82;
+  }
+
+  .brand-block {
+    position: relative;
+    z-index: 1;
+  }
+
+  .brand-block .logo {
+    margin-bottom: 16px;
+  }
+
+  .brand-name {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 12px;
+    letter-spacing: -0.03em;
+  }
+
+  .brand-copy {
+    max-width: 215px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.86);
+  }
+
+  .brand-footer {
+    position: relative;
+    z-index: 1;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .brand-footer span {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.78;
+  }
+
+  .front .info-panel {
+    background: var(--paper);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .headline {
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .headline span {
+    color: var(--brand-deep);
+  }
+
+  .feature-list {
+    list-style: none;
+    display: grid;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .feature-list li {
+    display: grid;
+    grid-template-columns: 14px 1fr;
+    gap: 10px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: #425367;
+  }
+
+  .feature-list li::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand);
+    margin-top: 5px;
+  }
+
+  .micro-note {
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .back {
+    background: var(--paper);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .back .topbar {
+    height: 7px;
+    background: linear-gradient(90deg, var(--paper-strong), var(--brand), var(--paper-strong));
+  }
+
+  .back .content {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    padding: 24px 28px 18px;
+    gap: 22px;
+  }
+
+  .section-title {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 2.3px;
+    text-transform: uppercase;
+    color: var(--brand-deep);
+    margin-bottom: 14px;
+  }
+
+  .steps {
+    display: grid;
+    gap: 12px;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 10px;
+  }
+
+  .step-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step strong,
+  .audience strong {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 2px;
+    color: var(--ink);
+  }
+
+  .step span,
+  .audience span {
+    font-size: 9.5px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+
+  .right-col {
+    border-left: 1px solid var(--line);
+    padding-left: 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .audience-grid {
+    display: grid;
+    gap: 10px;
+  }
+
+  .audience {
+    background: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(33, 50, 72, 0.08);
+    border-radius: 10px;
+    padding: 10px 11px;
+  }
+
+  .contact-block {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .contact-line {
+    font-size: 9.5px;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+
+  .bottom {
+    border-top: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.42);
+    padding: 12px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .identity .logo svg {
+    width: 28px;
+  }
+
+  .identity strong {
+    display: block;
+    font-size: 13px;
+    color: var(--ink);
+  }
+
+  .identity span,
+  .url {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--brand-deep);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+  }
+
+  @media print {
+    body { background: white; padding: 16px; gap: 22px; }
+    .card { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<h2>Front</h2>
+<div class="card front">
+  <section class="brand-panel">
+    <div class="eyebrow">Business Card + Mini Brochure</div>
+    <div class="brand-block">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 156 224" aria-hidden="true">
+          <defs>
+            <linearGradient id="ppGrad1" x1="0" y1="0" x2="0.82" y2="1">
+              <stop offset="0%" stop-color="#6db0e8"/>
+              <stop offset="100%" stop-color="#4b8eca"/>
+            </linearGradient>
+          </defs>
+          <path d="M78 0C121.08 0 156 34.92 156 78c0 22.82-9.8 43.36-25.42 57.62L34.14 224H0V78C0 34.92 34.92 0 78 0Z" fill="url(#ppGrad1)"/>
+          <path d="M46.5 39h31.5c26.79 0 48.5 21.71 48.5 48.5S104.79 136 78 136H68v55L46.5 212V39Z" fill="#fffaf2"/>
+          <circle cx="78" cy="87.5" r="23" fill="#6aa8e2"/>
+        </svg>
+      </div>
+      <div class="brand-name">Proper Place</div>
+      <div class="brand-copy">Connecting the UK's motorhome community with a proper place to stay the night.</div>
+    </div>
+    <div class="brand-footer">Pierce Shapton<span>Founder</span></div>
+  </section>
+
+  <section class="info-panel">
+    <div class="headline">Modern stopovers for <span>motorhome owners</span> and smart extra income for hosts.</div>
+    <ul class="feature-list">
+      <li>Affordable overnight stays from just £10-15 per night.</li>
+      <li>Verified hosts across farms, vineyards, coastlines and countryside retreats.</li>
+      <li>Route-friendly booking through the app with secure payment built in.</li>
+      <li>Simple for travellers, practical for landowners with space to offer.</li>
+    </ul>
+    <div class="micro-note">Available on iOS and Android. Free to download. No photo or illustration imagery used in this design.</div>
+  </section>
+</div>
+
+<h2>Back</h2>
+<div class="card back">
+  <div class="topbar"></div>
+  <div class="content">
+    <section>
+      <div class="section-title">How It Works</div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div><strong>Download the app</strong><span>Create a free account in under a minute.</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div><strong>Find a Proper Place</strong><span>Explore verified hosts and filter by price, amenities and stopover type.</span></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div><strong>Book and stay</strong><span>Request, pay securely in the app, then enjoy a legal, welcoming overnight stop.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="right-col">
+      <div>
+        <div class="section-title">Who It Helps</div>
+        <div class="audience-grid">
+          <div class="audience">
+            <strong>For Motorhome Owners</strong>
+            <span>Skip expensive campsites and uncertain wild camping with safe, distinctive overnight options across the UK.</span>
+          </div>
+          <div class="audience">
+            <strong>For Landowners</strong>
+            <span>Turn unused land into extra income with flexible pricing, secure payments and respectful guests.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="contact-block">
+        <div class="contact-line">pierce.shapton@proper-place.co.uk</div>
+        <div class="contact-line">https://www.proper-place.co.uk/</div>
+      </div>
+    </section>
+  </div>
+  <div class="bottom">
+    <div class="identity">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 156 224" aria-hidden="true">
+          <defs>
+            <linearGradient id="ppGrad1b" x1="0" y1="0" x2="0.82" y2="1">
+              <stop offset="0%" stop-color="#6db0e8"/>
+              <stop offset="100%" stop-color="#4b8eca"/>
+            </linearGradient>
+          </defs>
+          <path d="M78 0C121.08 0 156 34.92 156 78c0 22.82-9.8 43.36-25.42 57.62L34.14 224H0V78C0 34.92 34.92 0 78 0Z" fill="url(#ppGrad1b)"/>
+          <path d="M46.5 39h31.5c26.79 0 48.5 21.71 48.5 48.5S104.79 136 78 136H68v55L46.5 212V39Z" fill="#fffaf2"/>
+          <circle cx="78" cy="87.5" r="23" fill="#6aa8e2"/>
+        </svg>
+      </div>
+      <div><strong>Pierce Shapton</strong><span>Founder</span></div>
+    </div>
+    <div class="url">proper-place.co.uk</div>
+  </div>
+</div>
+
+</body>
+</html>

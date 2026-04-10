@@ -25,10 +25,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   Map<int, int> _unreadByBooking = {};
   Timer? _unreadPollingTimer;
   final TextEditingController _searchController = TextEditingController();
+  bool _showCalendarView = false;
+  late DateTime _calendarMonth;
+  DateTime? _selectedCalendarDate;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _calendarMonth = DateTime(now.year, now.month);
     // Check if there's a saved booking tab target (from payment confirmation)
     _loadBookingTabPreference();
     // Initialize with temp ID first, then load real one
@@ -283,6 +288,16 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _showCalendarView ? Icons.list : Icons.calendar_month,
+              color: const Color(0xFF1A1A2E),
+            ),
+            tooltip: _showCalendarView ? 'List view' : 'Calendar view',
+            onPressed: () => setState(() => _showCalendarView = !_showCalendarView),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
@@ -387,6 +402,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
             return bDate.compareTo(aDate);
           });
 
+          if (_showCalendarView) {
+            return _buildCalendarView(bookings);
+          }
+
           return Column(
             children: [
               // Search + filter row
@@ -481,6 +500,272 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           );
         },
       ),
+    );
+  }
+
+  // ── Calendar view ──
+
+  /// Build a map: normalised date → list of bookings that cover that date
+  Map<DateTime, List<Map<String, dynamic>>> _buildDateBookingMap(List<dynamic> bookings) {
+    final map = <DateTime, List<Map<String, dynamic>>>{};
+    for (final b in bookings) {
+      final status = (b['status'] ?? '').toString().toLowerCase();
+      if (status == 'cancelled') continue; // skip cancelled
+      final checkIn = DateTime.tryParse(b['check_in']?.toString() ?? '');
+      final checkOut = DateTime.tryParse(b['check_out']?.toString() ?? '');
+      if (checkIn == null || checkOut == null) continue;
+      var d = DateTime(checkIn.year, checkIn.month, checkIn.day);
+      final end = DateTime(checkOut.year, checkOut.month, checkOut.day);
+      while (!d.isAfter(end)) {
+        map.putIfAbsent(d, () => []).add(Map<String, dynamic>.from(b));
+        d = d.add(const Duration(days: 1));
+      }
+    }
+    return map;
+  }
+
+  Widget _buildCalendarView(List<dynamic> allBookings) {
+    final dateMap = _buildDateBookingMap(allBookings);
+    final year = _calendarMonth.year;
+    final month = _calendarMonth.month;
+    final firstOfMonth = DateTime(year, month, 1);
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final startWeekday = firstOfMonth.weekday; // 1=Mon .. 7=Sun
+    final today = DateTime.now();
+    final todayNorm = DateTime(today.year, today.month, today.day);
+    final monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // Bookings for selectedCalendarDate
+    final selectedBookings = _selectedCalendarDate != null
+        ? (dateMap[_selectedCalendarDate!] ?? [])
+        : <Map<String, dynamic>>[];
+
+    return Column(
+      children: [
+        // Month navigation
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left, color: Color(0xFF1A1A2E)),
+                onPressed: () {
+                  setState(() {
+                    _calendarMonth = DateTime(year, month - 1);
+                    _selectedCalendarDate = null;
+                  });
+                },
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _calendarMonth = DateTime(today.year, today.month);
+                    _selectedCalendarDate = null;
+                  });
+                },
+                child: Text(
+                  '${monthNames[month - 1]} $year',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A2E),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, color: Color(0xFF1A1A2E)),
+                onPressed: () {
+                  setState(() {
+                    _calendarMonth = DateTime(year, month + 1);
+                    _selectedCalendarDate = null;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+
+        // Day-of-week headers
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                .map((d) => Expanded(
+                      child: Center(
+                        child: Text(d,
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[500])),
+                      ),
+                    ))
+                .toList(),
+          ),
+        ),
+        const SizedBox(height: 4),
+
+        // Day grid
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: _buildDayGrid(firstOfMonth, daysInMonth, startWeekday, dateMap, todayNorm),
+        ),
+
+        // Legend
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Row(
+            children: [
+              _legendDot(Colors.orange, 'Pending'),
+              const SizedBox(width: 12),
+              _legendDot(Colors.green, 'Confirmed'),
+              const SizedBox(width: 12),
+              _legendDot(Colors.blue, 'Current'),
+              const SizedBox(width: 12),
+              _legendDot(Colors.grey, 'Completed'),
+            ],
+          ),
+        ),
+
+        const Divider(height: 1),
+
+        // Selected day bookings
+        Expanded(
+          child: selectedBookings.isEmpty
+              ? Center(
+                  child: Text(
+                    _selectedCalendarDate != null
+                        ? 'No bookings on ${_formatDate(_selectedCalendarDate!.toIso8601String())}'
+                        : 'Tap a date to see bookings',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                  itemCount: selectedBookings.length,
+                  itemBuilder: (context, i) => _buildBookingCard(selectedBookings[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDayGrid(
+    DateTime firstOfMonth,
+    int daysInMonth,
+    int startWeekday,
+    Map<DateTime, List<Map<String, dynamic>>> dateMap,
+    DateTime todayNorm,
+  ) {
+    final cells = <Widget>[];
+    // Empty cells before day 1
+    for (var i = 1; i < startWeekday; i++) {
+      cells.add(const SizedBox());
+    }
+    for (var day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(firstOfMonth.year, firstOfMonth.month, day);
+      final bookingsOnDay = dateMap[date];
+      final isToday = date == todayNorm;
+      final isSelected = date == _selectedCalendarDate;
+
+      // Determine the "most important" status colour for this day
+      Color? dotColor;
+      if (bookingsOnDay != null && bookingsOnDay.isNotEmpty) {
+        // Priority: current > confirmed > pending > completed
+        for (final b in bookingsOnDay) {
+          final s = _displayStatus(b);
+          if (s == 'current') { dotColor = Colors.blue; break; }
+          if (s == 'confirmed' && dotColor != Colors.blue) dotColor = Colors.green;
+          if (s == 'pending' && dotColor == null) dotColor = Colors.orange;
+          if (s == 'completed' && dotColor == null) dotColor = Colors.grey;
+        }
+      }
+
+      cells.add(
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedCalendarDate = date;
+            });
+          },
+          child: Container(
+            margin: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? const Color(0xFF1A1A2E)
+                  : dotColor?.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: isToday && !isSelected
+                  ? Border.all(color: const Color(0xFF1A1A2E), width: 1.5)
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '$day',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isToday || isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected
+                        ? Colors.white
+                        : isToday
+                            ? const Color(0xFF1A1A2E)
+                            : Colors.black87,
+                  ),
+                ),
+                if (dotColor != null && !isSelected) ...[
+                  const SizedBox(height: 2),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+                if (dotColor != null && isSelected) ...[
+                  const SizedBox(height: 2),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Wrap in a GridView
+    return GridView.count(
+      crossAxisCount: 7,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 1.0,
+      children: cells,
+    );
+  }
+
+  Widget _legendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ],
     );
   }
 
