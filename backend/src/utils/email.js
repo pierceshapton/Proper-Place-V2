@@ -24,7 +24,7 @@ async function sendVerificationEmail(to, token) {
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
       <h2 style="color: #1a1a1a; margin-bottom: 16px;">Verify your email</h2>
       <p style="color: #444; line-height: 1.6;">
-        Thanks for signing up to the <strong>Proper Place App</strong>! Please confirm your email address by tapping the button below.
+        Thanks for signing up to <strong>Proper Place</strong>! Please confirm your email address by tapping the button below.
       </p>
       <a href="${verifyUrl}"
          style="display: inline-block; background: #2E7D32; color: #fff; text-decoration: none;
