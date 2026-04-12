@@ -234,16 +234,19 @@ export default function BrowsePage() {
     }
   };
 
-  // Custom marker icon (tent shape like the app)
-  const getMarkerIcon = (isFavorite: boolean): google.maps.Symbol => {
+  // Custom marker icons matching the Flutter app
+  const getMarkerIcon = (isFavorite: boolean): google.maps.Icon => {
+    if (isFavorite) {
+      return {
+        url: '/map-pin-heart.svg',
+        scaledSize: new google.maps.Size(32, 32),
+        anchor: new google.maps.Point(16, 28),
+      };
+    }
     return {
-      path: 'M12 2L2 22h20L12 2z', // Triangle/tent shape
-      fillColor: isFavorite ? '#EF4444' : '#7BA7D8',
-      fillOpacity: 1,
-      strokeColor: '#FFFFFF',
-      strokeWeight: 2,
-      scale: 0.75,
-      anchor: new google.maps.Point(12, 22),
+      url: '/map-pin-blue.png',
+      scaledSize: new google.maps.Size(30, 40),
+      anchor: new google.maps.Point(15, 40),
     };
   };
 
