@@ -56,36 +56,36 @@ export default function DashboardPage() {
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-4 bg-white">
+        <Link href="/dashboard/bookings" className="card p-4 bg-white cursor-pointer hover:shadow-lg transition-shadow">
           <p className="text-sm text-gray-500">Active Bookings</p>
           <p className="text-2xl font-bold text-gray-900">{activeBookings.length}</p>
-        </div>
-        <div className="card p-4 bg-white">
+        </Link>
+        <Link href="/dashboard/messages" className="card p-4 bg-white cursor-pointer hover:shadow-lg transition-shadow">
           <p className="text-sm text-gray-500">Unread Messages</p>
           <p className="text-2xl font-bold text-gray-900">{counts?.unreadMessages || 0}</p>
-        </div>
+        </Link>
         {(user?.role === 'host' || user?.role === 'admin') && (
           <>
-            <div className="card p-4 bg-white">
+            <Link href="/dashboard/places" className="card p-4 bg-white cursor-pointer hover:shadow-lg transition-shadow">
               <p className="text-sm text-gray-500">My Places</p>
               <p className="text-2xl font-bold text-gray-900">{places.length}</p>
-            </div>
-            <div className="card p-4 bg-white">
+            </Link>
+            <Link href="/dashboard/host/bookings" className="card p-4 bg-white cursor-pointer hover:shadow-lg transition-shadow">
               <p className="text-sm text-gray-500">Pending Guest Bookings</p>
               <p className="text-2xl font-bold text-gray-900">{counts?.pendingBookings || 0}</p>
-            </div>
+            </Link>
           </>
         )}
         {user?.role !== 'host' && user?.role !== 'admin' && (
           <>
-            <div className="card p-4 bg-white">
+            <Link href="/dashboard/bookings" className="card p-4 bg-white cursor-pointer hover:shadow-lg transition-shadow">
               <p className="text-sm text-gray-500">Total Bookings</p>
               <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
-            </div>
-            <div className="card p-4 bg-white">
+            </Link>
+            <Link href="/dashboard/bookings" className="card p-4 bg-white cursor-pointer hover:shadow-lg transition-shadow">
               <p className="text-sm text-gray-500">Completed</p>
               <p className="text-2xl font-bold text-gray-900">{bookings.filter(b => b.status === 'completed').length}</p>
-            </div>
+            </Link>
           </>
         )}
       </div>
@@ -95,12 +95,12 @@ export default function DashboardPage() {
         <div className="card p-6 bg-white">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Platform Overview</h2>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4"><p className="text-sm text-blue-600">Total Users</p><p className="text-xl font-bold text-blue-900">{adminData.total_users}</p></div>
-            <div className="bg-green-50 rounded-lg p-4"><p className="text-sm text-green-600">Total Places</p><p className="text-xl font-bold text-green-900">{adminData.total_places}</p></div>
-            <div className="bg-purple-50 rounded-lg p-4"><p className="text-sm text-purple-600">Total Bookings</p><p className="text-xl font-bold text-purple-900">{adminData.total_bookings}</p></div>
+            <Link href="/dashboard/admin/users" className="bg-blue-50 rounded-lg p-4 hover:bg-blue-100 transition-colors cursor-pointer"><p className="text-sm text-blue-600">Total Users</p><p className="text-xl font-bold text-blue-900">{adminData.total_users}</p></Link>
+            <Link href="/dashboard/admin/places" className="bg-green-50 rounded-lg p-4 hover:bg-green-100 transition-colors cursor-pointer"><p className="text-sm text-green-600">Total Places</p><p className="text-xl font-bold text-green-900">{adminData.total_places}</p></Link>
+            <Link href="/dashboard/admin/bookings" className="bg-purple-50 rounded-lg p-4 hover:bg-purple-100 transition-colors cursor-pointer"><p className="text-sm text-purple-600">Total Bookings</p><p className="text-xl font-bold text-purple-900">{adminData.total_bookings}</p></Link>
             <div className="bg-yellow-50 rounded-lg p-4"><p className="text-sm text-yellow-600">Total Reviews</p><p className="text-xl font-bold text-yellow-900">{adminData.total_reviews}</p></div>
-            <div className="bg-red-50 rounded-lg p-4"><p className="text-sm text-red-600">Pending Approvals</p><p className="text-xl font-bold text-red-900">{adminData.pending_approvals}</p></div>
-            <div className="bg-orange-50 rounded-lg p-4"><p className="text-sm text-orange-600">Pending Referrals</p><p className="text-xl font-bold text-orange-900">{adminData.pending_referrals}</p></div>
+            <Link href="/dashboard/admin/places" className="bg-red-50 rounded-lg p-4 hover:bg-red-100 transition-colors cursor-pointer"><p className="text-sm text-red-600">Pending Approvals</p><p className="text-xl font-bold text-red-900">{adminData.pending_approvals}</p></Link>
+            <Link href="/dashboard/referrals" className="bg-orange-50 rounded-lg p-4 hover:bg-orange-100 transition-colors cursor-pointer"><p className="text-sm text-orange-600">Pending Referrals</p><p className="text-xl font-bold text-orange-900">{adminData.pending_referrals}</p></Link>
           </div>
         </div>
       )}

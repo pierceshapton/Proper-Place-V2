@@ -21,9 +21,9 @@ export default function AdminDashboardPage() {
     { label: 'Pending Approvals', value: s?.pendingPlaces ?? s?.pending_approvals ?? 0, icon: '⏳', color: 'bg-yellow-50 text-yellow-700', link: '/dashboard/admin/places' },
     { label: 'Total Bookings', value: s?.totalBookings ?? s?.total_bookings ?? 0, icon: '📋', color: 'bg-purple-50 text-purple-700', link: '/dashboard/admin/bookings' },
     { label: 'Active Bookings', value: s?.activeBookings ?? 0, icon: '✅', color: 'bg-emerald-50 text-emerald-700', link: '/dashboard/admin/bookings' },
-    { label: 'Total Revenue', value: s?.totalRevenue ? `£${Number(s.totalRevenue).toFixed(0)}` : '£0', icon: '💰', color: 'bg-amber-50 text-amber-700', link: '#' },
+    { label: 'Total Revenue', value: s?.totalRevenue ? `£${Number(s.totalRevenue).toFixed(0)}` : '£0', icon: '💰', color: 'bg-amber-50 text-amber-700', link: '/dashboard/admin/bookings' },
     { label: 'Open Contacts', value: s?.openContacts ?? 0, icon: '📬', color: 'bg-red-50 text-red-700', link: '/dashboard/admin/contacts' },
-    { label: 'Total Reviews', value: s?.totalReviews ?? s?.total_reviews ?? 0, icon: '⭐', color: 'bg-indigo-50 text-indigo-700', link: '#' },
+    { label: 'Total Reviews', value: s?.totalReviews ?? s?.total_reviews ?? 0, icon: '⭐', color: 'bg-indigo-50 text-indigo-700', link: '/dashboard/admin/bookings' },
   ];
 
   return (

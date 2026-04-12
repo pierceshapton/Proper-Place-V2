@@ -360,6 +360,7 @@ export interface Booking {
   created_at?: string;
   place_name?: string;
   place_image?: string;
+  place_user_id?: number;
   guest_name?: string;
   guest_email?: string;
   place?: { id: number; name: string; image_urls?: string[] };

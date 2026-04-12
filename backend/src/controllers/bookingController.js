@@ -261,7 +261,7 @@ async function getBookingDetail(req, res, next) {
 
     const result = await db.query(
       `SELECT b.*, 
-              p.name as place_name, p.address as place_address,
+              p.name as place_name, p.address as place_address, p.user_id as place_user_id,
               pb.name as pub_name, pb.address as pub_address
        FROM bookings b
        LEFT JOIN places p ON b.place_id = p.id

@@ -51,8 +51,9 @@ export default function BookingDetailPage() {
     e.preventDefault();
     if (!booking || !messageText.trim()) return;
     try {
-      // Send to the place owner (host) - use user_id from booking as reference
-      await chatApi.send({ receiver_id: booking.user_id === user?.id ? 0 : booking.user_id, content: messageText, booking_id: booking.id });
+      // Send to the place owner (host)
+      const hostId = booking.place_user_id || booking.user_id;
+      await chatApi.send({ receiver_id: hostId, content: messageText, booking_id: booking.id });
       setMessageText('');
       setShowMessage(false);
       alert('Message sent!');
