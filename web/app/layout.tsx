@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { ConditionalFooter } from "@/components/ConditionalFooter";
 import ScrollToTop from "@/components/ScrollToTop";
 import CookieConsent from "@/components/CookieConsent";
+import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://proper-place.co.uk'),
@@ -180,13 +180,15 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-white text-gray-900">
-        <ScrollToTop />
-        <Navbar />
-        <div className="pt-24">
-          {children}
-        </div>
-        <ConditionalFooter />
-        <CookieConsent />
+        <AuthProvider>
+          <ScrollToTop />
+          <Navbar />
+          <div className="pt-24">
+            {children}
+          </div>
+          <ConditionalFooter />
+          <CookieConsent />
+        </AuthProvider>
       </body>
     </html>
   );

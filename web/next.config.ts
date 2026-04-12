@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'images.pexels.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'octopus-app-lxh2t.ondigitalocean.app',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.digitaloceanspaces.com',
+      },
     ],
   },
 };
