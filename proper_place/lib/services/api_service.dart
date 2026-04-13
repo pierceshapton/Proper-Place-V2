@@ -987,12 +987,23 @@ class ApiService {
     );
   }
 
-  /// Accept the host contract
-  static Future<Map<String, dynamic>> acceptHostContract({required String version}) async {
+  /// Accept the host contract with signature
+  static Future<Map<String, dynamic>> acceptHostContract({
+    required String version,
+    required String signatureData,
+  }) async {
     return _request(
       method: 'POST',
       endpoint: '/auth/accept-host-contract',
-      body: {'version': version},
+      body: {'version': version, 'signature_data': signatureData},
+    );
+  }
+
+  /// Get onboarding status for current host
+  static Future<Map<String, dynamic>> getOnboardingStatus() async {
+    return _request(
+      method: 'GET',
+      endpoint: '/auth/onboarding-status',
     );
   }
 

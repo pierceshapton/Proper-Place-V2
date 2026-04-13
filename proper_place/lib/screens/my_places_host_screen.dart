@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'host_create_site_screen.dart';
-import 'host_contract_screen.dart';
 import 'auto_message_config_screen.dart';
 import '../services/place_service.dart';
 import '../services/api_service.dart';
@@ -17,7 +16,6 @@ class MyPlacesHostScreen extends StatefulWidget {
 class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
   List<Map<String, dynamic>> hostPlaces = [];
   bool _isLoading = true;
-  bool _contractSigned = true; // assume signed until checked
 
   // Status mapping for display
   static const Map<String, Map<String, dynamic>> _statusConfig = {
@@ -31,18 +29,8 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
   void initState() {
     super.initState();
     _loadPlaces();
-    _checkContractStatus();
     // Mark site notifications as seen when host views this tab
     NotificationService().markSiteNotificationsSeen();
-  }
-
-  Future<void> _checkContractStatus() async {
-    try {
-      final status = await ApiService.getHostContractStatus();
-      if (mounted) {
-        setState(() => _contractSigned = status['accepted'] == true);
-      }
-    } catch (_) {}
   }
 
   Future<void> _loadPlaces() async {
@@ -284,50 +272,6 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
             ],
           ),
           const SizedBox(height: 24),
-
-          // Contract banner for hosts who haven't signed
-          if (!_contractSigned && hostPlaces.any((p) => p['approval_status'] == 'pending'))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: GestureDetector(
-                onTap: () async {
-                  final accepted = await Navigator.push<bool>(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HostContractScreen()),
-                  );
-                  if (accepted == true && mounted) {
-                    setState(() => _contractSigned = true);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.orange.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.description_outlined, color: Colors.orange.shade700, size: 28),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Host Agreement Required',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.orange.shade900)),
-                            const SizedBox(height: 4),
-                            Text('Your site is pending but cannot be approved until you sign the Host Agreement. Tap here to review and sign.',
-                              style: TextStyle(fontSize: 13, color: Colors.orange.shade800)),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chevron_right, color: Colors.orange.shade700),
-                    ],
-                  ),
-                ),
-              ),
-            ),
 
           // Empty state or Place cards
           if (hostPlaces.isEmpty)

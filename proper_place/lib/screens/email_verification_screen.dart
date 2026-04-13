@@ -77,13 +77,23 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          children: [
+            Positioned(
+              top: 8,
+              left: 8,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, size: 22),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.mark_email_unread_outlined,
-                  size: 80, color: Color(0xFF2E7D32)),
+                  size: 80, color: Color(0xFF1976D2)),
               const SizedBox(height: 24),
               const Text(
                 'Check your email',
@@ -115,7 +125,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 child: OutlinedButton(
                   onPressed: _isResending ? null : _resendEmail,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF2E7D32)),
+                    side: const BorderSide(color: Color(0xFF1976D2)),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
@@ -125,7 +135,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Resend verification email',
-                          style: TextStyle(color: Color(0xFF2E7D32))),
+                          style: TextStyle(color: Color(0xFF1976D2))),
                 ),
               ),
               if (_message != null) ...[
@@ -133,21 +143,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 Text(_message!,
                     style: TextStyle(
                         color: _message!.contains('sent')
-                            ? const Color(0xFF2E7D32)
+                            ? const Color(0xFF1976D2)
                             : Colors.red,
                         fontSize: 13)),
               ],
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  _pollTimer?.cancel();
-                  Navigator.of(context).pushReplacementNamed('/home');
-                },
-                child: Text('Skip for now',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-              ),
             ],
           ),
+            ),
+          ],
         ),
       ),
     );

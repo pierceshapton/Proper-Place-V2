@@ -29,6 +29,9 @@ router.post('/logout', authMiddleware, authController.logout);
 router.get('/host-contract-status', authMiddleware, authController.getHostContractStatus);
 router.post('/accept-host-contract', authMiddleware, authController.acceptHostContract);
 
+// Host onboarding status
+router.get('/onboarding-status', authMiddleware, authController.getOnboardingStatus);
+
 // Device token registration for push notifications
 router.post('/device-token', authMiddleware, async (req, res) => {
   try {

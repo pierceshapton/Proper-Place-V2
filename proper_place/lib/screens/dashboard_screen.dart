@@ -6,6 +6,8 @@ import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/place_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'stripe_payout_setup_screen.dart';
+import 'host_contract_screen.dart';
+import 'contact_us_form_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int) onTabChanged;
@@ -29,7 +31,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   bool _isLoading = true;
   List<Map<String, dynamic>> _conversations = [];
   List<Map<String, dynamic>> _bookings = [];
-  bool _payoutsEnabled = false; // default false until confirmed by API
+  bool _payoutsEnabled = false;
+
+  // Onboarding state
+  bool _contractSigned = false;
+  bool _hasAnySite = false;
+  bool _hasApprovedSite = false;
+  bool _hasPendingSite = false;
+  bool _onboardingLoaded = false;
 
   @override
   void initState() {
@@ -38,6 +47,27 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _chatService = ChatService();
     _loadDataAndCalculateMetrics();
     _checkPayoutStatus();
+    _loadOnboardingStatus();
+  }
+
+  Future<void> _loadOnboardingStatus() async {
+    try {
+      final status = await ApiService.getOnboardingStatus();
+      if (mounted) {
+        setState(() {
+          _contractSigned = status['contract_signed'] == true;
+          _hasAnySite = status['has_any_site'] == true;
+          _hasApprovedSite = status['has_approved_site'] == true;
+          _hasPendingSite = status['has_pending_site'] == true;
+          _onboardingLoaded = true;
+        });
+      }
+    } catch (e) {
+      // Fallback: assume onboarded
+      if (mounted) {
+        setState(() => _onboardingLoaded = true);
+      }
+    }
   }
 
   @override
@@ -552,6 +582,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     );
   }
 
+  bool get _needsOnboarding => _onboardingLoaded && !_hasApprovedSite;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -571,8 +603,14 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Stripe payout setup banner
-          if (!_payoutsEnabled)
+          // Onboarding / Get Started card for new hosts
+          if (_needsOnboarding) ...[
+            _buildGetStartedCard(),
+            const SizedBox(height: 16),
+          ],
+
+          // Stripe payout setup banner — only show when host has an approved site
+          if (!_needsOnboarding && !_payoutsEnabled)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: GestureDetector(
@@ -628,54 +666,136 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               ),
             ),
 
+          // Contract banner — show after site approved but before contract signed
+          if (!_needsOnboarding && !_contractSigned && _onboardingLoaded)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: () async {
+                  final signed = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HostContractScreen()),
+                  );
+                  if (signed == true) {
+                    _loadOnboardingStatus();
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFDBEAFE), Color(0xFFBFDBFE)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF5B8FC4)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.handshake_outlined, color: Color(0xFF5B8FC4), size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Sign Host Agreement',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E3A5F)),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Your site is approved! Sign the agreement to go live.',
+                              style: TextStyle(fontSize: 13, color: Color(0xFF3B6B9A), height: 1.3),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: Color(0xFF5B8FC4)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+
           // Unread Messages Card
-          GestureDetector(
-            onTap: () {
-              widget.onTabChanged(3); // Chat tab
-            },
-            child: _buildMetricCard(
-              title: 'Unread Messages',
-              value: '$_unreadCount',
-              icon: Icons.chat_bubble_outline,
-              backgroundColor: const Color(0xFFD4E4F7),
-              iconColor: const Color(0xFF3B82F6),
+          Opacity(
+            opacity: _needsOnboarding ? 0.4 : 1.0,
+            child: IgnorePointer(
+              ignoring: _needsOnboarding,
+              child: GestureDetector(
+                onTap: () {
+                  widget.onTabChanged(3); // Chat tab
+                },
+                child: _buildMetricCard(
+                  title: 'Unread Messages',
+                  value: '$_unreadCount',
+                  icon: Icons.chat_bubble_outline,
+                  backgroundColor: const Color(0xFFD4E4F7),
+                  iconColor: const Color(0xFF3B82F6),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),
 
           // Manage Bookings Card
-          GestureDetector(
-            onTap: () {
-              widget.onTabChanged(2); // Bookings tab
-            },
-            child: _buildMetricCard(
-              title: 'Manage Bookings',
-              value: '$_totalBookings',
-              icon: Icons.calendar_today_outlined,
-              backgroundColor: const Color(0xFFD1FAE5),
-              iconColor: const Color(0xFF10B981),
+          Opacity(
+            opacity: _needsOnboarding ? 0.4 : 1.0,
+            child: IgnorePointer(
+              ignoring: _needsOnboarding,
+              child: GestureDetector(
+                onTap: () {
+                  widget.onTabChanged(2); // Bookings tab
+                },
+                child: _buildMetricCard(
+                  title: 'Manage Bookings',
+                  value: '$_totalBookings',
+                  icon: Icons.calendar_today_outlined,
+                  backgroundColor: const Color(0xFFD1FAE5),
+                  iconColor: const Color(0xFF10B981),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),
 
           // Sales Summary Card
-          GestureDetector(
-            onTap: _showSalesSummaryPopup,
-            child: _buildMetricCard(
-              title: 'Sales Summary',
-              value: '',
-              icon: Icons.visibility_outlined,
-              backgroundColor: const Color(0xFFE9D5FF),
-              iconColor: const Color(0xFFA855F7),
-              showValue: false,
+          Opacity(
+            opacity: _needsOnboarding ? 0.4 : 1.0,
+            child: IgnorePointer(
+              ignoring: _needsOnboarding,
+              child: GestureDetector(
+                onTap: _showSalesSummaryPopup,
+                child: _buildMetricCard(
+                  title: 'Sales Summary',
+                  value: '',
+                  icon: Icons.visibility_outlined,
+                  backgroundColor: const Color(0xFFE9D5FF),
+                  iconColor: const Color(0xFFA855F7),
+                  showValue: false,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),
 
           // Refer a Host Card
-          GestureDetector(
-            onTap: _showReferralPopup,
-            child: Container(
+          Opacity(
+            opacity: _needsOnboarding ? 0.4 : 1.0,
+            child: IgnorePointer(
+              ignoring: _needsOnboarding,
+              child: GestureDetector(
+                onTap: _showReferralPopup,
+                child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
@@ -731,9 +851,241 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               ),
             ),
           ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Contact admin card — always visible
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ContactUsFormScreen()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F5F0),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE0D5C5)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5B8FC4).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.support_agent, color: Color(0xFF5B8FC4), size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Need Help?',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1A1A)),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Contact the Proper Place team',
+                          style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: Colors.grey[400]),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  Widget _buildGetStartedCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF5B8FC4), Color(0xFF4A7EB3)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF5B8FC4).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.rocket_launch, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Text(
+                  'Get Started',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Welcome to Proper Place! Here\'s how to get your site live and start earning:',
+            style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
+          ),
+          const SizedBox(height: 20),
+
+          // Step 1 — Create a site
+          _buildOnboardingStep(
+            number: '1',
+            title: 'Create Your First Site',
+            subtitle: _hasAnySite
+                ? (_hasPendingSite ? 'Submitted — under review' : 'Done!')
+                : 'Tap the Sites tab to add your place',
+            isComplete: _hasAnySite,
+            isPending: _hasPendingSite && !_hasApprovedSite,
+          ),
+          const SizedBox(height: 12),
+
+          // Step 2 — Admin approves
+          _buildOnboardingStep(
+            number: '2',
+            title: 'Site Reviewed by Admin',
+            subtitle: _hasApprovedSite
+                ? 'Approved!'
+                : 'We\'ll review your listing quickly',
+            isComplete: _hasApprovedSite,
+            isPending: _hasPendingSite && !_hasApprovedSite,
+          ),
+          const SizedBox(height: 12),
+
+          // Step 3 — Sign contract & set up payouts
+          _buildOnboardingStep(
+            number: '3',
+            title: 'Sign Agreement & Set Up Payouts',
+            subtitle: _hasApprovedSite
+                ? 'Ready for you to complete'
+                : 'Available after site approval',
+            isComplete: _contractSigned && _payoutsEnabled,
+            isPending: false,
+          ),
+
+          // CTA button
+          if (!_hasAnySite) ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => widget.onTabChanged(1), // Sites tab
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF5B8FC4),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text(
+                  'Create Your First Site',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOnboardingStep({
+    required String number,
+    required String title,
+    required String subtitle,
+    required bool isComplete,
+    required bool isPending,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: isComplete
+                ? const Color(0xFF10B981)
+                : isPending
+                    ? const Color(0xFFF59E0B)
+                    : Colors.white.withOpacity(0.25),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: isComplete
+                ? const Icon(Icons.check, color: Colors.white, size: 18)
+                : isPending
+                    ? const SizedBox(
+                        width: 14, height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        number,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  decoration: isComplete ? TextDecoration.lineThrough : null,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

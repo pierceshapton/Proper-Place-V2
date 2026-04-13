@@ -1,1 +1,3 @@
 proper_place/ios/build/
+.vercel
+.env*.local

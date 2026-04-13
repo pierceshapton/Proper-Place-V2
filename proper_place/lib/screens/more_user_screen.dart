@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart';
 import '../services/offline_service.dart';
 import 'home_screen.dart';
 import 'host_application_form_screen.dart';
@@ -44,13 +45,13 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
       final name = await StorageService.getUserName();
       final role = await StorageService.getUserRole();
       final hostMode = await StorageService.getHostMode();
-      final hostAppStatus = await StorageService.getHostApplicationStatus();
+      var hostAppStatus = await StorageService.getHostApplicationStatus();
       final sizeFilter = await StorageService.getSizeFilterEnabled();
 
       if (mounted) {
         setState(() {
           _userName = name ?? 'User';
-          _userRole = role ?? 'user';
+          _userRole = (hostAppStatus == 'approved') ? 'host' : (role ?? 'user');
           _isHostMode = hostMode;
           _hostApplicationStatus = hostAppStatus;
           _sizeFilterEnabled = sizeFilter;
@@ -578,8 +579,6 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
   }
 
   Widget _buildBecomeHostCard() {
-    final isApplicationPending = _hostApplicationStatus == 'pending';
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -625,9 +624,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            isApplicationPending
-                ? 'Your application is being reviewed by our team.'
-                : 'Turn your land into extra income by welcoming the motorhome community.',
+            'Turn your land into extra income by welcoming the motorhome community.',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 14,
@@ -635,47 +632,50 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          if (isApplicationPending)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HostApplicationFormScreen(),
+                      ),
+                    ).then((_) => _loadUserData());
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: accentBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Application Under Review',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: const Text(
+                    'Apply Now',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ],
+                ),
               ),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HostApplicationFormScreen(),
-                        ),
-                      ).then((_) => _loadUserData());
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () => _launchUrl('https://proper-place.co.uk/become-host'),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.info_outline, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,

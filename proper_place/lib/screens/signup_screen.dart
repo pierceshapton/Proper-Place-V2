@@ -20,6 +20,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final _vanRegController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   // Vehicle dimensions (stored in feet internally)
   double _vehicleHeight = 12.0;
@@ -318,10 +320,18 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 8),
                           TextField(
                             controller: _passwordController,
-                            obscureText: true,
+                            obscureText: _obscurePassword,
                             decoration: InputDecoration(
                               hintText: 'At least 8 characters',
                               hintStyle: TextStyle(color: Colors.grey[700]),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey[500],
+                                  size: 20,
+                                ),
+                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
@@ -366,10 +376,19 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 8),
                           TextField(
                             controller: _confirmPasswordController,
-                            obscureText: true,
+                            obscureText: _obscureConfirmPassword,
+                            onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
                               hintText: 'Confirm your password',
                               hintStyle: TextStyle(color: Colors.grey[700]),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                                  color: Colors.grey[500],
+                                  size: 20,
+                                ),
+                                onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
@@ -395,6 +414,18 @@ class _SignupScreenState extends State<SignupScreen> {
                               ),
                             ),
                           ),
+                          if (_confirmPasswordController.text.isNotEmpty &&
+                              _passwordController.text != _confirmPasswordController.text)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                'Passwords do not match',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red[600],
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 20),

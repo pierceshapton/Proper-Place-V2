@@ -84,18 +84,24 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
             : null,
       );
 
-      // Save application status
-      await StorageService.setHostApplicationStatus('pending');
+      // Auto-approved — upgrade to host locally
+      await StorageService.setHostApplicationStatus('approved');
+      await StorageService.saveUserRole('host');
+      await StorageService.setHostMode(true);
+      await StorageService.setAdminMode(false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Application submitted! Awaiting admin approval.'),
+            content: Text('Welcome aboard! You\'re now a host.'),
             backgroundColor: Colors.green,
           ),
         );
-        Future.delayed(const Duration(seconds: 2), () {
-          Navigator.pop(context);
+        // Navigate to host dashboard
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            Navigator.of(context).pushReplacementNamed('/home');
+          }
         });
       }
     } catch (e) {

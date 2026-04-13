@@ -13,6 +13,8 @@ import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/config/app_constants.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/services/payment_service.dart';
+import 'package:proper_place/services/api_service.dart';
+import 'package:proper_place/screens/email_verification_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -195,7 +197,32 @@ class _AuthCheckWrapperState extends State<AuthCheckWrapper> {
           .timeout(const Duration(seconds: 3), onTimeout: () => false);
       
       if (isAuthenticated && mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        // Verify email status with the server
+        try {
+          final response = await ApiService.getCurrentUser();
+          final user = response['user'];
+          if (user != null && user['verified'] != true) {
+            // User exists but email not verified — send to verification screen
+            final email = user['email'] ?? await StorageService.getUserEmail() ?? '';
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EmailVerificationScreen(
+                    email: email,
+                  ),
+                ),
+              );
+            }
+            return;
+          }
+        } catch (e) {
+          debugPrint('Verification check failed: $e');
+          // If we can't reach server, allow through (offline scenario)
+        }
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       }
     } catch (e) {
       debugPrint('Auth check failed: $e');

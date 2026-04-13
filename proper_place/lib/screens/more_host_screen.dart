@@ -4,6 +4,7 @@ import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/services/place_service.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'welcome_screen.dart';
+import 'contact_us_form_screen.dart';
 
 class MoreHostScreen extends StatefulWidget {
   const MoreHostScreen({super.key});
@@ -570,10 +571,15 @@ class _MoreHostScreenState extends State<MoreHostScreen> {
                   _buildSectionTitle('Help & Support'),
                   const SizedBox(height: 12),
                   _buildActionCard(
-                    icon: Icons.mail_outline,
-                    title: 'Contact Support',
-                    subtitle: 'Get help from our team',
-                    onTap: () => _launchUrl('https://proper-place.co.uk/contact'),
+                    icon: Icons.support_agent,
+                    title: 'Contact Admin',
+                    subtitle: 'Get help from the Proper Place team',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ContactUsFormScreen()),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 

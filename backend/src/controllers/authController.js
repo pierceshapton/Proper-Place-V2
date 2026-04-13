@@ -304,6 +304,11 @@ const CURRENT_CONTRACT_VERSION = '1.0';
 async function acceptHostContract(req, res, next) {
   try {
     const userId = req.user.userId;
+    const { signature_data } = req.body;
+
+    if (!signature_data) {
+      return res.status(400).json({ error: 'Signature is required to accept the Host Agreement.' });
+    }
 
     // Check if already signed — cannot re-sign or unsign
     const existing = await db.query(
@@ -328,17 +333,72 @@ async function acceptHostContract(req, res, next) {
       [version, userId]
     );
 
-    // Insert immutable audit record
+    // Insert immutable audit record with signature
     await db.query(
-      `INSERT INTO contract_acceptances (user_id, contract_version, ip_address, user_agent)
-       VALUES ($1, $2, $3, $4)`,
-      [userId, version, ip, userAgent]
+      `INSERT INTO contract_acceptances (user_id, contract_version, ip_address, user_agent, signature_data)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, version, ip, userAgent, signature_data]
     );
 
-    logger.info('Host contract accepted', { userId, version, ip });
+    logger.info('Host contract accepted with signature', { userId, version, ip });
     res.json({ accepted: true, version });
   } catch (error) {
     logger.error('Accept host contract error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * GET /auth/onboarding-status
+ * Returns the host's onboarding progress in a single call
+ */
+async function getOnboardingStatus(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    // Get user data
+    const userResult = await db.query(
+      `SELECT role, host_contract_accepted_at, host_contract_version FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+    const user = userResult.rows[0];
+
+    // Check if they have any approved sites
+    const sitesResult = await db.query(
+      `SELECT id, name, approval_status FROM places WHERE host_id = $1`,
+      [userId]
+    );
+    const sites = sitesResult.rows;
+    const hasAnySite = sites.length > 0;
+    const hasApprovedSite = sites.some(s => s.approval_status === 'approved');
+    const hasPendingSite = sites.some(s => s.approval_status === 'pending');
+
+    // Check Stripe payout status
+    let payoutsConnected = false;
+    try {
+      const stripeResult = await db.query(
+        `SELECT stripe_account_id FROM users WHERE id = $1`,
+        [userId]
+      );
+      if (stripeResult.rows[0]?.stripe_account_id) {
+        payoutsConnected = true;
+      }
+    } catch (_) {}
+
+    res.json({
+      contract_signed: !!user.host_contract_accepted_at,
+      contract_version: user.host_contract_version || null,
+      payouts_connected: payoutsConnected,
+      has_any_site: hasAnySite,
+      has_approved_site: hasApprovedSite,
+      has_pending_site: hasPendingSite,
+      sites: sites.map(s => ({ id: s.id, name: s.name, status: s.approval_status })),
+    });
+  } catch (error) {
+    logger.error('Get onboarding status error', { error: error.message });
     next(error);
   }
 }
@@ -643,6 +703,7 @@ module.exports = {
   logout,
   getHostContractStatus,
   acceptHostContract,
+  getOnboardingStatus,
   verifyEmail,
   resendVerification,
   forgotPassword,

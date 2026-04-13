@@ -755,6 +755,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 30 error:', err.message);
     }
 
+    // Migration 31: Add signature_data to contract_acceptances
+    try {
+      console.log('[SERVER] Running migration 31: Add signature_data column...');
+      await db.query(`ALTER TABLE contract_acceptances ADD COLUMN IF NOT EXISTS signature_data TEXT`);
+      console.log('[SERVER] ✅ Migration 31 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 31 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
