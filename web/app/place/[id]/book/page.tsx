@@ -101,10 +101,32 @@ export default function BookPlacePage() {
       try {
         const data = await placesApi.get(Number(id));
         setPlace(data.place || data as unknown as Place);
+
+        // Fetch place-level availability
+        const blocked: string[] = [];
         try {
           const avail = await bookingsApi.availability(Number(id));
-          setUnavailableDates((avail as { unavailableDates?: string[] }).unavailableDates || []);
+          const dates = (avail as { unavailableDates?: string[] }).unavailableDates || [];
+          blocked.push(...dates);
         } catch { /* empty */ }
+
+        // Fetch user's existing bookings and block those dates too
+        try {
+          const { bookings } = await bookingsApi.list();
+          const activeBookings = (bookings || []).filter(
+            (b: Booking) => !['cancelled', 'Cancelled'].includes(b.status)
+          );
+          for (const b of activeBookings) {
+            const start = new Date(b.check_in_date || b.check_in);
+            const end = new Date(b.check_out_date || b.check_out);
+            for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+              const ds = d.toISOString().split('T')[0];
+              if (!blocked.includes(ds)) blocked.push(ds);
+            }
+          }
+        } catch { /* user bookings fetch failed – continue without */ }
+
+        setUnavailableDates(blocked);
       } catch { router.push('/'); }
       setLoading(false);
     })();
@@ -130,7 +152,7 @@ export default function BookPlacePage() {
     const end = new Date(form.check_out);
     for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
       if (isDateUnavailable(d.toISOString().split('T')[0])) {
-        return `The date ${d.toISOString().split('T')[0]} is not available.`;
+        return `The date ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} is not available — you may already have a booking for these dates.`;
       }
     }
     return null;
@@ -231,8 +253,16 @@ export default function BookPlacePage() {
                 </div>
               </div>
               {unavailableDates.length > 0 && (
-                <p className="text-xs text-amber-600">⚠️ Some dates are unavailable for this place.</p>
+                <p className="text-xs text-amber-600">⚠️ Some dates are unavailable — either this place is full or you already have a booking.</p>
               )}
+              {(() => {
+                if (!form.check_in || !form.check_out) return null;
+                const dateErr = validateDates();
+                if (dateErr && dateErr.includes('not available')) {
+                  return <p className="text-sm text-red-600 font-medium">⛔ {dateErr}</p>;
+                }
+                return null;
+              })()}
             </div>
 
             <div className="card bg-white p-6 space-y-4">
