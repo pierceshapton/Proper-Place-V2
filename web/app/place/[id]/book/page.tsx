@@ -20,16 +20,12 @@ function PaymentForm({ onSuccess, onError, total, submitting, setSubmitting }: {
 }) {
   const stripe = useStripe();
   const elements = useElements();
-  const [ready, setReady] = useState(false);
-  const [stripeLoaded, setStripeLoaded] = useState(false);
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     stripePromise.then((s) => {
-      setStripeLoaded(true);
       if (!s) setLoadError('Stripe failed to load. Please disable any ad blockers and refresh the page.');
     }).catch(() => {
-      setStripeLoaded(true);
       setLoadError('Stripe could not be initialised. Please refresh and try again.');
     });
   }, []);
@@ -43,17 +39,17 @@ function PaymentForm({ onSuccess, onError, total, submitting, setSubmitting }: {
     onError('');
 
     try {
-      const { error, paymentIntent } = await stripe.confirmPayment({
+      const result = await stripe.confirmPayment({
         elements,
         confirmParams: { return_url: window.location.href },
         redirect: 'if_required',
       });
 
-      if (error) {
-        onError(error.message || 'Payment failed. Please try again.');
+      if (result.error) {
+        onError(result.error.message || 'Payment failed. Please try again.');
         setSubmitting(false);
-      } else if (paymentIntent) {
-        onSuccess(paymentIntent.id);
+      } else if (result.paymentIntent) {
+        onSuccess(result.paymentIntent.id);
       } else {
         onError('Something went wrong. Please try again.');
         setSubmitting(false);
@@ -70,19 +66,14 @@ function PaymentForm({ onSuccess, onError, total, submitting, setSubmitting }: {
 
   return (
     <>
-      {!ready && (
-        <div className="flex items-center gap-3 py-6 text-gray-500 text-sm">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-light-blue"></div>
-          Loading payment form...
-        </div>
-      )}
-      <PaymentElement onReady={() => setReady(true)} />
+      <PaymentElement />
       <button
+        type="button"
         onClick={handleSubmit}
-        disabled={submitting || !ready}
-        className="w-full btn-primary py-4 font-bold text-lg disabled:opacity-50 mt-6"
+        disabled={submitting || !stripe}
+        className="w-full bg-light-blue hover:bg-accent-blue text-white py-4 rounded-lg font-bold text-lg disabled:opacity-50 mt-6 transition-colors cursor-pointer"
       >
-        {submitting ? 'Processing...' : `Confirm & Pay £${total.toFixed(2)}`}
+        {submitting ? 'Processing payment...' : `Confirm & Pay £${total.toFixed(2)}`}
       </button>
     </>
   );
