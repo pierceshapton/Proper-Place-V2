@@ -138,6 +138,7 @@ export default function AdminPlacesPage() {
 /* ── Expanded detail panel ─────────────────────────────────────── */
 function PlaceDetails({ place, allPlaces, isLoaded }: { place: Place; allPlaces: Place[]; isLoaded: boolean }) {
   const [imgIdx, setImgIdx] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
   const images = place.image_urls || [];
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
@@ -172,7 +173,7 @@ function PlaceDetails({ place, allPlaces, isLoaded }: { place: Place; allPlaces:
       {/* Image gallery */}
       {images.length > 0 && (
         <div className="relative bg-gray-900">
-          <img src={images[imgIdx]} alt={place.name} className="w-full h-64 object-cover" />
+          <img src={images[imgIdx]} alt={place.name} className="w-full h-64 object-cover cursor-pointer" onClick={() => setLightbox(true)} />
           {images.length > 1 && (
             <>
               <button onClick={() => setImgIdx(i => (i - 1 + images.length) % images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/70">‹</button>
@@ -181,6 +182,24 @@ function PlaceDetails({ place, allPlaces, isLoaded }: { place: Place; allPlaces:
                 {images.map((_, i) => <button key={i} onClick={() => setImgIdx(i)} className={`w-2 h-2 rounded-full ${i === imgIdx ? 'bg-white' : 'bg-white/40'}`} />)}
               </div>
               <span className="absolute top-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded">{imgIdx + 1} / {images.length}</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={() => setLightbox(false)}>
+          <button className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl font-light z-10" onClick={() => setLightbox(false)}>✕</button>
+          <img src={images[imgIdx]} alt={place.name} className="max-w-[90vw] max-h-[90vh] object-contain" onClick={e => e.stopPropagation()} />
+          {images.length > 1 && (
+            <>
+              <button onClick={e => { e.stopPropagation(); setImgIdx(i => (i - 1 + images.length) % images.length); }} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white w-12 h-12 rounded-full flex items-center justify-center text-2xl">‹</button>
+              <button onClick={e => { e.stopPropagation(); setImgIdx(i => (i + 1) % images.length); }} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white w-12 h-12 rounded-full flex items-center justify-center text-2xl">›</button>
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                {images.map((_, i) => <button key={i} onClick={e => { e.stopPropagation(); setImgIdx(i); }} className={`w-2.5 h-2.5 rounded-full ${i === imgIdx ? 'bg-white' : 'bg-white/40'}`} />)}
+              </div>
+              <span className="absolute top-5 left-1/2 -translate-x-1/2 text-white/70 text-sm">{imgIdx + 1} / {images.length}</span>
             </>
           )}
         </div>
