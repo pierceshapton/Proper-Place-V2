@@ -69,7 +69,7 @@ export default function BookingsPage() {
                       {new Date(booking.check_in_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} → {new Date(booking.check_out_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                     {booking.booking_ref && <p className="text-xs text-gray-400 mt-1">Ref: {booking.booking_ref}</p>}
-                    <p className="text-sm font-medium text-gray-900 mt-1">£{booking.total_price?.toFixed(2)}</p>
+                    <p className="text-sm font-medium text-gray-900 mt-1">£{Number(booking.total_price).toFixed(2)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 sm:flex-col sm:items-end">

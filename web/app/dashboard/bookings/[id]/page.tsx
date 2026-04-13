@@ -101,7 +101,7 @@ export default function BookingDetailPage() {
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Total Price</p>
-            <p className="font-bold text-xl text-gray-900">£{booking.total_price?.toFixed(2)}</p>
+            <p className="font-bold text-xl text-gray-900">£{Number(booking.total_price).toFixed(2)}</p>
           </div>
           {booking.van_registration && (
             <div className="bg-gray-50 rounded-lg p-4">
