@@ -676,39 +676,6 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
       ),
     );
   }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: accentBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Apply Now',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                GestureDetector(
-                  onTap: () => _launchUrl('https://proper-place.co.uk/become-host'),
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.info_outline, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildActivateHostCard() {
     return Container(
