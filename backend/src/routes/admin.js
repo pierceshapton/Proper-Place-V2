@@ -32,4 +32,9 @@ const referralController = require('../controllers/referralController');
 router.get('/referrals', referralController.getAllReferrals);
 router.patch('/referrals/:id/complete', referralController.adminCompleteReferral);
 
+// Host application management
+router.get('/host-applications', adminController.getHostApplications);
+router.patch('/host-applications/:id/approve', adminController.approveHostApplication);
+router.patch('/host-applications/:id/reject', adminController.rejectHostApplication);
+
 module.exports = router;

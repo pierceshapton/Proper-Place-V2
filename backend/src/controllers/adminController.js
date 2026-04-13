@@ -34,6 +34,12 @@ async function getDashboard(req, res, next) {
       pendingReferrals = parseInt(refResult.rows[0].count);
     } catch (e) { /* table may not exist yet */ }
 
+    let pendingHostApplications = 0;
+    try {
+      const haResult = await db.query("SELECT COUNT(*) FROM host_applications WHERE status = 'pending'");
+      pendingHostApplications = parseInt(haResult.rows[0].count);
+    } catch (e) { /* table may not exist yet */ }
+
     res.json({
       dashboard: {
         total_users: parseInt(userCount.rows[0].count),
@@ -45,6 +51,7 @@ async function getDashboard(req, res, next) {
         total_revenue: parseFloat(revenueResult.rows[0].total),
         open_contacts: openContacts,
         pending_referrals: pendingReferrals,
+        pending_host_applications: pendingHostApplications,
       },
     });
   } catch (error) {
@@ -628,6 +635,101 @@ async function verifyUser(req, res, next) {
   }
 }
 
+/**
+ * GET /admin/host-applications
+ */
+async function getHostApplications(req, res, next) {
+  try {
+    const status = req.query.status || 'all';
+    let query = `
+      SELECT ha.*, u.name as user_name, u.email as user_email
+      FROM host_applications ha
+      LEFT JOIN users u ON ha.user_id = u.id
+    `;
+    const params = [];
+    if (status !== 'all') {
+      query += ' WHERE ha.status = $1';
+      params.push(status);
+    }
+    query += ' ORDER BY ha.created_at DESC';
+    const result = await db.query(query, params);
+    res.json({ applications: result.rows });
+  } catch (error) {
+    logger.error('Get host applications error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * PATCH /admin/host-applications/:id/approve
+ */
+async function approveHostApplication(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { admin_notes } = req.body;
+    const result = await db.query(
+      `UPDATE host_applications SET status = 'approved', admin_notes = $1, reviewed_at = NOW(), reviewed_by = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+      [admin_notes || null, req.user.userId, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Host application not found' });
+    }
+    // Upgrade user role to host
+    await db.query("UPDATE users SET role = 'host' WHERE id = $1 AND role = 'user'", [result.rows[0].user_id]);
+    // Log admin action
+    try {
+      await db.query(
+        'INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)',
+        [req.user.userId, 'approve_host_application', 'host_application', id, JSON.stringify({ admin_notes })]
+      );
+    } catch (e) { /* admin_logs may not exist */ }
+    // Push notification to applicant
+    try {
+      await pushService.sendToUser(result.rows[0].user_id, {
+        title: 'Host Application Approved!',
+        body: 'Your application to become a host has been approved. You can now list your places!',
+      });
+    } catch (e) { /* push may fail */ }
+    res.json({ message: 'Host application approved', application: result.rows[0] });
+  } catch (error) {
+    logger.error('Approve host application error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * PATCH /admin/host-applications/:id/reject
+ */
+async function rejectHostApplication(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { admin_notes } = req.body;
+    const result = await db.query(
+      `UPDATE host_applications SET status = 'rejected', admin_notes = $1, reviewed_at = NOW(), reviewed_by = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+      [admin_notes || null, req.user.userId, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Host application not found' });
+    }
+    try {
+      await db.query(
+        'INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)',
+        [req.user.userId, 'reject_host_application', 'host_application', id, JSON.stringify({ admin_notes })]
+      );
+    } catch (e) { /* admin_logs may not exist */ }
+    try {
+      await pushService.sendToUser(result.rows[0].user_id, {
+        title: 'Host Application Update',
+        body: 'Your host application has been reviewed. Please check the app for details.',
+      });
+    } catch (e) { /* push may fail */ }
+    res.json({ message: 'Host application rejected', application: result.rows[0] });
+  } catch (error) {
+    logger.error('Reject host application error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getDashboard,
   getPlacesForModeration,
@@ -641,4 +743,7 @@ module.exports = {
   cleanupAllData,
   resetUserPassword,
   verifyUser,
+  getHostApplications,
+  approveHostApplication,
+  rejectHostApplication,
 };

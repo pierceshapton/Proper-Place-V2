@@ -745,6 +745,41 @@ class ApiService {
     );
   }
 
+  // ==================== ADMIN HOST APPLICATION METHODS ====================
+
+  /// Get all host applications (admin only)
+  static Future<List<dynamic>> getHostApplications({String status = 'all'}) async {
+    final response = await _request(
+      method: 'GET',
+      endpoint: '/admin/host-applications?status=$status',
+    );
+    return response['applications'] ?? [];
+  }
+
+  /// Approve host application (admin only)
+  static Future<Map<String, dynamic>> approveHostApplication({
+    required int applicationId,
+    String? adminNotes,
+  }) async {
+    return _request(
+      method: 'PATCH',
+      endpoint: '/admin/host-applications/$applicationId/approve',
+      body: {'admin_notes': adminNotes ?? ''},
+    );
+  }
+
+  /// Reject host application (admin only)
+  static Future<Map<String, dynamic>> rejectHostApplication({
+    required int applicationId,
+    String? adminNotes,
+  }) async {
+    return _request(
+      method: 'PATCH',
+      endpoint: '/admin/host-applications/$applicationId/reject',
+      body: {'admin_notes': adminNotes ?? ''},
+    );
+  }
+
   // ==================== GUEST REVIEW METHODS ====================
 
   /// Rate a guest after a completed booking (host only)

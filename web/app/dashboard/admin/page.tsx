@@ -23,6 +23,7 @@ export default function AdminDashboardPage() {
     { label: 'Active Bookings', value: s?.active_bookings ?? 0, icon: '✅', color: 'bg-emerald-50 text-emerald-700', link: '/dashboard/admin/bookings' },
     { label: 'Total Revenue', value: s?.total_revenue ? `£${Number(s.total_revenue).toFixed(0)}` : '£0', icon: '💰', color: 'bg-amber-50 text-amber-700', link: '/dashboard/admin/bookings' },
     { label: 'Open Contacts', value: s?.open_contacts ?? 0, icon: '📬', color: 'bg-red-50 text-red-700', link: '/dashboard/admin/contacts' },
+    { label: 'Host Applications', value: s?.pending_host_applications ?? 0, icon: '📝', color: 'bg-teal-50 text-teal-700', link: '/dashboard/admin/host-applications' },
     { label: 'Total Reviews', value: s?.total_reviews ?? 0, icon: '⭐', color: 'bg-indigo-50 text-indigo-700', link: '/dashboard/admin/bookings' },
   ];
 
@@ -59,6 +60,11 @@ export default function AdminDashboardPage() {
           <h3 className="font-semibold text-gray-900 mb-2">📬 Support Tickets</h3>
           <p className="text-sm text-gray-500">Manage contact form submissions and support requests.</p>
           {(s?.open_contacts ?? 0) > 0 && <span className="inline-block mt-2 bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full">{s?.open_contacts} open</span>}
+        </Link>
+        <Link href="/dashboard/admin/host-applications" className="card bg-white p-5 hover:shadow-md transition-shadow">
+          <h3 className="font-semibold text-gray-900 mb-2">📝 Host Applications</h3>
+          <p className="text-sm text-gray-500">Review and approve applications from users wanting to become hosts.</p>
+          {(s?.pending_host_applications ?? 0) > 0 && <span className="inline-block mt-2 bg-teal-100 text-teal-700 text-xs font-bold px-2.5 py-1 rounded-full">{s?.pending_host_applications} pending</span>}
         </Link>
       </div>
     </div>

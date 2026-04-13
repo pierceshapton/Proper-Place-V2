@@ -229,6 +229,9 @@ export const adminApi = {
     return api<{ users: User[] }>(`/admin/users${qs}`);
   },
   updateUserRole: (id: number, role: string) => api(`/admin/users/${id}/role`, { method: 'PATCH', body: { role } }),
+  hostApplications: (status?: string) => api<{ applications: HostApplication[] }>(`/admin/host-applications${status ? `?status=${status}` : ''}`),
+  approveHostApplication: (id: number, adminNotes?: string) => api(`/admin/host-applications/${id}/approve`, { method: 'PATCH', body: { admin_notes: adminNotes || '' } }),
+  rejectHostApplication: (id: number, adminNotes?: string) => api(`/admin/host-applications/${id}/reject`, { method: 'PATCH', body: { admin_notes: adminNotes || '' } }),
 };
 
 // Upload
@@ -442,6 +445,30 @@ export interface AdminDashboard {
   active_bookings: number;
   total_revenue: number;
   open_contacts: number;
+  pending_host_applications: number;
+}
+
+export interface HostApplication {
+  id: number;
+  user_id: number;
+  contact_name: string;
+  email: string;
+  phone: string;
+  business_description: string | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  business_type: string | null;
+  van_spaces: number;
+  referral_code: string | null;
+  status: string;
+  admin_notes: string | null;
+  reviewed_at: string | null;
+  reviewed_by: number | null;
+  created_at: string;
+  updated_at: string;
+  user_name: string | null;
+  user_email: string | null;
 }
 
 export interface Pagination {

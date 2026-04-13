@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'admin_booking_search_screen.dart';
+import 'admin_host_applications_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final Function(int)? onTabChanged;
@@ -88,6 +89,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   onTap: () {
                     // Switch to Approvals tab (index 1)
                     widget.onTabChanged?.call(1);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Host Applications card
+                _buildActionCard(
+                  title: 'Host Applications',
+                  description: 'Review and approve applications from users wanting to become hosts',
+                  image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=200&fit=crop',
+                  buttonLabel: 'Review Applications',
+                  buttonColor: const Color(0xFF10B981),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AdminHostApplicationsScreen()),
+                    );
                   },
                 ),
                 const SizedBox(height: 16),
