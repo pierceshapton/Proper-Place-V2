@@ -22,10 +22,12 @@ class _HostContractScreenState extends State<HostContractScreen> {
   bool _agreed = false;
   bool _submitting = false;
   bool _hasSigned = false;
+  bool _isDrawing = false;
 
   // Signature
   final List<List<Offset>> _strokes = [];
   List<Offset> _currentStroke = [];
+  final GlobalKey _sigKey = GlobalKey();
 
   Future<String> _getSignatureBase64() async {
     final recorder = ui.PictureRecorder();
@@ -148,6 +150,7 @@ class _HostContractScreenState extends State<HostContractScreen> {
         children: [
           Expanded(
             child: SingleChildScrollView(
+              physics: _isDrawing ? const NeverScrollableScrollPhysics() : const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,22 +338,39 @@ class _HostContractScreenState extends State<HostContractScreen> {
                     ),
                     child: Stack(
                       children: [
-                        GestureDetector(
-                          onPanStart: (details) {
+                        Listener(
+                          key: _sigKey,
+                          onPointerDown: (event) {
+                            final RenderBox box = _sigKey.currentContext!.findRenderObject() as RenderBox;
+                            final pos = box.globalToLocal(event.position);
                             setState(() {
-                              _currentStroke = [details.localPosition];
+                              _isDrawing = true;
+                              _currentStroke = [pos];
                               _strokes.add(_currentStroke);
                             });
                           },
-                          onPanUpdate: (details) {
+                          onPointerMove: (event) {
+                            if (!_isDrawing) return;
+                            final RenderBox box = _sigKey.currentContext!.findRenderObject() as RenderBox;
+                            final pos = box.globalToLocal(event.position);
                             setState(() {
-                              _currentStroke.add(details.localPosition);
+                              _currentStroke.add(pos);
                               _hasSigned = true;
                             });
                           },
-                          onPanEnd: (details) {
-                            _currentStroke = [];
+                          onPointerUp: (_) {
+                            setState(() {
+                              _isDrawing = false;
+                              _currentStroke = [];
+                            });
                           },
+                          onPointerCancel: (_) {
+                            setState(() {
+                              _isDrawing = false;
+                              _currentStroke = [];
+                            });
+                          },
+                          behavior: HitTestBehavior.opaque,
                           child: CustomPaint(
                             painter: _SignaturePainter(strokes: _strokes),
                             size: Size.infinite,

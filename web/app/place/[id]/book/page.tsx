@@ -67,8 +67,7 @@ export default function BookPlacePage() {
   const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [form, setForm] = useState({
-    check_in: '', check_out: '', vehicle_registration: '', phone: '', special_requests: '',
-    vehicle_length_ft: '', vehicle_height_ft: '', vehicle_width_ft: '',
+    check_in: '', check_out: '', special_requests: '',
   });
 
   useEffect(() => {
@@ -81,9 +80,6 @@ export default function BookPlacePage() {
           const avail = await bookingsApi.availability(Number(id));
           setUnavailableDates((avail as { unavailableDates?: string[] }).unavailableDates || []);
         } catch { /* empty */ }
-        // Pre-fill from user profile
-        if (user.phone || user.phone_number) setForm(f => ({ ...f, phone: user.phone || user.phone_number || '' }));
-        if (user.vehicle_registration) setForm(f => ({ ...f, vehicle_registration: user.vehicle_registration || '' }));
       } catch { router.push('/'); }
       setLoading(false);
     })();
@@ -122,7 +118,13 @@ export default function BookPlacePage() {
     setSubmitting(true);
     try {
       const paymentData = await paymentsApi.createIntent(Math.round(total * 100), 'gbp', Number(id));
-      setClientSecret(paymentData.clientSecret);
+      const secret = paymentData.clientSecret || (paymentData as Record<string, unknown>).client_secret as string;
+      if (!secret) {
+        setError('Payment setup failed — no client secret returned. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+      setClientSecret(secret);
       setStep('payment');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not initialise payment. Please try again.');
@@ -139,8 +141,8 @@ export default function BookPlacePage() {
         check_in: form.check_in,
         check_out: form.check_out,
         total_price: total,
-        van_registration: form.vehicle_registration || undefined,
-        contact_phone: form.phone || undefined,
+        van_registration: user?.vehicle_registration || undefined,
+        contact_phone: user?.phone || user?.phone_number || undefined,
         special_requests: form.special_requests || undefined,
         payment_intent_id: paymentIntentId,
       } as Partial<Booking>);
@@ -209,44 +211,17 @@ export default function BookPlacePage() {
             </div>
 
             <div className="card bg-white p-6 space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900">Vehicle Details</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Special Requests</h2>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Registration</label>
-                <input type="text" value={form.vehicle_registration} onChange={e => setForm(f => ({ ...f, vehicle_registration: e.target.value.toUpperCase() }))} placeholder="e.g. AB12 CDE" className="bg-white border-gray-300 text-gray-900" />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Length (ft)</label>
-                  <input type="number" step="0.1" value={form.vehicle_length_ft} onChange={e => setForm(f => ({ ...f, vehicle_length_ft: e.target.value }))} className="bg-white border-gray-300 text-gray-900" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Height (ft)</label>
-                  <input type="number" step="0.1" value={form.vehicle_height_ft} onChange={e => setForm(f => ({ ...f, vehicle_height_ft: e.target.value }))} className="bg-white border-gray-300 text-gray-900" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Width (ft)</label>
-                  <input type="number" step="0.1" value={form.vehicle_width_ft} onChange={e => setForm(f => ({ ...f, vehicle_width_ft: e.target.value }))} className="bg-white border-gray-300 text-gray-900" />
-                </div>
-              </div>
-              {/* Vehicle size warnings */}
-              {place.max_vehicle_length_ft && form.vehicle_length_ft && Number(form.vehicle_length_ft) > place.max_vehicle_length_ft && (
-                <p className="text-sm text-red-500">⚠️ Your vehicle exceeds the max length of {place.max_vehicle_length_ft}ft</p>
-              )}
-              {place.max_vehicle_height_ft && form.vehicle_height_ft && Number(form.vehicle_height_ft) > place.max_vehicle_height_ft && (
-                <p className="text-sm text-red-500">⚠️ Your vehicle exceeds the max height of {place.max_vehicle_height_ft}ft</p>
-              )}
-            </div>
-
-            <div className="card bg-white p-6 space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900">Contact & Requests</h2>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+44 7123 456789" className="bg-white border-gray-300 text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes for the host (optional)</label>
                 <textarea value={form.special_requests} onChange={e => setForm(f => ({ ...f, special_requests: e.target.value }))} rows={3} placeholder="Any special requests or notes for the host..." className="bg-white border-gray-300 text-gray-900" />
               </div>
+              {user?.phone_number || user?.phone ? (
+                <p className="text-xs text-gray-400">Contact phone from your profile: {user?.phone || user?.phone_number}</p>
+              ) : null}
+              {user?.vehicle_registration ? (
+                <p className="text-xs text-gray-400">Vehicle registration from your profile: {user.vehicle_registration}</p>
+              ) : null}
             </div>
 
             {/* Price Summary */}
@@ -276,7 +251,7 @@ export default function BookPlacePage() {
                   <div className="flex justify-between"><span className="text-gray-500">Check-in:</span><span className="text-gray-900">{new Date(form.check_in).toLocaleDateString()}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Check-out:</span><span className="text-gray-900">{new Date(form.check_out).toLocaleDateString()}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Nights:</span><span className="text-gray-900">{nights}</span></div>
-                  {form.vehicle_registration && <div className="flex justify-between"><span className="text-gray-500">Vehicle:</span><span className="text-gray-900">{form.vehicle_registration}</span></div>}
+                  {user?.vehicle_registration && <div className="flex justify-between"><span className="text-gray-500">Vehicle:</span><span className="text-gray-900">{user.vehicle_registration}</span></div>}
                   <div className="border-t border-gray-100 pt-2 flex justify-between text-base font-bold"><span className="text-gray-900">Total</span><span className="text-gray-900">£{total.toFixed(2)}</span></div>
                 </div>
               </div>
