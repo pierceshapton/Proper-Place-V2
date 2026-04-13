@@ -245,8 +245,8 @@ export default function BrowsePage() {
     }
     return {
       url: '/map-pin-blue.png',
-      scaledSize: new google.maps.Size(30, 40),
-      anchor: new google.maps.Point(15, 40),
+      scaledSize: new google.maps.Size(30, 44),
+      anchor: new google.maps.Point(15, 44),
     };
   };
 

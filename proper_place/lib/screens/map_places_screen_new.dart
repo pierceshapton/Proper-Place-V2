@@ -412,6 +412,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
             markerId: MarkerId(place.placeId),
             position: LatLng(place.locationLat, place.locationLng),
             icon: markerIcon,
+            anchor: isFavorite ? const Offset(0.5, 0.85) : const Offset(0.5, 1.0),
             onTap: () => _showPlaceDetails(place),
           ),
         );
