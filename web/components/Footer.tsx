@@ -21,7 +21,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold mb-4">For Motorhomers</h4>
             <ul className="space-y-2 text-gray-400 text-sm">
-              <li><Link href="/download" className="hover:text-light-blue">Download the App</Link></li>
+              <li><Link href="/auth/signup" className="hover:text-light-blue">Create Account</Link></li>
               <li><Link href="/browse" className="hover:text-light-blue">Find a Proper Place</Link></li>
               <li><Link href="/how-it-works" className="hover:text-light-blue">How It Works</Link></li>
               <li><Link href="/about" className="hover:text-light-blue">About Proper Place</Link></li>

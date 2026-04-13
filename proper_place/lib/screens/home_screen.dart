@@ -24,6 +24,7 @@ import 'admin_approvals_screen.dart';
 import 'admin_host_chat_screen.dart';
 import 'admin_contact_messages_screen.dart';
 import 'admin_more_screen.dart';
+import 'host_tutorial_screen.dart';
 
 /// Reusable custom bottom navigation bar widget
 class CustomBottomNavBar extends StatelessWidget {
@@ -213,8 +214,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _loadPlaces();
         _loadNotificationCounts();
         
-        // Onboarding tutorial will be added here later
-        // _checkShowWelcome();
+        // Show host tutorial on first host mode access
+        if (isHostMode) {
+          _checkShowHostTutorial();
+        }
       });
       
       // Handle navigation with selectedTab argument or static variable
@@ -279,6 +282,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('[Welcome] Error: $e');
+    }
+  }
+
+  Future<void> _checkShowHostTutorial() async {
+    try {
+      final userId = await StorageService.getUserId();
+      if (userId == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'has_seen_host_tutorial_$userId';
+      final hasSeen = prefs.getBool(key) ?? false;
+      debugPrint('[HostTutorial] userId=$userId, hasSeen=$hasSeen');
+
+      if (!hasSeen && mounted) {
+        await prefs.setBool(key, true);
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const HostTutorialScreen(),
+              fullscreenDialog: true,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[HostTutorial] Error: $e');
     }
   }
 

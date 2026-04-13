@@ -132,8 +132,8 @@ const jsonLd = {
       hasPart: [
         {
           '@type': 'SiteNavigationElement',
-          name: 'Download App',
-          url: 'https://proper-place.co.uk/download',
+          name: 'Sign Up',
+          url: 'https://proper-place.co.uk/auth/signup',
         },
         {
           '@type': 'SiteNavigationElement',

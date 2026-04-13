@@ -4,8 +4,56 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { placesApi, bookingsApi, paymentsApi, type Place, type Booking, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
-const STRIPE_PK = 'pk_test_51SVJ2DCGmQVz0gpFBVNEg4Dk4zr6dh58Iq4oQUTmgs5f0rF6xmpU5fgFo1OAz46o6NU1RCoaNqvS7ZrGClApAiEM00WN9AVlMT';
+const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PK || 'pk_test_51SVJ2DCGmQVz0gpFBVNEg4Dk4zr6dh58Iq4oQUTmgs5f0rF6xmpU5fgFo1OAz46o6NU1RCoaNqvS7ZrGClApAiEM00WN9AVlMT';
+const stripePromise = loadStripe(STRIPE_PK);
+
+/* ── Payment form (rendered inside Stripe <Elements>) ───────────── */
+function PaymentForm({ onSuccess, onError, total, submitting, setSubmitting }: {
+  onSuccess: (paymentIntentId: string) => void;
+  onError: (msg: string) => void;
+  total: number;
+  submitting: boolean;
+  setSubmitting: (v: boolean) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [ready, setReady] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!stripe || !elements) return;
+    setSubmitting(true);
+    onError('');
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: window.location.href },
+      redirect: 'if_required',
+    });
+
+    if (error) {
+      onError(error.message || 'Payment failed. Please try again.');
+      setSubmitting(false);
+    } else if (paymentIntent) {
+      onSuccess(paymentIntent.id);
+    }
+  };
+
+  return (
+    <>
+      <PaymentElement onReady={() => setReady(true)} />
+      <button
+        onClick={handleSubmit}
+        disabled={submitting || !ready}
+        className="w-full btn-primary py-4 font-bold text-lg disabled:opacity-50 mt-6"
+      >
+        {submitting ? 'Processing...' : `Confirm & Pay £${total.toFixed(2)}`}
+      </button>
+    </>
+  );
+}
 
 export default function BookPlacePage() {
   const { id } = useParams();
@@ -17,6 +65,7 @@ export default function BookPlacePage() {
   const [error, setError] = useState('');
   const [step, setStep] = useState<'details' | 'payment' | 'success'>('details');
   const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [form, setForm] = useState({
     check_in: '', check_out: '', vehicle_registration: '', phone: '', special_requests: '',
     vehicle_length_ft: '', vehicle_height_ft: '', vehicle_width_ft: '',
@@ -66,21 +115,23 @@ export default function BookPlacePage() {
     return null;
   };
 
-  const handleProceedToPayment = () => {
+  const handleProceedToPayment = async () => {
     const dateErr = validateDates();
     if (dateErr) { setError(dateErr); return; }
     setError('');
-    setStep('payment');
-  };
-
-  const handleConfirmBooking = async () => {
-    setError('');
     setSubmitting(true);
     try {
-      // Create payment intent
       const paymentData = await paymentsApi.createIntent(Math.round(total * 100), 'gbp', Number(id));
+      setClientSecret(paymentData.clientSecret);
+      setStep('payment');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not initialise payment. Please try again.');
+    }
+    setSubmitting(false);
+  };
 
-      // Create the booking with payment info
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
+    try {
       await bookingsApi.create({
         place_id: Number(id),
         check_in_date: form.check_in,
@@ -91,7 +142,7 @@ export default function BookPlacePage() {
         van_registration: form.vehicle_registration || undefined,
         contact_phone: form.phone || undefined,
         special_requests: form.special_requests || undefined,
-        payment_intent_id: paymentData.paymentIntentId,
+        payment_intent_id: paymentIntentId,
       } as Partial<Booking>);
 
       setStep('success');
@@ -209,55 +260,50 @@ export default function BookPlacePage() {
               </div>
             )}
 
-            <button onClick={handleProceedToPayment} disabled={!form.check_in || !form.check_out || nights < 1} className="w-full btn-primary py-4 font-bold text-lg disabled:opacity-50">
-              Continue to Payment — £{total.toFixed(2)}
+            <button onClick={handleProceedToPayment} disabled={!form.check_in || !form.check_out || nights < 1 || submitting} className="w-full btn-primary py-4 font-bold text-lg disabled:opacity-50">
+              {submitting ? 'Setting up payment...' : `Continue to Payment — £${total.toFixed(2)}`}
             </button>
           </div>
         )}
 
-        {step === 'payment' && (
-          <div className="space-y-6">
-            <div className="card bg-white p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h2>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Place:</span><span className="font-medium text-gray-900">{place.name}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Check-in:</span><span className="text-gray-900">{new Date(form.check_in).toLocaleDateString()}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Check-out:</span><span className="text-gray-900">{new Date(form.check_out).toLocaleDateString()}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Nights:</span><span className="text-gray-900">{nights}</span></div>
-                {form.vehicle_registration && <div className="flex justify-between"><span className="text-gray-500">Vehicle:</span><span className="text-gray-900">{form.vehicle_registration}</span></div>}
-                <div className="border-t border-gray-100 pt-2 flex justify-between text-base font-bold"><span className="text-gray-900">Total</span><span className="text-gray-900">£{total.toFixed(2)}</span></div>
+        {step === 'payment' && clientSecret && (
+          <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+            <div className="space-y-6">
+              <div className="card bg-white p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h2>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">Place:</span><span className="font-medium text-gray-900">{place.name}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Check-in:</span><span className="text-gray-900">{new Date(form.check_in).toLocaleDateString()}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Check-out:</span><span className="text-gray-900">{new Date(form.check_out).toLocaleDateString()}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Nights:</span><span className="text-gray-900">{nights}</span></div>
+                  {form.vehicle_registration && <div className="flex justify-between"><span className="text-gray-500">Vehicle:</span><span className="text-gray-900">{form.vehicle_registration}</span></div>}
+                  <div className="border-t border-gray-100 pt-2 flex justify-between text-base font-bold"><span className="text-gray-900">Total</span><span className="text-gray-900">£{total.toFixed(2)}</span></div>
+                </div>
+              </div>
+
+              <div className="card bg-white p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Payment</h2>
+                <p className="text-sm text-gray-500 mb-4">Your card will be pre-authorised. Payment is captured only when the host approves your booking.</p>
+                <PaymentForm
+                  onSuccess={handlePaymentSuccess}
+                  onError={setError}
+                  total={total}
+                  submitting={submitting}
+                  setSubmitting={setSubmitting}
+                />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-700">
+                <p className="font-medium mb-1">How payment works:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>Your card will be pre-authorised for £{total.toFixed(2)}</li>
+                  <li>Payment is only captured when the host approves your booking</li>
+                  <li>If the host declines, no charge will be made</li>
+                  <li>You can cancel before approval at no cost</li>
+                </ul>
               </div>
             </div>
-
-            <div className="card bg-white p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Payment</h2>
-              <p className="text-sm text-gray-500 mb-4">Your card will be pre-authorized. Payment is captured only when the host approves your booking.</p>
-
-              {/* Stripe Elements would be loaded here in production */}
-              <div id="stripe-payment-element" className="border border-gray-200 rounded-lg p-4 min-h-[100px] bg-gray-50">
-                <p className="text-sm text-gray-500 text-center py-4">
-                  💳 Secure payment powered by Stripe
-                </p>
-                <p className="text-xs text-gray-400 text-center">
-                  Card details are processed securely. We never store your full card number.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-700">
-              <p className="font-medium mb-1">How payment works:</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Your card will be pre-authorized for £{total.toFixed(2)}</li>
-                <li>Payment is only captured when the host approves your booking</li>
-                <li>If the host declines, no charge will be made</li>
-                <li>You can cancel before approval at no cost</li>
-              </ul>
-            </div>
-
-            <button onClick={handleConfirmBooking} disabled={submitting} className="w-full btn-primary py-4 font-bold text-lg disabled:opacity-50">
-              {submitting ? 'Processing...' : `Confirm & Pay £${total.toFixed(2)}`}
-            </button>
-          </div>
+          </Elements>
         )}
       </div>
     </div>
