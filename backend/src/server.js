@@ -43,6 +43,7 @@ const chatRoutes = require('./routes/chat');
 const uploadRoutes = require('./routes/upload');
 const autoMessagesRoutes = require('./routes/autoMessages');
 const hostLeadsRoutes = require('./routes/hostLeads');
+const hostApplicationRoutes = require('./routes/hostApplications');
 const referralRoutes = require('./routes/referrals');
 const webhookRoutes = require('./routes/webhooks');
 const pushService = require('./services/pushNotificationService');
@@ -149,6 +150,7 @@ app.use('/admin', adminRoutes);
 app.use('/upload', uploadRoutes);
 app.use('/auto-messages', autoMessagesRoutes);
 app.use('/host-leads', hostLeadsRoutes);
+app.use('/host-applications', hostApplicationRoutes);
 app.use('/referrals', referralRoutes);
 
 // User routes
@@ -719,6 +721,38 @@ async function initializeDatabase() {
       console.log('[SERVER] ✅ Migration 29 completed');
     } catch (err) {
       console.error('[SERVER] Migration 29 error:', err.message);
+    }
+
+    // Migration 30: Host applications table (in-app Become a Host form)
+    try {
+      console.log('[SERVER] Running migration 30: Host applications table...');
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS host_applications (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          contact_name VARCHAR(200) NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          phone VARCHAR(50) NOT NULL,
+          business_description TEXT,
+          address VARCHAR(500),
+          latitude DECIMAL(10,7),
+          longitude DECIMAL(10,7),
+          business_type VARCHAR(100),
+          van_spaces INTEGER DEFAULT 1,
+          referral_code VARCHAR(50),
+          status VARCHAR(50) DEFAULT 'pending',
+          admin_notes TEXT,
+          reviewed_at TIMESTAMP,
+          reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_host_applications_user_id ON host_applications(user_id)`);
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_host_applications_status ON host_applications(status)`);
+      console.log('[SERVER] ✅ Migration 30 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 30 error:', err.message);
     }
 
     // Always try to seed admin user if it doesn't exist
