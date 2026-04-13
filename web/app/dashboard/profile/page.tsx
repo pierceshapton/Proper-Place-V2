@@ -190,11 +190,12 @@ export default function ProfilePage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h2>
             <form onSubmit={async (e) => {
               e.preventDefault();
+              if (!passwords.current) { setError('Current password is required'); return; }
               if (passwords.newPass !== passwords.confirm) { setError('Passwords do not match'); return; }
               if (passwords.newPass.length < 8) { setError('Password must be at least 8 characters'); return; }
               setSaving(true); setError(''); setSuccess('');
               try {
-                await usersApi.update(user!.id, { password: passwords.newPass } as unknown as Partial<User>);
+                await usersApi.changePassword({ currentPassword: passwords.current, newPassword: passwords.newPass });
                 setSuccess('Password changed!');
                 setPasswords({ current: '', newPass: '', confirm: '' });
               } catch (err) {
@@ -202,6 +203,10 @@ export default function ProfilePage() {
               }
               setSaving(false);
             }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                <input type="password" value={passwords.current} onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))} placeholder="••••••••" className="bg-white border-gray-300 text-gray-900" />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
                 <input type="password" value={passwords.newPass} onChange={e => setPasswords(p => ({ ...p, newPass: e.target.value }))} placeholder="Min 8 characters" className="bg-white border-gray-300 text-gray-900" />

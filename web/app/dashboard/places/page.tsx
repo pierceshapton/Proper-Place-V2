@@ -82,7 +82,7 @@ export default function MyPlacesPage() {
                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                   <span>£{place.price_per_night}/night</span>
                   {place.capacity && <span>Up to {place.capacity} vehicles</span>}
-                  {place.rating && <span>⭐ {place.rating.toFixed(1)} ({place.review_count})</span>}
+                  {place.rating && <span>⭐ {Number(place.rating).toFixed(1)} ({place.review_count})</span>}
                 </div>
                 {place.rejection_reason && (
                   <div className="bg-red-50 text-red-600 text-xs p-2 rounded mb-3">

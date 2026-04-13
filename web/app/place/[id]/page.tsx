@@ -233,7 +233,7 @@ export default function PlaceDetailPage() {
                     src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0&q=${place.latitude},${place.longitude}&zoom=13`}
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-2 text-center">{place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}</p>
+                <p className="text-xs text-gray-400 mt-2 text-center">{Number(place.latitude).toFixed(4)}, {Number(place.longitude).toFixed(4)}</p>
               </div>
             )}
           </div>

@@ -3,8 +3,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
-const API_BASE_URL = 'https://octopus-app-lxh2t.ondigitalocean.app';
-const GOOGLE_MAPS_API_KEY = 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://octopus-app-lxh2t.ondigitalocean.app';
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
 
 // UK center coordinates (same as app default)
 const DEFAULT_CENTER = { lat: 54.5, lng: -2.5 };

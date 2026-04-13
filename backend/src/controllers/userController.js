@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const bcrypt = require('bcryptjs');
 const logger = require('../utils/logger');
 
 /**
@@ -238,9 +239,45 @@ async function exportUserData(req, res, next) {
   }
 }
 
+/**
+ * POST /users/change-password
+ */
+async function changePassword(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'validation_error', message: 'Current and new password are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'validation_error', message: 'New password must be at least 8 characters' });
+    }
+
+    const userResult = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'not_found', message: 'User not found' });
+    }
+
+    const valid = await bcrypt.compare(currentPassword, userResult.rows[0].password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'invalid_password', message: 'Current password is incorrect' });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, userId]);
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    logger.error('Change password error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getUserProfile,
   updateProfile,
+  changePassword,
   deleteAccount,
   exportUserData,
 };

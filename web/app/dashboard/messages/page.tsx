@@ -31,24 +31,24 @@ export default function MessagesPage() {
         <div className="card bg-white divide-y divide-gray-100">
           {conversations.map(conv => (
             <Link
-              key={conv.partner_id}
-              href={`/dashboard/messages/${conv.partner_id}${conv.booking_id ? `?booking=${conv.booking_id}` : ''}`}
+              key={conv.partnerId}
+              href={`/dashboard/messages/${conv.partnerId}${conv.bookingId ? `?booking=${conv.bookingId}` : ''}`}
               className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
             >
               <div className="w-12 h-12 bg-light-blue rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                {conv.partner_name?.charAt(0).toUpperCase() || '?'}
+                {conv.partnerName?.charAt(0).toUpperCase() || '?'}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-gray-900 truncate">{conv.partner_name}</p>
-                  <p className="text-xs text-gray-400 flex-shrink-0">{timeAgo(conv.latest_message_time)}</p>
+                  <p className="font-medium text-gray-900 truncate">{conv.partnerName}</p>
+                  <p className="text-xs text-gray-400 flex-shrink-0">{timeAgo(conv.lastMessageAt)}</p>
                 </div>
-                <p className="text-sm text-gray-500 truncate">{conv.latest_message}</p>
-                {conv.booking_ref && <p className="text-xs text-light-blue mt-0.5">Booking: {conv.booking_ref}</p>}
+                <p className="text-sm text-gray-500 truncate">{conv.lastMessage}</p>
+                {conv.placeName && <p className="text-xs text-light-blue mt-0.5">{conv.placeName}</p>}
               </div>
-              {conv.unread_count > 0 && (
+              {conv.unreadCount > 0 && (
                 <span className="bg-light-blue text-white text-xs rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 font-medium">
-                  {conv.unread_count > 9 ? '9+' : conv.unread_count}
+                  {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
                 </span>
               )}
             </Link>

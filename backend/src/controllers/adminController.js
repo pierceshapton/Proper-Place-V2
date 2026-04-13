@@ -16,6 +16,17 @@ async function getDashboard(req, res, next) {
     const pendingPlaces = await db.query(
       "SELECT COUNT(*) FROM places WHERE approval_status = 'pending'"
     );
+    const activeBookings = await db.query(
+      "SELECT COUNT(*) FROM bookings WHERE status IN ('confirmed', 'approved') AND check_out_date >= CURRENT_DATE"
+    );
+    const revenueResult = await db.query(
+      "SELECT COALESCE(SUM(total_price::numeric), 0) as total FROM bookings WHERE status NOT IN ('cancelled')"
+    );
+    let openContacts = 0;
+    try {
+      const contactsResult = await db.query("SELECT COUNT(*) FROM contacts WHERE status IN ('new', 'open')");
+      openContacts = parseInt(contactsResult.rows[0].count);
+    } catch (e) { /* table may not exist yet */ }
 
     let pendingReferrals = 0;
     try {
@@ -30,6 +41,9 @@ async function getDashboard(req, res, next) {
         total_bookings: parseInt(bookingCount.rows[0].count),
         total_reviews: parseInt(reviewCount.rows[0].count),
         pending_approvals: parseInt(pendingPlaces.rows[0].count),
+        active_bookings: parseInt(activeBookings.rows[0].count),
+        total_revenue: parseFloat(revenueResult.rows[0].total),
+        open_contacts: openContacts,
         pending_referrals: pendingReferrals,
       },
     });

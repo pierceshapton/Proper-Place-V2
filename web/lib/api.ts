@@ -272,6 +272,8 @@ export const usersApi = {
   get: (id: number) => api<User>(`/users/${id}`),
   update: (id: number, data: Partial<User>) => api(`/users/${id}`, { method: 'PATCH', body: data }),
   delete: (id: number) => api(`/users/${id}`, { method: 'DELETE' }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api('/users/change-password', { method: 'POST', body: data }),
 };
 
 // Types
@@ -382,14 +384,17 @@ export interface Review {
 }
 
 export interface Conversation {
-  partner_id: number;
-  partner_name: string;
-  partner_avatar?: string;
-  latest_message: string;
-  latest_message_time: string;
-  unread_count: number;
-  booking_id?: number;
-  booking_ref?: string;
+  partnerId: number;
+  partnerName: string;
+  partnerEmail?: string;
+  partnerRole?: string;
+  lastMessage: string;
+  lastMessageAt: string;
+  lastMessageSenderId?: number;
+  lastMessageRead?: boolean;
+  unreadCount: number;
+  bookingId?: number;
+  placeName?: string;
 }
 
 export interface Message {
@@ -434,14 +439,9 @@ export interface AdminDashboard {
   total_reviews: number;
   pending_approvals: number;
   pending_referrals: number;
-  totalUsers?: number;
-  totalPlaces?: number;
-  totalBookings?: number;
-  totalReviews?: number;
-  pendingPlaces?: number;
-  activeBookings?: number;
-  totalRevenue?: number;
-  openContacts?: number;
+  active_bookings: number;
+  total_revenue: number;
+  open_contacts: number;
 }
 
 export interface Pagination {

@@ -154,6 +154,7 @@ app.use('/referrals', referralRoutes);
 // User routes
 app.get('/users/:id', userController.getUserProfile);
 app.patch('/users/:id', authMiddleware, validationMiddleware('updateProfile'), userController.updateProfile);
+app.post('/users/change-password', authMiddleware, userController.changePassword);
 app.delete('/users/:id', authMiddleware, userController.deleteAccount);
 app.get('/users/:id/export', authMiddleware, userController.exportUserData); // GDPR Article 20
 

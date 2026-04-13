@@ -16,14 +16,14 @@ export default function AdminDashboardPage() {
 
   const s = stats;
   const cards = [
-    { label: 'Total Users', value: s?.totalUsers ?? s?.total_users ?? 0, icon: '👥', color: 'bg-blue-50 text-blue-700', link: '/dashboard/admin/users' },
-    { label: 'Total Places', value: s?.totalPlaces ?? s?.total_places ?? 0, icon: '📍', color: 'bg-green-50 text-green-700', link: '/dashboard/admin/places' },
-    { label: 'Pending Approvals', value: s?.pendingPlaces ?? s?.pending_approvals ?? 0, icon: '⏳', color: 'bg-yellow-50 text-yellow-700', link: '/dashboard/admin/places' },
-    { label: 'Total Bookings', value: s?.totalBookings ?? s?.total_bookings ?? 0, icon: '📋', color: 'bg-purple-50 text-purple-700', link: '/dashboard/admin/bookings' },
-    { label: 'Active Bookings', value: s?.activeBookings ?? 0, icon: '✅', color: 'bg-emerald-50 text-emerald-700', link: '/dashboard/admin/bookings' },
-    { label: 'Total Revenue', value: s?.totalRevenue ? `£${Number(s.totalRevenue).toFixed(0)}` : '£0', icon: '💰', color: 'bg-amber-50 text-amber-700', link: '/dashboard/admin/bookings' },
-    { label: 'Open Contacts', value: s?.openContacts ?? 0, icon: '📬', color: 'bg-red-50 text-red-700', link: '/dashboard/admin/contacts' },
-    { label: 'Total Reviews', value: s?.totalReviews ?? s?.total_reviews ?? 0, icon: '⭐', color: 'bg-indigo-50 text-indigo-700', link: '/dashboard/admin/bookings' },
+    { label: 'Total Users', value: s?.total_users ?? 0, icon: '👥', color: 'bg-blue-50 text-blue-700', link: '/dashboard/admin/users' },
+    { label: 'Total Places', value: s?.total_places ?? 0, icon: '📍', color: 'bg-green-50 text-green-700', link: '/dashboard/admin/places' },
+    { label: 'Pending Approvals', value: s?.pending_approvals ?? 0, icon: '⏳', color: 'bg-yellow-50 text-yellow-700', link: '/dashboard/admin/places' },
+    { label: 'Total Bookings', value: s?.total_bookings ?? 0, icon: '📋', color: 'bg-purple-50 text-purple-700', link: '/dashboard/admin/bookings' },
+    { label: 'Active Bookings', value: s?.active_bookings ?? 0, icon: '✅', color: 'bg-emerald-50 text-emerald-700', link: '/dashboard/admin/bookings' },
+    { label: 'Total Revenue', value: s?.total_revenue ? `£${Number(s.total_revenue).toFixed(0)}` : '£0', icon: '💰', color: 'bg-amber-50 text-amber-700', link: '/dashboard/admin/bookings' },
+    { label: 'Open Contacts', value: s?.open_contacts ?? 0, icon: '📬', color: 'bg-red-50 text-red-700', link: '/dashboard/admin/contacts' },
+    { label: 'Total Reviews', value: s?.total_reviews ?? 0, icon: '⭐', color: 'bg-indigo-50 text-indigo-700', link: '/dashboard/admin/bookings' },
   ];
 
   return (
@@ -45,7 +45,7 @@ export default function AdminDashboardPage() {
         <Link href="/dashboard/admin/places" className="card bg-white p-5 hover:shadow-md transition-shadow">
           <h3 className="font-semibold text-gray-900 mb-2">📍 Place Approvals</h3>
           <p className="text-sm text-gray-500">Review and approve new place listings submitted by hosts.</p>
-          {((s?.pendingPlaces ?? s?.pending_approvals ?? 0) > 0) && <span className="inline-block mt-2 bg-yellow-100 text-yellow-700 text-xs font-bold px-2.5 py-1 rounded-full">{s?.pendingPlaces ?? s?.pending_approvals} pending</span>}
+          {((s?.pending_approvals ?? 0) > 0) && <span className="inline-block mt-2 bg-yellow-100 text-yellow-700 text-xs font-bold px-2.5 py-1 rounded-full">{s?.pending_approvals} pending</span>}
         </Link>
         <Link href="/dashboard/admin/users" className="card bg-white p-5 hover:shadow-md transition-shadow">
           <h3 className="font-semibold text-gray-900 mb-2">👥 User Management</h3>
@@ -58,7 +58,7 @@ export default function AdminDashboardPage() {
         <Link href="/dashboard/admin/contacts" className="card bg-white p-5 hover:shadow-md transition-shadow">
           <h3 className="font-semibold text-gray-900 mb-2">📬 Support Tickets</h3>
           <p className="text-sm text-gray-500">Manage contact form submissions and support requests.</p>
-          {(s?.openContacts ?? 0) > 0 && <span className="inline-block mt-2 bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full">{s?.openContacts} open</span>}
+          {(s?.open_contacts ?? 0) > 0 && <span className="inline-block mt-2 bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full">{s?.open_contacts} open</span>}
         </Link>
       </div>
     </div>

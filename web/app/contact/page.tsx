@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { contactsApi } from '@/lib/api';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -11,16 +12,26 @@ export default function ContactPage() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setSubmitted(true);
-    setLoading(false);
+    try {
+      await contactsApi.submit({
+        userEmail: formData.email,
+        category: formData.subject,
+        subject: `${formData.subject} - from ${formData.name}`,
+        message: formData.message,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send message. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -137,6 +148,12 @@ export default function ContactPage() {
                       placeholder="How can we help you?"
                     />
                   </div>
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm">
+                      {error}
+                    </div>
+                  )}
 
                   <button
                     type="submit"
