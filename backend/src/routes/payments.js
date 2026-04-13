@@ -62,7 +62,22 @@ router.post('/create-intent', async (req, res) => {
       paymentIntentParams.metadata.place_id = String(place_id);
     }
 
-    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
+    let paymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
+    } catch (stripeErr) {
+      // If destination charge fails (host account not fully onboarded), retry without Connect
+      if (hostAccountId && stripeErr.code === 'insufficient_capabilities_for_transfer') {
+        logger.warn(`Host account ${hostAccountId} not ready for transfers, creating standard payment intent`);
+        delete paymentIntentParams.application_fee_amount;
+        delete paymentIntentParams.transfer_data;
+        delete paymentIntentParams.on_behalf_of;
+        paymentIntentParams.metadata.connect_skipped = 'true';
+        paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
+      } else {
+        throw stripeErr;
+      }
+    }
 
     logger.info(`Payment intent created: ${paymentIntent.id}`, {
       hostAccount: hostAccountId,
