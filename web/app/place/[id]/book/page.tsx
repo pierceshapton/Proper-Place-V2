@@ -21,6 +21,18 @@ function PaymentForm({ onSuccess, onError, total, submitting, setSubmitting }: {
   const stripe = useStripe();
   const elements = useElements();
   const [ready, setReady] = useState(false);
+  const [stripeLoaded, setStripeLoaded] = useState(false);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    stripePromise.then((s) => {
+      setStripeLoaded(true);
+      if (!s) setLoadError('Stripe failed to load. Please disable any ad blockers and refresh the page.');
+    }).catch(() => {
+      setStripeLoaded(true);
+      setLoadError('Stripe could not be initialised. Please refresh and try again.');
+    });
+  }, []);
 
   const handleSubmit = async () => {
     if (!stripe || !elements) return;
@@ -41,9 +53,21 @@ function PaymentForm({ onSuccess, onError, total, submitting, setSubmitting }: {
     }
   };
 
+  if (loadError) {
+    return <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{loadError}</div>;
+  }
+
   return (
     <>
-      <PaymentElement onReady={() => setReady(true)} />
+      {!ready && (
+        <div className="flex items-center gap-3 py-6 text-gray-500 text-sm">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-light-blue"></div>
+          Loading payment form...
+        </div>
+      )}
+      <div className={ready ? '' : 'opacity-0 h-0 overflow-hidden'}>
+        <PaymentElement onReady={() => setReady(true)} />
+      </div>
       <button
         onClick={handleSubmit}
         disabled={submitting || !ready}
@@ -58,7 +82,7 @@ function PaymentForm({ onSuccess, onError, total, submitting, setSubmitting }: {
 export default function BookPlacePage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [place, setPlace] = useState<Place | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -71,6 +95,7 @@ export default function BookPlacePage() {
   });
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to finish loading
     if (!user) { router.push(`/auth/login?redirect=/place/${id}/book`); return; }
     (async () => {
       try {
@@ -83,7 +108,7 @@ export default function BookPlacePage() {
       } catch { router.push('/'); }
       setLoading(false);
     })();
-  }, [user, id, router]);
+  }, [user, authLoading, id, router]);
 
   const nights = (() => {
     if (!form.check_in || !form.check_out) return 0;
@@ -154,7 +179,7 @@ export default function BookPlacePage() {
     setSubmitting(false);
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-light-blue"></div></div>;
+  if (loading || authLoading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-light-blue"></div></div>;
   if (!place) return null;
 
   if (step === 'success') {

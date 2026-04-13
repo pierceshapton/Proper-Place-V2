@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { ApiError, authApi } from '@/lib/api';
 
@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,7 +24,8 @@ export default function LoginPage() {
     setError('');
     try {
       await login(email, password);
-      router.push('/dashboard');
+      const redirect = searchParams.get('redirect');
+      router.push(redirect && redirect.startsWith('/') ? redirect : '/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed. Please check your credentials.');
     } finally {
