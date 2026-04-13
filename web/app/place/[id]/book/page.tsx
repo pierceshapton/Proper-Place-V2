@@ -35,21 +35,32 @@ function PaymentForm({ onSuccess, onError, total, submitting, setSubmitting }: {
   }, []);
 
   const handleSubmit = async () => {
-    if (!stripe || !elements) return;
+    if (!stripe || !elements) {
+      onError('Payment system not ready. Please wait a moment and try again.');
+      return;
+    }
     setSubmitting(true);
     onError('');
 
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: { return_url: window.location.href },
-      redirect: 'if_required',
-    });
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: window.location.href },
+        redirect: 'if_required',
+      });
 
-    if (error) {
-      onError(error.message || 'Payment failed. Please try again.');
+      if (error) {
+        onError(error.message || 'Payment failed. Please try again.');
+        setSubmitting(false);
+      } else if (paymentIntent) {
+        onSuccess(paymentIntent.id);
+      } else {
+        onError('Something went wrong. Please try again.');
+        setSubmitting(false);
+      }
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Payment failed unexpectedly.');
       setSubmitting(false);
-    } else if (paymentIntent) {
-      onSuccess(paymentIntent.id);
     }
   };
 
@@ -65,9 +76,7 @@ function PaymentForm({ onSuccess, onError, total, submitting, setSubmitting }: {
           Loading payment form...
         </div>
       )}
-      <div className={ready ? '' : 'opacity-0 h-0 overflow-hidden'}>
-        <PaymentElement onReady={() => setReady(true)} />
-      </div>
+      <PaymentElement onReady={() => setReady(true)} />
       <button
         onClick={handleSubmit}
         disabled={submitting || !ready}
