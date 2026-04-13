@@ -9,6 +9,21 @@ const getOrCreateReferralCode = async (req, res) => {
   try {
     const userId = req.user.userId || req.user.id;
 
+    // Only hosts with an approved site can get a referral code
+    const userResult = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
+    if (!userResult.rows.length || userResult.rows[0].role === 'user') {
+      return res.status(403).json({ error: 'Only hosts can access referral codes' });
+    }
+
+    // Check for at least one approved site
+    const siteResult = await db.query(
+      "SELECT id FROM places WHERE owner_id = $1 AND approval_status = 'approved' LIMIT 1",
+      [userId]
+    );
+    if (siteResult.rows.length === 0) {
+      return res.status(403).json({ error: 'You need at least one approved site to access referral codes' });
+    }
+
     // Check if user already has a referral code
     const existing = await db.query(
       'SELECT referral_code FROM users WHERE id = $1',

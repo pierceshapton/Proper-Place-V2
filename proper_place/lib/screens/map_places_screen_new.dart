@@ -32,6 +32,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   double currentZoom = 6;
   Set<String> favoriteIds = {};
   MapType mapType = MapType.normal; // Add map type control
+  bool _showOnlyFavorites = false;
   static const double MIN_ZOOM_FOR_MARKERS =
       11; // Show markers only when zoomed in to level 11+
 
@@ -112,7 +113,11 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       });
 
       await _loadFavorites();
-      await _getCurrentLocation();
+      // Only fetch GPS on first launch (no cached position yet)
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getDouble('map_last_lat') == null) {
+        await _getCurrentLocation();
+      }
       await _loadPlaces();
       setState(() => isLoading = false);
     } catch (e) {
@@ -394,6 +399,9 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     // Only show markers if zoomed in enough
     if (currentZoom >= MIN_ZOOM_FOR_MARKERS) {
       for (var place in places) {
+        // Apply favourites filter
+        if (_showOnlyFavorites && !favoriteIds.contains(place.placeId)) continue;
+
         // Apply facility filters
         if (_activeFacilityFilters.isNotEmpty) {
           final placeAmenities = place.amenitiesList.map((a) => a.toLowerCase()).toSet();
@@ -462,16 +470,6 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                     onPressed: () {
                       _toggleFavorite(place.placeId);
                       setModalState(() {}); // Update heart icon immediately
-                      final isFavorite = favoriteIds.contains(place.placeId);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isFavorite
-                                ? 'Added to favorites'
-                                : 'Removed from favorites',
-                          ),
-                        ),
-                      );
                     },
                   ),
                   // Rating display
@@ -1203,6 +1201,37 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                           child: Icon(
                             Icons.tune,
                             color: _activeFacilityFilters.isNotEmpty ? Colors.white : Colors.black87,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Left side - Favourites filter button (below Filter)
+                    Positioned(
+                      top: 265,
+                      left: 16,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() => _showOnlyFavorites = !_showOnlyFavorites);
+                          _updateMarkersForZoom();
+                        },
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _showOnlyFavorites ? Colors.red : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            _showOnlyFavorites ? Icons.favorite : Icons.favorite_border,
+                            color: _showOnlyFavorites ? Colors.white : Colors.red,
                             size: 22,
                           ),
                         ),

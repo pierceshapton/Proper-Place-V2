@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { bookingsApi, ApiError, type Booking } from '@/lib/api';
+import ReasonModal from '@/components/ReasonModal';
 
 export default function HostBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [actionErr, setActionErr] = useState('');
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
 
   const load = async () => {
     try {
@@ -25,10 +27,9 @@ export default function HostBookingsPage() {
     try { await bookingsApi.approve(id); load(); } catch (err) { setActionErr(err instanceof ApiError ? err.message : 'Failed'); }
   };
 
-  const handleReject = async (id: number) => {
-    const reason = prompt('Reason for rejection (optional):') || '';
+  const handleReject = async (id: number, reason: string) => {
     setActionErr('');
-    try { await bookingsApi.reject(id, reason); load(); } catch (err) { setActionErr(err instanceof ApiError ? err.message : 'Failed'); }
+    try { await bookingsApi.reject(id, reason); setRejectingId(null); load(); } catch (err) { setActionErr(err instanceof ApiError ? err.message : 'Failed'); }
   };
 
   const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter);
@@ -88,7 +89,7 @@ export default function HostBookingsPage() {
                   {b.status === 'pending' && (
                     <>
                       <button onClick={() => handleApprove(b.id)} className="btn-primary text-sm py-1.5 px-4">Approve</button>
-                      <button onClick={() => handleReject(b.id)} className="bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm py-1.5 px-4 font-medium transition-colors">Reject</button>
+                      <button onClick={() => setRejectingId(b.id)} className="bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm py-1.5 px-4 font-medium transition-colors">Reject</button>
                     </>
                   )}
                   <Link href={`/dashboard/messages/${b.user_id}`} className="text-light-blue hover:underline text-sm text-center">Message</Link>
@@ -97,6 +98,16 @@ export default function HostBookingsPage() {
             </div>
           ))}
         </div>
+      )}
+      {rejectingId !== null && (
+        <ReasonModal
+          title="Reject Booking"
+          description="Provide a reason for rejecting this booking (optional)."
+          placeholder="Rejection reason..."
+          confirmLabel="Reject"
+          onConfirm={(reason) => handleReject(rejectingId, reason)}
+          onCancel={() => setRejectingId(null)}
+        />
       )}
     </div>
   );

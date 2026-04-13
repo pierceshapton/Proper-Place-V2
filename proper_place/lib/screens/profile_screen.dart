@@ -202,11 +202,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
+                            color: Colors.black,
                           ),
                         ),
                         Text(
                           user?['email'] ?? '',
-                          style: TextStyle(color: Colors.grey[600]),
+                          style: const TextStyle(color: Colors.black87),
                         ),
                       ],
                     ),
@@ -222,6 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
             const SizedBox(height: 12),
@@ -230,11 +232,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Full Name'),
+                const Text('Full Name', style: TextStyle(color: Colors.black)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _nameController,
                   enabled: isEditing,
+                  style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -253,11 +256,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Email'),
+                const Text('Email', style: TextStyle(color: Colors.black)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _emailController,
                   enabled: false,
+                  style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -278,11 +282,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Phone Number'),
+                const Text('Phone Number', style: TextStyle(color: Colors.black)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _phoneController,
                   enabled: isEditing,
+                  style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -301,11 +306,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Bio'),
+                const Text('Bio', style: TextStyle(color: Colors.black)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _bioController,
                   enabled: isEditing,
+                  style: const TextStyle(color: Colors.black),
                   maxLines: 4,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
@@ -327,6 +333,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
             const SizedBox(height: 12),
@@ -334,11 +341,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Vehicle Registration'),
+                const Text('Vehicle Registration', style: TextStyle(color: Colors.black)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _vehicleRegController,
                   enabled: isEditing,
+                  style: const TextStyle(color: Colors.black),
                   textCapitalization: TextCapitalization.characters,
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 \-]')),

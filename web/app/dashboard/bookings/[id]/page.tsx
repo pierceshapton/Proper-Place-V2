@@ -16,6 +16,8 @@ export default function BookingDetailPage() {
   const [showReview, setShowReview] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [messageText, setMessageText] = useState('');
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelWarning, setCancelWarning] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -25,11 +27,20 @@ export default function BookingDetailPage() {
       .finally(() => setLoading(false));
   }, [id, router]);
 
+  const startCancel = () => {
+    if (!booking) return;
+    const checkIn = new Date(booking.check_in_date || booking.check_in);
+    const hoursUntilCheckIn = (checkIn.getTime() - Date.now()) / (1000 * 60 * 60);
+    setCancelWarning(hoursUntilCheckIn <= 24 ? 'This booking starts within 24 hours. A cancellation fee may apply per our terms.' : '');
+    setShowCancelModal(true);
+  };
+
   const handleCancel = async () => {
-    if (!booking || !confirm('Cancel this booking? Payment will be refunded.')) return;
+    if (!booking) return;
     try {
       await bookingsApi.cancel(booking.id);
       setBooking({ ...booking, status: 'cancelled' });
+      setShowCancelModal(false);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to cancel');
     }
@@ -132,7 +143,7 @@ export default function BookingDetailPage() {
             <button onClick={() => setShowReview(true)} className="btn-primary py-2 px-4 text-sm">Leave Review</button>
           )}
           {(booking.status === 'pending' || booking.status === 'confirmed') && (
-            <button onClick={handleCancel} className="bg-red-50 text-red-600 hover:bg-red-100 py-2 px-4 rounded-lg text-sm font-medium transition-colors">Cancel Booking</button>
+            <button onClick={startCancel} className="bg-red-50 text-red-600 hover:bg-red-100 py-2 px-4 rounded-lg text-sm font-medium transition-colors">Cancel Booking</button>
           )}
         </div>
       </div>
@@ -180,6 +191,23 @@ export default function BookingDetailPage() {
                 <button type="submit" className="btn-primary py-2 px-4 text-sm">Submit Review</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel confirmation modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCancelModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Cancel Booking</h3>
+            <p className="text-sm text-gray-600 mb-2">Are you sure you want to cancel this booking? Payment will be refunded.</p>
+            {cancelWarning && (
+              <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg mb-4">⚠️ {cancelWarning}</p>
+            )}
+            <div className="flex justify-end gap-3 mt-4">
+              <button onClick={() => setShowCancelModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Keep Booking</button>
+              <button onClick={handleCancel} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Cancel Booking</button>
+            </div>
           </div>
         </div>
       )}

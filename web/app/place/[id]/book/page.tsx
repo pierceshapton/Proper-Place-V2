@@ -6,6 +6,7 @@ import { placesApi, bookingsApi, paymentsApi, type Place, type Booking, ApiError
 import { useAuth } from '@/lib/auth';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import BookingCalendar from '@/components/BookingCalendar';
 
 const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PK || 'pk_test_51SVJ2DCGmQVz0gpFBVNEg4Dk4zr6dh58Iq4oQUTmgs5f0rF6xmpU5fgFo1OAz46o6NU1RCoaNqvS7ZrGClApAiEM00WN9AVlMT';
 const stripePromise = loadStripe(STRIPE_PK);
@@ -242,16 +243,12 @@ export default function BookPlacePage() {
           <div className="space-y-6">
             <div className="card bg-white p-6 space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Select Dates</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-in *</label>
-                  <input type="date" value={form.check_in} onChange={e => setForm(f => ({ ...f, check_in: e.target.value }))} min={new Date().toISOString().split('T')[0]} className="bg-white border-gray-300 text-gray-900" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Check-out *</label>
-                  <input type="date" value={form.check_out} onChange={e => setForm(f => ({ ...f, check_out: e.target.value }))} min={form.check_in || new Date().toISOString().split('T')[0]} className="bg-white border-gray-300 text-gray-900" />
-                </div>
-              </div>
+              <BookingCalendar
+                checkIn={form.check_in}
+                checkOut={form.check_out}
+                unavailableDates={unavailableDates}
+                onSelect={(ci, co) => setForm(f => ({ ...f, check_in: ci, check_out: co }))}
+              />
               {unavailableDates.length > 0 && (
                 <p className="text-xs text-amber-600">⚠️ Some dates are unavailable — either this place is full or you already have a booking.</p>
               )}

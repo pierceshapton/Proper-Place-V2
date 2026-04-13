@@ -226,7 +226,7 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _legendDot(const Color(0xFF81C784), 'Booked'),
+                    _legendDot(const Color(0xFF7BA7D8), 'Booked'),
                     const SizedBox(width: 12),
                     _legendDot(const Color(0xFFFFCDD2), 'Fully booked'),
                   ],
@@ -242,7 +242,7 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
                           }
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF81C784),
+                      backgroundColor: const Color(0xFF7BA7D8),
                       disabledBackgroundColor: Colors.grey[300],
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -328,7 +328,7 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
     final canSelect = !isPast && !isFull && !isUserBooked;
 
     // --- Colours ---
-    const greenBooked = Color(0xFF81C784);
+    const greenBooked = Color(0xFF7BA7D8); // App blue for booked dates
     const redFull = Color(0xFFFFCDD2); // fully booked
     const cream = Color(0xFFECE8DB); // App standard off-white
 

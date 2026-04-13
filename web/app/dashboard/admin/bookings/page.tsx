@@ -72,7 +72,7 @@ export default function AdminBookingsPage() {
             {filtered.map(b => (
               <tr key={b.id} className="border-b border-gray-100 hover:bg-gray-50">
                 <td className="py-3 px-4">
-                  <Link href={`/dashboard/bookings/${b.id}`} className="text-light-blue hover:underline text-sm font-medium">#{b.id}</Link>
+                  <Link href={`/dashboard/bookings/${b.id}`} className="text-light-blue hover:underline text-sm font-medium">{b.booking_ref || `#${b.id}`}</Link>
                 </td>
                 <td className="py-3 px-4 text-sm text-gray-900">{b.user?.name || b.guest_name || `User #${b.user_id}`}</td>
                 <td className="py-3 px-4 text-sm text-gray-900">{b.place?.name || b.place_name || `Place #${b.place_id}`}</td>

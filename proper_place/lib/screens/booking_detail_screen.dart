@@ -8,6 +8,7 @@ import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/models/place.dart';
 import 'package:proper_place/screens/chat_screen.dart';
 import 'package:proper_place/screens/home_screen.dart';
+import 'package:proper_place/services/storage_service.dart';
 
 class BookingDetailScreen extends StatelessWidget {
   final Map<String, dynamic> booking;
@@ -291,9 +292,13 @@ class BookingDetailScreen extends StatelessWidget {
                 }
                 
                 // Call backend API to cancel booking
+                final token = await StorageService.getToken();
                 final response = await http.post(
                   Uri.parse('${AppConfig.properPlaceBackendUrl}/bookings/$bookingId/cancel'),
-                  headers: {'Content-Type': 'application/json'},
+                  headers: {
+                    'Content-Type': 'application/json',
+                    if (token != null) 'Authorization': 'Bearer $token',
+                  },
                 );
                 
                 if (!context.mounted) return;

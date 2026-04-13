@@ -962,6 +962,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // Apply pending tab/focus from static setters (e.g. popUntil from booking detail)
+    if (_nextTabIndex != null) {
+      final tab = _nextTabIndex!;
+      _nextTabIndex = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _currentIndex = tab);
+          if (tab == 0 && _pendingFocusPlace != null) {
+            final fp = _pendingFocusPlace!;
+            _pendingFocusPlace = null;
+            try {
+              (_mapKey.currentState as dynamic).focusOnPlace(
+                fp['id'] as String, fp['lat'] as double, fp['lng'] as double,
+              );
+            } catch (_) {}
+          }
+        }
+      });
+    }
+
     if (userRole == null) {
       return const Scaffold(
         body: Center(

@@ -632,7 +632,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         : [imageUrl];
     final priceRaw = widget.place['price_per_night'] ?? 50;
     final pricePerNight = priceRaw is String ? double.tryParse(priceRaw) ?? 50.0 : (priceRaw as num).toDouble();
-    final rating = widget.place['rating'] ?? 4.5;
+    final ratingRaw = widget.place['rating'];
+    final rating = ratingRaw != null ? (ratingRaw is String ? double.tryParse(ratingRaw) ?? 0.0 : (ratingRaw as num).toDouble()) : 0.0;
+    final reviewCount = widget.place['review_count'] ?? 0;
     final facilities = widget.place['facilities'] as List? ?? [];
 
     return Scaffold(
@@ -821,16 +823,17 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                           ),
                         ),
                       ),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Color(0xFFFFB800)),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$rating',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
+                      if (rating > 0)
+                        Row(
+                          children: [
+                            const Icon(Icons.star, color: Color(0xFFFFB800)),
+                            const SizedBox(width: 4),
+                            Text(
+                              rating.toStringAsFixed(1),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                   const SizedBox(height: 8),

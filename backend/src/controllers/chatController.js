@@ -305,23 +305,25 @@ async function sendMessage(req, res, next) {
   try {
     const userId = req.user.userId;
     const userRole = req.user.role;
-    const { receiverId, content, bookingId, attachmentUrl } = req.body;
+    const { receiverId, receiver_id, content, bookingId, booking_id, attachmentUrl } = req.body;
+    const actualReceiverId = receiverId || receiver_id;
+    const actualBookingId = bookingId || booking_id;
 
-    if (!receiverId || !content) {
+    if (!actualReceiverId || !content) {
       return res.status(400).json({ error: 'receiverId and content are required' });
     }
 
     // Resolve effective user: admin sends as the booking's host
-    const effectiveSenderId = await _resolveEffectiveUserId(userId, userRole, bookingId);
+    const effectiveSenderId = await _resolveEffectiveUserId(userId, userRole, actualBookingId);
 
-    // Enforce 72-hour chat window for completed bookings
-    if (bookingId) {
+    // Enforce 72-hour chat window for completed bookings (admins bypass)
+    if (actualBookingId && userRole !== 'admin') {
       const bookingResult = await db.query(
         `SELECT b.status, b.check_out_date, b.check_out_time, p.owner_id as host_id
          FROM bookings b
          LEFT JOIN places p ON b.place_id = p.id
          WHERE b.id = $1`,
-        [bookingId]
+        [actualBookingId]
       );
       const booking = bookingResult.rows[0];
       if (booking) {
@@ -336,7 +338,7 @@ async function sendMessage(req, res, next) {
             // Check if chat has been reopened (and reopen window hasn't expired)
             const reopenResult = await db.query(
               `SELECT id, responded_at FROM chat_reopen_requests WHERE booking_id = $1 AND status = 'approved' ORDER BY responded_at DESC LIMIT 1`,
-              [bookingId]
+              [actualBookingId]
             );
             const reopenReq = reopenResult.rows[0];
             if (!reopenReq) {
@@ -356,7 +358,7 @@ async function sendMessage(req, res, next) {
       `INSERT INTO messages (sender_id, receiver_id, content, booking_id, attachment_url, delivered, read, created_at)
        VALUES ($1, $2, $3, $4, $5, false, false, NOW())
        RETURNING *`,
-      [effectiveSenderId, receiverId, content, bookingId || null, attachmentUrl || null]
+      [effectiveSenderId, actualReceiverId, content, actualBookingId || null, attachmentUrl || null]
     );
 
     const message = result.rows[0];
@@ -368,7 +370,7 @@ async function sendMessage(req, res, next) {
     );
 
     // Send push notification to receiver (fire-and-forget)
-    _notifyNewMessageAsync(receiverId, senderResult.rows[0]?.name || 'Someone', content);
+    _notifyNewMessageAsync(actualReceiverId, senderResult.rows[0]?.name || 'Someone', content);
 
     return res.status(201).json({
       message: {

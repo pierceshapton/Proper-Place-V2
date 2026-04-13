@@ -1595,7 +1595,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
             Positioned(
               left: 0,
               right: 0,
-              bottom: keyboardHeight,
+              bottom: 0,
               child: Container(
                 height: 44,
                 color: const Color(0xFFD1D5DB),
@@ -2280,7 +2280,7 @@ class _AddressSearchBottomSheetState extends State<_AddressSearchBottomSheet> {
     // When keyboard is open, use remaining space; otherwise use 75% of screen
     final containerHeight = keyboardHeight > 0 
         ? screenHeight - keyboardHeight 
-        : screenHeight * 0.75;
+        : screenHeight * 0.85;
     
     return Container(
       height: containerHeight,

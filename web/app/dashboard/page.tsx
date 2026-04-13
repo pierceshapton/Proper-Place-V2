@@ -9,6 +9,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [hostBookings, setHostBookings] = useState<Booking[]>([]);
   const [counts, setCounts] = useState<NotificationCounts | null>(null);
   const [adminData, setAdminData] = useState<AdminDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,8 +26,12 @@ export default function DashboardPage() {
         setCounts(n);
 
         if (user.role === 'host' || user.role === 'admin') {
-          const p = await placesApi.myPlaces().catch(() => ({ places: [] }));
+          const [p, hb] = await Promise.all([
+            placesApi.myPlaces().catch(() => ({ places: [] })),
+            bookingsApi.hostBookings().catch(() => ({ bookings: [] })),
+          ]);
           setPlaces(p.places || []);
+          setHostBookings(hb.bookings || hb || []);
         }
         if (user.role === 'admin') {
           const a = await adminApi.dashboard().catch(() => ({ dashboard: null }));
@@ -74,6 +79,12 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-500">Pending Guest Bookings</p>
               <p className="text-2xl font-bold text-gray-900">{counts?.pendingBookings || 0}</p>
             </Link>
+            <div className="card p-4 bg-white">
+              <p className="text-sm text-gray-500">Host Earnings</p>
+              <p className="text-2xl font-bold text-gray-900">
+                £{(Array.isArray(hostBookings) ? hostBookings : []).filter(b => b.status === 'completed' || b.status === 'confirmed').reduce((sum, b) => sum + Number(b.total_price || 0), 0).toFixed(0)}
+              </p>
+            </div>
           </>
         )}
         {user?.role !== 'host' && user?.role !== 'admin' && (

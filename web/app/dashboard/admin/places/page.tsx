@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { adminApi, placesApi, ApiError, type Place } from '@/lib/api';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import ReasonModal from '@/components/ReasonModal';
 
 const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
 
@@ -13,6 +14,7 @@ export default function AdminPlacesPage() {
   const [filter, setFilter] = useState('pending');
   const [actionErr, setActionErr] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
 
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: MAPS_KEY });
 
@@ -38,11 +40,9 @@ export default function AdminPlacesPage() {
     try { await adminApi.approvePlace(id); load(); } catch (err) { setActionErr(err instanceof ApiError ? err.message : 'Failed'); }
   };
 
-  const handleReject = async (id: number) => {
-    const reason = prompt('Rejection reason:');
-    if (reason === null) return;
+  const handleReject = async (id: number, reason: string) => {
     setActionErr('');
-    try { await adminApi.rejectPlace(id, reason); load(); } catch (err) { setActionErr(err instanceof ApiError ? err.message : 'Failed'); }
+    try { await adminApi.rejectPlace(id, reason); setRejectingId(null); load(); } catch (err) { setActionErr(err instanceof ApiError ? err.message : 'Failed'); }
   };
 
   const filtered = filter === 'all' ? places : places.filter(p => {
@@ -99,13 +99,19 @@ export default function AdminPlacesPage() {
                       <p className="text-sm text-gray-500">{place.address}, {place.city}</p>
                       <p className="text-sm text-gray-500 mt-0.5">Type: {place.place_type} · £{Number(place.price_per_night).toFixed(2)}/night</p>
                       <p className="text-sm text-gray-400 mt-0.5">Host: {place.owner_name || place.host?.name || `User #${place.owner_id}`}</p>
+                      {place.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{place.description}</p>}
+                      <div className="flex gap-3 mt-1 text-xs text-gray-400">
+                        {place.image_urls && <span>{place.image_urls.length} photo{place.image_urls.length !== 1 ? 's' : ''}</span>}
+                        {place.amenities && <span>{(Array.isArray(place.amenities) ? place.amenities : String(place.amenities).split(',')).length} amenities</span>}
+                        {(place.max_vehicle_length_ft || place.max_vehicle_height_ft) && <span>Vehicle limits set</span>}
+                      </div>
                       {place.rejection_reason && <p className="text-sm text-red-500 mt-2">Rejection reason: {place.rejection_reason}</p>}
                     </div>
                     <div className="flex flex-col gap-2 shrink-0 items-end">
                       {place.approval_status === 'pending' && (
                         <>
                           <button onClick={() => handleApprove(place.id)} className="btn-primary text-sm py-1.5 px-4">Approve</button>
-                          <button onClick={() => handleReject(place.id)} className="bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm py-1.5 px-4 font-medium transition-colors">Reject</button>
+                          <button onClick={() => setRejectingId(place.id)} className="bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm py-1.5 px-4 font-medium transition-colors">Reject</button>
                         </>
                       )}
                       {place.approval_status === 'rejected' && (
@@ -130,6 +136,17 @@ export default function AdminPlacesPage() {
             );
           })}
         </div>
+      )}
+      {rejectingId !== null && (
+        <ReasonModal
+          title="Reject Place"
+          description="Provide a reason for rejecting this place listing."
+          placeholder="Rejection reason..."
+          confirmLabel="Reject"
+          required
+          onConfirm={(reason) => handleReject(rejectingId, reason)}
+          onCancel={() => setRejectingId(null)}
+        />
       )}
     </div>
   );

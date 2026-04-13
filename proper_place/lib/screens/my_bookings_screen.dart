@@ -383,6 +383,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   final checkOut = (b['check_out'] ?? '').toString().toLowerCase();
                   final price = (b['total_price'] ?? '').toString().toLowerCase();
                   final placeName = (b['place_name'] ?? b['name'] ?? '').toString().toLowerCase();
+                  final placeAddress = (b['place_address'] ?? b['address'] ?? '').toString().toLowerCase();
                   final formattedCheckIn = _formatDate(b['check_in']).toLowerCase();
                   final formattedCheckOut = _formatDate(b['check_out']).toLowerCase();
                   return id.contains(query) ||
@@ -392,6 +393,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       checkOut.contains(query) ||
                       price.contains(query) ||
                       placeName.contains(query) ||
+                      placeAddress.contains(query) ||
                       formattedCheckIn.contains(query) ||
                       formattedCheckOut.contains(query);
                 }).toList();

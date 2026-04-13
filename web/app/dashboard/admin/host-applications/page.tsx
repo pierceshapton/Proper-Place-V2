@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { adminApi, type HostApplication } from '@/lib/api';
+import ReasonModal from '@/components/ReasonModal';
 
 export default function HostApplicationsPage() {
   const [applications, setApplications] = useState<HostApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [approvingApp, setApprovingApp] = useState<HostApplication | null>(null);
+  const [rejectingApp, setRejectingApp] = useState<HostApplication | null>(null);
 
   const loadApplications = async () => {
     setLoading(true);
@@ -23,12 +26,11 @@ export default function HostApplicationsPage() {
 
   useEffect(() => { loadApplications(); }, [filter]);
 
-  const handleApprove = async (app: HostApplication) => {
-    const notes = prompt(`Approve ${app.contact_name}'s application?\n\nThis will upgrade their account to host role.\n\nOptional admin notes:`);
-    if (notes === null) return;
+  const handleApprove = async (app: HostApplication, notes: string) => {
     setActionLoading(app.id);
     try {
       await adminApi.approveHostApplication(app.id, notes);
+      setApprovingApp(null);
       loadApplications();
     } catch (e) {
       alert('Error approving: ' + e);
@@ -37,12 +39,11 @@ export default function HostApplicationsPage() {
     }
   };
 
-  const handleReject = async (app: HostApplication) => {
-    const notes = prompt(`Reject ${app.contact_name}'s application?\n\nProvide a reason:`);
-    if (notes === null) return;
+  const handleReject = async (app: HostApplication, notes: string) => {
     setActionLoading(app.id);
     try {
       await adminApi.rejectHostApplication(app.id, notes);
+      setRejectingApp(null);
       loadApplications();
     } catch (e) {
       alert('Error rejecting: ' + e);
@@ -156,14 +157,14 @@ export default function HostApplicationsPage() {
               {app.status === 'pending' && (
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => handleReject(app)}
+                    onClick={() => setRejectingApp(app)}
                     disabled={actionLoading === app.id}
                     className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-50"
                   >
                     Reject
                   </button>
                   <button
-                    onClick={() => handleApprove(app)}
+                    onClick={() => setApprovingApp(app)}
                     disabled={actionLoading === app.id}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                   >
@@ -174,6 +175,28 @@ export default function HostApplicationsPage() {
             </div>
           ))}
         </div>
+      )}
+      {approvingApp && (
+        <ReasonModal
+          title={`Approve ${approvingApp.contact_name}'s Application`}
+          description="This will upgrade their account to host role. Add optional admin notes."
+          placeholder="Optional admin notes..."
+          confirmLabel="Approve"
+          confirmColor="bg-green-600 hover:bg-green-700"
+          onConfirm={(notes) => handleApprove(approvingApp, notes)}
+          onCancel={() => setApprovingApp(null)}
+        />
+      )}
+      {rejectingApp && (
+        <ReasonModal
+          title={`Reject ${rejectingApp.contact_name}'s Application`}
+          description="Provide a reason for rejection."
+          placeholder="Rejection reason..."
+          confirmLabel="Reject"
+          required
+          onConfirm={(notes) => handleReject(rejectingApp, notes)}
+          onCancel={() => setRejectingApp(null)}
+        />
       )}
     </div>
   );

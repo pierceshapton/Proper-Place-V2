@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { usersApi, authApi, uploadApi, ApiError, type User } from '@/lib/api';
 
@@ -23,6 +23,23 @@ export default function ProfilePage() {
     vehicle_height: user?.vehicle_height?.toString() || '',
     vehicle_width: user?.vehicle_width?.toString() || '',
   });
+
+  // Sync state when user data loads
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        bio: user.bio || '',
+        phone_number: user.phone_number || '',
+      });
+      setVehicle({
+        vehicle_registration: user.vehicle_registration || '',
+        vehicle_length: user.vehicle_length?.toString() || '',
+        vehicle_height: user.vehicle_height?.toString() || '',
+        vehicle_width: user.vehicle_width?.toString() || '',
+      });
+    }
+  }, [user]);
 
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
 

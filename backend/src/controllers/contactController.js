@@ -70,8 +70,8 @@ exports.submitContact = async (req, res) => {
   try {
     const { userId, userEmail, category, subject, message } = req.body;
 
-    // Validation
-    if (!userId || !userEmail || !category || !subject || !message) {
+    // Validation - userId is optional for unauthenticated submissions
+    if (!userEmail || !category || !subject || !message) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -83,10 +83,10 @@ exports.submitContact = async (req, res) => {
       `INSERT INTO contacts (user_id, user_email, category, subject, message, urgency_score, status)
        VALUES ($1, $2, $3, $4, $5, $6, 'new')
        RETURNING id, created_at, urgency_score`,
-      [userId, userEmail, category, subject, message, urgencyScore]
+      [userId || null, userEmail, category, subject, message, urgencyScore]
     );
 
-    logger.info(`Contact message submitted by user ${userId} with urgency ${urgencyScore}`);
+    logger.info(`Contact message submitted by ${userEmail} (userId: ${userId || 'anonymous'}) with urgency ${urgencyScore}`);
 
     res.status(201).json({
       success: true,

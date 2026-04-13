@@ -307,13 +307,15 @@ async function createBooking(req, res, next) {
     }
 
     // Check if user already has an active booking for overlapping dates (any place)
+    // Use strict overlap: existing checkout must be AFTER new checkin (not same day)
+    // This allows check-in on the same day as checkout from another site
     const userOverlapResult = await db.query(
       `SELECT id, booking_ref, check_in_date, check_out_date, place_id, pub_id
        FROM bookings
        WHERE user_id = $1
          AND status NOT IN ('cancelled', 'Cancelled')
-         AND check_in_date <= $3
-         AND check_out_date >= $2`,
+         AND check_in_date < $3
+         AND check_out_date > $2`,
       [userId, data.check_in_date, data.check_out_date]
     );
 
@@ -1294,6 +1296,20 @@ async function cancelBooking(req, res, next) {
 
     if (booking.status === 'cancelled' || booking.status === 'Completed') {
       return res.status(400).json({ error: 'invalid_status', message: `Cannot cancel a booking with status '${booking.status}'` });
+    }
+
+    // Enforce 24-hour cancellation deadline (guests only — hosts and admins can always cancel)
+    if (booking.user_id === userId && userRole !== 'admin') {
+      const checkInDate = new Date(booking.check_in_date);
+      // Set check-in to midday
+      checkInDate.setHours(12, 0, 0, 0);
+      const deadline = new Date(checkInDate.getTime() - 24 * 60 * 60 * 1000);
+      if (new Date() >= deadline) {
+        return res.status(400).json({
+          error: 'cancellation_deadline_passed',
+          message: 'Bookings cannot be cancelled within 24 hours of check-in (midday).',
+        });
+      }
     }
 
     // Cancel/refund Stripe payment if applicable

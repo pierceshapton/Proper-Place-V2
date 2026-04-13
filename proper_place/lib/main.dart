@@ -184,11 +184,12 @@ class AuthCheckWrapper extends StatefulWidget {
 }
 
 class _AuthCheckWrapperState extends State<AuthCheckWrapper> {
+  bool _isChecking = true;
+
   @override
   void initState() {
     super.initState();
-    // Check auth status in background after UI renders
-    Future.delayed(const Duration(milliseconds: 500), _checkAuthStatus);
+    _checkAuthStatus();
   }
 
   Future<void> _checkAuthStatus() async {
@@ -223,15 +224,27 @@ class _AuthCheckWrapperState extends State<AuthCheckWrapper> {
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/home');
         }
+        return;
       }
     } catch (e) {
       debugPrint('Auth check failed: $e');
-      // Stay on welcome screen if auth fails
+    }
+    // Not authenticated — show welcome screen
+    if (mounted) {
+      setState(() => _isChecking = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isChecking) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFECE8DB),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF7BA7D8)),
+        ),
+      );
+    }
     return const WelcomeScreen();
   }
 }

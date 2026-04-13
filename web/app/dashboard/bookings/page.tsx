@@ -8,6 +8,8 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [cancelWarning, setCancelWarning] = useState('');
 
   useEffect(() => {
     bookingsApi.list()
@@ -18,11 +20,22 @@ export default function BookingsPage() {
 
   const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter);
 
+  const startCancel = (booking: Booking) => {
+    const checkIn = new Date(booking.check_in_date || booking.check_in);
+    const hoursUntilCheckIn = (checkIn.getTime() - Date.now()) / (1000 * 60 * 60);
+    if (hoursUntilCheckIn <= 24) {
+      setCancelWarning('This booking starts within 24 hours. A cancellation fee may apply per our terms.');
+    } else {
+      setCancelWarning('');
+    }
+    setCancellingId(booking.id);
+  };
+
   const handleCancel = async (id: number) => {
-    if (!confirm('Are you sure you want to cancel this booking? This cannot be undone.')) return;
     try {
       await bookingsApi.cancel(id);
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as const } : b));
+      setCancellingId(null);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to cancel');
     }
@@ -82,13 +95,28 @@ export default function BookingsPage() {
                   <div className="flex gap-2">
                     <Link href={`/dashboard/bookings/${booking.id}`} className="text-sm text-light-blue hover:text-accent-blue">Details</Link>
                     {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                      <button onClick={() => handleCancel(booking.id)} className="text-sm text-red-500 hover:text-red-700">Cancel</button>
+                      <button onClick={() => startCancel(booking)} className="text-sm text-red-500 hover:text-red-700">Cancel</button>
                     )}
                   </div>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {cancellingId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setCancellingId(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Cancel Booking</h3>
+            <p className="text-sm text-gray-600 mb-2">Are you sure you want to cancel this booking? This cannot be undone.</p>
+            {cancelWarning && (
+              <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg mb-4">⚠️ {cancelWarning}</p>
+            )}
+            <div className="flex justify-end gap-3 mt-4">
+              <button onClick={() => setCancellingId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Keep Booking</button>
+              <button onClick={() => handleCancel(cancellingId)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Cancel Booking</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
