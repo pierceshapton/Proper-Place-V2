@@ -20,14 +20,13 @@ export default function BookingsPage() {
 
   const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter);
 
-  const startCancel = (booking: Booking) => {
+  const isWithin24h = (booking: Booking) => {
     const checkIn = new Date(booking.check_in_date || booking.check_in);
-    const hoursUntilCheckIn = (checkIn.getTime() - Date.now()) / (1000 * 60 * 60);
-    if (hoursUntilCheckIn <= 24) {
-      setCancelWarning('This booking starts within 24 hours. A cancellation fee may apply per our terms.');
-    } else {
-      setCancelWarning('');
-    }
+    return (checkIn.getTime() - Date.now()) / (1000 * 60 * 60) <= 24;
+  };
+
+  const startCancel = (booking: Booking) => {
+    setCancelWarning('');
     setCancellingId(booking.id);
   };
 
@@ -94,7 +93,7 @@ export default function BookingsPage() {
                   }`}>{booking.status}</span>
                   <div className="flex gap-2">
                     <Link href={`/dashboard/bookings/${booking.id}`} className="text-sm text-light-blue hover:text-accent-blue">Details</Link>
-                    {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                    {(booking.status === 'pending' || booking.status === 'confirmed') && !isWithin24h(booking) && (
                       <button onClick={() => startCancel(booking)} className="text-sm text-red-500 hover:text-red-700">Cancel</button>
                     )}
                   </div>

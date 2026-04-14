@@ -160,7 +160,7 @@ export default function BookingDetailPage() {
           {isPast && booking.status === 'completed' && (
             <button onClick={() => setShowReview(true)} className="btn-primary py-2 px-4 text-sm">Leave Review</button>
           )}
-          {(booking.status === 'pending' || booking.status === 'confirmed') && (
+          {(booking.status === 'pending' || booking.status === 'confirmed') && !isWithin24h() && (
             <button onClick={startCancel} className="bg-red-50 text-red-600 hover:bg-red-100 py-2 px-4 rounded-lg text-sm font-medium transition-colors">Cancel Booking</button>
           )}
         </div>
