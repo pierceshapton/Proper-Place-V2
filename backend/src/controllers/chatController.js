@@ -166,6 +166,15 @@ async function getConversations(req, res, next) {
 
     // Build query for all effective user IDs
     const placeholders = effectiveUserIds.map((_, i) => `$${i + 1}`).join(', ');
+
+    // Auto-mark self-messages as read (messages where both sender and receiver are effective user IDs)
+    // These conversations are hidden from the list, so the user can never open them to mark as read
+    await db.query(
+      `UPDATE messages SET read = true
+       WHERE sender_id IN (${placeholders}) AND receiver_id IN (${placeholders}) AND read = false`,
+      effectiveUserIds
+    );
+
     const result = await db.query(
       `WITH conversation_partners AS (
         SELECT DISTINCT 
@@ -199,7 +208,7 @@ async function getConversations(req, res, next) {
           sender_id as partner_id,
           COUNT(*) as unread_count
         FROM messages
-        WHERE receiver_id IN (${placeholders}) AND read = false
+        WHERE receiver_id IN (${placeholders}) AND read = false AND sender_id NOT IN (${placeholders})
         GROUP BY sender_id
       )
       SELECT 

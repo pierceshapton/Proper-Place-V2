@@ -32,7 +32,7 @@ async function getNotificationCounts(req, res, next) {
     );
 
     const messagesResult = await db.query(
-      `SELECT COUNT(*) as count FROM messages WHERE receiver_id IN (${receiverPlaceholders}) AND read = false AND booking_id IS NOT NULL`,
+      `SELECT COUNT(*) as count FROM messages WHERE receiver_id IN (${receiverPlaceholders}) AND read = false AND booking_id IS NOT NULL AND sender_id NOT IN (${receiverPlaceholders})`,
       effectiveReceiverIds
     );
     const unreadMessages = parseInt(messagesResult.rows[0]?.count || 0);
