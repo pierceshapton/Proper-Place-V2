@@ -40,6 +40,8 @@ class Place {
   final String? openingHours;
   final String? kitchenHours;
   final String? foodMenuDescription;
+  final String? hostContractAcceptedAt;
+  final String? hostContractVersion;
 
   Place({
     required this.placeId,
@@ -69,6 +71,8 @@ class Place {
     this.openingHours,
     this.kitchenHours,
     this.foodMenuDescription,
+    this.hostContractAcceptedAt,
+    this.hostContractVersion,
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -122,6 +126,8 @@ class Place {
       openingHours: toStringOrNull(json['opening_hours']),
       kitchenHours: toStringOrNull(json['kitchen_hours']),
       foodMenuDescription: toStringOrNull(json['food_menu_description']),
+      hostContractAcceptedAt: toStringOrNull(json['host_contract_accepted_at']),
+      hostContractVersion: toStringOrNull(json['host_contract_version']),
     );
   }
 

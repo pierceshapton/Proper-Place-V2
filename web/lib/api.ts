@@ -342,6 +342,9 @@ export interface Place {
   owner_name?: string;
   host?: { id: number; name: string; avatar_url?: string };
   rejection_reason?: string;
+  host_contract_accepted_at?: string;
+  host_contract_version?: string;
+  owner_email?: string;
 }
 
 export interface Booking {

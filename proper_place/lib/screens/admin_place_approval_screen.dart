@@ -158,6 +158,7 @@ class _AdminPlaceApprovalScreenState extends State<AdminPlaceApprovalScreen> {
             _buildInfoRow('Price', '£${place.pricePerNight}/night'),
             _buildInfoRow('Host', place.hostName ?? 'Unknown'),
             _buildInfoRow('Host Email', place.hostEmail ?? 'N/A'),
+            _buildInfoRow('Contract Signed', place.hostContractAcceptedAt != null ? 'Yes' : 'NO - Not Signed'),
             const SizedBox(height: 8),
             const Text(
               'Description',
@@ -328,6 +329,20 @@ class _AdminPlaceApprovalScreenState extends State<AdminPlaceApprovalScreen> {
                                       fontSize: 12,
                                     ),
                                   ),
+                                  if (place.hostContractAcceptedAt == null)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red[50],
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: Colors.red[300]!),
+                                      ),
+                                      child: Text(
+                                        'Contract NOT Signed',
+                                        style: TextStyle(color: Colors.red[700], fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [

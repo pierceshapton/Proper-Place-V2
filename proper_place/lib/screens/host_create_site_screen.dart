@@ -9,6 +9,7 @@ import '../services/place_service.dart';
 import '../services/google_places_service.dart';
 import '../services/api_service.dart';
 import '../config/app_config.dart';
+import 'host_contract_screen.dart';
 
 class HostCreateSiteScreen extends StatefulWidget {
   final Map<String, dynamic>? siteToEdit;
@@ -651,6 +652,27 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     setState(() => isSubmitting = true);
 
     try {
+      // Check if host has signed the contract before submitting
+      final contractStatus = await ApiService.getHostContractStatus();
+      if (contractStatus['accepted'] != true) {
+        setState(() => isSubmitting = false);
+        if (mounted) {
+          final signed = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const HostContractScreen()),
+          );
+          if (signed == true) {
+            // Contract just signed — retry submission
+            _submitSite();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('You must sign the Host Agreement before submitting a site')),
+            );
+          }
+        }
+        return;
+      }
+
       final siteData = _buildSiteData();
       siteData['approval_status'] = 'pending';
 

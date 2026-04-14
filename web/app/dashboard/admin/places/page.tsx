@@ -99,6 +99,12 @@ export default function AdminPlacesPage() {
                       <p className="text-sm text-gray-500">{place.address}, {place.city}</p>
                       <p className="text-sm text-gray-500 mt-0.5">Type: {place.place_type} · £{Number(place.price_per_night).toFixed(2)}/night</p>
                       <p className="text-sm text-gray-400 mt-0.5">Host: {place.owner_name || place.host?.name || `User #${place.owner_id}`}</p>
+                      {!place.host_contract_accepted_at && (
+                        <span className="inline-block mt-1 bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded">Contract NOT Signed</span>
+                      )}
+                      {place.host_contract_accepted_at && (
+                        <span className="inline-block mt-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded">Contract Signed</span>
+                      )}
                       {place.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{place.description}</p>}
                       <div className="flex gap-3 mt-1 text-xs text-gray-400">
                         {place.image_urls && <span>{place.image_urls.length} photo{place.image_urls.length !== 1 ? 's' : ''}</span>}
@@ -255,6 +261,8 @@ function PlaceDetails({ place, allPlaces, isLoaded }: { place: Place; allPlaces:
             {detail('Host Name', place.owner_name || place.host?.name)}
             {detail('Owner ID', place.owner_id)}
             {detail('Host ID', place.host_id)}
+            {detail('Host Email', place.owner_email)}
+            {detail('Contract Signed', place.host_contract_accepted_at ? `Yes (v${place.host_contract_version || '?'} — ${new Date(place.host_contract_accepted_at).toLocaleDateString('en-GB')})` : 'NO')}
           </div>
 
           {/* Description */}

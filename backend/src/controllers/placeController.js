@@ -146,6 +146,20 @@ async function createPlace(req, res, next) {
     const userId = req.user.userId;
     const data = req.validatedBody;
 
+    // Require signed host contract before submitting for approval
+    if (data.approval_status === 'pending') {
+      const contractCheck = await db.query(
+        'SELECT host_contract_accepted_at FROM users WHERE id = $1',
+        [userId]
+      );
+      if (!contractCheck.rows[0]?.host_contract_accepted_at) {
+        return res.status(403).json({
+          error: 'contract_required',
+          message: 'You must sign the Host Agreement before submitting a site for review.',
+        });
+      }
+    }
+
     const result = await db.query(
       `INSERT INTO places (owner_id, name, description, address, city, country,
                            postal_code, latitude, longitude, price_per_night,
@@ -252,6 +266,18 @@ async function updatePlace(req, res, next) {
 
     // When a host edits an approved site, save the current data and set it back to pending
     if (req.user.role !== 'admin' && previousApprovalStatus === 'approved') {
+      // Require signed contract before re-submitting
+      const contractCheck = await db.query(
+        'SELECT host_contract_accepted_at FROM users WHERE id = $1',
+        [userId]
+      );
+      if (!contractCheck.rows[0]?.host_contract_accepted_at) {
+        return res.status(403).json({
+          error: 'contract_required',
+          message: 'You must sign the Host Agreement before submitting changes for review.',
+        });
+      }
+
       // Snapshot the currently approved data so admin can see what changed
       const previousData = { ...ownerResult.rows[0] };
       delete previousData.previous_approved_data;
@@ -606,12 +632,14 @@ async function getPendingPlaces(req, res, next) {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
-    // Get pending places with host info and their total site count
+    // Get pending places with host info, contract status, and their total site count
     const result = await db.query(
       `SELECT p.*, 
               u.name as host_name, 
               u.email as host_email,
               u.created_at as host_joined_at,
+              u.host_contract_accepted_at,
+              u.host_contract_version,
               (SELECT COUNT(*) FROM places WHERE owner_id = p.owner_id AND deleted_at IS NULL) as host_total_sites,
               (SELECT COUNT(*) FROM places WHERE owner_id = p.owner_id AND approval_status = 'approved' AND deleted_at IS NULL) as host_approved_sites
        FROM places p
