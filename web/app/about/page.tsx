@@ -43,7 +43,7 @@ export default function AboutPage() {
             <div>
               <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Our Story</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-                Born from a Love of the Open Road
+                Born from a love of the open road
               </h2>
               <p className="text-gray-600 text-lg mb-6 leading-relaxed">
                 Proper Place was founded by motorhome enthusiasts who understood the challenges of finding affordable, 
@@ -74,7 +74,7 @@ export default function AboutPage() {
           <div className="text-center max-w-3xl mx-auto">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Our Mission</span>
             <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-              Making Adventure Accessible
+              Making adventure accessible
             </h2>
             <p className="text-gray-600 text-lg leading-relaxed">
               We believe that exploring the UK in a motorhome should be an affordable, enriching experience for everyone. 
@@ -90,7 +90,7 @@ export default function AboutPage() {
         <div className="container-md">
           <div className="text-center mb-16">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Our Values</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2">What We Stand For</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2">What we stand for</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -131,7 +131,7 @@ export default function AboutPage() {
       <section className="py-20 bg-light-blue text-white">
         <div className="container-md text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Join the Proper Place Community
+            Join the Proper Place community
           </h2>
           <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
             Whether you're a motorhome owner seeking adventure or a landowner with space to share, we'd love to have you.

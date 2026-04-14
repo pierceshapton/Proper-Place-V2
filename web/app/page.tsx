@@ -72,7 +72,7 @@ export default function Home() {
             <div>
               <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">About Proper Place</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-                The Motorhome Community's Trusted Companion
+                The motorhome community's trusted companion
               </h2>
               <p className="text-gray-600 text-lg mb-6 leading-relaxed">
                 Proper Place connects motorhome owners with landowners offering affordable overnight stays. Whether you're seeking a peaceful farm setting, a coastal view, or a convenient stopover, our community makes finding your next adventure simple.
@@ -101,7 +101,7 @@ export default function Home() {
         <div className="container-md">
           <div className="text-center mb-16">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Simple Process</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2">How Proper Place Works</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2">How Proper Place works</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -153,7 +153,7 @@ export default function Home() {
             <div className="order-1 lg:order-2">
               <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Motorhomers</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-                Adventure Without the Premium Price
+                Adventure without the premium price
               </h2>
               <ul className="space-y-4">
                 <li className="flex items-start gap-4">
@@ -213,7 +213,7 @@ export default function Home() {
             <div>
               <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Landowners</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-                Turn Your Land Into Extra Income
+                Turn your land into extra income
               </h2>
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
                 Have unused land, a large garden, or farm space? Join hundreds of hosts earning extra income by welcoming respectful motorhome guests.
@@ -265,7 +265,7 @@ export default function Home() {
         <div className="container-md">
           <div className="text-center">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Community</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-8">What Our Users Say</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-8">What our users say</h2>
             <div className="bg-gray-50 rounded-2xl p-12 max-w-2xl mx-auto">
               <p className="text-gray-500 italic text-lg">Community reviews coming soon</p>
               <p className="text-gray-400 mt-4">Be one of the first to share your experience with Proper Place</p>
@@ -287,7 +287,7 @@ export default function Home() {
         </div>
         <div className="relative container-md text-center text-white">
           <h2 className="text-3xl md:text-5xl font-bold mb-6">
-            Start Your Next Adventure Today
+            Start your next adventure today
           </h2>
           <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
             Join thousands of motorhome owners discovering affordable, unique places to stay across the UK.

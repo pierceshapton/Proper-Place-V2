@@ -40,7 +40,7 @@ export default function HowItWorksPage() {
         <div className="container-md">
           <div className="text-center mb-16">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Motorhomers</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2">Find Your Perfect Stay</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2">Find your perfect stay</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -84,7 +84,7 @@ export default function HowItWorksPage() {
         <div className="container-md">
           <div className="text-center mb-16">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Hosts</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2">Start Earning from Your Space</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2">Start earning from your space</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -97,7 +97,7 @@ export default function HowItWorksPage() {
             </div>
             
             <div className="text-center">
-              <div className="w-20 h-20 bg-green-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-6">
+              <div className="w-20 h-20 bg-light-blue text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-6">
                 2
               </div>
               <h3 className="text-xl font-bold mb-3">Set Your Terms</h3>
@@ -128,7 +128,7 @@ export default function HowItWorksPage() {
         <div className="container-md">
           <div className="text-center mb-16">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Features</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2">Why Choose Proper Place</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2">Why choose Proper Place</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -199,7 +199,7 @@ export default function HowItWorksPage() {
       <section className="py-20 bg-dark-bg text-white">
         <div className="container-md text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to Get Started?
+            Ready to get started?
           </h2>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
             Download the app today and join the Proper Place community.

@@ -129,7 +129,7 @@ export default function HostSignupPage() {
         </div>
         <div className="relative container-md text-center">
           <h1 className="text-3xl md:text-5xl font-bold mb-4">
-            Earn Money From Your Land
+            Earn money from your land
           </h1>
           <p className="text-lg md:text-xl text-gray-200 max-w-2xl mx-auto">
             Register your interest below and we&apos;ll help you get started as a Proper Place host. It only takes a minute.
@@ -141,7 +141,7 @@ export default function HostSignupPage() {
       <section className="py-12 md:py-16">
         <div className="container-md max-w-2xl">
           <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10">
-            <h2 className="text-2xl font-bold mb-2 text-center">Register Your Interest</h2>
+            <h2 className="text-2xl font-bold mb-2 text-center">Register your interest</h2>
             <p className="text-gray-500 text-center mb-8">
               Fill in your details and we&apos;ll be in touch to help you get set up.
             </p>

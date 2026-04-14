@@ -120,7 +120,7 @@ export default function ScanPage() {
       {/* CTA */}
       <section className="bg-dark-bg text-white py-16">
         <div className="container-md text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to Book Your Stay?</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to book your stay?</h2>
           <p className="text-gray-300 mb-8 max-w-lg mx-auto">
             Join thousands of motorhome travellers finding unique stays across the UK.
           </p>

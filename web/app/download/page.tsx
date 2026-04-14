@@ -86,7 +86,7 @@ export default function DownloadPage() {
         <div className="container-md">
           <div className="text-center mb-16">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">App Features</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2">Everything You Need in One App</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2">Everything you need in one app</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -130,7 +130,7 @@ export default function DownloadPage() {
             <div>
               <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Hosts</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-                Manage Your Listings on the Go
+                Manage your listings on the go
               </h2>
               <p className="text-gray-600 text-lg mb-6 leading-relaxed">
                 The Proper Place app makes hosting easy. Manage your listings, respond to booking requests, and communicate with guests — all from your phone.
@@ -180,7 +180,7 @@ export default function DownloadPage() {
       <section className="py-20 bg-light-blue text-white">
         <div className="container-md text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Be the First to Know When We Launch
+            Be the first to know when we launch
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Our app is coming soon to the App Store and Google Play. Sign up to be notified when it's ready!
@@ -196,7 +196,7 @@ export default function DownloadPage() {
         <div className="container-md">
           <div className="text-center mb-16">
             <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">FAQ</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2">Frequently Asked Questions</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2">Frequently asked questions</h2>
           </div>
           
           <div className="max-w-3xl mx-auto space-y-6">
@@ -226,7 +226,7 @@ export default function DownloadPage() {
       {/* Final CTA */}
       <section className="py-16 bg-gray-50">
         <div className="container-md text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">Can't Wait? Browse Stays Now</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">Can't wait? Browse stays now</h2>
           <p className="text-gray-600 mb-6">Explore available motorhome stays across the UK on our interactive map.</p>
           <Link href="/browse" className="btn-primary inline-block">
             Browse All Stays

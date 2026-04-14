@@ -20,7 +20,7 @@ export default function BecomeHostPage() {
         <div className="relative container-md">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Turn Your Land Into Extra Income
+              Turn your land into extra income
             </h1>
             <p className="text-xl text-gray-200">
               Welcome motorhome guests to your farm, garden, or land and earn money from unused space.
@@ -32,25 +32,28 @@ export default function BecomeHostPage() {
       {/* Steps Section */}
       <section className="py-20 bg-cream">
         <div className="container-md">
-          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">Getting Started is Easy</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">Getting started is easy</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             {[
               {
                 title: 'Create Your Account',
-                desc: 'Sign up for free and verify your identity to become a trusted host'
+                desc: 'Sign up for free and verify your identity to become a trusted host',
+                color: 'bg-green-600',
               },
               {
                 title: 'List Your Space',
-                desc: 'Add photos of your land, set your price, availability, and any rules'
+                desc: 'Add photos of your land, set your price, availability, and any rules',
+                color: 'bg-light-blue',
               },
               {
                 title: 'Welcome Guests',
-                desc: 'Accept booking requests and host respectful motorhome guests'
+                desc: 'Accept booking requests and host respectful motorhome guests',
+                color: 'bg-light-blue',
               },
             ].map((item, i) => (
               <div key={i} className="text-center">
-                <div className="w-20 h-20 bg-light-blue text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-6">
+                <div className={`w-20 h-20 ${item.color} text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-6`}>
                   {i + 1}
                 </div>
                 <h3 className="text-xl font-bold mb-3">{item.title}</h3>
@@ -70,7 +73,7 @@ export default function BecomeHostPage() {
       {/* What You Can Offer */}
       <section className="py-20 bg-white">
         <div className="container-md">
-          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">What Spaces Work Well?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">What spaces work well?</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
@@ -115,7 +118,7 @@ export default function BecomeHostPage() {
             <div>
               <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Why Host?</span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-                Benefits of Becoming a Host
+                Benefits of becoming a host
               </h2>
               <ul className="space-y-4">
                 <li className="flex items-start gap-4">
@@ -179,7 +182,7 @@ export default function BecomeHostPage() {
       {/* Tips for Success */}
       <section className="py-20 bg-white">
         <div className="container-md max-w-3xl">
-          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">Tips for a Great Listing</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">Tips for a great listing</h2>
 
           <div className="space-y-4">
             {[
@@ -220,7 +223,7 @@ export default function BecomeHostPage() {
       {/* CTA Section */}
       <section className="bg-dark-bg text-white py-20">
         <div className="container-md text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Start Hosting?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to start hosting?</h2>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
             Join the Proper Place community and start earning from your unused land.
           </p>
