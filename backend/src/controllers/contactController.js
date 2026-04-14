@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
+const jwt = require('jsonwebtoken');
 
 // Keywords for urgency scoring
 const URGENCY_KEYWORDS = {
@@ -70,7 +71,7 @@ exports.submitContact = async (req, res) => {
   try {
     const { userId, userEmail, category, subject, message } = req.body;
 
-    // Validation - userId is optional for unauthenticated submissions
+    // Validation
     if (!userEmail || !category || !subject || !message) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -78,8 +79,20 @@ exports.submitContact = async (req, res) => {
     // Calculate urgency score
     const urgencyScore = calculateUrgencyScore(subject, message, category);
 
-    // Ensure userId is a valid integer (required by DB NOT NULL constraint)
-    const safeUserId = Number.isInteger(Number(userId)) && Number(userId) > 0 ? Number(userId) : null;
+    // Try to get userId from: 1) auth token, 2) request body
+    let safeUserId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+        if (decoded.userId) safeUserId = decoded.userId;
+      } catch (e) {
+        // Token invalid/expired - fall through to body userId
+      }
+    }
+    if (!safeUserId && Number.isInteger(Number(userId)) && Number(userId) > 0) {
+      safeUserId = Number(userId);
+    }
 
     if (!safeUserId) {
       return res.status(400).json({ error: 'You must be logged in to submit a contact message' });
