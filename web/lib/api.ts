@@ -203,8 +203,11 @@ export const notificationsApi = {
 
 // Contacts
 export const contactsApi = {
-  submit: (data: { userId?: number; userEmail: string; category: string; subject: string; message: string }) =>
-    api('/contacts/submit', { method: 'POST', body: data, auth: false }),
+  submit: (data: { userId?: number; userEmail: string; category: string; subject: string; message: string }) => {
+    // Send auth token if user is logged in, so backend can extract userId
+    const token = getToken();
+    return api('/contacts/submit', { method: 'POST', body: data, auth: !!token });
+  },
   list: (params?: Record<string, string>) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return api<{ contacts: Contact[] }>(`/contacts${qs}`);

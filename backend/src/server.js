@@ -764,6 +764,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 31 error:', err.message);
     }
 
+    // Migration 32: Make contacts.user_id nullable for anonymous website submissions
+    try {
+      console.log('[SERVER] Running migration 32: Make contacts.user_id nullable...');
+      await db.query(`ALTER TABLE contacts ALTER COLUMN user_id DROP NOT NULL`);
+      console.log('[SERVER] ✅ Migration 32 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 32 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

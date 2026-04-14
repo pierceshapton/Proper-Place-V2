@@ -79,7 +79,7 @@ exports.submitContact = async (req, res) => {
     // Calculate urgency score
     const urgencyScore = calculateUrgencyScore(subject, message, category);
 
-    // Try to get userId from: 1) auth token, 2) request body
+    // Try to get userId from: 1) auth token, 2) request body, 3) allow null for anonymous
     let safeUserId = null;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -93,10 +93,7 @@ exports.submitContact = async (req, res) => {
     if (!safeUserId && Number.isInteger(Number(userId)) && Number(userId) > 0) {
       safeUserId = Number(userId);
     }
-
-    if (!safeUserId) {
-      return res.status(400).json({ error: 'You must be logged in to submit a contact message' });
-    }
+    // safeUserId can be null for anonymous/website submissions
 
     // Insert contact message
     const result = await db.query(
@@ -162,7 +159,7 @@ exports.getContacts = async (req, res) => {
         c.created_at,
         c.updated_at
       FROM contacts c
-      JOIN users u ON c.user_id = u.id
+      LEFT JOIN users u ON c.user_id = u.id
       WHERE c.status = $1
       ORDER BY 
         c.urgency_score DESC,
@@ -232,7 +229,7 @@ exports.getContact = async (req, res) => {
         c.created_at,
         c.updated_at
       FROM contacts c
-      JOIN users u ON c.user_id = u.id
+      LEFT JOIN users u ON c.user_id = u.id
       WHERE c.id = $1`,
       [id]
     );
