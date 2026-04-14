@@ -371,6 +371,8 @@ export interface Booking {
   created_at?: string;
   place_name?: string;
   place_image?: string;
+  place_image_urls?: string[];
+  place_address?: string;
   place_user_id?: number;
   guest_name?: string;
   guest_email?: string;
