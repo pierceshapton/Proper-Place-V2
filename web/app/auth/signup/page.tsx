@@ -44,7 +44,7 @@ export default function SignupPage() {
         password: formData.password,
         referral_code: formData.referralCode || undefined,
       });
-      router.push('/dashboard');
+      router.push('/auth/verify-email');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Signup failed. Please try again.');
     } finally {

@@ -23,9 +23,13 @@ function LoginForm() {
     setLoading(true);
     setError('');
     try {
-      await login(email, password);
-      const redirect = searchParams.get('redirect');
-      router.push(redirect && redirect.startsWith('/') ? redirect : '/dashboard');
+      const userData = await login(email, password);
+      if (userData && !userData.verified) {
+        router.push('/auth/verify-email');
+      } else {
+        const redirect = searchParams.get('redirect');
+        router.push(redirect && redirect.startsWith('/') ? redirect : '/dashboard');
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed. Please check your credentials.');
     } finally {

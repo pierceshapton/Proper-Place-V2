@@ -6,8 +6,8 @@ import { authApi, setTokens, clearTokens, type User } from '@/lib/api';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (data: { name: string; email: string; password: string; referral_code?: string }) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  signup: (data: { name: string; email: string; password: string; referral_code?: string }) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -15,8 +15,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  login: async () => {},
-  signup: async () => {},
+  login: async () => ({} as User),
+  signup: async () => ({} as User),
   logout: async () => {},
   refreshUser: async () => {},
 });
@@ -64,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokens(data.access_token, data.refresh_token);
     setUser(data.user);
     localStorage.setItem('pp_user', JSON.stringify(data.user));
+    return data.user;
   };
 
   const signup = async (signupData: { name: string; email: string; password: string; referral_code?: string }) => {
@@ -71,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokens(data.access_token, data.refresh_token);
     setUser(data.user);
     localStorage.setItem('pp_user', JSON.stringify(data.user));
+    return data.user;
   };
 
   const logout = async () => {

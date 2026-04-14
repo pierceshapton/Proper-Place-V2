@@ -15,6 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!loading && !user) router.push('/auth/login');
+    if (!loading && user && !user.verified) router.push('/auth/verify-email');
   }, [loading, user, router]);
 
   useEffect(() => {
