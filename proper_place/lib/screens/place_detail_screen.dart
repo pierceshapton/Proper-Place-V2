@@ -316,6 +316,15 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           setState(() {
             _checkInDate = checkIn;
             _checkOutDate = checkOut;
+            // Default check-in time to now when check-in date is today
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            if (checkIn != null && checkIn.isAtSameMomentAs(today)) {
+              _checkInTime = TimeOfDay(hour: now.hour, minute: now.minute);
+            } else {
+              _checkInTime = const TimeOfDay(hour: 12, minute: 0);
+            }
+            _checkOutTime = const TimeOfDay(hour: 12, minute: 0);
           });
         },
       ),

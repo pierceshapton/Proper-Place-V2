@@ -94,6 +94,7 @@ export default function BookPlacePage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [form, setForm] = useState({
     check_in: '', check_out: '', special_requests: '',
+    check_in_time: '12:00', check_out_time: '12:00',
   });
 
   useEffect(() => {
@@ -145,7 +146,13 @@ export default function BookPlacePage() {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   })();
 
-  const total = place ? nights * Number(place.price_per_night) : 0;
+  const HOURLY_FEE_RATE = 5;
+  const [ciH] = form.check_in_time.split(':').map(Number);
+  const [coH] = form.check_out_time.split(':').map(Number);
+  const earlyCheckinFee = ciH < 12 ? (12 - ciH) * HOURLY_FEE_RATE : 0;
+  const lateCheckoutFee = coH > 12 ? (coH - 12) * HOURLY_FEE_RATE : 0;
+
+  const total = place ? nights * Number(place.price_per_night) + earlyCheckinFee + lateCheckoutFee : 0;
 
   const isDateUnavailable = (date: string) => unavailableDates.includes(date);
 
@@ -197,6 +204,8 @@ export default function BookPlacePage() {
         check_out_date: form.check_out,
         check_in: form.check_in,
         check_out: form.check_out,
+        check_in_time: form.check_in_time,
+        check_out_time: form.check_out_time,
         total_price: total,
         van_registration: user?.vehicle_registration || undefined,
         contact_phone: user?.phone || user?.phone_number || undefined,
@@ -222,8 +231,8 @@ export default function BookPlacePage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Booking Confirmed!</h1>
           <p className="text-gray-500 mb-6">Your booking at <span className="font-semibold text-gray-700">{place.name}</span> has been submitted. The host will confirm your stay shortly.</p>
           <div className="bg-gray-50 rounded-lg p-4 mb-6 text-sm text-left space-y-2">
-            <div className="flex justify-between"><span className="text-gray-500">Check-in:</span><span className="font-medium text-gray-900">{new Date(form.check_in).toLocaleDateString()}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Check-out:</span><span className="font-medium text-gray-900">{new Date(form.check_out).toLocaleDateString()}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Check-in:</span><span className="font-medium text-gray-900">{new Date(form.check_in).toLocaleDateString()} at {form.check_in_time}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Check-out:</span><span className="font-medium text-gray-900">{new Date(form.check_out).toLocaleDateString()} at {form.check_out_time}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Nights:</span><span className="font-medium text-gray-900">{nights}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Total:</span><span className="font-bold text-gray-900">£{total.toFixed(2)}</span></div>
           </div>
@@ -257,7 +266,18 @@ export default function BookPlacePage() {
                 checkOut={form.check_out}
                 unavailableDates={unavailableDates}
                 checkoutAllowedDates={userBookingBoundaries}
-                onSelect={(ci, co) => setForm(f => ({ ...f, check_in: ci, check_out: co }))}
+                onSelect={(ci, co) => {
+                  const today = new Date().toISOString().split('T')[0];
+                  const now = new Date();
+                  const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                  setForm(f => ({
+                    ...f,
+                    check_in: ci,
+                    check_out: co,
+                    check_in_time: ci === today ? nowTime : '12:00',
+                    check_out_time: '12:00',
+                  }));
+                }}
               />
               {unavailableDates.length > 0 && (
                 <p className="text-xs text-amber-600">⚠️ Some dates are unavailable — either this place is full or you already have a booking.</p>
@@ -270,6 +290,37 @@ export default function BookPlacePage() {
                 }
                 return null;
               })()}
+
+              {/* Check-in / Check-out Times */}
+              {form.check_in && form.check_out && (
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-in time</label>
+                    <input
+                      type="time"
+                      value={form.check_in_time}
+                      onChange={e => setForm(f => ({ ...f, check_in_time: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-white"
+                    />
+                    {earlyCheckinFee > 0 && (
+                      <p className="text-xs text-amber-600 mt-1">Early arrival +£{earlyCheckinFee.toFixed(0)}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-out time</label>
+                    <input
+                      type="time"
+                      value={form.check_out_time}
+                      onChange={e => setForm(f => ({ ...f, check_out_time: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-white"
+                    />
+                    {lateCheckoutFee > 0 && (
+                      <p className="text-xs text-amber-600 mt-1">Late departure +£{lateCheckoutFee.toFixed(0)}</p>
+                    )}
+                  </div>
+                  <p className="col-span-2 text-xs text-gray-400">Standard check-in/out is 12:00. £5/hr applies for early arrivals (before 12:00) or late departures (after 12:00).</p>
+                </div>
+              )}
             </div>
 
             <div className="card bg-white p-6 space-y-4">
@@ -291,7 +342,13 @@ export default function BookPlacePage() {
               <div className="card bg-white p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Price Summary</h2>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-gray-500">£{Number(place.price_per_night).toFixed(2)} × {nights} night{nights !== 1 ? 's' : ''}</span><span className="text-gray-900">£{total.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">£{Number(place.price_per_night).toFixed(2)} × {nights} night{nights !== 1 ? 's' : ''}</span><span className="text-gray-900">£{(nights * Number(place.price_per_night)).toFixed(2)}</span></div>
+                  {earlyCheckinFee > 0 && (
+                    <div className="flex justify-between"><span className="text-amber-600">Early arrival fee ({form.check_in_time})</span><span className="text-gray-900">£{earlyCheckinFee.toFixed(2)}</span></div>
+                  )}
+                  {lateCheckoutFee > 0 && (
+                    <div className="flex justify-between"><span className="text-amber-600">Late departure fee ({form.check_out_time})</span><span className="text-gray-900">£{lateCheckoutFee.toFixed(2)}</span></div>
+                  )}
                   <div className="border-t border-gray-100 pt-2 flex justify-between text-base font-bold"><span className="text-gray-900">Total</span><span className="text-gray-900">£{total.toFixed(2)}</span></div>
                 </div>
               </div>
@@ -310,8 +367,8 @@ export default function BookPlacePage() {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h2>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between"><span className="text-gray-500">Place:</span><span className="font-medium text-gray-900">{place.name}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Check-in:</span><span className="text-gray-900">{new Date(form.check_in).toLocaleDateString()}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Check-out:</span><span className="text-gray-900">{new Date(form.check_out).toLocaleDateString()}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Check-in:</span><span className="text-gray-900">{new Date(form.check_in).toLocaleDateString()} at {form.check_in_time}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Check-out:</span><span className="text-gray-900">{new Date(form.check_out).toLocaleDateString()} at {form.check_out_time}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Nights:</span><span className="text-gray-900">{nights}</span></div>
                   {user?.vehicle_registration && <div className="flex justify-between"><span className="text-gray-500">Vehicle:</span><span className="text-gray-900">{user.vehicle_registration}</span></div>}
                   <div className="border-t border-gray-100 pt-2 flex justify-between text-base font-bold"><span className="text-gray-900">Total</span><span className="text-gray-900">£{total.toFixed(2)}</span></div>
