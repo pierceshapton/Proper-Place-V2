@@ -13,7 +13,7 @@ export default function Footer() {
               <span className="text-light-blue">Proper</span> Place
             </h3>
             <p className="text-gray-400 text-sm">
-              Connecting the UK's motorhome community with a Proper Place to stay the night.
+              Connecting the motorhome community with a Proper Place to stay the night.
             </p>
           </div>
 
