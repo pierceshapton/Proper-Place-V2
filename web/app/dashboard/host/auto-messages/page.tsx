@@ -1,166 +1,211 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { autoMessagesApi, ApiError } from '@/lib/api';
-
-interface AutoMessage {
-  id: number;
-  trigger: string;
-  template: string;
-  is_active: boolean;
-}
+import { autoMessagesApi, placesApi, type AutoMessageTemplate, type Place } from '@/lib/api';
 
 const TRIGGERS = [
-  { value: 'booking_confirmed', label: 'Booking Confirmed', desc: 'Sent when you approve a booking' },
-  { value: 'booking_rejected', label: 'Booking Rejected', desc: 'Sent when you reject a booking' },
-  { value: 'check_in_reminder', label: 'Check-in Reminder', desc: 'Sent before the guest checks in' },
-  { value: 'check_out_reminder', label: 'Check-out Reminder', desc: 'Sent before the guest checks out' },
-  { value: 'welcome', label: 'Welcome Message', desc: 'Sent when a new booking arrives' },
-  { value: 'review_request', label: 'Review Request', desc: 'Sent after a guest checks out' },
+  { type: 'on_booking', label: 'When Booking is Made', desc: 'Sent immediately after a guest books your site.', icon: '📅', defaultMsg: 'Thank you for booking! We look forward to hosting you.' },
+  { type: '24h_before_checkin', label: '24 Hours Before Check-in', desc: 'Sent 24 hours before the guest\'s check-in date.', icon: '⏰', defaultMsg: 'Reminder: Your stay begins tomorrow. See you soon!' },
+  { type: '1h_before_arrival', label: '1 Hour Before Arrival', desc: 'Sent 1 hour before the estimated arrival time.', icon: '🚐', defaultMsg: 'Almost here! Let us know if you need any help finding us.' },
+  { type: 'at_checkout', label: 'At Checkout', desc: 'Sent when checkout time arrives.', icon: '👋', defaultMsg: 'Thank you for visiting! We hope you enjoyed your stay. Safe travels!' },
 ];
 
+interface TemplateState {
+  trigger_type: string;
+  message_content: string;
+  enabled: boolean;
+}
+
 export default function AutoMessagesPage() {
-  const [messages, setMessages] = useState<AutoMessage[]>([]);
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
+  const [templates, setTemplates] = useState<TemplateState[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<AutoMessage | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
-  const [newForm, setNewForm] = useState({ trigger: 'booking_confirmed', template: '' });
+  const [error, setError] = useState('');
 
-  const load = async () => {
+  // Load host's places
+  useEffect(() => {
+    placesApi.myPlaces()
+      .then(data => {
+        const approved = (data.places || []).filter(p => p.status === 'approved');
+        setPlaces(approved);
+        if (approved.length > 0) setSelectedPlaceId(approved[0].id);
+      })
+      .catch(() => setError('Failed to load your places'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Load templates when place changes
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    setLoading(true);
+    autoMessagesApi.getTemplates(selectedPlaceId)
+      .then(data => {
+        const existing = data.templates || [];
+        const merged = TRIGGERS.map(t => {
+          const saved = existing.find((e: AutoMessageTemplate) => e.trigger_type === t.type);
+          return {
+            trigger_type: t.type,
+            message_content: saved?.message_content || '',
+            enabled: saved?.enabled ?? false,
+          };
+        });
+        setTemplates(merged);
+      })
+      .catch(() => {
+        setTemplates(TRIGGERS.map(t => ({ trigger_type: t.type, message_content: '', enabled: false })));
+      })
+      .finally(() => setLoading(false));
+  }, [selectedPlaceId]);
+
+  const updateTemplate = (triggerType: string, field: 'message_content' | 'enabled', value: string | boolean) => {
+    setTemplates(prev => prev.map(t =>
+      t.trigger_type === triggerType ? { ...t, [field]: value } : t
+    ));
+  };
+
+  const handleSave = async () => {
+    if (!selectedPlaceId) return;
+    setSaving(true);
+    setError('');
+    setSuccess('');
     try {
-      const data = await autoMessagesApi.list();
-      setMessages((data as { autoMessages?: AutoMessage[] }).autoMessages || data as unknown as AutoMessage[]);
-    } catch { /* empty */ }
-    setLoading(false);
+      const result = await autoMessagesApi.saveTemplates(selectedPlaceId, templates);
+      const saved = result.templates || [];
+      const merged = TRIGGERS.map(t => {
+        const s = saved.find((e: AutoMessageTemplate) => e.trigger_type === t.type);
+        return {
+          trigger_type: t.type,
+          message_content: s?.message_content || '',
+          enabled: s?.enabled ?? false,
+        };
+      });
+      setTemplates(merged);
+      setSuccess('Auto-messages saved!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch {
+      setError('Failed to save auto-messages');
+    }
+    setSaving(false);
   };
 
-  useEffect(() => { load(); }, []);
-
-  const handleCreate = async () => {
-    if (!newForm.template.trim()) return;
-    setError(''); setSuccess('');
-    try {
-      await autoMessagesApi.create({ trigger: newForm.trigger, template: newForm.template });
-      setNewForm({ trigger: 'booking_confirmed', template: '' });
-      setCreating(false);
-      setSuccess('Auto-message created!');
-      load();
-    } catch (err) { setError(err instanceof ApiError ? err.message : 'Failed to create'); }
+  const useDefault = (triggerType: string) => {
+    const trigger = TRIGGERS.find(t => t.type === triggerType);
+    if (trigger) updateTemplate(triggerType, 'message_content', trigger.defaultMsg);
   };
 
-  const handleUpdate = async () => {
-    if (!editing) return;
-    setError(''); setSuccess('');
-    try {
-      await autoMessagesApi.update(editing.id, { template: editing.template, is_active: editing.is_active });
-      setEditing(null);
-      setSuccess('Auto-message updated!');
-      load();
-    } catch (err) { setError(err instanceof ApiError ? err.message : 'Failed to update'); }
-  };
+  if (loading && places.length === 0) {
+    return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-light-blue"></div></div>;
+  }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this auto-message?')) return;
-    try { await autoMessagesApi.delete(id); load(); } catch (err) { setError(err instanceof ApiError ? err.message : 'Failed to delete'); }
-  };
-
-  const handleToggle = async (msg: AutoMessage) => {
-    try {
-      await autoMessagesApi.update(msg.id, { is_active: !msg.is_active });
-      load();
-    } catch (err) { setError(err instanceof ApiError ? err.message : 'Failed'); }
-  };
-
-  const getTriggerLabel = (t: string) => TRIGGERS.find(tr => tr.value === t)?.label || t;
-
-  if (loading) return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-light-blue"></div></div>;
+  if (places.length === 0) {
+    return (
+      <div className="text-center py-16 card bg-white">
+        <p className="text-4xl mb-3">🏕️</p>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">No approved places</h2>
+        <p className="text-gray-500">You need at least one approved place to set up auto-messages.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Auto-Messages</h1>
-          <p className="text-gray-500">Set up automatic messages for booking events.</p>
-        </div>
-        {!creating && (
-          <button onClick={() => setCreating(true)} className="btn-primary text-sm py-2 px-4">+ New Auto-Message</button>
-        )}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Auto-Messages</h1>
+        <p className="text-gray-500 mt-1">Set up automatic messages that are sent to guests at key moments during their booking.</p>
       </div>
 
       {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
       {success && <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg text-sm">{success}</div>}
 
-      {creating && (
-        <div className="card bg-white p-6 space-y-4 border-2 border-light-blue">
-          <h2 className="font-semibold text-gray-900">New Auto-Message</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Trigger</label>
-            <select value={newForm.trigger} onChange={e => setNewForm(f => ({ ...f, trigger: e.target.value }))} className="bg-white border-gray-300 text-gray-900">
-              {TRIGGERS.map(t => <option key={t.value} value={t.value}>{t.label} — {t.desc}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Message Template</label>
-            <textarea value={newForm.template} onChange={e => setNewForm(f => ({ ...f, template: e.target.value }))} rows={4} placeholder="Hi {guest_name}, your booking at {place_name} has been confirmed!..." className="bg-white border-gray-300 text-gray-900" />
-            <p className="text-xs text-gray-400 mt-1">Variables: {'{guest_name}'}, {'{place_name}'}, {'{check_in}'}, {'{check_out}'}, {'{total}'}</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleCreate} className="btn-primary text-sm py-2 px-4">Create</button>
-            <button onClick={() => setCreating(false)} className="btn-secondary text-sm py-2 px-4">Cancel</button>
-          </div>
+      {/* Place selector */}
+      {places.length > 1 && (
+        <div className="card bg-white p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Select Place</label>
+          <select
+            value={selectedPlaceId || ''}
+            onChange={e => setSelectedPlaceId(Number(e.target.value))}
+            className="bg-white border-gray-300 text-gray-900 rounded-lg"
+          >
+            {places.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
         </div>
       )}
 
-      {messages.length === 0 && !creating ? (
-        <div className="text-center py-16 card bg-white">
-          <p className="text-4xl mb-3">🤖</p>
-          <p className="text-gray-500 mb-2">No auto-messages configured.</p>
-          <p className="text-sm text-gray-400">Set up automatic messages to save time responding to booking events.</p>
+      {places.length === 1 && (
+        <div className="card bg-white p-4 flex items-center gap-3">
+          <span className="text-xl">📍</span>
+          <span className="font-medium text-gray-900">{places[0].name}</span>
         </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-light-blue"></div></div>
       ) : (
-        <div className="space-y-3">
-          {messages.map(msg => (
-            <div key={msg.id} className="card bg-white p-5">
-              {editing?.id === msg.id ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-900">{getTriggerLabel(msg.trigger)}</span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <span className="text-xs text-gray-500">Active</span>
-                      <input type="checkbox" checked={editing.is_active} onChange={e => setEditing(prev => prev ? { ...prev, is_active: e.target.checked } : null)} className="rounded" />
+        <>
+          <div className="space-y-4">
+            {TRIGGERS.map(trigger => {
+              const t = templates.find(tp => tp.trigger_type === trigger.type);
+              if (!t) return null;
+              return (
+                <div key={trigger.type} className={`card bg-white p-5 border-l-4 transition-colors ${t.enabled ? 'border-l-green-500' : 'border-l-gray-200'}`}>
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{trigger.icon}</span>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{trigger.label}</h3>
+                        <p className="text-sm text-gray-500">{trigger.desc}</p>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                      <span className={`text-xs font-medium ${t.enabled ? 'text-green-600' : 'text-gray-400'}`}>
+                        {t.enabled ? 'On' : 'Off'}
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={t.enabled}
+                        onClick={() => updateTemplate(trigger.type, 'enabled', !t.enabled)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${t.enabled ? 'bg-green-500' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${t.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
                     </label>
                   </div>
-                  <textarea value={editing.template} onChange={e => setEditing(prev => prev ? { ...prev, template: e.target.value } : null)} rows={3} className="bg-white border-gray-300 text-gray-900" />
-                  <div className="flex gap-2">
-                    <button onClick={handleUpdate} className="btn-primary text-sm py-1.5 px-4">Save</button>
-                    <button onClick={() => setEditing(null)} className="btn-secondary text-sm py-1.5 px-4">Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900 text-sm">{getTriggerLabel(msg.trigger)}</h3>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${msg.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {msg.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                  <div className="space-y-2">
+                    <textarea
+                      value={t.message_content}
+                      onChange={e => updateTemplate(trigger.type, 'message_content', e.target.value)}
+                      rows={3}
+                      placeholder={trigger.defaultMsg}
+                      className="bg-white border-gray-300 text-gray-900 rounded-lg text-sm"
+                    />
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-gray-400">Variables: {'{guest_name}'}, {'{place_name}'}, {'{check_in}'}, {'{check_out}'}</p>
+                      {!t.message_content && (
+                        <button onClick={() => useDefault(trigger.type)} className="text-xs text-light-blue hover:underline">
+                          Use default message
+                        </button>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-2">{msg.template}</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button onClick={() => handleToggle(msg)} className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${msg.is_active ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
-                      {msg.is_active ? 'Disable' : 'Enable'}
-                    </button>
-                    <button onClick={() => setEditing({ ...msg })} className="text-xs text-light-blue hover:underline py-1.5">Edit</button>
-                    <button onClick={() => handleDelete(msg.id)} className="text-xs text-red-500 hover:underline py-1.5">Delete</button>
                   </div>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="btn-primary py-2.5 px-8 text-sm disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Auto-Messages'}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

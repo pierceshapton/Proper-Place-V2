@@ -254,15 +254,9 @@ export const uploadApi = {
 
 // Auto-messages
 export const autoMessagesApi = {
-  list: () => api('/auto-messages'),
-  get: (placeId: number) => api(`/auto-messages/place/${placeId}`),
-  create: (data: { trigger: string; template: string }) =>
-    api('/auto-messages', { method: 'POST', body: data }),
-  update: (id: number, data: { template?: string; is_active?: boolean }) =>
-    api(`/auto-messages/${id}`, { method: 'PATCH', body: data }),
-  delete: (id: number) => api(`/auto-messages/${id}`, { method: 'DELETE' }),
-  save: (placeId: number, templates: Record<string, string>) =>
-    api(`/auto-messages/place/${placeId}`, { method: 'PUT', body: templates }),
+  getTemplates: (placeId: number) => api<{ templates: AutoMessageTemplate[] }>(`/auto-messages/place/${placeId}`),
+  saveTemplates: (placeId: number, templates: { trigger_type: string; message_content: string; enabled: boolean }[]) =>
+    api<{ templates: AutoMessageTemplate[] }>(`/auto-messages/place/${placeId}`, { method: 'PUT', body: { templates } }),
 };
 
 // Referrals
@@ -345,6 +339,17 @@ export interface Place {
   host_contract_accepted_at?: string;
   host_contract_version?: string;
   owner_email?: string;
+}
+
+export interface AutoMessageTemplate {
+  id: number;
+  place_id: number;
+  host_id: number;
+  trigger_type: string;
+  message_content: string;
+  enabled: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Booking {
