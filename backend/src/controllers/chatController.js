@@ -259,13 +259,28 @@ async function getConversations(req, res, next) {
 async function getMessages(req, res, next) {
   try {
     const userId = req.user.userId;
+    const userRole = req.user.role;
     const otherUserId = parseInt(req.params.otherUserId);
+
+    // For admin users, include all host IDs as effective user IDs
+    let effectiveUserIds = [userId];
+    if (userRole === 'admin') {
+      const hostsResult = await db.query(
+        `SELECT DISTINCT p.owner_id FROM places p WHERE p.owner_id IS NOT NULL`
+      );
+      const hostIds = hostsResult.rows.map(r => r.owner_id).filter(id => id !== userId);
+      effectiveUserIds = [...effectiveUserIds, ...hostIds];
+    }
+
+    const placeholders = effectiveUserIds.map((_, i) => `$${i + 1}`).join(', ');
+    const otherParam = `$${effectiveUserIds.length + 1}`;
+    const params = [...effectiveUserIds, otherUserId];
 
     // Mark incoming messages as delivered when fetching
     await db.query(
       `UPDATE messages SET delivered = true
-       WHERE sender_id = $1 AND receiver_id = $2 AND delivered = false`,
-      [otherUserId, userId]
+       WHERE sender_id = ${otherParam} AND receiver_id IN (${placeholders}) AND delivered = false`,
+      params
     );
 
     const result = await db.query(
@@ -283,10 +298,10 @@ async function getMessages(req, res, next) {
         u.email as sender_email
       FROM messages m
       JOIN users u ON u.id = m.sender_id
-      WHERE (m.sender_id = $1 AND m.receiver_id = $2)
-         OR (m.sender_id = $2 AND m.receiver_id = $1)
+      WHERE (m.sender_id IN (${placeholders}) AND m.receiver_id = ${otherParam})
+         OR (m.sender_id = ${otherParam} AND m.receiver_id IN (${placeholders}))
       ORDER BY m.created_at ASC`,
-      [userId, otherUserId]
+      params
     );
 
     return res.json({ messages: result.rows });

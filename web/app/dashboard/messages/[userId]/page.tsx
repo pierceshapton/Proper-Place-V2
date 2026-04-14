@@ -14,6 +14,8 @@ export default function ChatPage() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevCountRef = useRef(0);
   const partnerId = Number(userId);
 
   const loadMessages = useCallback(async () => {
@@ -32,7 +34,13 @@ export default function ChatPage() {
   }, [loadMessages]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > prevCountRef.current || prevCountRef.current === 0) {
+      const container = messagesContainerRef.current;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+    prevCountRef.current = messages.length;
   }, [messages]);
 
   const handleSend = async (e: React.FormEvent) => {
@@ -58,12 +66,12 @@ export default function ChatPage() {
         <h1 className="text-lg font-bold text-gray-900">Conversation</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto py-4 space-y-3">
         {messages.length === 0 ? (
           <div className="text-center text-gray-400 py-12">No messages yet. Start the conversation!</div>
         ) : (
           messages.map(msg => {
-            const isMine = msg.sender_id === user?.id;
+            const isMine = msg.sender_id !== partnerId;
             return (
               <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${isMine ? 'bg-light-blue text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'}`}>
