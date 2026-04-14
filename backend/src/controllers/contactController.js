@@ -78,15 +78,22 @@ exports.submitContact = async (req, res) => {
     // Calculate urgency score
     const urgencyScore = calculateUrgencyScore(subject, message, category);
 
+    // Ensure userId is a valid integer (required by DB NOT NULL constraint)
+    const safeUserId = Number.isInteger(Number(userId)) && Number(userId) > 0 ? Number(userId) : null;
+
+    if (!safeUserId) {
+      return res.status(400).json({ error: 'You must be logged in to submit a contact message' });
+    }
+
     // Insert contact message
     const result = await db.query(
       `INSERT INTO contacts (user_id, user_email, category, subject, message, urgency_score, status)
        VALUES ($1, $2, $3, $4, $5, $6, 'new')
        RETURNING id, created_at, urgency_score`,
-      [userId || null, userEmail, category, subject, message, urgencyScore]
+      [safeUserId, userEmail, category, subject, message, urgencyScore]
     );
 
-    logger.info(`Contact message submitted by ${userEmail} (userId: ${userId || 'anonymous'}) with urgency ${urgencyScore}`);
+    logger.info(`Contact message submitted by ${userEmail} (userId: ${safeUserId}) with urgency ${urgencyScore}`);
 
     res.status(201).json({
       success: true,
