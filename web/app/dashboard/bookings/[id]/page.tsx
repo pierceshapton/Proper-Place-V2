@@ -85,6 +85,24 @@ export default function BookingDetailPage() {
         <h1 className="text-2xl font-bold text-gray-900">Booking Details</h1>
       </div>
 
+      {/* Place / Site info */}
+      {booking.place_id && (
+        <Link href={`/place/${booking.place_id}`} className="card bg-white p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+          {(booking as Record<string, unknown>).place_image_urls ? (
+            <img src={((booking as Record<string, unknown>).place_image_urls as string[])[0]} alt="" className="w-24 h-24 rounded-lg object-cover flex-shrink-0" />
+          ) : booking.place_image ? (
+            <img src={booking.place_image} alt="" className="w-24 h-24 rounded-lg object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center text-3xl flex-shrink-0">🏕️</div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-gray-900 truncate">{booking.place_name || 'View Place'}</h2>
+            {(booking as Record<string, unknown>).place_address && <p className="text-sm text-gray-500 mt-1">{(booking as Record<string, unknown>).place_address as string}</p>}
+            <p className="text-sm text-light-blue mt-1">View site details →</p>
+          </div>
+        </Link>
+      )}
+
       <div className="card bg-white p-6">
         <div className="flex items-start justify-between mb-6">
           <div>
