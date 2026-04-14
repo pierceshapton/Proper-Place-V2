@@ -27,11 +27,14 @@ export default function BookingDetailPage() {
       .finally(() => setLoading(false));
   }, [id, router]);
 
-  const startCancel = () => {
-    if (!booking) return;
+  const isWithin24h = () => {
+    if (!booking) return true;
     const checkIn = new Date(booking.check_in_date || booking.check_in);
-    const hoursUntilCheckIn = (checkIn.getTime() - Date.now()) / (1000 * 60 * 60);
-    setCancelWarning(hoursUntilCheckIn <= 24 ? 'This booking starts within 24 hours. A cancellation fee may apply per our terms.' : '');
+    return (checkIn.getTime() - Date.now()) / (1000 * 60 * 60) <= 24;
+  };
+
+  const startCancel = () => {
+    setCancelWarning('');
     setShowCancelModal(true);
   };
 
