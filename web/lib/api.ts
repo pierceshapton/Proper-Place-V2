@@ -147,6 +147,7 @@ export const bookingsApi = {
   approve: (id: number) => api(`/bookings/${id}/approve`, { method: 'PUT' }),
   reject: (id: number, reason: string) => api(`/bookings/${id}/reject`, { method: 'PUT', body: { reason } }),
   markSeen: (ids: number[]) => api('/bookings/host/mark-seen', { method: 'PUT', body: { bookingIds: ids } }),
+  hostDashboard: () => api<{ dashboard: HostDashboard }>('/bookings/host/dashboard'),
   availability: (placeId: number) => api(`/bookings/availability/place/${placeId}`, { auth: false }),
   guestReview: (id: number, data: { rating: number; title?: string; comment?: string; photo_urls?: string[] }) =>
     api(`/bookings/${id}/guest-review`, { method: 'POST', body: data }),
@@ -446,6 +447,15 @@ export interface Contact {
   admin_notes?: string;
   created_at: string;
   user?: { name: string; email: string };
+}
+
+export interface HostDashboard {
+  places: { total: number; approved: number; pending: number };
+  bookings: { total: number; pending: number; confirmed: number; completed: number; cancelled: number; active_now: number };
+  earnings: { gross_revenue: number; host_earnings: number; paid_out: number; pending_payout: number };
+  reviews: { total: number; average_rating: number };
+  recent_bookings: { id: number; booking_ref: string; status: string; total_price: string; check_in_date: string; check_out_date: string; created_at: string; guest_name: string; place_name: string }[];
+  upcoming_checkins: { id: number; booking_ref: string; check_in_date: string; check_out_date: string; guest_name: string; place_name: string }[];
 }
 
 export interface AdminDashboard {
