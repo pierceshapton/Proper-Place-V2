@@ -19,11 +19,15 @@ export default function HostDashboardPage() {
 
   const s = stats;
   const fmt = (v: number) => `£${v.toFixed(2)}`;
+  const multiSite = (s?.places.total ?? 0) > 1;
 
-  const cards = [
+  const placeCards = [
     { label: 'Total Places', value: s?.places.total ?? 0, icon: '📍', color: 'bg-green-50 text-green-700', link: '/dashboard/places' },
     { label: 'Approved Places', value: s?.places.approved ?? 0, icon: '✅', color: 'bg-emerald-50 text-emerald-700', link: '/dashboard/places' },
     { label: 'Pending Approval', value: s?.places.pending ?? 0, icon: '⏳', color: 'bg-yellow-50 text-yellow-700', link: '/dashboard/places' },
+  ];
+
+  const cards = [
     { label: 'Total Bookings', value: s?.bookings.total ?? 0, icon: '📋', color: 'bg-blue-50 text-blue-700', link: '/dashboard/host/bookings' },
     { label: 'Pending Bookings', value: s?.bookings.pending ?? 0, icon: '🔔', color: 'bg-orange-50 text-orange-700', link: '/dashboard/host/bookings' },
     { label: 'Confirmed', value: s?.bookings.confirmed ?? 0, icon: '📅', color: 'bg-purple-50 text-purple-700', link: '/dashboard/host/bookings' },
@@ -48,8 +52,21 @@ export default function HostDashboardPage() {
       <h1 className="text-2xl font-bold text-gray-900">Host Dashboard</h1>
       <p className="text-gray-500">Your hosting overview and performance.</p>
 
+      {/* Place stats - only for multi-site hosts */}
+      {multiSite && (
+        <div className="grid grid-cols-3 gap-4">
+          {placeCards.map(c => (
+            <Link key={c.label} href={c.link} className={`card p-4 ${c.color} hover:shadow-md transition-shadow`}>
+              <p className="text-2xl">{c.icon}</p>
+              <p className="text-2xl font-bold mt-2">{c.value}</p>
+              <p className="text-sm mt-1 opacity-70">{c.label}</p>
+            </Link>
+          ))}
+        </div>
+      )}
+
       {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {cards.map(c => (
           <Link key={c.label} href={c.link} className={`card p-4 ${c.color} hover:shadow-md transition-shadow`}>
             <p className="text-2xl">{c.icon}</p>
