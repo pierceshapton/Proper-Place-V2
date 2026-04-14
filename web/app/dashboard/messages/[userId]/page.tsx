@@ -11,6 +11,7 @@ export default function ChatPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -22,8 +23,12 @@ export default function ChatPage() {
     try {
       const data = await chatApi.messages(partnerId);
       setMessages(data.messages || []);
+      setError(null);
       chatApi.markRead(partnerId).catch(() => {});
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+      setError('Failed to load messages. Please try refreshing.');
+    }
     setLoading(false);
   }, [partnerId]);
 
@@ -67,7 +72,12 @@ export default function ChatPage() {
       </div>
 
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto py-4 space-y-3">
-        {messages.length === 0 ? (
+        {error ? (
+          <div className="text-center py-12">
+            <p className="text-red-500 mb-3">{error}</p>
+            <button onClick={() => { setError(null); setLoading(true); loadMessages(); }} className="btn-secondary py-2 px-4 text-sm">Retry</button>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="text-center text-gray-400 py-12">No messages yet. Start the conversation!</div>
         ) : (
           messages.map(msg => {

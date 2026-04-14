@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { bookingsApi, reviewsApi, chatApi, type Booking } from '@/lib/api';
+import { bookingsApi, reviewsApi, type Booking } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 export default function BookingDetailPage() {
@@ -14,8 +14,6 @@ export default function BookingDetailPage() {
   const [loading, setLoading] = useState(true);
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
   const [showReview, setShowReview] = useState(false);
-  const [showMessage, setShowMessage] = useState(false);
-  const [messageText, setMessageText] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelWarning, setCancelWarning] = useState('');
 
@@ -58,21 +56,6 @@ export default function BookingDetailPage() {
       setShowReview(false);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to submit review');
-    }
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!booking || !messageText.trim()) return;
-    try {
-      // Send to the place owner (host)
-      const hostId = booking.place_user_id || booking.user_id;
-      await chatApi.send({ receiver_id: hostId, content: messageText, booking_id: booking.id });
-      setMessageText('');
-      setShowMessage(false);
-      alert('Message sent!');
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to send message');
     }
   };
 
@@ -159,7 +142,10 @@ export default function BookingDetailPage() {
           {booking.place_id && (
             <Link href={`/place/${booking.place_id}`} className="btn-secondary py-2 px-4 text-sm">View Place</Link>
           )}
-          <button onClick={() => setShowMessage(true)} className="btn-secondary py-2 px-4 text-sm">Message Host</button>
+          <button onClick={() => {
+            const hostId = booking.place_user_id || booking.user_id;
+            router.push(`/dashboard/messages/${hostId}?booking=${booking.id}`);
+          }} className="btn-secondary py-2 px-4 text-sm">Message Host</button>
           {isPast && booking.status === 'completed' && (
             <button onClick={() => setShowReview(true)} className="btn-primary py-2 px-4 text-sm">Leave Review</button>
           )}
@@ -168,22 +154,6 @@ export default function BookingDetailPage() {
           )}
         </div>
       </div>
-
-      {/* Message modal */}
-      {showMessage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowMessage(false)}>
-          <div className="bg-white rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Message Host</h3>
-            <form onSubmit={handleSendMessage} className="space-y-4">
-              <textarea value={messageText} onChange={e => setMessageText(e.target.value)} placeholder="Type your message..." rows={4} required className="bg-white border-gray-300 text-gray-900" />
-              <div className="flex gap-3 justify-end">
-                <button type="button" onClick={() => setShowMessage(false)} className="btn-secondary py-2 px-4 text-sm">Cancel</button>
-                <button type="submit" className="btn-primary py-2 px-4 text-sm">Send</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Review modal */}
       {showReview && (
