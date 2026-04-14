@@ -71,7 +71,7 @@ export default function ReferralsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Referrals</h1>
-      <p className="text-gray-500">Earn rewards by referring friends to Proper Place.</p>
+      <p className="text-gray-500">Earn rewards by referring other landowners to Proper Place.</p>
 
       {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
 
