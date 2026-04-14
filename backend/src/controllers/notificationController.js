@@ -51,11 +51,17 @@ async function getNotificationCounts(req, res, next) {
     const effectiveRole = (userRole === 'admin' && mode === 'host') ? 'host' : userRole;
 
     if (effectiveRole === 'admin') {
-      // Admin sees all pending bookings
-      const bookingsResult = await db.query(
+      // Admin: platform-wide pending bookings go to adminPendingBookings (for admin section)
+      const allBookingsResult = await db.query(
         `SELECT COUNT(*) as count FROM bookings WHERE status IN ('pending', 'confirmed')`
       );
-      counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);
+      counts.adminPendingBookings = parseInt(allBookingsResult.rows[0]?.count || 0);
+      // Admin's own unseen bookings (for "My Bookings" badge)
+      const ownBookingsResult = await db.query(
+        `SELECT COUNT(*) as count FROM bookings WHERE user_id = $1 AND status = 'pending' AND (user_seen = false OR user_seen IS NULL)`,
+        [userId]
+      );
+      counts.pendingBookings = parseInt(ownBookingsResult.rows[0]?.count || 0);
     } else if (effectiveRole === 'host') {
       // Host sees unseen bookings for their places
       const bookingsResult = await db.query(

@@ -429,6 +429,7 @@ export interface Message {
 export interface NotificationCounts {
   unreadMessages: number;
   pendingBookings: number;
+  adminPendingBookings?: number;
   pendingApprovals?: number;
   siteSubmissions?: number;
 }
