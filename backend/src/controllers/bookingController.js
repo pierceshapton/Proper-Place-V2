@@ -464,6 +464,34 @@ async function createBooking(req, res, next) {
 
     logger.info('Booking created', { userId, bookingId: result.rows[0].id });
 
+    // Update Stripe payment intent with booking reference and metadata
+    if (data.payment_intent_id) {
+      setImmediate(async () => {
+        try {
+          const userRes = await db.query('SELECT name, email FROM users WHERE id = $1', [userId]);
+          const placeRes = await db.query('SELECT name FROM places WHERE id = $1', [data.place_id]);
+          await stripe.paymentIntents.update(data.payment_intent_id, {
+            metadata: {
+              booking_ref: bookingRef,
+              booking_id: String(result.rows[0].id),
+              guest_id: String(userId),
+              guest_name: userRes.rows[0]?.name || '',
+              guest_email: userRes.rows[0]?.email || '',
+              place_name: placeRes.rows[0]?.name || '',
+              check_in: data.check_in_date,
+              check_out: data.check_out_date,
+              nights: String(nights),
+              total_price: String(totalPrice),
+            },
+            description: `Booking ${bookingRef} - ${placeRes.rows[0]?.name || 'Proper Place'}`,
+          });
+          logger.info('Stripe payment intent updated with booking ref', { bookingRef, paymentIntentId: data.payment_intent_id });
+        } catch (e) {
+          logger.error('Failed to update Stripe payment intent metadata', { error: e.message, paymentIntentId: data.payment_intent_id });
+        }
+      });
+    }
+
     // Notify host about the new booking request (fire-and-forget)
     if (data.place_id) {
       setImmediate(async () => {
