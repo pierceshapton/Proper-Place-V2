@@ -147,6 +147,7 @@ export const bookingsApi = {
   approve: (id: number) => api(`/bookings/${id}/approve`, { method: 'PUT' }),
   reject: (id: number, reason: string) => api(`/bookings/${id}/reject`, { method: 'PUT', body: { reason } }),
   markSeen: (ids: number[]) => api('/bookings/host/mark-seen', { method: 'PUT', body: { bookingIds: ids } }),
+  markUserSeen: () => api('/bookings/user/mark-seen', { method: 'PUT' }),
   hostDashboard: () => api<{ dashboard: HostDashboard }>('/bookings/host/dashboard'),
   availability: (placeId: number) => api(`/bookings/availability/place/${placeId}`, { auth: false }),
   guestReview: (id: number, data: { rating: number; title?: string; comment?: string; photo_urls?: string[] }) =>

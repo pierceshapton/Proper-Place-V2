@@ -118,6 +118,7 @@ export default function HostBookingsPage() {
     try {
       const data = await bookingsApi.hostBookings();
       setBookings(data.bookings || data as unknown as Booking[]);
+      bookingsApi.markSeen([]).catch(() => {});
     } catch { /* empty */ }
     setLoading(false);
   };

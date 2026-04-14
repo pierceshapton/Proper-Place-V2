@@ -448,8 +448,8 @@ async function createBooking(req, res, next) {
                              check_in_time, check_out_time,
                              number_of_nights, total_price, status,
                              early_checkin_fee, late_checkout_fee,
-                             van_registration, contact_phone, special_requests, host_seen, booking_ref, payment_intent_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, $16, $17)
+                             van_registration, contact_phone, special_requests, host_seen, user_seen, booking_ref, payment_intent_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, false, $16, $17)
        RETURNING *`,
       [
         userId,
@@ -968,6 +968,27 @@ async function markBookingsSeen(req, res, next) {
     return res.json({ message: 'Bookings marked as seen', count: result.rows.length });
   } catch (error) {
     logger.error('Error marking bookings as seen', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * PUT /bookings/user/mark-seen
+ * Mark all pending bookings for the user as seen
+ */
+async function markUserBookingsSeen(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    const result = await db.query(
+      `UPDATE bookings SET user_seen = true WHERE user_id = $1 AND (user_seen = false OR user_seen IS NULL) RETURNING id`,
+      [userId]
+    );
+
+    logger.info('User bookings marked as seen', { userId, count: result.rows.length });
+    return res.json({ message: 'Bookings marked as seen', count: result.rows.length });
+  } catch (error) {
+    logger.error('Error marking user bookings as seen', { error: error.message });
     next(error);
   }
 }
@@ -1761,6 +1782,133 @@ async function getBookingExtensions(req, res, next) {
   }
 }
 
+/**
+ * GET /bookings/host/dashboard
+ * Aggregated stats for host dashboard
+ */
+async function getHostDashboard(req, res, next) {
+  try {
+    const userId = req.user.userId;
+
+    // All queries scoped to places owned by this host
+    const [
+      placeStats,
+      bookingStats,
+      earningsResult,
+      recentBookings,
+      reviewStats,
+      upcomingBookings,
+    ] = await Promise.all([
+      // Place counts by status
+      db.query(
+        `SELECT 
+           COUNT(*) FILTER (WHERE deleted_at IS NULL) as total_places,
+           COUNT(*) FILTER (WHERE approval_status = 'approved' AND deleted_at IS NULL) as approved_places,
+           COUNT(*) FILTER (WHERE approval_status = 'pending' AND deleted_at IS NULL) as pending_places
+         FROM places WHERE owner_id = $1`,
+        [userId]
+      ),
+      // Booking counts by status
+      db.query(
+        `SELECT 
+           COUNT(*) as total_bookings,
+           COUNT(*) FILTER (WHERE b.status = 'pending') as pending_bookings,
+           COUNT(*) FILTER (WHERE b.status = 'confirmed') as confirmed_bookings,
+           COUNT(*) FILTER (WHERE b.status = 'completed') as completed_bookings,
+           COUNT(*) FILTER (WHERE b.status IN ('cancelled','Cancelled')) as cancelled_bookings,
+           COUNT(*) FILTER (WHERE b.status = 'confirmed' AND b.check_in_date <= CURRENT_DATE AND b.check_out_date >= CURRENT_DATE) as active_now
+         FROM bookings b
+         JOIN places p ON b.place_id = p.id
+         WHERE p.owner_id = $1`,
+        [userId]
+      ),
+      // Earnings: total, paid out, pending (host gets 85%)
+      db.query(
+        `SELECT 
+           COALESCE(SUM(b.total_price::numeric), 0) as gross_revenue,
+           COALESCE(SUM(b.total_price::numeric) * 0.85, 0) as host_earnings,
+           COALESCE(SUM(CASE WHEN b.host_payout_status = 'paid' THEN b.total_price::numeric * 0.85 ELSE 0 END), 0) as paid_out,
+           COALESCE(SUM(CASE WHEN b.status IN ('confirmed','completed') AND (b.host_payout_status IS NULL OR b.host_payout_status != 'paid') THEN b.total_price::numeric * 0.85 ELSE 0 END), 0) as pending_payout
+         FROM bookings b
+         JOIN places p ON b.place_id = p.id
+         WHERE p.owner_id = $1 AND b.status NOT IN ('cancelled','Cancelled','rejected','Rejected')`,
+        [userId]
+      ),
+      // Recent 5 bookings
+      db.query(
+        `SELECT b.id, b.booking_ref, b.status, b.total_price, b.check_in_date, b.check_out_date, b.created_at,
+                u.name as guest_name, p.name as place_name
+         FROM bookings b
+         JOIN places p ON b.place_id = p.id
+         LEFT JOIN users u ON b.user_id = u.id
+         WHERE p.owner_id = $1
+         ORDER BY b.created_at DESC LIMIT 5`,
+        [userId]
+      ),
+      // Review stats across all host's places
+      db.query(
+        `SELECT 
+           COUNT(r.id) as total_reviews,
+           ROUND(AVG(r.rating)::numeric, 1) as average_rating
+         FROM reviews r
+         JOIN places p ON r.place_id = p.id
+         WHERE p.owner_id = $1`,
+        [userId]
+      ),
+      // Upcoming check-ins (next 7 days)
+      db.query(
+        `SELECT b.id, b.booking_ref, b.check_in_date, b.check_out_date,
+                u.name as guest_name, p.name as place_name
+         FROM bookings b
+         JOIN places p ON b.place_id = p.id
+         LEFT JOIN users u ON b.user_id = u.id
+         WHERE p.owner_id = $1 AND b.status = 'confirmed'
+           AND b.check_in_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+         ORDER BY b.check_in_date ASC LIMIT 10`,
+        [userId]
+      ),
+    ]);
+
+    const ps = placeStats.rows[0];
+    const bs = bookingStats.rows[0];
+    const es = earningsResult.rows[0];
+    const rs = reviewStats.rows[0];
+
+    res.json({
+      dashboard: {
+        places: {
+          total: parseInt(ps.total_places),
+          approved: parseInt(ps.approved_places),
+          pending: parseInt(ps.pending_places),
+        },
+        bookings: {
+          total: parseInt(bs.total_bookings),
+          pending: parseInt(bs.pending_bookings),
+          confirmed: parseInt(bs.confirmed_bookings),
+          completed: parseInt(bs.completed_bookings),
+          cancelled: parseInt(bs.cancelled_bookings),
+          active_now: parseInt(bs.active_now),
+        },
+        earnings: {
+          gross_revenue: parseFloat(es.gross_revenue),
+          host_earnings: parseFloat(es.host_earnings),
+          paid_out: parseFloat(es.paid_out),
+          pending_payout: parseFloat(es.pending_payout),
+        },
+        reviews: {
+          total: parseInt(rs.total_reviews) || 0,
+          average_rating: parseFloat(rs.average_rating) || 0,
+        },
+        recent_bookings: recentBookings.rows,
+        upcoming_checkins: upcomingBookings.rows,
+      },
+    });
+  } catch (error) {
+    logger.error('Get host dashboard error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetail,
@@ -1772,7 +1920,9 @@ module.exports = {
   getPlaceAvailability,
   getAllBookings,
   getHostBookings,
+  getHostDashboard,
   markBookingsSeen,
+  markUserBookingsSeen,
   searchBookings,
   createGuestReview,
   getGuestRating,

@@ -799,6 +799,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 33 error:', err.message);
     }
 
+    // Migration 34: Add user_seen column to bookings table (for clearing user notification badges)
+    try {
+      console.log('[SERVER] Running migration 34: bookings user_seen column...');
+      await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS user_seen BOOLEAN DEFAULT true`);
+      console.log('[SERVER] ✅ Migration 34 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 34 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

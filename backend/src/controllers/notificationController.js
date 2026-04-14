@@ -66,9 +66,9 @@ async function getNotificationCounts(req, res, next) {
       );
       counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);
     } else {
-      // User sees their own pending bookings
+      // User sees their own unseen pending bookings
       const bookingsResult = await db.query(
-        `SELECT COUNT(*) as count FROM bookings WHERE user_id = $1 AND status = 'pending'`,
+        `SELECT COUNT(*) as count FROM bookings WHERE user_id = $1 AND status = 'pending' AND (user_seen = false OR user_seen IS NULL)`,
         [userId]
       );
       counts.pendingBookings = parseInt(bookingsResult.rows[0]?.count || 0);

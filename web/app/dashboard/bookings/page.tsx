@@ -13,7 +13,10 @@ export default function BookingsPage() {
 
   useEffect(() => {
     bookingsApi.list()
-      .then(data => setBookings(data.bookings || []))
+      .then(data => {
+        setBookings(data.bookings || []);
+        bookingsApi.markUserSeen().catch(() => {});
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

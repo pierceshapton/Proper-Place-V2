@@ -16,7 +16,9 @@ router.get('/place/:placeId', bookingController.getPlaceBookings);
 router.get('/all', authMiddleware, bookingController.getAllBookings); // Admin: all bookings
 router.get('/search', authMiddleware, bookingController.searchBookings); // Admin: search bookings
 router.get('/host/my-bookings', authMiddleware, bookingController.getHostBookings); // Host: bookings for their places
+router.get('/host/dashboard', authMiddleware, bookingController.getHostDashboard); // Host: dashboard stats
 router.put('/host/mark-seen', authMiddleware, bookingController.markBookingsSeen); // Host: mark bookings as seen
+router.put('/user/mark-seen', authMiddleware, bookingController.markUserBookingsSeen); // User: mark bookings as seen
 router.get('/guest-rating/:userId(\\d+)', authMiddleware, bookingController.getGuestRating);
 router.get('/', authMiddleware, bookingController.getBookings);
 router.get('/:id(\\d+)', authMiddleware, bookingController.getBookingDetail);
