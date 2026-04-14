@@ -90,6 +90,23 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
     }
   }
 
+  /// Check if any night in [checkIn, checkOut) overlaps with user's existing booking nights.
+  /// A "night" is the check-in date through check-out-1 of each booking.
+  /// Checkout boundaries of existing bookings are NOT nights (user is leaving that day).
+  bool _rangeHasUserBookedNights(DateTime checkIn, DateTime checkOut) {
+    var night = checkIn;
+    while (night.isBefore(checkOut)) {
+      final isBooked = widget.userBookedDates?.contains(night) ?? false;
+      final isCheckoutBoundary = widget.userCheckoutDates?.contains(night) ?? false;
+      // A date that's booked but is ONLY a checkout boundary is not a real night
+      if (isBooked && !isCheckoutBoundary) {
+        return true;
+      }
+      night = night.add(const Duration(days: 1));
+    }
+    return false;
+  }
+
   void _onDateTapped(DateTime date) {
     setState(() {
       if (_selectedCheckIn == null || (_selectedCheckIn != null && _selectedCheckOut != null)) {
@@ -99,7 +116,14 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
       } else {
         // Second tap — set checkout
         if (date.isAfter(_selectedCheckIn!)) {
-          _selectedCheckOut = date;
+          // Validate range: no existing booking nights between check-in and check-out
+          if (_rangeHasUserBookedNights(_selectedCheckIn!, date)) {
+            // Range overlaps existing bookings — restart with this date
+            _selectedCheckIn = date;
+            _selectedCheckOut = null;
+          } else {
+            _selectedCheckOut = date;
+          }
         } else if (date.isBefore(_selectedCheckIn!)) {
           // Tapped before check-in — restart
           _selectedCheckIn = date;
@@ -315,6 +339,7 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
     final isToday = dateOnly == DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
     final isUserBooked = widget.userBookedDates?.contains(dateOnly) ?? false;
     final isUserCheckout = widget.userCheckoutDates?.contains(dateOnly) ?? false;
+    final isUserCheckinDay = widget.userCheckinHours?.containsKey(dateOnly) ?? false;
 
     // Selection state
     final isCheckIn = _selectedCheckIn != null && dateOnly == _selectedCheckIn;
@@ -325,7 +350,9 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
         dateOnly.isBefore(_selectedCheckOut!);
     final isInRange = isCheckIn || isCheckOut || isBetween;
 
-    final canSelect = !isPast && !isFull && !isUserBooked;
+    // Allow boundary dates: checkout day of existing booking (can be new check-in),
+    // check-in day of existing booking (can be new check-out)
+    final canSelect = !isPast && !isFull && (!isUserBooked || isUserCheckout || isUserCheckinDay);
 
     // --- Colours ---
     const greenBooked = Color(0xFF7BA7D8); // App blue for booked dates

@@ -90,6 +90,7 @@ export default function BookPlacePage() {
   const [error, setError] = useState('');
   const [step, setStep] = useState<'details' | 'payment' | 'success'>('details');
   const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
+  const [userBookingBoundaries, setUserBookingBoundaries] = useState<string[]>([]);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [form, setForm] = useState({
     check_in: '', check_out: '', special_requests: '',
@@ -112,14 +113,18 @@ export default function BookPlacePage() {
         } catch { /* empty */ }
 
         // Fetch user's existing bookings and block those dates too
+        const boundaries: string[] = [];
         try {
           const { bookings } = await bookingsApi.list();
           const activeBookings = (bookings || []).filter(
-            (b: Booking) => !['cancelled', 'Cancelled'].includes(b.status)
+            (b: Booking) => !['cancelled', 'Cancelled', 'rejected', 'Rejected'].includes(b.status)
           );
           for (const b of activeBookings) {
             const start = new Date(b.check_in_date || b.check_in);
             const end = new Date(b.check_out_date || b.check_out);
+            const startStr = start.toISOString().split('T')[0];
+            // Track check-in dates as boundaries (can be used as checkout for new booking)
+            if (!boundaries.includes(startStr)) boundaries.push(startStr);
             for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
               const ds = d.toISOString().split('T')[0];
               if (!blocked.includes(ds)) blocked.push(ds);
@@ -128,6 +133,7 @@ export default function BookPlacePage() {
         } catch { /* user bookings fetch failed – continue without */ }
 
         setUnavailableDates(blocked);
+        setUserBookingBoundaries(boundaries);
       } catch { router.push('/'); }
       setLoading(false);
     })();
@@ -148,11 +154,14 @@ export default function BookPlacePage() {
     if (nights < 1) return 'Check-out must be after check-in.';
     const today = new Date().toISOString().split('T')[0];
     if (form.check_in < today) return 'Check-in cannot be in the past.';
-    // Check if any selected dates are unavailable
+    // Check if any selected NIGHTS are unavailable (nights = check_in to check_out - 1)
+    // Checkout date is NOT a night, so skip it. Also skip boundary dates that are
+    // check-in days of existing bookings (allowed as checkout targets).
     const start = new Date(form.check_in);
     const end = new Date(form.check_out);
     for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-      if (isDateUnavailable(d.toISOString().split('T')[0])) {
+      const ds = d.toISOString().split('T')[0];
+      if (isDateUnavailable(ds)) {
         return `The date ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} is not available — you may already have a booking for these dates.`;
       }
     }
@@ -247,6 +256,7 @@ export default function BookPlacePage() {
                 checkIn={form.check_in}
                 checkOut={form.check_out}
                 unavailableDates={unavailableDates}
+                checkoutAllowedDates={userBookingBoundaries}
                 onSelect={(ci, co) => setForm(f => ({ ...f, check_in: ci, check_out: co }))}
               />
               {unavailableDates.length > 0 && (

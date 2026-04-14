@@ -356,6 +356,229 @@ class BookingDetailScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _requestExtendStay(BuildContext context) async {
+    final checkInStr = booking['check_in']?.toString() ?? '';
+    final checkOutStr = booking['check_out']?.toString() ?? '';
+    final bookingId = booking['booking_id']?.toString() ?? '';
+    
+    if (checkInStr.isEmpty || checkOutStr.isEmpty || bookingId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing booking information'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    DateTime currentCheckIn = DateTime.parse(checkInStr);
+    DateTime currentCheckOut = DateTime.parse(checkOutStr);
+    DateTime? newCheckIn = currentCheckIn;
+    DateTime? newCheckOut = currentCheckOut;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final origNights = currentCheckOut.difference(currentCheckIn).inDays;
+            final newNights = (newCheckOut ?? currentCheckOut).difference(newCheckIn ?? currentCheckIn).inDays;
+            final additionalNights = newNights - origNights;
+            final priceRaw = place.pricePerNight;
+            final pricePerNight = priceRaw is String ? double.tryParse(priceRaw) ?? 0.0 : (priceRaw is num ? priceRaw.toDouble() : 0.0);
+            final additionalCost = additionalNights * pricePerNight;
+
+            return AlertDialog(
+              title: const Text('Extend Your Stay'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Current: ${_formatDate(checkInStr)} → ${_formatDate(checkOutStr)} ($origNights nights)',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                    const SizedBox(height: 16),
+                    
+                    // Earlier check-in
+                    const Text('New Check-in:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: newCheckIn ?? currentCheckIn,
+                          firstDate: DateTime.now(),
+                          lastDate: currentCheckIn,
+                        );
+                        if (picked != null) {
+                          setDialogState(() => newCheckIn = picked);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _formatDate(newCheckIn!.toIso8601String()),
+                              style: TextStyle(
+                                fontWeight: newCheckIn != currentCheckIn ? FontWeight.bold : FontWeight.normal,
+                                color: newCheckIn != currentCheckIn ? Colors.green[700] : Colors.black,
+                              ),
+                            ),
+                            const Icon(Icons.calendar_today, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Later check-out
+                    const Text('New Check-out:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: newCheckOut ?? currentCheckOut,
+                          firstDate: currentCheckOut,
+                          lastDate: currentCheckOut.add(const Duration(days: 90)),
+                        );
+                        if (picked != null) {
+                          setDialogState(() => newCheckOut = picked);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _formatDate(newCheckOut!.toIso8601String()),
+                              style: TextStyle(
+                                fontWeight: newCheckOut != currentCheckOut ? FontWeight.bold : FontWeight.normal,
+                                color: newCheckOut != currentCheckOut ? Colors.green[700] : Colors.black,
+                              ),
+                            ),
+                            const Icon(Icons.calendar_today, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    if (additionalNights > 0) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Additional nights:', style: TextStyle(fontSize: 13)),
+                                Text('$additionalNights', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Additional cost:', style: TextStyle(fontSize: 13)),
+                                Text('£${additionalCost.toStringAsFixed(2)}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    
+                    const SizedBox(height: 12),
+                    Text(
+                      'The host will need to approve this extension request.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: additionalNights > 0
+                    ? () async {
+                        Navigator.pop(ctx);
+                        await _submitExtensionRequest(context, bookingId, newCheckIn!, newCheckOut!);
+                      }
+                    : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7BA7D8),
+                  ),
+                  child: const Text('Request Extension', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _submitExtensionRequest(BuildContext context, String bookingId, DateTime newCheckIn, DateTime newCheckOut) async {
+    try {
+      final token = await StorageService.getToken();
+      final response = await http.post(
+        Uri.parse('${AppConfig.properPlaceBackendUrl}/bookings/$bookingId/extend'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'new_check_in_date': newCheckIn.toIso8601String().split('T')[0],
+          'new_check_out_date': newCheckOut.toIso8601String().split('T')[0],
+        }),
+      );
+
+      if (!context.mounted) return;
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Extension request submitted!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        final data = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Failed to submit extension request'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final checkIn = _formatDate(booking['check_in']);
@@ -704,6 +927,20 @@ class BookingDetailScreen extends StatelessWidget {
                   if ((booking['status']?.toLowerCase() == 'confirmed' || booking['status']?.toLowerCase() == 'pending') &&
                       _isUpcoming(booking['check_out']))
                     ...[
+                      // Extend Stay button
+                      ElevatedButton.icon(
+                        onPressed: () => _requestExtendStay(context),
+                        icon: const Icon(Icons.date_range, size: 18),
+                        label: const Text('Extend Stay'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[50],
+                          foregroundColor: Colors.green[700],
+                          side: BorderSide(color: Colors.green[300]!),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       ElevatedButton(
                         onPressed: () => _cancelBooking(context),
                         style: ElevatedButton.styleFrom(

@@ -5,10 +5,11 @@ interface BookingCalendarProps {
   checkIn: string;
   checkOut: string;
   unavailableDates: string[];
+  checkoutAllowedDates?: string[]; // dates that are unavailable but can be selected as checkout
   onSelect: (checkIn: string, checkOut: string) => void;
 }
 
-export default function BookingCalendar({ checkIn, checkOut, unavailableDates, onSelect }: BookingCalendarProps) {
+export default function BookingCalendar({ checkIn, checkOut, unavailableDates, checkoutAllowedDates = [], onSelect }: BookingCalendarProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -16,6 +17,7 @@ export default function BookingCalendar({ checkIn, checkOut, unavailableDates, o
   const [selecting, setSelecting] = useState<'checkin' | 'checkout'>(checkIn ? 'checkout' : 'checkin');
 
   const unavailableSet = useMemo(() => new Set(unavailableDates), [unavailableDates]);
+  const checkoutAllowedSet = useMemo(() => new Set(checkoutAllowedDates), [checkoutAllowedDates]);
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sun
@@ -27,25 +29,31 @@ export default function BookingCalendar({ checkIn, checkOut, unavailableDates, o
     const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dateObj = new Date(dateStr);
     if (dateObj < today) return;
-    if (unavailableSet.has(dateStr)) return;
 
     if (selecting === 'checkin') {
+      // Check-in: must not be unavailable (unless it's a checkout-allowed boundary - but those
+      // are only for checkout targets, not check-in targets)
+      if (unavailableSet.has(dateStr)) return;
       onSelect(dateStr, '');
       setSelecting('checkout');
     } else {
       if (dateStr <= checkIn) {
         // If user picks a date before or same as check-in, reset
+        if (unavailableSet.has(dateStr) && !checkoutAllowedSet.has(dateStr)) return;
         onSelect(dateStr, '');
         setSelecting('checkout');
       } else {
-        // Check no unavailable dates in range
+        // Check-out selection: validate that no NIGHTS (check_in to check_out-1) are unavailable
         const start = new Date(checkIn);
         let hasConflict = false;
-        for (let d = new Date(start); d <= dateObj; d.setDate(d.getDate() + 1)) {
+        for (let d = new Date(start); d < dateObj; d.setDate(d.getDate() + 1)) {
           if (unavailableSet.has(toDateStr(d))) { hasConflict = true; break; }
         }
         if (hasConflict) {
-          onSelect(dateStr, '');
+          // Range has blocked nights - reset to this date as check-in if allowed
+          if (!unavailableSet.has(dateStr) || checkoutAllowedSet.has(dateStr)) {
+            onSelect(dateStr, '');
+          }
           setSelecting('checkout');
         } else {
           onSelect(checkIn, dateStr);
@@ -101,7 +109,9 @@ export default function BookingCalendar({ checkIn, checkOut, unavailableDates, o
           const dateObj = new Date(dateStr);
           const isPast = dateObj < today;
           const isUnavailable = unavailableSet.has(dateStr);
-          const disabled = isPast || isUnavailable;
+          const isCheckoutAllowed = checkoutAllowedSet.has(dateStr);
+          // Allow clicking checkout-allowed dates when selecting checkout
+          const disabled = isPast || (isUnavailable && !(selecting === 'checkout' && isCheckoutAllowed));
           const selected = isCheckIn(day) || isCheckOut(day);
           const inRange = isInRange(day);
 

@@ -34,6 +34,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
   // Real bookings data - loaded from API
   Map<DateTime, List<Map<String, dynamic>>> _bookingsByDate = {};
   Map<int, int> _unreadByBooking = {};
+  Map<int, List<dynamic>> _pendingExtensions = {};
   Timer? _unreadPollingTimer;
 
   @override
@@ -129,6 +130,9 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
         _bookingsByDate = bookingsByDate;
         _isLoading = false;
       });
+
+      // Load pending extensions in background
+      _loadPendingExtensions();
     } catch (e) {
       final errorMessage = e.toString();
       setState(() {
@@ -161,6 +165,37 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
       return 'Cancelled';
     }
     return 'Pending';
+  }
+
+  Future<void> _loadPendingExtensions() async {
+    try {
+      final allBookingIds = <int>{};
+      for (final dateBookings in _bookingsByDate.values) {
+        for (final b in dateBookings) {
+          final id = b['id'];
+          if (id is int) allBookingIds.add(id);
+          else if (id is String) {
+            final parsed = int.tryParse(id);
+            if (parsed != null) allBookingIds.add(parsed);
+          }
+        }
+      }
+
+      final extMap = <int, List<dynamic>>{};
+      for (final bookingId in allBookingIds) {
+        try {
+          final extensions = await ApiService.getBookingExtensions(bookingId: bookingId.toString());
+          final pending = extensions.where((e) => e['status'] == 'pending').toList();
+          if (pending.isNotEmpty) {
+            extMap[bookingId] = pending;
+          }
+        } catch (_) {}
+      }
+
+      if (mounted) {
+        setState(() => _pendingExtensions = extMap);
+      }
+    } catch (_) {}
   }
 
   String _formatPrice(dynamic price) {
@@ -1089,6 +1124,14 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
               ),
             ],
           ),
+
+          // Extension request banner
+          if (_pendingExtensions[_bookingIdInt(booking)]?.isNotEmpty ?? false)
+            ...[
+              const SizedBox(height: 8),
+              _buildExtensionBanner(booking),
+            ],
+
           const SizedBox(height: 12),
 
           // Amount and unread badge
@@ -1440,6 +1483,137 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     final id = booking['id'];
     if (id is int) return id;
     return int.tryParse(id.toString()) ?? 0;
+  }
+
+  Widget _buildExtensionBanner(Map<String, dynamic> booking) {
+    final extensions = _pendingExtensions[_bookingIdInt(booking)] ?? [];
+    if (extensions.isEmpty) return const SizedBox.shrink();
+
+    final ext = extensions.first;
+    final newCheckIn = ext['requested_check_in']?.toString() ?? '';
+    final newCheckOut = ext['requested_check_out']?.toString() ?? '';
+    final additionalNights = ext['additional_nights'] ?? 0;
+    final additionalPrice = double.tryParse(ext['additional_price']?.toString() ?? '0') ?? 0;
+    final extId = ext['id']?.toString() ?? '';
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.date_range, size: 16, color: Colors.orange.shade700),
+              const SizedBox(width: 6),
+              Text(
+                'Extension Request',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.orange.shade900),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '+$additionalNights night${additionalNights > 1 ? 's' : ''} (£${additionalPrice.toStringAsFixed(2)})',
+            style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
+          ),
+          Text(
+            'New dates: ${_formatDateStr(newCheckIn)} → ${_formatDateStr(newCheckOut)}',
+            style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 32,
+                  child: OutlinedButton(
+                    onPressed: () => _handleExtensionApprove(extId, booking),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF10B981),
+                      side: const BorderSide(color: Color(0xFF10B981)),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    child: const Text('Approve', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: 32,
+                  child: OutlinedButton(
+                    onPressed: () => _handleExtensionReject(extId, booking),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: const BorderSide(color: Color(0xFFEF4444)),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    child: const Text('Decline', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateStr(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day} ${_monthNameShort(date.month)}';
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
+  String _monthNameShort(int month) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[month - 1];
+  }
+
+  Future<void> _handleExtensionApprove(String extId, Map<String, dynamic> booking) async {
+    try {
+      await ApiService.approveExtension(extensionId: extId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Extension approved! Booking dates updated.'), backgroundColor: Color(0xFF10B981)),
+        );
+        _loadHostBookings();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleExtensionReject(String extId, Map<String, dynamic> booking) async {
+    try {
+      await ApiService.rejectExtension(extensionId: extId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Extension request declined.'), backgroundColor: Color(0xFFEF4444)),
+        );
+        _loadPendingExtensions();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _showCancelBookingDialog(Map<String, dynamic> booking) {

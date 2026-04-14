@@ -773,6 +773,32 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 32 error:', err.message);
     }
 
+    // Migration 33: Create booking_extensions table for extend stay requests
+    try {
+      console.log('[SERVER] Running migration 33: booking_extensions table...');
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS booking_extensions (
+          id SERIAL PRIMARY KEY,
+          booking_id INTEGER NOT NULL REFERENCES bookings(id),
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          original_check_in DATE NOT NULL,
+          original_check_out DATE NOT NULL,
+          requested_check_in DATE NOT NULL,
+          requested_check_out DATE NOT NULL,
+          additional_nights INTEGER NOT NULL,
+          additional_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+          payment_intent_id TEXT,
+          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+          host_response_note TEXT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      console.log('[SERVER] ✅ Migration 33 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 33 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

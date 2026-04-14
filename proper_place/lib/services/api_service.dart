@@ -643,6 +643,39 @@ class ApiService {
     );
   }
 
+  /// Get extension requests for a booking
+  static Future<List<dynamic>> getBookingExtensions({
+    required String bookingId,
+  }) async {
+    final response = await _request(
+      method: 'GET',
+      endpoint: '/bookings/$bookingId/extensions',
+    );
+    return response['extensions'] ?? [];
+  }
+
+  /// Host approves an extension request
+  static Future<Map<String, dynamic>> approveExtension({
+    required String extensionId,
+  }) async {
+    return _request(
+      method: 'PUT',
+      endpoint: '/bookings/extensions/$extensionId/approve',
+    );
+  }
+
+  /// Host rejects an extension request
+  static Future<Map<String, dynamic>> rejectExtension({
+    required String extensionId,
+    String? reason,
+  }) async {
+    return _request(
+      method: 'PUT',
+      endpoint: '/bookings/extensions/$extensionId/reject',
+      body: reason != null ? {'reason': reason} : null,
+    );
+  }
+
   /// Create payment intent with Stripe
   static Future<Map<String, dynamic>> createPaymentIntent({
     required int amount,

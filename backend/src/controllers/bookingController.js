@@ -313,7 +313,7 @@ async function createBooking(req, res, next) {
       `SELECT id, booking_ref, check_in_date, check_out_date, place_id, pub_id
        FROM bookings
        WHERE user_id = $1
-         AND status NOT IN ('cancelled', 'Cancelled')
+         AND status NOT IN ('cancelled', 'Cancelled', 'rejected', 'Rejected')
          AND check_in_date < $3
          AND check_out_date > $2`,
       [userId, data.check_in_date, data.check_out_date]
@@ -326,6 +326,15 @@ async function createBooking(req, res, next) {
       const msg = isSamePlace
         ? 'You already have an active booking at this site for those dates.'
         : 'You already have a booking for overlapping dates. You can only have one booking at a time.';
+      logger.warn('Booking overlap detected', {
+        userId,
+        existingBookingId: existing.id,
+        existingRef: existing.booking_ref,
+        existingCheckIn: existing.check_in_date,
+        existingCheckOut: existing.check_out_date,
+        newCheckIn: data.check_in_date,
+        newCheckOut: data.check_out_date,
+      });
       return res.status(409).json({
         error: 'duplicate_booking',
         message: msg,
@@ -721,12 +730,12 @@ async function getPlaceAvailability(req, res, next) {
       ? new Date(to_date)
       : new Date(new Date(startDate).setDate(startDate.getDate() + parseInt(num_days)));
 
-    // Get all bookings in date range (only count confirmed/completed bookings)
+    // Get all bookings in date range (count pending, confirmed, completed bookings)
     const bookingsResult = await db.query(
       `SELECT check_in_date, check_out_date, status
        FROM bookings 
        WHERE place_id = $1 
-         AND status IN ('confirmed', 'Completed')
+         AND status NOT IN ('cancelled', 'Cancelled', 'rejected', 'Rejected')
          AND check_out_date > $2
          AND check_in_date <= $3
        ORDER BY check_in_date ASC`,
@@ -1391,6 +1400,366 @@ async function cancelBooking(req, res, next) {
   }
 }
 
+/**
+ * POST /bookings/:id/extend
+ * Request a stay extension (earlier check-in or later check-out)
+ * Subject to host approval
+ */
+async function requestExtension(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+    const { new_check_in_date, new_check_out_date } = req.body;
+
+    if (!new_check_in_date && !new_check_out_date) {
+      return res.status(400).json({
+        error: 'missing_dates',
+        message: 'Please provide new check-in or check-out date.',
+      });
+    }
+
+    // Get the existing booking
+    const bookingRes = await db.query(
+      `SELECT b.*, p.owner_id as host_id, p.price_per_night, p.name as place_name, p.capacity
+       FROM bookings b
+       JOIN places p ON p.id = b.place_id
+       WHERE b.id = $1 AND b.user_id = $2`,
+      [id, userId]
+    );
+
+    if (bookingRes.rows.length === 0) {
+      return res.status(404).json({ error: 'not_found', message: 'Booking not found.' });
+    }
+
+    const booking = bookingRes.rows[0];
+
+    if (!['confirmed', 'pending'].includes(booking.status.toLowerCase())) {
+      return res.status(400).json({
+        error: 'invalid_status',
+        message: 'Only confirmed or pending bookings can be extended.',
+      });
+    }
+
+    // Check for existing pending extension
+    const existingExt = await db.query(
+      `SELECT id FROM booking_extensions WHERE booking_id = $1 AND status = 'pending'`,
+      [id]
+    );
+    if (existingExt.rows.length > 0) {
+      return res.status(409).json({
+        error: 'extension_pending',
+        message: 'You already have a pending extension request for this booking.',
+      });
+    }
+
+    const origCheckIn = booking.check_in_date.toISOString().split('T')[0];
+    const origCheckOut = booking.check_out_date.toISOString().split('T')[0];
+    const reqCheckIn = new_check_in_date || origCheckIn;
+    const reqCheckOut = new_check_out_date || origCheckOut;
+
+    // Validate: new range must contain the original range
+    if (reqCheckIn > origCheckIn || reqCheckOut < origCheckOut) {
+      return res.status(400).json({
+        error: 'invalid_extension',
+        message: 'Extension can only extend your stay (earlier check-in or later check-out), not shorten it.',
+      });
+    }
+
+    // Calculate additional nights
+    const origNights = Math.floor((new Date(origCheckOut) - new Date(origCheckIn)) / (1000 * 60 * 60 * 24));
+    const newNights = Math.floor((new Date(reqCheckOut) - new Date(reqCheckIn)) / (1000 * 60 * 60 * 24));
+    const additionalNights = newNights - origNights;
+
+    if (additionalNights <= 0) {
+      return res.status(400).json({
+        error: 'no_change',
+        message: 'The requested dates do not extend your stay.',
+      });
+    }
+
+    // Check for capacity on the new nights
+    const targetId = booking.place_id;
+    const capacity = booking.capacity || 1;
+
+    // Check early extension nights (before original check-in)
+    if (reqCheckIn < origCheckIn) {
+      const overlapRes = await db.query(
+        `SELECT check_in_date, check_out_date FROM bookings
+         WHERE place_id = $1 AND id != $2
+           AND status NOT IN ('cancelled', 'Cancelled', 'rejected', 'Rejected')
+           AND check_in_date < $4 AND check_out_date > $3`,
+        [targetId, id, reqCheckIn, origCheckIn]
+      );
+
+      const earlyStart = new Date(reqCheckIn);
+      const earlyEnd = new Date(origCheckIn);
+      const night = new Date(earlyStart);
+      while (night < earlyEnd) {
+        const nightStr = night.toISOString().split('T')[0];
+        let count = 0;
+        for (const b of overlapRes.rows) {
+          const bIn = b.check_in_date.toString().split('T')[0];
+          const bOut = b.check_out_date.toString().split('T')[0];
+          if (nightStr >= bIn && nightStr < bOut) count++;
+        }
+        if (count >= capacity) {
+          return res.status(409).json({
+            error: 'dates_unavailable',
+            message: `This site is fully booked on ${nightStr}. Cannot extend to that date.`,
+          });
+        }
+        night.setDate(night.getDate() + 1);
+      }
+    }
+
+    // Check late extension nights (after original check-out)
+    if (reqCheckOut > origCheckOut) {
+      const overlapRes = await db.query(
+        `SELECT check_in_date, check_out_date FROM bookings
+         WHERE place_id = $1 AND id != $2
+           AND status NOT IN ('cancelled', 'Cancelled', 'rejected', 'Rejected')
+           AND check_in_date < $4 AND check_out_date > $3`,
+        [targetId, id, origCheckOut, reqCheckOut]
+      );
+
+      const lateStart = new Date(origCheckOut);
+      const lateEnd = new Date(reqCheckOut);
+      const night = new Date(lateStart);
+      while (night < lateEnd) {
+        const nightStr = night.toISOString().split('T')[0];
+        let count = 0;
+        for (const b of overlapRes.rows) {
+          const bIn = b.check_in_date.toString().split('T')[0];
+          const bOut = b.check_out_date.toString().split('T')[0];
+          if (nightStr >= bIn && nightStr < bOut) count++;
+        }
+        if (count >= capacity) {
+          return res.status(409).json({
+            error: 'dates_unavailable',
+            message: `This site is fully booked on ${nightStr}. Cannot extend to that date.`,
+          });
+        }
+        night.setDate(night.getDate() + 1);
+      }
+    }
+
+    // Check user doesn't have conflicting bookings at other places
+    const userOverlap = await db.query(
+      `SELECT id, booking_ref FROM bookings
+       WHERE user_id = $1 AND id != $2
+         AND status NOT IN ('cancelled', 'Cancelled', 'rejected', 'Rejected')
+         AND check_in_date < $4 AND check_out_date > $3`,
+      [userId, id, reqCheckIn, reqCheckOut]
+    );
+    if (userOverlap.rows.length > 0) {
+      return res.status(409).json({
+        error: 'user_overlap',
+        message: 'The extended dates overlap with another booking you have.',
+      });
+    }
+
+    // Calculate additional price
+    const pricePerNight = parseFloat(booking.price_per_night) || 0;
+    const additionalPrice = additionalNights * pricePerNight;
+
+    // Create extension request
+    const extResult = await db.query(
+      `INSERT INTO booking_extensions
+       (booking_id, user_id, original_check_in, original_check_out,
+        requested_check_in, requested_check_out, additional_nights, additional_price, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
+       RETURNING *`,
+      [id, userId, origCheckIn, origCheckOut, reqCheckIn, reqCheckOut, additionalNights, additionalPrice]
+    );
+
+    logger.info('Extension requested', {
+      bookingId: id, userId, additionalNights, additionalPrice,
+      from: `${origCheckIn}-${origCheckOut}`, to: `${reqCheckIn}-${reqCheckOut}`,
+    });
+
+    // Notify host
+    try {
+      await pushService.sendToUser(booking.host_id, 'Stay Extension Request',
+        `A guest wants to extend their stay at ${booking.place_name} by ${additionalNights} night${additionalNights > 1 ? 's' : ''}. Please review the request.`,
+        { type: 'extension_request', booking_id: String(id) });
+    } catch (e) { /* ignore */ }
+
+    res.status(201).json({
+      extension: extResult.rows[0],
+      message: `Extension request submitted. The host will review your request for ${additionalNights} additional night${additionalNights > 1 ? 's' : ''} (£${additionalPrice.toFixed(2)}).`,
+    });
+  } catch (error) {
+    logger.error('Request extension error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * PUT /bookings/extensions/:extId/approve
+ * Host approves an extension request
+ */
+async function approveExtension(req, res, next) {
+  try {
+    const { extId } = req.params;
+    const hostUserId = req.user.userId;
+
+    // Get extension with booking and place info
+    const extRes = await db.query(
+      `SELECT be.*, b.place_id, b.user_id as guest_id, b.booking_ref, b.payment_intent_id,
+              p.owner_id as host_id, p.name as place_name
+       FROM booking_extensions be
+       JOIN bookings b ON b.id = be.booking_id
+       JOIN places p ON p.id = b.place_id
+       WHERE be.id = $1`,
+      [extId]
+    );
+
+    if (extRes.rows.length === 0) {
+      return res.status(404).json({ error: 'not_found', message: 'Extension request not found.' });
+    }
+
+    const ext = extRes.rows[0];
+
+    if (ext.host_id !== hostUserId) {
+      return res.status(403).json({ error: 'forbidden', message: 'Only the host can approve extensions.' });
+    }
+
+    if (ext.status !== 'pending') {
+      return res.status(400).json({ error: 'already_processed', message: 'This extension has already been processed.' });
+    }
+
+    // Update the booking dates
+    await db.query(
+      `UPDATE bookings
+       SET check_in_date = $1, check_out_date = $2,
+           number_of_nights = $3,
+           total_price = total_price + $4,
+           updated_at = NOW()
+       WHERE id = $5`,
+      [
+        ext.requested_check_in,
+        ext.requested_check_out,
+        Math.floor((new Date(ext.requested_check_out) - new Date(ext.requested_check_in)) / (1000 * 60 * 60 * 24)),
+        ext.additional_price,
+        ext.booking_id,
+      ]
+    );
+
+    // Mark extension as approved
+    await db.query(
+      `UPDATE booking_extensions SET status = 'approved', updated_at = NOW() WHERE id = $1`,
+      [extId]
+    );
+
+    logger.info('Extension approved', { extId, bookingId: ext.booking_id, hostUserId });
+
+    // Notify guest
+    try {
+      const additionalNights = ext.additional_nights;
+      await pushService.sendToUser(ext.guest_id, 'Extension Approved!',
+        `Great news! Your stay at ${ext.place_name} has been extended by ${additionalNights} night${additionalNights > 1 ? 's' : ''}. New checkout: ${new Date(ext.requested_check_out).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
+        { type: 'extension_approved', booking_id: String(ext.booking_id) });
+    } catch (e) { /* ignore */ }
+
+    res.json({
+      message: 'Extension approved. The booking dates have been updated.',
+      extension: { ...ext, status: 'approved' },
+    });
+  } catch (error) {
+    logger.error('Approve extension error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * PUT /bookings/extensions/:extId/reject
+ * Host rejects an extension request
+ */
+async function rejectExtension(req, res, next) {
+  try {
+    const { extId } = req.params;
+    const hostUserId = req.user.userId;
+    const { reason } = req.body;
+
+    const extRes = await db.query(
+      `SELECT be.*, b.place_id, b.user_id as guest_id, b.booking_ref,
+              p.owner_id as host_id, p.name as place_name
+       FROM booking_extensions be
+       JOIN bookings b ON b.id = be.booking_id
+       JOIN places p ON p.id = b.place_id
+       WHERE be.id = $1`,
+      [extId]
+    );
+
+    if (extRes.rows.length === 0) {
+      return res.status(404).json({ error: 'not_found', message: 'Extension request not found.' });
+    }
+
+    const ext = extRes.rows[0];
+
+    if (ext.host_id !== hostUserId) {
+      return res.status(403).json({ error: 'forbidden', message: 'Only the host can reject extensions.' });
+    }
+
+    if (ext.status !== 'pending') {
+      return res.status(400).json({ error: 'already_processed', message: 'This extension has already been processed.' });
+    }
+
+    await db.query(
+      `UPDATE booking_extensions SET status = 'rejected', host_response_note = $1, updated_at = NOW() WHERE id = $2`,
+      [reason || null, extId]
+    );
+
+    logger.info('Extension rejected', { extId, bookingId: ext.booking_id, hostUserId, reason });
+
+    // Notify guest
+    try {
+      await pushService.sendToUser(ext.guest_id, 'Extension Request Declined',
+        `Your request to extend your stay at ${ext.place_name} was declined${reason ? ': ' + reason : ''}. Your original dates remain unchanged.`,
+        { type: 'extension_rejected', booking_id: String(ext.booking_id) });
+    } catch (e) { /* ignore */ }
+
+    res.json({ message: 'Extension rejected.', extension: { ...ext, status: 'rejected' } });
+  } catch (error) {
+    logger.error('Reject extension error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * GET /bookings/:id/extensions
+ * Get extension requests for a booking
+ */
+async function getBookingExtensions(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    // Verify user is guest or host
+    const bookingRes = await db.query(
+      `SELECT b.user_id, p.owner_id FROM bookings b JOIN places p ON p.id = b.place_id WHERE b.id = $1`,
+      [id]
+    );
+    if (bookingRes.rows.length === 0) {
+      return res.status(404).json({ error: 'not_found', message: 'Booking not found.' });
+    }
+    const { user_id: guestId, owner_id: hostId } = bookingRes.rows[0];
+    if (userId !== guestId && userId !== hostId) {
+      return res.status(403).json({ error: 'forbidden', message: 'Access denied.' });
+    }
+
+    const result = await db.query(
+      `SELECT * FROM booking_extensions WHERE booking_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+
+    res.json({ extensions: result.rows });
+  } catch (error) {
+    logger.error('Get booking extensions error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getBookings,
   getBookingDetail,
@@ -1411,4 +1780,8 @@ module.exports = {
   cancelBooking,
   cancelExpiredAuthorizations,
   transferToHost,
+  requestExtension,
+  approveExtension,
+  rejectExtension,
+  getBookingExtensions,
 };

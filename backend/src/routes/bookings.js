@@ -26,6 +26,10 @@ router.put('/:id(\\d+)/approve', authMiddleware, bookingController.approveBookin
 router.put('/:id(\\d+)/reject', authMiddleware, bookingController.rejectBooking);
 router.post('/:id(\\d+)/cancel', authMiddleware, bookingController.cancelBooking);
 router.post('/:id(\\d+)/guest-review', authMiddleware, bookingController.createGuestReview);
+router.post('/:id(\\d+)/extend', authMiddleware, bookingController.requestExtension);
+router.get('/:id(\\d+)/extensions', authMiddleware, bookingController.getBookingExtensions);
+router.put('/extensions/:extId(\\d+)/approve', authMiddleware, bookingController.approveExtension);
+router.put('/extensions/:extId(\\d+)/reject', authMiddleware, bookingController.rejectExtension);
 router.delete('/:id(\\d+)', authMiddleware, bookingController.deleteBooking);
 
 module.exports = router;
