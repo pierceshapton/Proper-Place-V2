@@ -19,11 +19,4 @@ class AppConfig {
   // Aliases for backward compatibility with base44_client.dart
   static String get base44AppId => properPlaceAppId;
   static String get base44BackendUrl => properPlaceBackendUrl;
-
-  // For debugging
-  static void printConfig() {
-    debugPrint('=== App Config ===');
-    debugPrint('App ID: $properPlaceAppId');
-    debugPrint('Backend URL: $properPlaceBackendUrl');
-  }
 }

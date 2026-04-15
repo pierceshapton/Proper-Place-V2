@@ -35,8 +35,6 @@ Future<void> main() async {
     debugPrint('⚠️ Warning: Stripe initialization failed: $e');
   }
 
-  // Print config on startup (for debugging)
-  AppConfig.printConfig();
   runApp(const MyApp());
 }
 
