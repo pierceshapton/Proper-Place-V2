@@ -1037,11 +1037,21 @@ function wrapEmailHtml(body) {
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #333;">
       ${body}
       <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0 16px;" />
-      <p style="font-size: 12px; color: #999; line-height: 1.5;">
-        Sent by Proper Place · <a href="https://proper-place.co.uk" style="color: #999;">proper-place.co.uk</a><br/>
-        A Proper Place Limited · London, England<br/>
-        <a href="mailto:no-reply@proper-place.co.uk?subject=Unsubscribe" style="color: #999;">Unsubscribe</a>
-      </p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 12px; color: #888; line-height: 1.6;">
+        <tr>
+          <td>
+            <p style="margin: 0 0 8px;"><strong style="color: #555;">Pierce Shapton</strong><br/>A Proper Place Limited</p>
+            <p style="margin: 0 0 8px;">
+              <a href="https://www.proper-place.co.uk" style="color: #10b981; text-decoration: none;">proper-place.co.uk</a> · 
+              <a href="mailto:pierce.shapton@proper-place.co.uk" style="color: #10b981; text-decoration: none;">pierce.shapton@proper-place.co.uk</a>
+            </p>
+            <p style="margin: 0; font-size: 11px; color: #aaa;">
+              London, England · Registered in England &amp; Wales<br/>
+              If you no longer wish to receive these emails, please <a href="mailto:pierce.shapton@proper-place.co.uk?subject=Unsubscribe" style="color: #aaa;">let us know</a>.
+            </p>
+          </td>
+        </tr>
+      </table>
     </div>
   `;
 }
