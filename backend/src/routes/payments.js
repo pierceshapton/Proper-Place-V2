@@ -19,64 +19,67 @@ router.post('/create-intent', async (req, res) => {
     }
 
     // Look up the host's Stripe Connect account for this place
-    let hostAccountId = null;
-    if (place_id) {
-      const placeRes = await db.query(
-        `SELECT u.stripe_account_id FROM places p
-         JOIN users u ON u.id = p.owner_id
-         WHERE p.id = $1`,
-        [place_id]
-      );
-      if (placeRes.rows.length > 0) {
-        hostAccountId = placeRes.rows[0].stripe_account_id;
-      }
+    if (!place_id) {
+      return res.status(400).json({
+        message: 'place_id is required',
+        errors: ['place_id is required to process payment'],
+      });
     }
 
-    // Create a Stripe payment intent with manual capture
-    // Payment is authorised (held) now but only captured when host approves
+    const placeRes = await db.query(
+      `SELECT u.stripe_account_id, u.id as host_id FROM places p
+       JOIN users u ON u.id = p.owner_id
+       WHERE p.id = $1`,
+      [place_id]
+    );
+
+    if (placeRes.rows.length === 0) {
+      return res.status(404).json({ message: 'Place not found' });
+    }
+
+    const hostAccountId = placeRes.rows[0].stripe_account_id;
+
+    // Host MUST have a Stripe Connect account for bookings
+    if (!hostAccountId) {
+      return res.status(400).json({
+        message: 'This host has not set up their payout account yet. Bookings cannot be processed until the host completes Stripe Connect setup.',
+        code: 'host_connect_required',
+      });
+    }
+
+    // Destination charges with application fee:
+    // - 15% application fee goes to Proper Place platform balance
+    // - 85% is transferred to the host's connected account
+    // - on_behalf_of means Stripe processing fees (1.5% + 20p) come from the host's share
+    const applicationFee = Math.round(Math.round(amount) * 0.15);
+
     const paymentIntentParams = {
       amount: Math.round(amount), // Amount in smallest currency unit (pence)
       currency: currency.toLowerCase(),
       capture_method: 'manual',
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      automatic_payment_methods: { enabled: true },
+      application_fee_amount: applicationFee,
+      transfer_data: { destination: hostAccountId },
+      on_behalf_of: hostAccountId,
       metadata: {
         platform: 'proper_place',
+        place_id: String(place_id),
+        host_account: hostAccountId,
+        application_fee: String(applicationFee),
       },
     };
-
-    // If the host has a Stripe Connect account, use destination charges
-    // so Stripe handles the 15% platform fee and host transfer automatically.
-    // With on_behalf_of the host bears Stripe processing fees;
-    // the platform keeps the full application_fee_amount (15%).
-    if (hostAccountId) {
-      const applicationFee = Math.round(amount * 0.15);
-      paymentIntentParams.application_fee_amount = applicationFee;
-      paymentIntentParams.transfer_data = { destination: hostAccountId };
-      paymentIntentParams.on_behalf_of = hostAccountId;
-      paymentIntentParams.metadata.host_account = hostAccountId;
-      paymentIntentParams.metadata.application_fee = String(applicationFee);
-    }
-    if (place_id) {
-      paymentIntentParams.metadata.place_id = String(place_id);
-    }
 
     let paymentIntent;
     try {
       paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
     } catch (stripeErr) {
-      // If destination charge fails (host account not fully onboarded), retry without Connect
-      if (hostAccountId && stripeErr.code === 'insufficient_capabilities_for_transfer') {
-        logger.warn(`Host account ${hostAccountId} not ready for transfers, creating standard payment intent`);
-        delete paymentIntentParams.application_fee_amount;
-        delete paymentIntentParams.transfer_data;
-        delete paymentIntentParams.on_behalf_of;
-        paymentIntentParams.metadata.connect_skipped = 'true';
-        paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
-      } else {
-        throw stripeErr;
+      if (stripeErr.code === 'insufficient_capabilities_for_transfer') {
+        return res.status(400).json({
+          message: 'The host\'s Stripe account is not fully set up for payments. Please ask the host to complete their Stripe onboarding.',
+          code: 'host_connect_incomplete',
+        });
       }
+      throw stripeErr;
     }
 
     logger.info(`Payment intent created: ${paymentIntent.id}`, {
