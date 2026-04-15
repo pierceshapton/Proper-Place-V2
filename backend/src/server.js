@@ -47,6 +47,7 @@ const hostApplicationRoutes = require('./routes/hostApplications');
 const referralRoutes = require('./routes/referrals');
 const webhookRoutes = require('./routes/webhooks');
 const crmRoutes = require('./routes/crm');
+const cmsContentController = require('./controllers/cmsContentController');
 const pushService = require('./services/pushNotificationService');
 
 // User controller for user endpoints
@@ -154,6 +155,8 @@ app.use('/host-leads', hostLeadsRoutes);
 app.use('/host-applications', hostApplicationRoutes);
 app.use('/referrals', referralRoutes);
 app.use('/crm', crmRoutes);
+// Public CMS content endpoint (no auth — read-only, used by the website frontend)
+app.get('/cms/content', cmsContentController.getContent);
 
 // User routes
 app.get('/users/:id', userController.getUserProfile);
@@ -950,11 +953,25 @@ async function runCRMMigration() {
   }
 }
 
+// Run CMS content migration on startup (idempotent — uses ON CONFLICT DO NOTHING)
+async function runCMSMigration() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const sql = fs.readFileSync(path.join(__dirname, 'migrations', '017_cms_content.sql'), 'utf8');
+    await db.query(sql);
+    console.log('[SERVER] ✅ CMS content table verified/migrated');
+  } catch (err) {
+    console.error('[SERVER] CMS migration error:', err.message);
+  }
+}
+
 // Start server
 async function start() {
   try {
     await initializeDatabase();
     await runCRMMigration();
+    await runCMSMigration();
     pushService.initialize();
 
     // Start auto-message scheduler (runs every 15 minutes)

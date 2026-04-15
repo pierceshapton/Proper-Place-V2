@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const crm = require('../controllers/crmController');
+const cmsContent = require('../controllers/cmsContentController');
 
 // All CRM routes require auth + admin
 router.use(authMiddleware);
@@ -13,6 +14,10 @@ router.get('/stats', crm.getStats);
 // ─── Settings ───────────────────────
 router.get('/settings', crm.getSettings);
 router.patch('/settings', crm.updateSettings);
+
+// ─── CMS Content ────────────────────
+router.get('/content', cmsContent.getContent);
+router.put('/content', cmsContent.updateContent);
 
 // ─── Pipeline ───────────────────────
 router.get('/leads/pipeline/summary', crm.getPipelineSummary);

@@ -98,6 +98,7 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
 
             <p className="px-3 pt-4 pb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Tools</p>
             {navItem('/crm/discover', 'Discover', '⊕')}
+            {navItem('/crm/content', 'Website Content', '✎')}
             {navItem('/crm/settings', 'Settings', '⚙')}
           </div>
 

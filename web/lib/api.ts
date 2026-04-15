@@ -653,6 +653,16 @@ export interface CRMPipelineStage {
   cold: string;
 }
 
+export interface CmsRow {
+  key: string;
+  value: string;
+  label: string;
+  type: 'text' | 'textarea';
+  page: string;
+  section: string;
+  sort_order: number;
+}
+
 // ─── CRM API ────────────────────────────────────────────────────────
 
 export const crmApi = {
@@ -711,4 +721,9 @@ export const crmApi = {
   // Settings
   getSettings: () => api<{ settings: { key: string; value: string }[] }>('/crm/settings'),
   updateSettings: (settings: Record<string, unknown>) => api('/crm/settings', { method: 'PATCH', body: { settings } }),
+
+  // CMS Content
+  getCmsContent: () => api<{ content: Record<string, string>; rows: CmsRow[] }>('/crm/content'),
+  updateCmsContent: (updates: { key: string; value: string }[]) =>
+    api<{ success: boolean; updated: number }>('/crm/content', { method: 'PUT', body: { updates } }),
 };

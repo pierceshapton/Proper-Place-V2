@@ -1,6 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { getCmsContent, c } from '@/lib/cms';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Proper Place - Affordable Motorhome Overnight Stays UK',
@@ -24,7 +27,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
+export default async function Home() {
+  const cms = await getCmsContent();
+
   return (
     <main>
       {/* Hero Section */}
@@ -41,10 +46,10 @@ export default function Home() {
         <div className="relative container-md py-24 md:py-36">
           <div className="max-w-3xl">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Connecting the motorhome community with a <span className="text-light-blue">Proper Place</span> to stay the night
+              {c(cms, 'homepage.hero.title', 'Connecting the motorhome community with a Proper Place to stay the night')}
             </h1>
             <p className="text-xl md:text-2xl text-gray-200 mb-8 leading-relaxed">
-              Discover unique, budget-friendly Proper Places across the UK. From scenic farmland to coastal retreats — find your perfect stay.
+              {c(cms, 'homepage.hero.subtitle', 'Discover unique, budget-friendly Proper Places across the UK. From scenic farmland to coastal retreats — find your perfect stay.')}
             </p>
             
             {/* Action Buttons */}
@@ -59,7 +64,7 @@ export default function Home() {
             </div>
 
             <p className="text-gray-400 text-sm">
-              Free to use &bull; No hidden fees &bull; Also available on iOS and Android
+              {c(cms, 'homepage.hero.note', 'Free to use · No hidden fees · Also available on iOS and Android')}
             </p>
           </div>
         </div>
@@ -70,15 +75,17 @@ export default function Home() {
         <div className="container-md">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">About Proper Place</span>
+              <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">
+                {c(cms, 'homepage.about.eyebrow', 'About Proper Place')}
+              </span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-                The motorhome community's trusted companion
+                {c(cms, 'homepage.about.title', "The motorhome community's trusted companion")}
               </h2>
               <p className="text-gray-600 text-lg mb-6 leading-relaxed">
-                Proper Place connects motorhome owners with landowners offering affordable overnight stays. Whether you're seeking a peaceful farm setting, a coastal view, or a convenient stopover, our community makes finding your next adventure simple.
+                {c(cms, 'homepage.about.body1', "Proper Place connects motorhome owners with landowners offering affordable overnight stays. Whether you're seeking a peaceful farm setting, a coastal view, or a convenient stopover, our community makes finding your next adventure simple.")}
               </p>
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
-                No more expensive campsites or uncertain wild camping. Our verified hosts offer safe, legal, and welcoming places for motorhome owners at prices that won't break the bank.
+                {c(cms, 'homepage.about.body2', "No more expensive campsites or uncertain wild camping. Our verified hosts offer safe, legal, and welcoming places for motorhome owners at prices that won't break the bank.")}
               </p>
               <div className="bg-gray-100 rounded-xl p-6 text-center">
                 <p className="text-gray-500 italic">Community statistics coming soon</p>
@@ -100,8 +107,12 @@ export default function Home() {
       <section className="py-20 bg-gray-50">
         <div className="container-md">
           <div className="text-center mb-16">
-            <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Simple Process</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2">How Proper Place works</h2>
+            <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">
+              {c(cms, 'homepage.how.eyebrow', 'Simple Process')}
+            </span>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2">
+              {c(cms, 'homepage.how.title', 'How Proper Place works')}
+            </h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -109,9 +120,9 @@ export default function Home() {
               <div className="w-14 h-14 bg-light-blue text-white rounded-xl flex items-center justify-center text-2xl font-bold mb-6">
                 1
               </div>
-              <h3 className="text-xl font-bold mb-3">Create an Account</h3>
+              <h3 className="text-xl font-bold mb-3">{c(cms, 'homepage.how.step1.title', 'Create an Account')}</h3>
               <p className="text-gray-600 leading-relaxed">
-                Sign up for free on our website or app. Create your account in under a minute.
+                {c(cms, 'homepage.how.step1.body', 'Sign up for free on our website or app. Create your account in under a minute.')}
               </p>
             </div>
             
@@ -119,9 +130,9 @@ export default function Home() {
               <div className="w-14 h-14 bg-light-blue text-white rounded-xl flex items-center justify-center text-2xl font-bold mb-6">
                 2
               </div>
-              <h3 className="text-xl font-bold mb-3">Find a Proper Place</h3>
+              <h3 className="text-xl font-bold mb-3">{c(cms, 'homepage.how.step2.title', 'Find a Proper Place')}</h3>
               <p className="text-gray-600 leading-relaxed">
-                Explore our map of verified hosts across the UK. Filter by price, amenities, and type to find your ideal stay.
+                {c(cms, 'homepage.how.step2.body', 'Explore our map of verified hosts across the UK. Filter by price, amenities, and type to find your ideal stay.')}
               </p>
             </div>
             
@@ -129,9 +140,9 @@ export default function Home() {
               <div className="w-14 h-14 bg-light-blue text-white rounded-xl flex items-center justify-center text-2xl font-bold mb-6">
                 3
               </div>
-              <h3 className="text-xl font-bold mb-3">Book & Stay</h3>
+              <h3 className="text-xl font-bold mb-3">{c(cms, 'homepage.how.step3.title', 'Book & Stay')}</h3>
               <p className="text-gray-600 leading-relaxed">
-                Request to book directly online or in the app. Communicate with hosts, pay securely, and enjoy your stay.
+                {c(cms, 'homepage.how.step3.body', 'Request to book directly online or in the app. Communicate with hosts, pay securely, and enjoy your stay.')}
               </p>
             </div>
           </div>
@@ -151,9 +162,11 @@ export default function Home() {
               />
             </div>
             <div className="order-1 lg:order-2">
-              <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Motorhomers</span>
+              <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">
+                {c(cms, 'homepage.motorhomers.eyebrow', 'For Motorhomers')}
+              </span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-                Adventure without the premium price
+                {c(cms, 'homepage.motorhomers.title', 'Adventure without the premium price')}
               </h2>
               <ul className="space-y-4">
                 <li className="flex items-start gap-4">
@@ -163,8 +176,8 @@ export default function Home() {
                     </svg>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-lg">Affordable Nightly Rates</h4>
-                    <p className="text-gray-600">Stays from just £10-15 per night — a fraction of traditional campsite fees</p>
+                    <h4 className="font-semibold text-lg">{c(cms, 'homepage.motorhomers.item1.title', 'Affordable Nightly Rates')}</h4>
+                    <p className="text-gray-600">{c(cms, 'homepage.motorhomers.item1.body', 'Stays from just £10-15 per night — a fraction of traditional campsite fees')}</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-4">
@@ -174,8 +187,8 @@ export default function Home() {
                     </svg>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-lg">Unique Proper Places</h4>
-                    <p className="text-gray-600">Discover hidden gems: farms, vineyards, coastal spots, and countryside retreats</p>
+                    <h4 className="font-semibold text-lg">{c(cms, 'homepage.motorhomers.item2.title', 'Unique Proper Places')}</h4>
+                    <p className="text-gray-600">{c(cms, 'homepage.motorhomers.item2.body', 'Discover hidden gems: farms, vineyards, coastal spots, and countryside retreats')}</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-4">
@@ -185,8 +198,8 @@ export default function Home() {
                     </svg>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-lg">Verified & Safe</h4>
-                    <p className="text-gray-600">All Proper Places are reviewed by our admin teams and rated by the people who have stayed</p>
+                    <h4 className="font-semibold text-lg">{c(cms, 'homepage.motorhomers.item3.title', 'Verified & Safe')}</h4>
+                    <p className="text-gray-600">{c(cms, 'homepage.motorhomers.item3.body', 'All Proper Places are reviewed by our admin teams and rated by the people who have stayed')}</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-4">
@@ -196,8 +209,8 @@ export default function Home() {
                     </svg>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-lg">Route Planning</h4>
-                    <p className="text-gray-600">Plan your journey with stopovers perfectly spaced along your route</p>
+                    <h4 className="font-semibold text-lg">{c(cms, 'homepage.motorhomers.item4.title', 'Route Planning')}</h4>
+                    <p className="text-gray-600">{c(cms, 'homepage.motorhomers.item4.body', 'Plan your journey with stopovers perfectly spaced along your route')}</p>
                   </div>
                 </li>
               </ul>
@@ -211,38 +224,26 @@ export default function Home() {
         <div className="container-md">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">For Landowners</span>
+              <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">
+                {c(cms, 'homepage.hosts.eyebrow', 'For Landowners')}
+              </span>
               <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6">
-                Turn your land into extra income
+                {c(cms, 'homepage.hosts.title', 'Turn your land into extra income')}
               </h2>
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
-                Have unused land, a large garden, or farm space? Join hundreds of hosts earning extra income by welcoming respectful motorhome guests.
+                {c(cms, 'homepage.hosts.body', 'Have unused land, a large garden, or farm space? Join hundreds of hosts earning extra income by welcoming respectful motorhome guests.')}
               </p>
               <ul className="space-y-4 mb-8">
-                <li className="flex items-center gap-3">
-                  <svg className="w-5 h-5 text-light-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-gray-700">Free to list your space</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <svg className="w-5 h-5 text-light-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-gray-700">You set your own prices and availability</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <svg className="w-5 h-5 text-light-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-gray-700">Secure payments directly to your account</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <svg className="w-5 h-5 text-light-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-gray-700">Meet interesting people from around the country</span>
-                </li>
+                {(['homepage.hosts.item1', 'homepage.hosts.item2', 'homepage.hosts.item3', 'homepage.hosts.item4'] as const).map((key, i) => (
+                  <li key={key} className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-light-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-gray-700">
+                      {c(cms, key, ['Free to list your space', 'You set your own prices and availability', 'Secure payments directly to your account', 'Meet interesting people from around the country'][i])}
+                    </span>
+                  </li>
+                ))}
               </ul>
               <Link href="/become-host" className="btn-primary inline-block">
                 Learn More About Hosting
@@ -287,10 +288,10 @@ export default function Home() {
         </div>
         <div className="relative container-md text-center text-white">
           <h2 className="text-3xl md:text-5xl font-bold mb-6">
-            Start your next adventure today
+            {c(cms, 'homepage.cta.title', 'Start your next adventure today')}
           </h2>
           <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
-            Join thousands of motorhome owners discovering affordable, unique places to stay across the UK.
+            {c(cms, 'homepage.cta.subtitle', 'Join thousands of motorhome owners discovering affordable, unique places to stay across the UK.')}
           </p>
           
           {/* Action Buttons */}
