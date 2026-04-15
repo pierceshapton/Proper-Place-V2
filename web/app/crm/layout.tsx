@@ -90,6 +90,7 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
             <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Overview</p>
             {navItem('/crm', 'Dashboard', '◆', true)}
             {navItem('/crm/pipeline', 'Pipeline', '◫')}
+            {navItem('/crm/map', 'Map', '🗺')}
 
             <p className="px-3 pt-4 pb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Manage</p>
             {navItem('/crm/leads', 'Leads', '◉')}
