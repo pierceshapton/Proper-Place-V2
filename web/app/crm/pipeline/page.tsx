@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { crmApi, type CRMLead } from '@/lib/api';
+import { crmApi, type CRMLead, type CRMStage } from '@/lib/api';
+import { stageColors } from '@/lib/stageColors';
 
-const STAGES = [
-  { key: 'new', label: 'New', color: 'border-blue-500', bg: 'bg-blue-500', dot: 'bg-blue-500' },
-  { key: 'contacted', label: 'Contacted', color: 'border-amber-500', bg: 'bg-amber-500', dot: 'bg-amber-500' },
-  { key: 'assessing', label: 'Assessing', color: 'border-violet-500', bg: 'bg-violet-500', dot: 'bg-violet-500' },
-  { key: 'negotiating', label: 'Negotiating', color: 'border-orange-500', bg: 'bg-orange-500', dot: 'bg-orange-500' },
-  { key: 'converted', label: 'Converted', color: 'border-emerald-500', bg: 'bg-emerald-500', dot: 'bg-emerald-500' },
-  { key: 'lost', label: 'Lost', color: 'border-red-500', bg: 'bg-red-500', dot: 'bg-red-500' },
+const DEFAULT_STAGES: CRMStage[] = [
+  { id: 1, slug: 'new',         name: 'New',         color: 'blue',    sort_order: 1, is_won: false, is_lost: false },
+  { id: 2, slug: 'contacted',   name: 'Contacted',   color: 'amber',   sort_order: 2, is_won: false, is_lost: false },
+  { id: 3, slug: 'assessing',   name: 'Assessing',   color: 'violet',  sort_order: 3, is_won: false, is_lost: false },
+  { id: 4, slug: 'negotiating', name: 'Negotiating', color: 'orange',  sort_order: 4, is_won: false, is_lost: false },
+  { id: 5, slug: 'converted',   name: 'Converted',   color: 'emerald', sort_order: 5, is_won: true,  is_lost: false },
+  { id: 6, slug: 'lost',        name: 'Lost',        color: 'red',     sort_order: 6, is_won: false, is_lost: true  },
 ];
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -21,6 +22,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export default function PipelinePage() {
+  const [stages, setStages] = useState<CRMStage[]>(DEFAULT_STAGES);
   const [leads, setLeads] = useState<CRMLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('new');
@@ -28,6 +30,7 @@ export default function PipelinePage() {
 
   useEffect(() => {
     loadLeads();
+    crmApi.getStages().then(r => setStages(r.stages.sort((a: CRMStage, b: CRMStage) => a.sort_order - b.sort_order))).catch(() => {});
   }, []);
 
   async function loadLeads() {
@@ -91,28 +94,28 @@ export default function PipelinePage() {
       </div>
 
       {/* Desktop: Kanban columns */}
-      <div className="hidden lg:grid lg:grid-cols-6 gap-3 min-h-[calc(100vh-12rem)]">
-        {STAGES.map(stage => (
+      <div className={`hidden lg:grid gap-3 min-h-[calc(100vh-12rem)]`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
+        {stages.map(stage => (
           <div
-            key={stage.key}
+            key={stage.slug}
             className="bg-slate-900/50 border border-slate-800 rounded-xl flex flex-col"
             onDragOver={handleDragOver}
-            onDrop={e => handleDrop(e, stage.key)}
+            onDrop={e => handleDrop(e, stage.slug)}
           >
             {/* Column header */}
-            <div className={`px-3 py-2.5 border-b border-slate-800 border-t-2 ${stage.color} rounded-t-xl`}>
+            <div className={`px-3 py-2.5 border-b border-slate-800 border-t-2 ${stageColors(stage.color).border} rounded-t-xl`}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">{stage.label}</span>
-                <span className="text-xs font-mono text-slate-500">{leadsByStage(stage.key).length}</span>
+                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">{stage.name}</span>
+                <span className="text-xs font-mono text-slate-500">{leadsByStage(stage.slug).length}</span>
               </div>
             </div>
 
             {/* Cards */}
             <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-16rem)]">
-              {leadsByStage(stage.key).map(lead => (
+              {leadsByStage(stage.slug).map(lead => (
                 <LeadCard key={lead.id} lead={lead} onDragStart={handleDragStart} />
               ))}
-              {leadsByStage(stage.key).length === 0 && (
+              {leadsByStage(stage.slug).length === 0 && (
                 <div className="text-center py-8 text-slate-700 text-xs">No leads</div>
               )}
             </div>
@@ -124,17 +127,17 @@ export default function PipelinePage() {
       <div className="lg:hidden">
         {/* Tab bar */}
         <div className="flex gap-1 overflow-x-auto pb-2 -mx-1 px-1">
-          {STAGES.map(stage => (
+          {stages.map(stage => (
             <button
-              key={stage.key}
-              onClick={() => setActiveTab(stage.key)}
+              key={stage.slug}
+              onClick={() => setActiveTab(stage.slug)}
               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                activeTab === stage.key
-                  ? `${stage.bg} text-white`
+                activeTab === stage.slug
+                  ? `${stageColors(stage.color).bg} text-white`
                   : 'bg-slate-800 text-slate-400 hover:text-slate-200'
               }`}
             >
-              {stage.label} ({leadsByStage(stage.key).length})
+              {stage.name} ({leadsByStage(stage.slug).length})
             </button>
           ))}
         </div>
@@ -156,13 +159,13 @@ export default function PipelinePage() {
               </Link>
               {/* Stage move buttons */}
               <div className="flex gap-1 mt-2 overflow-x-auto">
-                {STAGES.filter(s => s.key !== lead.pipeline_stage).map(s => (
+                {stages.filter(s => s.slug !== lead.pipeline_stage).map(s => (
                   <button
-                    key={s.key}
-                    onClick={() => moveToStage(lead.id, s.key)}
-                    className={`flex-shrink-0 text-[10px] px-2 py-1 rounded border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors`}
+                    key={s.slug}
+                    onClick={() => moveToStage(lead.id, s.slug)}
+                    className="flex-shrink-0 text-[10px] px-2 py-1 rounded border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
                   >
-                    → {s.label}
+                    → {s.name}
                   </button>
                 ))}
               </div>

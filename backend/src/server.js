@@ -966,12 +966,26 @@ async function runCMSMigration() {
   }
 }
 
+// Run stages + custom fields migration (idempotent)
+async function runStagesMigration() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const sql = fs.readFileSync(path.join(__dirname, 'migrations', '018_crm_stages_custom_fields.sql'), 'utf8');
+    await db.query(sql);
+    console.log('[SERVER] ✅ CRM stages + custom fields verified/migrated');
+  } catch (err) {
+    console.error('[SERVER] Stages migration error:', err.message);
+  }
+}
+
 // Start server
 async function start() {
   try {
     await initializeDatabase();
     await runCRMMigration();
     await runCMSMigration();
+    await runStagesMigration();
     pushService.initialize();
 
     // Start auto-message scheduler (runs every 15 minutes)

@@ -653,6 +653,25 @@ export interface CRMPipelineStage {
   cold: string;
 }
 
+export interface CRMStage {
+  id: number;
+  slug: string;
+  name: string;
+  color: string;
+  sort_order: number;
+  is_won: boolean;
+  is_lost: boolean;
+}
+
+export interface CRMCustomField {
+  id: number;
+  name: string;
+  field_type: 'text' | 'number' | 'select' | 'date' | 'checkbox' | 'url';
+  options: { label: string; color: string }[];
+  sort_order: number;
+  show_in_table: boolean;
+}
+
 export interface CmsRow {
   key: string;
   value: string;
@@ -726,4 +745,27 @@ export const crmApi = {
   getCmsContent: () => api<{ content: Record<string, string>; rows: CmsRow[] }>('/crm/content'),
   updateCmsContent: (updates: { key: string; value: string }[]) =>
     api<{ success: boolean; updated: number }>('/crm/content', { method: 'PUT', body: { updates } }),
+
+  // Pipeline Stages
+  getStages: () => api<{ stages: CRMStage[] }>('/crm/stages'),
+  createStage: (data: { name: string; color: string; is_won?: boolean; is_lost?: boolean }) =>
+    api<{ stage: CRMStage }>('/crm/stages', { method: 'POST', body: data }),
+  updateStage: (id: number, data: Partial<CRMStage>) =>
+    api<{ stage: CRMStage }>(`/crm/stages/${id}`, { method: 'PATCH', body: data }),
+  deleteStage: (id: number) => api(`/crm/stages/${id}`, { method: 'DELETE' }),
+  reorderStages: (order: { id: number; sort_order: number }[]) =>
+    api('/crm/stages/reorder', { method: 'PATCH', body: { order } }),
+
+  // Custom Fields
+  getCustomFields: () => api<{ fields: CRMCustomField[] }>('/crm/custom-fields'),
+  createCustomField: (data: { name: string; field_type: string; options?: { label: string; color: string }[]; show_in_table?: boolean }) =>
+    api<{ field: CRMCustomField }>('/crm/custom-fields', { method: 'POST', body: data }),
+  updateCustomField: (id: number, data: Partial<CRMCustomField>) =>
+    api<{ field: CRMCustomField }>(`/crm/custom-fields/${id}`, { method: 'PATCH', body: data }),
+  deleteCustomField: (id: number) => api(`/crm/custom-fields/${id}`, { method: 'DELETE' }),
+
+  // Custom Values per lead
+  getCustomValues: (leadId: number) => api<{ values: { field_id: number; value: string }[] }>(`/crm/leads/${leadId}/custom-values`),
+  setCustomValues: (leadId: number, values: { field_id: number; value: string }[]) =>
+    api(`/crm/leads/${leadId}/custom-values`, { method: 'PUT', body: { values } }),
 };

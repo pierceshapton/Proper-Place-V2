@@ -10,7 +10,22 @@ router.use(adminMiddleware);
 
 // ─── Stats ──────────────────────────
 router.get('/stats', crm.getStats);
+// ─── Pipeline Stages ────────────────
+router.get('/stages', crm.getStages);
+router.post('/stages', crm.createStage);
+router.patch('/stages/reorder', crm.reorderStages);
+router.patch('/stages/:id', crm.updateStage);
+router.delete('/stages/:id', crm.deleteStage);
 
+// ─── Custom Fields ──────────────────
+router.get('/custom-fields', crm.getCustomFields);
+router.post('/custom-fields', crm.createCustomField);
+router.patch('/custom-fields/:id', crm.updateCustomField);
+router.delete('/custom-fields/:id', crm.deleteCustomField);
+
+// ─── Custom Values (per lead) ────────────
+router.get('/leads/:id/custom-values', crm.getCustomValues);
+router.put('/leads/:id/custom-values', crm.setCustomValues);
 // ─── Settings ───────────────────────
 router.get('/settings', crm.getSettings);
 router.patch('/settings', crm.updateSettings);

@@ -3,20 +3,20 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { crmApi, type CRMLead } from '@/lib/api';
+import { crmApi, type CRMLead, type CRMStage } from '@/lib/api';
+import { stageColors } from '@/lib/stageColors';
 
-const STAGES = ['new', 'contacted', 'assessing', 'negotiating', 'converted', 'lost'];
+const DEFAULT_STAGES: CRMStage[] = [
+  { id: 1, slug: 'new',         name: 'New',         color: 'blue',    sort_order: 1, is_won: false, is_lost: false },
+  { id: 2, slug: 'contacted',   name: 'Contacted',   color: 'amber',   sort_order: 2, is_won: false, is_lost: false },
+  { id: 3, slug: 'assessing',   name: 'Assessing',   color: 'violet',  sort_order: 3, is_won: false, is_lost: false },
+  { id: 4, slug: 'negotiating', name: 'Negotiating', color: 'orange',  sort_order: 4, is_won: false, is_lost: false },
+  { id: 5, slug: 'converted',   name: 'Converted',   color: 'emerald', sort_order: 5, is_won: true,  is_lost: false },
+  { id: 6, slug: 'lost',        name: 'Lost',        color: 'red',     sort_order: 6, is_won: false, is_lost: true  },
+];
+
 const PRIORITIES = ['hot', 'warm', 'medium', 'cold'];
 const PROPERTY_TYPES = ['pub', 'farm', 'campsite', 'hotel', 'caravan_park', 'other'];
-
-const STAGE_COLORS: Record<string, string> = {
-  new: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  contacted: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  assessing: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
-  negotiating: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  converted: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  lost: 'bg-red-500/10 text-red-400 border-red-500/20',
-};
 
 const PRIORITY_DOT: Record<string, string> = {
   hot: 'bg-red-500',
@@ -30,6 +30,7 @@ type SortDir = 'asc' | 'desc';
 
 export default function LeadsPage() {
   const searchParams = useSearchParams();
+  const [stages, setStages] = useState<CRMStage[]>(DEFAULT_STAGES);
   const [leads, setLeads] = useState<CRMLead[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,9 @@ export default function LeadsPage() {
   });
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    crmApi.getStages().then(r => setStages(r.stages.sort((a: CRMStage, b: CRMStage) => a.sort_order - b.sort_order))).catch(() => {});
+  }, []);
   useEffect(() => { loadLeads(); }, [stageFilter, priorityFilter]);
 
   async function loadLeads() {
@@ -156,7 +160,7 @@ export default function LeadsPage() {
             <FInput label="Location" value={form.location} onChange={v => setForm(f => ({ ...f, location: v }))} placeholder="Wells, Somerset" />
             <FInput label="Website" value={form.website} onChange={v => setForm(f => ({ ...f, website: v }))} placeholder="https://" />
             <FSelect label="Type" value={form.property_type} onChange={v => setForm(f => ({ ...f, property_type: v }))} options={PROPERTY_TYPES} />
-            <FSelect label="Stage" value={form.pipeline_stage} onChange={v => setForm(f => ({ ...f, pipeline_stage: v }))} options={STAGES} />
+            <FSelect label="Stage" value={form.pipeline_stage} onChange={v => setForm(f => ({ ...f, pipeline_stage: v }))} options={stages.map(s => s.slug)} labels={Object.fromEntries(stages.map(s => [s.slug, s.name]))} />
             <FSelect label="Priority" value={form.priority} onChange={v => setForm(f => ({ ...f, priority: v }))} options={PRIORITIES} />
           </div>
           <div>
@@ -182,7 +186,7 @@ export default function LeadsPage() {
         </div>
         <select value={stageFilter} onChange={e => setStageFilter(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none">
           <option value="">All Stages</option>
-          {STAGES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+          {stages.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
         </select>
         <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none">
           <option value="">All Priorities</option>
@@ -195,7 +199,7 @@ export default function LeadsPage() {
             <span className="text-xs text-slate-400">{selected.size} selected</span>
             <select value={bulkStage} onChange={e => setBulkStage(e.target.value)} className="bg-slate-700 text-xs text-slate-200 rounded px-2 py-1 focus:outline-none">
               <option value="">Move to…</option>
-              {STAGES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              {stages.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
             </select>
             <button onClick={handleBulkStage} disabled={!bulkStage} className="text-xs bg-emerald-500 disabled:opacity-40 hover:bg-emerald-600 text-white px-2 py-1 rounded">Apply</button>
             <button onClick={() => setSelected(new Set())} className="text-xs text-slate-500 hover:text-slate-300">✕</button>
@@ -259,9 +263,11 @@ export default function LeadsPage() {
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className={`inline-flex text-[10px] px-2 py-0.5 rounded-full font-medium border ${STAGE_COLORS[lead.pipeline_stage] || 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
-                          {lead.pipeline_stage}
-                        </span>
+                        {(() => { const stg = stages.find(s => s.slug === lead.pipeline_stage); const c = stageColors(stg?.color || 'slate'); return (
+                          <span className={`inline-flex text-[10px] px-2 py-0.5 rounded-full font-medium border ${c.badgeBg} ${c.badgeText} ${c.badgeBorder}`}>
+                            {stg?.name || lead.pipeline_stage}
+                          </span>
+                        ); })()}
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-1.5">
@@ -312,13 +318,13 @@ function FInput({ label, value, onChange, type = 'text', placeholder }: { label:
   );
 }
 
-function FSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+function FSelect({ label, value, onChange, options, labels }: { label: string; value: string; onChange: (v: string) => void; options: string[]; labels?: Record<string, string> }) {
   return (
     <div>
       <label className="block text-xs text-slate-400 mb-1">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)}
         className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-        {options.map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1).replace(/_/g, ' ')}</option>)}
+        {options.map(o => <option key={o} value={o}>{labels?.[o] || o.charAt(0).toUpperCase() + o.slice(1).replace(/_/g, ' ')}</option>)}
       </select>
     </div>
   );

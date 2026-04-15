@@ -3,9 +3,17 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { crmApi, type CRMLead, type CRMActivity, type CRMTask, type CRMEmailLog, type CRMSiteVisit } from '@/lib/api';
+import { crmApi, type CRMLead, type CRMActivity, type CRMTask, type CRMEmailLog, type CRMSiteVisit, type CRMStage, type CRMCustomField } from '@/lib/api';
+import { stageColors } from '@/lib/stageColors';
 
-const STAGES = ['new', 'contacted', 'assessing', 'negotiating', 'converted', 'lost'];
+const DEFAULT_STAGES: CRMStage[] = [
+  { id: 1, slug: 'new',         name: 'New',         color: 'blue',    sort_order: 1, is_won: false, is_lost: false },
+  { id: 2, slug: 'contacted',   name: 'Contacted',   color: 'amber',   sort_order: 2, is_won: false, is_lost: false },
+  { id: 3, slug: 'assessing',   name: 'Assessing',   color: 'violet',  sort_order: 3, is_won: false, is_lost: false },
+  { id: 4, slug: 'negotiating', name: 'Negotiating', color: 'orange',  sort_order: 4, is_won: false, is_lost: false },
+  { id: 5, slug: 'converted',   name: 'Converted',   color: 'emerald', sort_order: 5, is_won: true,  is_lost: false },
+  { id: 6, slug: 'lost',        name: 'Lost',        color: 'red',     sort_order: 6, is_won: false, is_lost: true  },
+];
 const PRIORITIES = ['hot', 'warm', 'medium', 'cold'];
 
 export default function LeadDetailPage() {
@@ -22,6 +30,11 @@ export default function LeadDetailPage() {
   const [activeTab, setActiveTab] = useState('activity');
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CRMLead>>({});
+  const [stages, setStages] = useState<CRMStage[]>(DEFAULT_STAGES);
+  const [customFields, setCustomFields] = useState<CRMCustomField[]>([]);
+  const [customValues, setCustomValues] = useState<Record<number, string>>({});
+  const [customValuesDirty, setCustomValuesDirty] = useState<Record<number, string>>({});
+  const [customValuesSaving, setCustomValuesSaving] = useState(false);
 
   // Add activity form
   const [showAddActivity, setShowAddActivity] = useState(false);
@@ -48,6 +61,8 @@ export default function LeadDetailPage() {
 
   useEffect(() => {
     loadAll();
+    crmApi.getStages().then(r => setStages(r.stages.sort((a: CRMStage, b: CRMStage) => a.sort_order - b.sort_order))).catch(() => {});
+    crmApi.getCustomFields().then(r => setCustomFields(r.fields.sort((a: CRMCustomField, b: CRMCustomField) => a.sort_order - b.sort_order))).catch(() => {});
   }, [leadId]);
 
   async function loadAll() {
@@ -65,6 +80,14 @@ export default function LeadDetailPage() {
       setTasks(taskRes.tasks);
       setEmails(emailRes.emails);
       setVisits(visitRes.visits);
+      // Load custom values
+      try {
+        const cv = await crmApi.getCustomValues(leadId);
+        const map: Record<number, string> = {};
+        cv.values.forEach((v: { field_id: number; value: string }) => { map[v.field_id] = v.value; });
+        setCustomValues(map);
+        setCustomValuesDirty(map);
+      } catch {}
     } catch {
       router.push('/crm/leads');
     } finally {
@@ -130,6 +153,15 @@ export default function LeadDetailPage() {
     loadAll();
   }
 
+  async function handleSaveCustomValues() {
+    setCustomValuesSaving(true);
+    try {
+      const values = Object.entries(customValuesDirty).map(([fieldId, value]) => ({ field_id: Number(fieldId), value }));
+      await crmApi.setCustomValues(leadId, values);
+      setCustomValues({ ...customValuesDirty });
+    } catch {} finally { setCustomValuesSaving(false); }
+  }
+
   if (loading || !lead) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -176,20 +208,22 @@ export default function LeadDetailPage() {
 
         {/* Stage + Priority controls */}
         <div className="flex flex-wrap gap-2 mt-4">
-          <div className="flex gap-1">
-            {STAGES.map(s => (
-              <button
-                key={s}
-                onClick={() => handleStageChange(s)}
-                className={`text-[10px] px-2.5 py-1 rounded-full font-medium transition-all ${
-                  lead.pipeline_stage === s
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-1">
+            {stages.map(stage => {
+              const active = lead.pipeline_stage === stage.slug;
+              const c = stageColors(stage.color);
+              return (
+                <button
+                  key={stage.slug}
+                  onClick={() => handleStageChange(stage.slug)}
+                  className={`text-[10px] px-2.5 py-1 rounded-full font-medium transition-all ${
+                    active ? `${c.bg} text-white` : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
+                  }`}
+                >
+                  {stage.name}
+                </button>
+              );
+            })}
           </div>
           <div className="border-l border-slate-700 pl-2 flex gap-1">
             {PRIORITIES.map(p => (
@@ -477,32 +511,73 @@ export default function LeadDetailPage() {
 
         {/* Info Tab */}
         {activeTab === 'info' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-              <Field label="Source" value={lead.source || '—'} />
-              <Field label="Property Type" value={lead.property_type || '—'} />
-              <Field label="Website" value={lead.website ? lead.website : '—'} isLink={!!lead.website} />
-              <Field label="Parking Type" value={lead.parking_type || '—'} />
-              <Field label="Parking Spaces" value={lead.parking_spaces?.toString() || '—'} />
-              <Field label="Ownership" value={lead.ownership_type || '—'} />
-              <Field label="Created" value={new Date(lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} />
-              <Field label="Last Updated" value={new Date(lead.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} />
-              <Field label="Estimated Value" value={lead.estimated_value ? `£${lead.estimated_value}` : '—'} />
-            </div>
-            {lead.admin_notes && (
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Notes</p>
-                <p className="text-sm text-slate-300 whitespace-pre-wrap">{lead.admin_notes}</p>
+          <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                <Field label="Source" value={lead.source || '—'} />
+                <Field label="Property Type" value={lead.property_type || '—'} />
+                <Field label="Website" value={lead.website ? lead.website : '—'} isLink={!!lead.website} />
+                <Field label="Parking Type" value={lead.parking_type || '—'} />
+                <Field label="Parking Spaces" value={lead.parking_spaces?.toString() || '—'} />
+                <Field label="Ownership" value={lead.ownership_type || '—'} />
+                <Field label="Created" value={new Date(lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} />
+                <Field label="Last Updated" value={new Date(lead.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} />
+                <Field label="Estimated Value" value={lead.estimated_value ? `£${lead.estimated_value}` : '—'} />
               </div>
-            )}
-            {lead.tags && lead.tags.length > 0 && (
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Tags</p>
-                <div className="flex gap-1 flex-wrap">
-                  {lead.tags.map(tag => (
-                    <span key={tag} className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-400 rounded-full">{tag}</span>
-                  ))}
+              {lead.admin_notes && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Notes</p>
+                  <p className="text-sm text-slate-300 whitespace-pre-wrap">{lead.admin_notes}</p>
                 </div>
+              )}
+              {lead.tags && lead.tags.length > 0 && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Tags</p>
+                  <div className="flex gap-1 flex-wrap">
+                    {lead.tags.map(tag => (
+                      <span key={tag} className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-400 rounded-full">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Custom Fields */}
+            {customFields.length > 0 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Custom Fields</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {customFields.map(field => {
+                    const val = customValuesDirty[field.id] ?? '';
+                    const setVal = (v: string) => setCustomValuesDirty(d => ({ ...d, [field.id]: v }));
+                    return (
+                      <div key={field.id}>
+                        <label className="block text-xs text-slate-500 mb-1">{field.name}</label>
+                        {field.field_type === 'text' && <input type="text" value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500" />}
+                        {field.field_type === 'number' && <input type="number" value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500" />}
+                        {field.field_type === 'date' && <input type="date" value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500" />}
+                        {field.field_type === 'url' && <input type="url" value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500" />}
+                        {field.field_type === 'checkbox' && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={val === 'true'} onChange={e => setVal(e.target.checked ? 'true' : 'false')} className="accent-emerald-500 w-4 h-4" />
+                            <span className="text-sm text-slate-300">{val === 'true' ? 'Yes' : 'No'}</span>
+                          </label>
+                        )}
+                        {field.field_type === 'select' && (
+                          <select value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <option value="">—</option>
+                            {(field.options || []).map(opt => <option key={opt.label} value={opt.label}>{opt.label}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {JSON.stringify(customValuesDirty) !== JSON.stringify(customValues) && (
+                  <button onClick={handleSaveCustomValues} disabled={customValuesSaving} className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-medium px-4 py-1.5 rounded-lg">
+                    {customValuesSaving ? 'Saving…' : 'Save Custom Fields'}
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -853,6 +853,165 @@ async function updateSettings(req, res, next) {
   }
 }
 
+// ─── STAGES ─────────────────────────────────────────────────────────
+
+async function getStages(req, res, next) {
+  try {
+    const r = await db.query('SELECT * FROM crm_stages ORDER BY sort_order, id');
+    res.json({ stages: r.rows });
+  } catch (e) { next(e); }
+}
+
+async function createStage(req, res, next) {
+  try {
+    const { name, color = 'blue', is_won = false, is_lost = false } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'name required' });
+    // Generate a unique slug from name
+    const base = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'stage';
+    let slug = base;
+    let attempt = 1;
+    while (true) {
+      const existing = await db.query('SELECT id FROM crm_stages WHERE slug = $1', [slug]);
+      if (existing.rows.length === 0) break;
+      slug = `${base}_${++attempt}`;
+    }
+    const maxR = await db.query('SELECT COALESCE(MAX(sort_order), 0) AS max FROM crm_stages');
+    const sortOrder = parseInt(maxR.rows[0].max) + 1;
+    const r = await db.query(
+      'INSERT INTO crm_stages (slug, name, color, sort_order, is_won, is_lost) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [slug, name.trim(), color, sortOrder, !!is_won, !!is_lost]
+    );
+    res.status(201).json({ stage: r.rows[0] });
+  } catch (e) { next(e); }
+}
+
+async function updateStage(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { name, color, is_won, is_lost, sort_order } = req.body;
+    const cols = []; const vals = [];
+    if (name !== undefined)       { vals.push(name.trim());  cols.push(`name = $${vals.length}`); }
+    if (color !== undefined)      { vals.push(color);        cols.push(`color = $${vals.length}`); }
+    if (is_won !== undefined)     { vals.push(!!is_won);     cols.push(`is_won = $${vals.length}`); }
+    if (is_lost !== undefined)    { vals.push(!!is_lost);    cols.push(`is_lost = $${vals.length}`); }
+    if (sort_order !== undefined) { vals.push(sort_order);   cols.push(`sort_order = $${vals.length}`); }
+    if (cols.length === 0) return res.status(400).json({ error: 'nothing to update' });
+    cols.push(`updated_at = NOW()`);
+    vals.push(id);
+    const r = await db.query(
+      `UPDATE crm_stages SET ${cols.join(', ')} WHERE id = $${vals.length} RETURNING *`, vals
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Stage not found' });
+    res.json({ stage: r.rows[0] });
+  } catch (e) { next(e); }
+}
+
+async function deleteStage(req, res, next) {
+  try {
+    const { id } = req.params;
+    const stage = await db.query('SELECT slug FROM crm_stages WHERE id = $1', [id]);
+    if (!stage.rows.length) return res.status(404).json({ error: 'Stage not found' });
+    const slug = stage.rows[0].slug;
+    const count = await db.query('SELECT COUNT(*) FROM host_leads WHERE pipeline_stage = $1', [slug]);
+    if (parseInt(count.rows[0].count) > 0) {
+      return res.status(409).json({ error: `Cannot delete — ${count.rows[0].count} lead(s) in this stage. Move them first.` });
+    }
+    await db.query('DELETE FROM crm_stages WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (e) { next(e); }
+}
+
+async function reorderStages(req, res, next) {
+  try {
+    const { order } = req.body; // [{ id, sort_order }]
+    if (!Array.isArray(order)) return res.status(400).json({ error: 'order array required' });
+    for (const { id, sort_order } of order) {
+      await db.query('UPDATE crm_stages SET sort_order = $1 WHERE id = $2', [sort_order, id]);
+    }
+    res.json({ success: true });
+  } catch (e) { next(e); }
+}
+
+// ─── CUSTOM FIELDS ───────────────────────────────────────────────────
+
+async function getCustomFields(req, res, next) {
+  try {
+    const r = await db.query('SELECT * FROM crm_custom_fields ORDER BY sort_order, id');
+    res.json({ fields: r.rows });
+  } catch (e) { next(e); }
+}
+
+async function createCustomField(req, res, next) {
+  try {
+    const { name, field_type = 'text', options = [], show_in_table = true } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'name required' });
+    const maxR = await db.query('SELECT COALESCE(MAX(sort_order), 0) AS max FROM crm_custom_fields');
+    const sortOrder = parseInt(maxR.rows[0].max) + 1;
+    const r = await db.query(
+      'INSERT INTO crm_custom_fields (name, field_type, options, sort_order, show_in_table) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [name.trim(), field_type, JSON.stringify(options), sortOrder, !!show_in_table]
+    );
+    res.status(201).json({ field: r.rows[0] });
+  } catch (e) { next(e); }
+}
+
+async function updateCustomField(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { name, options, show_in_table, sort_order } = req.body;
+    const cols = []; const vals = [];
+    if (name !== undefined)         { vals.push(name.trim());           cols.push(`name = $${vals.length}`); }
+    if (options !== undefined)      { vals.push(JSON.stringify(options)); cols.push(`options = $${vals.length}`); }
+    if (show_in_table !== undefined){ vals.push(!!show_in_table);        cols.push(`show_in_table = $${vals.length}`); }
+    if (sort_order !== undefined)   { vals.push(sort_order);             cols.push(`sort_order = $${vals.length}`); }
+    if (cols.length === 0) return res.status(400).json({ error: 'nothing to update' });
+    vals.push(id);
+    const r = await db.query(
+      `UPDATE crm_custom_fields SET ${cols.join(', ')} WHERE id = $${vals.length} RETURNING *`, vals
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Field not found' });
+    res.json({ field: r.rows[0] });
+  } catch (e) { next(e); }
+}
+
+async function deleteCustomField(req, res, next) {
+  try {
+    const { id } = req.params;
+    await db.query('DELETE FROM crm_custom_fields WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (e) { next(e); }
+}
+
+async function getCustomValues(req, res, next) {
+  try {
+    const { id } = req.params;
+    const r = await db.query('SELECT field_id, value FROM crm_custom_values WHERE lead_id = $1', [id]);
+    const values = {};
+    r.rows.forEach(row => { values[row.field_id] = row.value; });
+    res.json({ values });
+  } catch (e) { next(e); }
+}
+
+async function setCustomValues(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { values } = req.body;
+    if (!values || typeof values !== 'object') return res.status(400).json({ error: 'values object required' });
+    for (const [field_id, value] of Object.entries(values)) {
+      if (value === null || value === '') {
+        await db.query('DELETE FROM crm_custom_values WHERE lead_id = $1 AND field_id = $2', [id, field_id]);
+      } else {
+        await db.query(
+          `INSERT INTO crm_custom_values (lead_id, field_id, value) VALUES ($1,$2,$3)
+           ON CONFLICT (lead_id, field_id) DO UPDATE SET value = $3`,
+          [id, field_id, String(value)]
+        );
+      }
+    }
+    res.json({ success: true });
+  } catch (e) { next(e); }
+}
+
 // ─── HELPERS ────────────────────────────────────────────────────────
 
 function interpolateTemplate(template, lead) {
@@ -892,4 +1051,10 @@ module.exports = {
   getSequences, createSequence,
   getStats,
   getSettings, updateSettings,
+  // Stages
+  getStages, createStage, updateStage, deleteStage, reorderStages,
+  // Custom Fields
+  getCustomFields, createCustomField, updateCustomField, deleteCustomField,
+  // Custom Values per lead
+  getCustomValues, setCustomValues,
 };
