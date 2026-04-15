@@ -632,7 +632,7 @@ async function sendEmail(req, res, next) {
     // Send via nodemailer
     const emailUtil = require('../utils/email');
     const nodemailer = require('nodemailer');
-    const crmFromEmail = process.env.CRM_FROM_EMAIL || 'pierce.shapton@gmail.com';
+    const crmFromEmail = process.env.CRM_FROM_EMAIL || 'pierce.shapton@proper-place.co.uk';
     const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
 
     const transporter = nodemailer.createTransport({
