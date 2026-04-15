@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { crmApi, type CRMLead, type CRMStage } from '@/lib/api';
@@ -18,11 +18,11 @@ const DEFAULT_STAGES: CRMStage[] = [
 const PRIORITIES = ['hot', 'warm', 'medium', 'cold'];
 const PROPERTY_TYPES = ['pub', 'farm', 'campsite', 'hotel', 'caravan_park', 'other'];
 
-const PRIORITY_DOT: Record<string, string> = {
-  hot: 'bg-red-500',
-  warm: 'bg-orange-400',
-  medium: 'bg-slate-500',
-  cold: 'bg-blue-400',
+const PRIORITY_STYLES: Record<string, { dot: string; text: string; bg: string }> = {
+  hot:    { dot: 'bg-red-500',    text: 'text-red-400',    bg: 'bg-red-500/10'    },
+  warm:   { dot: 'bg-orange-400', text: 'text-orange-400', bg: 'bg-orange-500/10' },
+  medium: { dot: 'bg-slate-500',  text: 'text-slate-400',  bg: 'bg-slate-500/10'  },
+  cold:   { dot: 'bg-blue-400',   text: 'text-blue-400',   bg: 'bg-blue-500/10'   },
 };
 
 type SortKey = 'business_name' | 'location' | 'pipeline_stage' | 'priority' | 'google_rating' | 'last_contact_date' | 'next_follow_up' | 'created_at';
@@ -85,6 +85,12 @@ export default function LeadsPage() {
     setSelected(new Set());
     setBulkStage('');
     loadLeads();
+  }
+
+  async function patchLead(id: number, data: Partial<CRMLead>) {
+    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...data } : l));
+    try { await crmApi.updateLead(id, data); }
+    catch { loadLeads(); }
   }
 
   function toggleSort(key: SortKey) {
@@ -239,21 +245,19 @@ export default function LeadsPage() {
               <tbody className="bg-slate-950 divide-y divide-slate-800/60">
                 {sorted.map(lead => {
                   const name = lead.business_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unnamed';
-                  const overdue = lead.next_follow_up && new Date(lead.next_follow_up) < new Date();
+                  const overdue = !!(lead.next_follow_up && new Date(lead.next_follow_up) < new Date());
                   const isSelected = selected.has(lead.id);
                   return (
                     <tr key={lead.id} className={`group transition-colors hover:bg-slate-900/60 ${isSelected ? 'bg-emerald-500/5' : ''}`}>
-                      <td className="px-3 py-2.5" onClick={e => { e.preventDefault(); toggleSelect(lead.id); }}>
+                      <td className="px-3 py-2.5" onClick={e => { e.stopPropagation(); toggleSelect(lead.id); }}>
                         <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(lead.id)} className="accent-emerald-500 cursor-pointer" />
                       </td>
-                      <td className="px-3 py-2.5">
-                        <Link href={`/crm/leads/${lead.id}`} className="block">
-                          <p className="text-sm font-medium text-slate-200 truncate max-w-[200px] group-hover:text-emerald-400 transition-colors">{name}</p>
-                          {lead.property_type && <p className="text-[11px] text-slate-600 capitalize">{lead.property_type.replace('_', ' ')}</p>}
-                        </Link>
+                      <td className="px-3 py-2.5 max-w-[210px]">
+                        <InlineText value={name} onSave={v => patchLead(lead.id, { business_name: v })} textClass="text-sm font-medium text-slate-200" />
+                        {lead.property_type && <p className="text-[11px] text-slate-600 capitalize mt-0.5">{lead.property_type.replace('_', ' ')}</p>}
                       </td>
-                      <td className="px-3 py-2.5">
-                        <span className="text-xs text-slate-400 truncate block max-w-[140px]">{lead.location || '—'}</span>
+                      <td className="px-3 py-2.5 max-w-[150px]">
+                        <InlineText value={lead.location || ''} placeholder="Add location…" onSave={v => patchLead(lead.id, { location: v })} textClass="text-xs text-slate-400" />
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="text-xs text-slate-400 space-y-0.5">
@@ -263,17 +267,10 @@ export default function LeadsPage() {
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
-                        {(() => { const stg = stages.find(s => s.slug === lead.pipeline_stage); const c = stageColors(stg?.color || 'slate'); return (
-                          <span className={`inline-flex text-[10px] px-2 py-0.5 rounded-full font-medium border ${c.badgeBg} ${c.badgeText} ${c.badgeBorder}`}>
-                            {stg?.name || lead.pipeline_stage}
-                          </span>
-                        ); })()}
+                        <InlineStageCell stageSlug={lead.pipeline_stage} stages={stages} onSave={v => patchLead(lead.id, { pipeline_stage: v as CRMLead['pipeline_stage'] })} />
                       </td>
                       <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[lead.priority] || 'bg-slate-500'}`}></span>
-                          <span className="text-xs text-slate-400 capitalize">{lead.priority}</span>
-                        </div>
+                        <InlinePriorityCell priority={lead.priority} onSave={v => patchLead(lead.id, { priority: v })} />
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-xs text-slate-400 font-mono">{lead.google_rating ? `${lead.google_rating}★` : '—'}</span>
@@ -282,12 +279,7 @@ export default function LeadsPage() {
                         <span className="text-xs text-slate-500">{lead.last_contact_date ? timeAgo(lead.last_contact_date) : <span className="text-slate-700">Never</span>}</span>
                       </td>
                       <td className="px-3 py-2.5">
-                        {lead.next_follow_up ? (
-                          <span className={`text-xs font-medium ${overdue ? 'text-red-400' : 'text-slate-400'}`}>
-                            {new Date(lead.next_follow_up).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                            {overdue && ' ⚠'}
-                          </span>
-                        ) : <span className="text-slate-700 text-xs">—</span>}
+                        <InlineDateCell value={lead.next_follow_up ? lead.next_follow_up.split('T')[0] : ''} overdue={overdue} onSave={v => patchLead(lead.id, { next_follow_up: v || null } as Partial<CRMLead>)} />
                       </td>
                       <td className="px-3 py-2.5">
                         <Link href={`/crm/leads/${lead.id}`} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-emerald-400 text-sm transition-all">→</Link>
@@ -305,6 +297,142 @@ export default function LeadsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Inline cell components ──────────────────────────────────────────
+function InlineText({ value, placeholder = 'Add…', onSave, textClass = '' }: {
+  value: string; placeholder?: string; onSave: (v: string) => void; textClass?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+  function save() {
+    const t = draft.trim();
+    if (t !== value) onSave(t);
+    setEditing(false);
+  }
+  if (editing) {
+    return (
+      <input ref={inputRef} value={draft} onChange={e => setDraft(e.target.value)}
+        onBlur={save}
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setDraft(value); setEditing(false); } }}
+        className="w-full bg-slate-800 border border-emerald-500 rounded px-1.5 py-0.5 text-xs text-slate-100 focus:outline-none" />
+    );
+  }
+  return (
+    <span onClick={() => setEditing(true)}
+      className={`${textClass} cursor-pointer hover:text-emerald-400 transition-colors truncate block group/ic`}
+      title="Click to edit">
+      {value || <span className="text-slate-700 italic text-xs">{placeholder}</span>}
+      <span className="ml-1 opacity-0 group-hover/ic:opacity-50 text-[9px]">✎</span>
+    </span>
+  );
+}
+
+function InlineStageCell({ stageSlug, stages, onSave }: {
+  stageSlug: string; stages: CRMStage[]; onSave: (slug: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  const stg = stages.find(s => s.slug === stageSlug);
+  const c = stageColors(stg?.color || 'slate');
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button onClick={() => setOpen(o => !o)}
+        className={`text-[10px] px-2 py-0.5 rounded-full font-medium border transition-opacity hover:opacity-80 cursor-pointer ${c.badgeBg} ${c.badgeText} ${c.badgeBorder}`}>
+        {stg?.name || stageSlug} ▾
+      </button>
+      {open && (
+        <div className="absolute left-0 top-7 z-30 bg-slate-800 border border-slate-700 rounded-xl p-1.5 shadow-xl space-y-0.5 min-w-[140px]">
+          {stages.map(s => {
+            const sc = stageColors(s.color);
+            const active = s.slug === stageSlug;
+            return (
+              <button key={s.slug} onClick={() => { onSave(s.slug); setOpen(false); }}
+                className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-2 ${
+                  active ? `${sc.badgeBg} ${sc.badgeText}` : 'text-slate-400 hover:bg-slate-700'
+                }`}>
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${sc.dot}`} />
+                {s.name}
+                {active && <span className="ml-auto opacity-60 text-[10px]">✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InlinePriorityCell({ priority, onSave }: { priority: string; onSave: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  const ps = PRIORITY_STYLES[priority] || PRIORITY_STYLES.medium;
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button onClick={() => setOpen(o => !o)} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ps.dot}`} />
+        <span className={`text-xs capitalize ${ps.text}`}>{priority}</span>
+        <span className="text-[9px] text-slate-600">▾</span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-6 z-30 bg-slate-800 border border-slate-700 rounded-xl p-1.5 shadow-xl space-y-0.5 min-w-[110px]">
+          {PRIORITIES.map(p => {
+            const s = PRIORITY_STYLES[p] || PRIORITY_STYLES.medium;
+            const active = p === priority;
+            return (
+              <button key={p} onClick={() => { onSave(p); setOpen(false); }}
+                className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-2 ${
+                  active ? `${s.bg} ${s.text}` : 'text-slate-400 hover:bg-slate-700'
+                }`}>
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
+                <span className="capitalize">{p}</span>
+                {active && <span className="ml-auto opacity-60 text-[10px]">✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InlineDateCell({ value, overdue, onSave }: { value: string; overdue: boolean; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+  if (editing) {
+    return (
+      <input ref={inputRef} type="date" defaultValue={value}
+        onChange={e => { onSave(e.target.value); setEditing(false); }}
+        onBlur={() => setEditing(false)}
+        className="bg-slate-800 border border-emerald-500 rounded px-1.5 py-0.5 text-xs text-slate-200 focus:outline-none w-[130px]" />
+    );
+  }
+  return (
+    <button onClick={() => setEditing(true)}
+      className={`text-xs font-medium hover:opacity-80 transition-opacity text-left ${
+        overdue ? 'text-red-400' : value ? 'text-slate-400' : 'text-slate-700 hover:text-slate-500'
+      }`}>
+      {value
+        ? `${new Date(value + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}${overdue ? ' ⚠' : ''}`
+        : 'Set date…'}
+    </button>
   );
 }
 
