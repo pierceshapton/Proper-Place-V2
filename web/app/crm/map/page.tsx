@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
-import { crmApi, type CRMLead, type CRMStage, type CRMActivity, type CRMTask, type CRMSiteVisit } from '@/lib/api';
+import { crmApi, type CRMLead, type CRMStage, type CRMActivity, type CRMTask, type CRMSiteVisit, type CRMEmailLog } from '@/lib/api';
 import { stageColors } from '@/lib/stageColors';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
@@ -211,24 +211,29 @@ function LeadDetailModal({ leadId, stages, onClose }: {
   const [activities, setActivities] = useState<CRMActivity[]>([]);
   const [tasks, setTasks] = useState<CRMTask[]>([]);
   const [visits, setVisits] = useState<CRMSiteVisit[]>([]);
+  const [emails, setEmails] = useState<CRMEmailLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('activity');
   const [showAddNote, setShowAddNote] = useState(false);
   const [noteForm, setNoteForm] = useState({ activity_type: 'note', title: '', description: '' });
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: '', due_date: '', priority: 'medium' });
+  const [showSendEmail, setShowSendEmail] = useState(false);
+  const [emailForm, setEmailForm] = useState({ subject: '', body: '' });
 
   useEffect(() => { loadData(); }, [leadId]);
 
   async function loadData() {
     setLoading(true);
     try {
-      const [leadRes, actRes, taskRes, visitRes] = await Promise.all([
+      const [leadRes, actRes, taskRes, visitRes, emailRes] = await Promise.all([
         crmApi.getLead(leadId), crmApi.getActivities(leadId),
         crmApi.getTasks({ lead_id: String(leadId) }), crmApi.getSiteVisits(leadId),
+        crmApi.getEmailLog(leadId),
       ]);
       setLead(leadRes.lead); setActivities(actRes.activities);
       setTasks(taskRes.tasks); setVisits(visitRes.visits);
+      setEmails(emailRes.emails || []);
     } catch { onClose(); } finally { setLoading(false); }
   }
 
@@ -260,6 +265,14 @@ function LeadDetailModal({ leadId, stages, onClose }: {
 
   async function handleCompleteTask(taskId: number) {
     await crmApi.updateTask(taskId, { status: 'completed' }); loadData();
+  }
+
+  async function handleSendEmail(e: React.FormEvent) {
+    e.preventDefault();
+    await crmApi.sendEmail(leadId, emailForm);
+    setShowSendEmail(false);
+    setEmailForm({ subject: '', body: '' });
+    loadData();
   }
 
   if (loading || !lead) {
@@ -318,6 +331,7 @@ function LeadDetailModal({ leadId, stages, onClose }: {
         <div className="flex gap-1 border-b border-slate-800 px-5">
           {[
             { key: 'activity', label: 'Activity', count: activities.length },
+            { key: 'emails', label: 'Emails', count: emails.length },
             { key: 'tasks', label: 'Tasks', count: tasks.filter(t => t.status === 'pending').length },
             { key: 'visits', label: 'Visits', count: visits.length },
             { key: 'info', label: 'Details' },
@@ -400,6 +414,50 @@ function LeadDetailModal({ leadId, stages, onClose }: {
                           </p>
                         )}
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'emails' && (
+            <div className="space-y-3">
+              <button onClick={() => setShowSendEmail(!showSendEmail)} className="text-xs text-blue-400 hover:text-blue-300">+ Send email</button>
+              {showSendEmail && (
+                <form onSubmit={handleSendEmail} className="bg-slate-800/50 border border-blue-500/30 rounded-lg p-3 space-y-2">
+                  <p className="text-xs text-blue-400 font-medium">Send Email to {lead.email || 'no email on file'}</p>
+                  <input
+                    value={emailForm.subject}
+                    onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}
+                    placeholder="Subject..."
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  />
+                  <textarea
+                    value={emailForm.body}
+                    onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))}
+                    placeholder={"Hi {{first_name}},\n\nI noticed {{business_name}} has a great location..."}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                    rows={4}
+                  />
+                  <div className="flex gap-2">
+                    <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg">Send</button>
+                    <button type="button" onClick={() => setShowSendEmail(false)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg">Cancel</button>
+                  </div>
+                </form>
+              )}
+              {emails.length === 0 ? (
+                <p className="text-sm text-slate-600 text-center py-6">No emails sent</p>
+              ) : (
+                <div className="space-y-2">
+                  {emails.map(e => (
+                    <div key={e.id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-slate-300">{e.subject}</p>
+                        <span className="text-[10px] text-slate-500">{timeAgo(e.sent_at)}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">To: {e.to_email}</p>
+                      <div className="text-xs text-slate-400 mt-2 prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: e.body }} />
                     </div>
                   ))}
                 </div>

@@ -632,6 +632,9 @@ async function sendEmail(req, res, next) {
     // Send via nodemailer
     const emailUtil = require('../utils/email');
     const nodemailer = require('nodemailer');
+    const crmFromEmail = process.env.CRM_FROM_EMAIL || 'pierce.shapton@gmail.com';
+    const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
+
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp-relay.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587', 10),
@@ -641,7 +644,8 @@ async function sendEmail(req, res, next) {
     });
 
     await transporter.sendMail({
-      from: `"Pierce at Proper Place" <${process.env.SMTP_USER}>`,
+      from: `"${crmFromName}" <${crmFromEmail}>`,
+      replyTo: crmFromEmail,
       to: lead.email,
       subject: interpolatedSubject,
       html: wrapEmailHtml(interpolated),
