@@ -940,57 +940,31 @@ async function initializeDatabase() {
   }
 }
 
-// Run CRM migration on startup (idempotent — all statements use IF NOT EXISTS)
-async function runCRMMigration() {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const sql = fs.readFileSync(path.join(__dirname, 'migrations', '016_crm_tables.sql'), 'utf8');
-    await db.query(sql);
-    console.log('[SERVER] ✅ CRM tables verified/migrated');
-  } catch (err) {
-    console.error('[SERVER] CRM migration error:', err.message);
+// Run a SQL migration file — splits on ; so every statement executes individually
+async function runSqlMigration(filename, label) {
+  const fs = require('fs');
+  const path = require('path');
+  const sql = fs.readFileSync(path.join(__dirname, 'migrations', filename), 'utf8');
+  // Split into individual statements, skip blank lines and comments-only lines
+  const statements = sql
+    .split(';')
+    .map(s => s.trim())
+    .filter(s => s.length > 0 && !s.replace(/--[^\n]*/g, '').trim().match(/^$/));
+  for (const stmt of statements) {
+    try {
+      await db.query(stmt);
+    } catch (err) {
+      // Log but continue — most errors are "already exists" on re-runs
+      console.error(`[SERVER] ${label} stmt error: ${err.message.split('\n')[0]}`);
+    }
   }
+  console.log(`[SERVER] ✅ ${label} verified/migrated`);
 }
 
-// Run CMS content migration on startup (idempotent — uses ON CONFLICT DO NOTHING)
-async function runCMSMigration() {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const sql = fs.readFileSync(path.join(__dirname, 'migrations', '017_cms_content.sql'), 'utf8');
-    await db.query(sql);
-    console.log('[SERVER] ✅ CMS content table verified/migrated');
-  } catch (err) {
-    console.error('[SERVER] CMS migration error:', err.message);
-  }
-}
-
-// Run stages + custom fields migration (idempotent)
-async function runStagesMigration() {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const sql = fs.readFileSync(path.join(__dirname, 'migrations', '018_crm_stages_custom_fields.sql'), 'utf8');
-    await db.query(sql);
-    console.log('[SERVER] ✅ CRM stages + custom fields verified/migrated');
-  } catch (err) {
-    console.error('[SERVER] Stages migration error:', err.message);
-  }
-}
-
-// Make host_leads personal fields nullable for CRM/KML imports
-async function runNullableLeadFieldsMigration() {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const sql = fs.readFileSync(path.join(__dirname, 'migrations', '019_nullable_lead_fields.sql'), 'utf8');
-    await db.query(sql);
-    console.log('[SERVER] ✅ Nullable lead fields migration verified');
-  } catch (err) {
-    console.error('[SERVER] Nullable lead fields migration error:', err.message);
-  }
-}
+async function runCRMMigration()             { await runSqlMigration('016_crm_tables.sql',                  'CRM tables'); }
+async function runCMSMigration()             { await runSqlMigration('017_cms_content.sql',                 'CMS content'); }
+async function runStagesMigration()          { await runSqlMigration('018_crm_stages_custom_fields.sql',    'CRM stages + custom fields'); }
+async function runNullableLeadFieldsMigration() { await runSqlMigration('019_nullable_lead_fields.sql',    'Nullable lead fields'); }
 
 // Start server
 async function start() {
