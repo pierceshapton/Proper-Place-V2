@@ -937,10 +937,24 @@ async function initializeDatabase() {
   }
 }
 
+// Run CRM migration on startup (idempotent — all statements use IF NOT EXISTS)
+async function runCRMMigration() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const sql = fs.readFileSync(path.join(__dirname, 'migrations', '016_crm_tables.sql'), 'utf8');
+    await db.query(sql);
+    console.log('[SERVER] ✅ CRM tables verified/migrated');
+  } catch (err) {
+    console.error('[SERVER] CRM migration error:', err.message);
+  }
+}
+
 // Start server
 async function start() {
   try {
     await initializeDatabase();
+    await runCRMMigration();
     pushService.initialize();
 
     // Start auto-message scheduler (runs every 15 minutes)
