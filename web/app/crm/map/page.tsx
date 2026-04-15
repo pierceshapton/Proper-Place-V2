@@ -57,6 +57,8 @@ export default function CRMMapPage() {
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const hasFitBounds = useRef(false);
+  const [initialCenter] = useState({ lat: 52.5, lng: -1.5 });
+  const [initialZoom] = useState(6);
 
   const { isLoaded } = useJsApiLoader({ id: 'crm-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY });
 
@@ -157,8 +159,8 @@ export default function CRMMapPage() {
         ) : (
           <GoogleMap
             mapContainerStyle={{ width: '100%', height: '100%' }}
-            center={{ lat: 52.5, lng: -1.5 }}
-            zoom={6}
+            center={initialCenter}
+            zoom={initialZoom}
             onLoad={onMapLoad}
             options={{
               styles: MAP_STYLES,
@@ -168,6 +170,7 @@ export default function CRMMapPage() {
               streetViewControl: false,
               fullscreenControl: true,
               backgroundColor: '#0f172a',
+              gestureHandling: 'greedy',
             }}
           >
             {leadsWithCoords.map(lead => (
