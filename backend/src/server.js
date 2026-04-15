@@ -979,6 +979,19 @@ async function runStagesMigration() {
   }
 }
 
+// Make host_leads personal fields nullable for CRM/KML imports
+async function runNullableLeadFieldsMigration() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const sql = fs.readFileSync(path.join(__dirname, 'migrations', '019_nullable_lead_fields.sql'), 'utf8');
+    await db.query(sql);
+    console.log('[SERVER] ✅ Nullable lead fields migration verified');
+  } catch (err) {
+    console.error('[SERVER] Nullable lead fields migration error:', err.message);
+  }
+}
+
 // Start server
 async function start() {
   try {
@@ -986,6 +999,7 @@ async function start() {
     await runCRMMigration();
     await runCMSMigration();
     await runStagesMigration();
+    await runNullableLeadFieldsMigration();
     pushService.initialize();
 
     // Start auto-message scheduler (runs every 15 minutes)
