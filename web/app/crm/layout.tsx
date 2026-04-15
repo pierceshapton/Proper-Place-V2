@@ -48,9 +48,9 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100" style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
+    <div className="fixed inset-0 bg-slate-950 text-slate-100 flex flex-col z-50 overflow-hidden" style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+      <div className="lg:hidden flex-shrink-0 bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded bg-emerald-500/20 flex items-center justify-center">
             <span className="text-emerald-400 text-sm font-bold">C</span>
@@ -69,9 +69,9 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
         </button>
       </div>
 
-      <div className="flex">
+      <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-60 bg-slate-900 border-r border-slate-800 overflow-y-auto transition-transform z-30 flex flex-col`}>
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:relative top-0 left-0 h-full w-60 bg-slate-900 border-r border-slate-800 overflow-y-auto transition-transform z-30 flex flex-col flex-shrink-0`}>
           {/* Logo area */}
           <div className="p-4 border-b border-slate-800">
             <div className="flex items-center gap-2.5">
@@ -114,8 +114,8 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
         {sidebarOpen && <div className="lg:hidden fixed inset-0 bg-black/60 z-20 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />}
 
         {/* Main content */}
-        <main className="flex-1 min-h-screen lg:max-w-[calc(100vw-15rem)]">
-          <div className="pt-14 lg:pt-0 p-4 lg:p-6">
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          <div className="p-4 lg:p-6">
             {children}
           </div>
         </main>
