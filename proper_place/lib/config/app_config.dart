@@ -2,6 +2,8 @@
 /// Loads from environment variables or defaults
 library;
 
+import 'package:flutter/foundation.dart';
+
 class AppConfig {
   static const String properPlaceAppId = String.fromEnvironment(
     'PROPER_PLACE_APP_ID',
@@ -20,8 +22,8 @@ class AppConfig {
 
   // For debugging
   static void printConfig() {
-    print('=== App Config ===');
-    print('App ID: $properPlaceAppId');
-    print('Backend URL: $properPlaceBackendUrl');
+    debugPrint('=== App Config ===');
+    debugPrint('App ID: $properPlaceAppId');
+    debugPrint('Backend URL: $properPlaceBackendUrl');
   }
 }

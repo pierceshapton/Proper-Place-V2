@@ -1,5 +1,5 @@
 const db = require('../config/database');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_51SVJ2DCGmQVz0gpF9CcIAr4tsMN3LKFicySXcKQWB378Mi4BVrUI2UstMGxHzR8vomIV1EJ9fMLz7xiAkQDEqJzp00wfNviq5a');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const pushService = require('../services/pushNotificationService');
 
 const BONUS_AMOUNT = 2500; // £25.00 in pence

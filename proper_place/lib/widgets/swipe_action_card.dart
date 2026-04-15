@@ -78,7 +78,7 @@ class _SwipeActionCardState extends State<SwipeActionCard>
       await widget.onMarkUnread();
       _resetSwipe();
     } catch (e) {
-      print('Error marking as unread: $e');
+    debugPrint('Error marking as unread: $e');
     } finally {
       setState(() => _isProcessing = false);
     }
@@ -90,7 +90,7 @@ class _SwipeActionCardState extends State<SwipeActionCard>
     try {
       await widget.onDelete();
     } catch (e) {
-      print('Error deleting: $e');
+    debugPrint('Error deleting: $e');
       setState(() => _isProcessing = false);
     }
   }

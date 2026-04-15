@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:proper_place/config/app_config.dart';
@@ -44,7 +45,7 @@ class ChatService {
         throw Exception('Failed to delete contact: ${response.statusCode}');
       }
     } catch (error) {
-      print('[ChatService] Error deleting contact: $error');
+    debugPrint('[ChatService] Error deleting contact: $error');
       rethrow;
     }
   }
@@ -81,7 +82,7 @@ class ChatService {
         throw Exception('Failed to mark as unread: ${response.statusCode}');
       }
     } catch (error) {
-      print('[ChatService] Error marking as unread: $error');
+    debugPrint('[ChatService] Error marking as unread: $error');
       rethrow;
     }
   }
@@ -118,7 +119,7 @@ class ChatService {
         throw Exception('Failed to mark as read: ${response.statusCode}');
       }
     } catch (error) {
-      print('[ChatService] Error marking as read: $error');
+    debugPrint('[ChatService] Error marking as read: $error');
       rethrow;
     }
   }
@@ -155,7 +156,7 @@ class ChatService {
         throw Exception('Failed to delete message: ${response.statusCode}');
       }
     } catch (error) {
-      print('[ChatService] Error deleting message: $error');
+    debugPrint('[ChatService] Error deleting message: $error');
       rethrow;
     }
   }
@@ -168,7 +169,7 @@ class ChatService {
         throw Exception('No auth token found');
       }
 
-      print('[ChatService] Fetching conversations from ${AppConfig.properPlaceBackendUrl}/chat/conversations');
+    debugPrint('[ChatService] Fetching conversations from ${AppConfig.properPlaceBackendUrl}/chat/conversations');
       final response = await http.get(
         Uri.parse('${AppConfig.properPlaceBackendUrl}/chat/conversations'),
         headers: {
@@ -177,24 +178,24 @@ class ChatService {
         },
       ).timeout(const Duration(seconds: 15));
 
-      print('[ChatService] Response status: ${response.statusCode}');
+    debugPrint('[ChatService] Response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final conversations = List<Map<String, dynamic>>.from(data['conversations'] ?? []);
-        print('[ChatService] Successfully fetched ${conversations.length} conversations');
+    debugPrint('[ChatService] Successfully fetched ${conversations.length} conversations');
         return conversations;
       } else if (response.statusCode == 401) {
         // Token invalid/expired - clear it so user gets redirected to login
-        print('[ChatService] Token invalid/expired - clearing stored token');
+    debugPrint('[ChatService] Token invalid/expired - clearing stored token');
         await StorageService.clearUserData();
         throw Exception('Session expired - please log in again');
       } else {
-        print('[ChatService] Error response body: ${response.body}');
+    debugPrint('[ChatService] Error response body: ${response.body}');
         throw Exception('Failed to fetch conversations: ${response.statusCode} - ${response.body}');
       }
     } catch (error) {
-      print('[ChatService] Error fetching conversations: $error');
+    debugPrint('[ChatService] Error fetching conversations: $error');
       rethrow;
     }
   }
@@ -225,7 +226,7 @@ class ChatService {
         throw Exception('Failed to fetch messages: ${response.statusCode}');
       }
     } catch (error) {
-      print('[ChatService] Error fetching messages: $error');
+    debugPrint('[ChatService] Error fetching messages: $error');
       rethrow;
     }
   }
@@ -256,7 +257,7 @@ class ChatService {
         throw Exception('Failed to fetch messages: ${response.statusCode}');
       }
     } catch (error) {
-      print('[ChatService] Error fetching booking messages: $error');
+    debugPrint('[ChatService] Error fetching booking messages: $error');
       rethrow;
     }
   }
@@ -300,7 +301,7 @@ class ChatService {
         throw Exception('Failed to send message: ${response.statusCode}');
       }
     } catch (error) {
-      print('[ChatService] Error sending message: $error');
+    debugPrint('[ChatService] Error sending message: $error');
       rethrow;
     }
   }
@@ -330,7 +331,7 @@ class ChatService {
         throw Exception('Failed to mark conversation as read: ${response.statusCode}');
       }
     } catch (error) {
-      print('[ChatService] Error marking conversation as read: $error');
+    debugPrint('[ChatService] Error marking conversation as read: $error');
       rethrow;
     }
   }
@@ -359,7 +360,7 @@ class ChatService {
         throw Exception('Failed to mark booking as read: ${response.statusCode}');
       }
     } catch (error) {
-      print('[ChatService] Error marking booking as read: $error');
+    debugPrint('[ChatService] Error marking booking as read: $error');
       rethrow;
     }
   }

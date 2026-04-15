@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'dart:convert';
@@ -19,11 +20,11 @@ class PlaceService {
     try {
       final refreshToken = await StorageService.getRefreshToken();
       if (refreshToken == null) {
-        print('[PlaceService] No refresh token available');
+    debugPrint('[PlaceService] No refresh token available');
         return false;
       }
 
-      print('[PlaceService] Attempting token refresh...');
+    debugPrint('[PlaceService] Attempting token refresh...');
       final response = await http.post(
         Uri.parse('$baseUrl/auth/refresh'),
         headers: {'Content-Type': 'application/json'},
@@ -40,15 +41,15 @@ class PlaceService {
           if (newRefreshToken != null) {
             await StorageService.saveRefreshToken(newRefreshToken);
           }
-          print('[PlaceService] Token refresh successful');
+    debugPrint('[PlaceService] Token refresh successful');
           return true;
         }
       }
 
-      print('[PlaceService] Token refresh failed: ${response.statusCode}');
+    debugPrint('[PlaceService] Token refresh failed: ${response.statusCode}');
       return false;
     } catch (e) {
-      print('[PlaceService] Token refresh error: $e');
+    debugPrint('[PlaceService] Token refresh error: $e');
       return false;
     } finally {
       _isRefreshing = false;
@@ -76,11 +77,11 @@ class PlaceService {
         return jsonDecode(response.body);
       } else {
         final errorBody = response.body;
-        print('Create place error response: $errorBody');
+    debugPrint('Create place error response: $errorBody');
         throw Exception('Failed to create place: ${response.statusCode} - $errorBody');
       }
     } catch (e) {
-      print('Error creating place: $e');
+    debugPrint('Error creating place: $e');
       rethrow;
     }
   }
@@ -109,7 +110,7 @@ class PlaceService {
         throw Exception('Failed to update place: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error updating place: $e');
+    debugPrint('Error updating place: $e');
       rethrow;
     }
   }
@@ -158,7 +159,7 @@ class PlaceService {
         );
       }
     } catch (e) {
-      print('Error uploading photos: $e');
+    debugPrint('Error uploading photos: $e');
       rethrow;
     }
   }
@@ -181,21 +182,21 @@ class PlaceService {
         return data['places'] ?? [];
       } else if (response.statusCode == 401 && !isRetry) {
         // Token expired - try to refresh automatically
-        print('[PlaceService] Got 401 - attempting auto-refresh');
+    debugPrint('[PlaceService] Got 401 - attempting auto-refresh');
         final refreshed = await _refreshAccessToken();
         if (refreshed) {
           // Retry with new token
           return getHostPlaces(isRetry: true);
         }
         // Refresh failed - clear auth
-        print('[PlaceService] Token refresh failed - clearing auth');
+    debugPrint('[PlaceService] Token refresh failed - clearing auth');
         await StorageService.clearAll();
         throw Exception('Session expired');
       } else {
         throw Exception('Failed to fetch places: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching places: $e');
+    debugPrint('Error fetching places: $e');
       rethrow;
     }
   }
@@ -217,7 +218,7 @@ class PlaceService {
         throw Exception('Failed to delete place: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error deleting place: $e');
+    debugPrint('Error deleting place: $e');
       rethrow;
     }
   }
@@ -246,7 +247,7 @@ class PlaceService {
         }),
       );
 
-      print('Set unavailable response: ${response.statusCode} - ${response.body}');
+    debugPrint('Set unavailable response: ${response.statusCode} - ${response.body}');
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
@@ -254,7 +255,7 @@ class PlaceService {
         throw Exception('Failed to set place unavailable: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Error setting place unavailable: $e');
+    debugPrint('Error setting place unavailable: $e');
       rethrow;
     }
   }
@@ -273,7 +274,7 @@ class PlaceService {
         },
       );
 
-      print('Set available response: ${response.statusCode} - ${response.body}');
+    debugPrint('Set available response: ${response.statusCode} - ${response.body}');
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
@@ -281,7 +282,7 @@ class PlaceService {
         throw Exception('Failed to set place available: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Error setting place available: $e');
+    debugPrint('Error setting place available: $e');
       rethrow;
     }
   }

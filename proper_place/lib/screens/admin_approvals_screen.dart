@@ -50,7 +50,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading places: $e');
+    debugPrint('Error loading places: $e');
       setState(() {
         _error = 'Failed to load places: $e';
         _isLoading = false;

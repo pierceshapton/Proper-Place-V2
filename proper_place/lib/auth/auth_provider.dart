@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:proper_place/api/base44_client.dart';
 
 /// Abstract auth provider interface
@@ -20,7 +21,7 @@ class Base44AuthProvider implements AuthProvider {
       final response = await _client.login(email, password);
       return response;
     } catch (e) {
-      print('Base44AuthProvider.login error: $e');
+    debugPrint('Base44AuthProvider.login error: $e');
       rethrow;
     }
   }
@@ -35,7 +36,7 @@ class Base44AuthProvider implements AuthProvider {
       final response = await _client.signup(email, password, name);
       return response;
     } catch (e) {
-      print('Base44AuthProvider.signup error: $e');
+    debugPrint('Base44AuthProvider.signup error: $e');
       rethrow;
     }
   }
@@ -45,7 +46,7 @@ class Base44AuthProvider implements AuthProvider {
     try {
       await _client.logout();
     } catch (e) {
-      print('Base44AuthProvider.logout error: $e');
+    debugPrint('Base44AuthProvider.logout error: $e');
     }
   }
 
@@ -55,7 +56,7 @@ class Base44AuthProvider implements AuthProvider {
       final user = await _client.getCurrentUser();
       return user;
     } catch (e) {
-      print('Base44AuthProvider.checkAuthStatus error: $e');
+    debugPrint('Base44AuthProvider.checkAuthStatus error: $e');
       return null;
     }
   }

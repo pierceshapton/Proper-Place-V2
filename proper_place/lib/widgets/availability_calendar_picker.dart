@@ -85,7 +85,7 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
         setState(() => isLoading = false);
       }
     } catch (e) {
-      print('Error loading availability: $e');
+    debugPrint('Error loading availability: $e');
       setState(() => isLoading = false);
     }
   }

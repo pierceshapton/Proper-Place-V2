@@ -149,7 +149,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         });
       }
     } catch (e) {
-      print('Error fetching facilities: $e');
+    debugPrint('Error fetching facilities: $e');
       // Fallback to defaults if API fails
       setState(() {
         facilities = [
@@ -174,10 +174,10 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     final site = widget.siteToEdit!;
     
     // Debug: Print full site data to identify image field
-    print('DEBUG _loadExistingSite: Full site data keys: ${site.keys.toList()}');
-    print('DEBUG _loadExistingSite: images field type: ${site['images']?.runtimeType}');
-    print('DEBUG _loadExistingSite: images field value: ${site['images']}');
-    print('DEBUG _loadExistingSite: business_images field: ${site['business_images']}');
+    debugPrint('DEBUG _loadExistingSite: Full site data keys: ${site.keys.toList()}');
+    debugPrint('DEBUG _loadExistingSite: images field type: ${site['images']?.runtimeType}');
+    debugPrint('DEBUG _loadExistingSite: images field value: ${site['images']}');
+    debugPrint('DEBUG _loadExistingSite: business_images field: ${site['business_images']}');
     
     // Process images BEFORE setState to catch any errors
     List<String>? images;
@@ -189,32 +189,32 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       // Load site images (main + supporting)
       if (site['images'] != null && site['images'] is List && (site['images'] as List).isNotEmpty) {
         images = List<String>.from(site['images']);
-        print('DEBUG: Found images field with ${images.length} images: $images');
+    debugPrint('DEBUG: Found images field with ${images.length} images: $images');
       } else if (site['image_urls'] != null && site['image_urls'] is List && (site['image_urls'] as List).isNotEmpty) {
         images = List<String>.from(site['image_urls']);
-        print('DEBUG: Found image_urls field with ${images.length} images: $images');
+    debugPrint('DEBUG: Found image_urls field with ${images.length} images: $images');
       } else {
-        print('DEBUG: No site images found');
+    debugPrint('DEBUG: No site images found');
       }
       
       if (images != null && images.isNotEmpty) {
         mainPhotoUrl = _toFullImageUrl(images.first);
-        print('DEBUG: Computed mainPhotoUrl: $mainPhotoUrl');
+    debugPrint('DEBUG: Computed mainPhotoUrl: $mainPhotoUrl');
         if (images.length > 1) {
           supportingUrls = images.sublist(1).map((url) => _toFullImageUrl(url)).toList();
-          print('DEBUG: Computed supportingUrls: $supportingUrls');
+    debugPrint('DEBUG: Computed supportingUrls: $supportingUrls');
         }
       }
       
       // Load business images separately
       if (site['business_images'] != null && site['business_images'] is List && (site['business_images'] as List).isNotEmpty) {
         businessUrls = List<String>.from(site['business_images']).map((url) => _toFullImageUrl(url)).toList();
-        print('DEBUG: Computed businessUrls: $businessUrls');
+    debugPrint('DEBUG: Computed businessUrls: $businessUrls');
       } else {
-        print('DEBUG: No business images found');
+    debugPrint('DEBUG: No business images found');
       }
     } catch (e) {
-      print('DEBUG ERROR loading images: $e');
+    debugPrint('DEBUG ERROR loading images: $e');
     }
     
     setState(() {
@@ -283,8 +283,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       existingMainPhotoUrl = mainPhotoUrl;
       existingSupportingUrls = supportingUrls;
       existingBusinessUrls = businessUrls;
-      print('DEBUG setState: existingMainPhotoUrl = $existingMainPhotoUrl');
-      print('DEBUG setState: existingBusinessUrls = $existingBusinessUrls');
+    debugPrint('DEBUG setState: existingMainPhotoUrl = $existingMainPhotoUrl');
+    debugPrint('DEBUG setState: existingBusinessUrls = $existingBusinessUrls');
       
       // Show business info section if any business data exists
       showBusinessInfo = businessNameController.text.isNotEmpty || 
@@ -321,7 +321,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         // Parse and load draft data
       }
     } catch (e) {
-      print('Error loading draft: $e');
+    debugPrint('Error loading draft: $e');
     }
   }
 
@@ -532,7 +532,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         'end': TimeOfDay(hour: int.parse(endParts[0]), minute: int.parse(endParts[1])),
       };
     } catch (e) {
-      print('Error parsing time range: $e');
+    debugPrint('Error parsing time range: $e');
       return null;
     }
   }
@@ -785,7 +785,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 children: [
             // Debug: Print values at build time
             Builder(builder: (_) { 
-              print('DEBUG BUILD: mainPhotoFile=$mainPhotoFile, existingMainPhotoUrl=$existingMainPhotoUrl'); 
+    debugPrint('DEBUG BUILD: mainPhotoFile=$mainPhotoFile, existingMainPhotoUrl=$existingMainPhotoUrl'); 
               return const SizedBox.shrink(); 
             }),
             // Main Photo Section
@@ -816,7 +816,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               existingUrls: existingSupportingUrls,
               maxPhotos: 5,
               onAddPhoto: () => _pickPhoto((file) {
-                print('DEBUG: Adding photo to SUPPORTING photos');
+    debugPrint('DEBUG: Adding photo to SUPPORTING photos');
                 if (supportingPhotos.length + existingSupportingUrls.length < 5) {
                   setState(() => supportingPhotos.add(file));
                 } else {
@@ -1512,7 +1512,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                       existingUrls: existingBusinessUrls,
                       maxPhotos: 3,
                       onAddPhoto: () => _pickPhoto((file) {
-                        print('DEBUG: Adding photo to BUSINESS photos');
+    debugPrint('DEBUG: Adding photo to BUSINESS photos');
                         if (businessPhotos.length + existingBusinessUrls.length < 3) {
                           setState(() => businessPhotos.add(file));
                         } else {

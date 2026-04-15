@@ -105,7 +105,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         });
       }
     } catch (e) {
-      print('Error loading bookings: $e');
+    debugPrint('Error loading bookings: $e');
       if (mounted) {
         setState(() {
           isLoadingBookings = false;
@@ -471,7 +471,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
 
       debugPrint('🟦 BOOKING: Payment returned: $paymentSuccess');
 
-      if (!paymentSuccess) {
+      if (paymentSuccess == null) {
         debugPrint('❌ BOOKING: Payment was cancelled by user');
         setState(() {
           isSubmitting = false;

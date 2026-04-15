@@ -56,7 +56,7 @@ class _HostReviewsScreenState extends State<HostReviewsScreen> {
             });
           }
         } catch (e) {
-          print('Error loading reviews for place $placeId: $e');
+    debugPrint('Error loading reviews for place $placeId: $e');
         }
       }
       

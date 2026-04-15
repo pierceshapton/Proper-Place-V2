@@ -167,7 +167,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         setState(() => isLoadingBookings = false);
       }
     } catch (e) {
-      print('Error loading bookings: $e');
+    debugPrint('Error loading bookings: $e');
       setState(() => isLoadingBookings = false);
     }
   }

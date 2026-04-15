@@ -127,13 +127,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             });
           }
         } catch (e) {
-          print('Error loading bookings for place $placeId: $e');
+    debugPrint('Error loading bookings for place $placeId: $e');
         }
       }
       
       _bookings = allBookings;
     } catch (e) {
-      print('Error loading dashboard data: $e');
+    debugPrint('Error loading dashboard data: $e');
     }
     
     _calculateMetrics();
@@ -341,10 +341,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     String? referralCode;
     try {
       final response = await ApiService.getReferralCode();
-      print('[REFERRAL DEBUG] API returned: "$response"');
+    debugPrint('[REFERRAL DEBUG] API returned: "$response"');
       referralCode = response;
     } catch (e) {
-      print('[REFERRAL DEBUG] API call FAILED: $e');
+    debugPrint('[REFERRAL DEBUG] API call FAILED: $e');
       // Generate a local fallback code
       final randomHex = List.generate(8, (i) => '0123456789ABCDEF'[(DateTime.now().microsecond + i.hashCode) % 16]).join();
       referralCode = 'PP-$randomHex';
@@ -1003,7 +1003,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 onPressed: () => widget.onTabChanged(1), // Sites tab
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF5B8FC4),
+                  foregroundColor: const Color(0xFF3D8B6E),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),

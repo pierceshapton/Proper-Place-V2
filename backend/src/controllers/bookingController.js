@@ -3,7 +3,7 @@ const logger = require('../utils/logger');
 const pushService = require('../services/pushNotificationService');
 const autoMessageController = require('./autoMessageController');
 const crypto = require('crypto');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_51SVJ2DCGmQVz0gpF9CcIAr4tsMN3LKFicySXcKQWB378Mi4BVrUI2UstMGxHzR8vomIV1EJ9fMLz7xiAkQDEqJzp00wfNviq5a');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 /**
  * Generate a unique booking reference: PP-YYMMDD-XXXX

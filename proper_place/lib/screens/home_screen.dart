@@ -25,6 +25,7 @@ import 'admin_host_chat_screen.dart';
 import 'admin_contact_messages_screen.dart';
 import 'admin_more_screen.dart';
 import 'host_tutorial_screen.dart';
+import 'host_create_site_screen.dart';
 
 /// Reusable custom bottom navigation bar widget
 class CustomBottomNavBar extends StatelessWidget {
@@ -299,12 +300,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         await prefs.setBool(key, true);
         await Future.delayed(const Duration(milliseconds: 400));
         if (mounted) {
-          Navigator.of(context).push(
+          final result = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
               builder: (_) => const HostTutorialScreen(),
               fullscreenDialog: true,
             ),
           );
+          if (result == true && mounted) {
+            // Switch to Sites tab, then open site creation form
+            setState(() => _currentIndex = 1);
+            await Future.delayed(const Duration(milliseconds: 200));
+            if (mounted) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const HostCreateSiteScreen(),
+                ),
+              );
+            }
+          }
         }
       }
     } catch (e) {

@@ -37,7 +37,7 @@ class NotificationManager extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (error) {
-      print('[NotificationManager] Error loading notification counts: $error');
+    debugPrint('[NotificationManager] Error loading notification counts: $error');
       _isLoading = false;
       notifyListeners();
     }
@@ -50,7 +50,7 @@ class NotificationManager extends ChangeNotifier {
       // Refresh counts after marking message as read
       await loadNotificationCounts();
     } catch (error) {
-      print('[NotificationManager] Error marking message as read: $error');
+    debugPrint('[NotificationManager] Error marking message as read: $error');
     }
   }
 
@@ -61,7 +61,7 @@ class NotificationManager extends ChangeNotifier {
       // Refresh counts after marking messages as read
       await loadNotificationCounts();
     } catch (error) {
-      print('[NotificationManager] Error marking all messages as read: $error');
+    debugPrint('[NotificationManager] Error marking all messages as read: $error');
     }
   }
 

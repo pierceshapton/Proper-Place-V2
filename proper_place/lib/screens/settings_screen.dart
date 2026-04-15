@@ -33,7 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         isHostMode = hostMode;
       });
     } catch (e) {
-      print('Error loading host mode: $e');
+    debugPrint('Error loading host mode: $e');
     }
   }
 

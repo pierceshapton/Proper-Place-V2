@@ -37,7 +37,7 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
     try {
       setState(() => _isLoading = true);
       final places = await PlaceService.getHostPlaces();
-      print('DEBUG: Loaded ${places.length} places');
+    debugPrint('DEBUG: Loaded ${places.length} places');
       // Filter out rejected places - those are shown in the More tab
       final filteredPlaces = places.where((place) {
         final approvalStatus = place['approval_status'] ?? 'pending';
@@ -50,22 +50,22 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
           final config = _statusConfig[approvalStatus] ?? _statusConfig['pending']!;
           
           // Debug: print status data
-          print('DEBUG: Place ${place['name']} - approval_status: $approvalStatus, status: $availabilityStatus');
+    debugPrint('DEBUG: Place ${place['name']} - approval_status: $approvalStatus, status: $availabilityStatus');
           
           // Build full image URL from relative path
           String imageUrl = 'https://via.placeholder.com/400x300';
           if (place['images'] != null && place['images'] is List && (place['images'] as List).isNotEmpty) {
             final imgPath = place['images'][0];
-            print('DEBUG: imgPath = $imgPath');
+    debugPrint('DEBUG: imgPath = $imgPath');
             if (imgPath.startsWith('http')) {
               imageUrl = imgPath;
             } else {
               // Prepend API base URL for relative paths
               imageUrl = '${AppConfig.properPlaceBackendUrl}$imgPath';
             }
-            print('DEBUG: Final imageUrl = $imageUrl');
+    debugPrint('DEBUG: Final imageUrl = $imageUrl');
           } else {
-            print('DEBUG: No images found, using placeholder');
+    debugPrint('DEBUG: No images found, using placeholder');
           }
           
           // Determine display status based on both approval and availability
@@ -103,7 +103,7 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
       // Load reviews for all places
       _loadAllReviews();
     } catch (e) {
-      print('Error loading places: $e');
+    debugPrint('Error loading places: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -137,7 +137,7 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
             });
           }
         } catch (e) {
-          print('Error loading reviews for place $placeId: $e');
+    debugPrint('Error loading reviews for place $placeId: $e');
         }
       }
       
@@ -149,7 +149,7 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
         _reviewsLoading = false;
       });
     } catch (e) {
-      print('Error loading reviews: $e');
+    debugPrint('Error loading reviews: $e');
       setState(() => _reviewsLoading = false);
     }
   }
@@ -1250,7 +1250,7 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
             icon: const Icon(Icons.add, size: 20),
             label: const Text('Create Your First Site'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3B82F6),
+              backgroundColor: const Color(0xFF3D8B6E),
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),

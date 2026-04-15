@@ -62,13 +62,13 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
 
   Future<void> _loadCurrentUser() async {
     final userId = await StorageService.getUserId();
-    print('[ChatHost] Loaded userId from storage: $userId');
+    debugPrint('[ChatHost] Loaded userId from storage: $userId');
     if (userId != null) {
       setState(() {
         _currentUserId = int.tryParse(userId);
       });
     }
-    print('[ChatHost] _currentUserId set to: $_currentUserId');
+    debugPrint('[ChatHost] _currentUserId set to: $_currentUserId');
   }
 
   Future<void> _fetchConversations({bool showLoading = true}) async {
@@ -141,7 +141,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
         await ChatService().markConversationAsRead(otherUserId);
         messages = await ChatService().getMessagesWithUser(otherUserId);
       }
-      print('[ChatHost] Fetched ${messages.length} messages (bookingId=$bid, partnerId=$otherUserId)');
+    debugPrint('[ChatHost] Fetched ${messages.length} messages (bookingId=$bid, partnerId=$otherUserId)');
       if (mounted) {
         setState(() {
           _messages = messages;
@@ -276,7 +276,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
     final bookingId = _selectedConversation?['bookingId'] != null 
       ? int.tryParse(_selectedConversation!['bookingId'].toString()) 
       : null;
-    print('[ChatHost] Sending message: receiverId=$_selectedPartnerId, bookingId=$bookingId, currentUserId=$_currentUserId');
+    debugPrint('[ChatHost] Sending message: receiverId=$_selectedPartnerId, bookingId=$bookingId, currentUserId=$_currentUserId');
 
     try {
       final sentMessage = await ChatService().sendMessage(
@@ -284,7 +284,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
         content: content,
         bookingId: bookingId,
       );
-      print('[ChatHost] Message sent successfully: ${sentMessage['id']}');
+    debugPrint('[ChatHost] Message sent successfully: ${sentMessage['id']}');
 
       if (mounted) {
         setState(() {
@@ -300,7 +300,7 @@ class _ChatHostScreenState extends State<ChatHostScreen> {
         });
       }
     } catch (error) {
-      print('[ChatHost] SEND FAILED: $error');
+    debugPrint('[ChatHost] SEND FAILED: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to send message: $error'), backgroundColor: Colors.red),

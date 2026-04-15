@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:proper_place/config/app_config.dart';
@@ -77,7 +78,7 @@ class NotificationService {
         throw Exception('Failed to get notification counts: ${response.statusCode}');
       }
     } catch (error) {
-      print('[NotificationService] Error getting notification counts: $error');
+    debugPrint('[NotificationService] Error getting notification counts: $error');
       rethrow;
     }
   }
@@ -103,7 +104,7 @@ class NotificationService {
       }
       return {};
     } catch (error) {
-      print('[NotificationService] Error getting unread by booking: $error');
+    debugPrint('[NotificationService] Error getting unread by booking: $error');
       return {};
     }
   }
@@ -125,10 +126,10 @@ class NotificationService {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
-        print('[NotificationService] Failed to mark message as read: ${response.statusCode}');
+    debugPrint('[NotificationService] Failed to mark message as read: ${response.statusCode}');
       }
     } catch (error) {
-      print('[NotificationService] Error marking message as read: $error');
+    debugPrint('[NotificationService] Error marking message as read: $error');
       // Don't rethrow - this is not critical
     }
   }
@@ -151,10 +152,10 @@ class NotificationService {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
-        print('[NotificationService] Failed to mark all messages as read: ${response.statusCode}');
+    debugPrint('[NotificationService] Failed to mark all messages as read: ${response.statusCode}');
       }
     } catch (error) {
-      print('[NotificationService] Error marking all messages as read: $error');
+    debugPrint('[NotificationService] Error marking all messages as read: $error');
       // Don't rethrow - this is not critical
     }
   }
@@ -165,7 +166,7 @@ class NotificationService {
       final counts = await getNotificationCounts();
       return counts['unreadMessages'] ?? 0;
     } catch (error) {
-      print('[NotificationService] Error getting unread message count: $error');
+    debugPrint('[NotificationService] Error getting unread message count: $error');
       return 0;
     }
   }
@@ -176,7 +177,7 @@ class NotificationService {
       final counts = await getNotificationCounts();
       return counts['pendingBookings'] ?? 0;
     } catch (error) {
-      print('[NotificationService] Error getting pending booking count: $error');
+    debugPrint('[NotificationService] Error getting pending booking count: $error');
       return 0;
     }
   }
@@ -187,7 +188,7 @@ class NotificationService {
       final counts = await getNotificationCounts();
       return counts['pendingHostApplications'] ?? 0;
     } catch (error) {
-      print('[NotificationService] Error getting pending host application count: $error');
+    debugPrint('[NotificationService] Error getting pending host application count: $error');
       return 0;
     }
   }
@@ -198,7 +199,7 @@ class NotificationService {
       final counts = await getNotificationCounts();
       return counts['pendingApprovals'] ?? 0;
     } catch (error) {
-      print('[NotificationService] Error getting pending approvals count: $error');
+    debugPrint('[NotificationService] Error getting pending approvals count: $error');
       return 0;
     }
   }
@@ -209,7 +210,7 @@ class NotificationService {
       final counts = await getNotificationCounts();
       return counts['siteSubmissions'] ?? 0;
     } catch (error) {
-      print('[NotificationService] Error getting site submissions count: $error');
+    debugPrint('[NotificationService] Error getting site submissions count: $error');
       return 0;
     }
   }
@@ -228,7 +229,7 @@ class NotificationService {
         },
       ).timeout(const Duration(seconds: 10));
     } catch (error) {
-      print('[NotificationService] Error marking sites as seen: $error');
+    debugPrint('[NotificationService] Error marking sites as seen: $error');
     }
   }
 }

@@ -49,9 +49,9 @@ class _LoginScreenState extends State<LoginScreen> {
       const AssetImage('assets/images/login_background.png'),
       context,
     ).then((_) {
-      print('[LoginScreen] Background image precached successfully');
+    debugPrint('[LoginScreen] Background image precached successfully');
     }).catchError((e) {
-      print('[LoginScreen] Error precaching image: $e');
+    debugPrint('[LoginScreen] Error precaching image: $e');
     });
   }
 
@@ -85,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final token = response['access_token'];
       final refreshToken = response['refresh_token'];
-      print('[Login] Response data: $response');
+    debugPrint('[Login] Response data: $response');
       
       // Save tokens
       await StorageService.saveToken(token);
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Extract user data from nested 'user' object
       final user = response['user'];
       if (user != null) {
-        print('[Login] User object: $user');
+    debugPrint('[Login] User object: $user');
         if (user['id'] != null) {
           await StorageService.saveUserId(user['id'].toString());
         }
@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         if (user['role'] != null) {
           await StorageService.saveUserRole(user['role']);
-          print('[Login] Saved role: ${user['role']}');
+    debugPrint('[Login] Saved role: ${user['role']}');
           // Set default mode based on account type
           if (user['role'] == 'admin') {
             await StorageService.setAdminMode(true);

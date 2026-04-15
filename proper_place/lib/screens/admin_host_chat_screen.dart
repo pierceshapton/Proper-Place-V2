@@ -66,9 +66,9 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
     }
 
     try {
-      print('[AdminChatScreen] Fetching conversations...');
+    debugPrint('[AdminChatScreen] Fetching conversations...');
       final conversations = await ChatService().getConversations();
-      print('[AdminChatScreen] Successfully fetched ${conversations.length} conversations');
+    debugPrint('[AdminChatScreen] Successfully fetched ${conversations.length} conversations');
       if (mounted) {
         setState(() {
           _conversations = conversations;
@@ -76,7 +76,7 @@ class _AdminHostChatScreenState extends State<AdminHostChatScreen> {
         });
       }
     } catch (error) {
-      print('[AdminChatScreen] Error fetching conversations: $error');
+    debugPrint('[AdminChatScreen] Error fetching conversations: $error');
       if (mounted) {
         setState(() {
           _error = error.toString();

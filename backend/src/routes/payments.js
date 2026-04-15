@@ -3,8 +3,8 @@ const router = express.Router();
 const logger = require('../utils/logger');
 const db = require('../config/database');
 
-// Initialize Stripe with test secret key
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_51SVJ2DCGmQVz0gpF9CcIAr4tsMN3LKFicySXcKQWB378Mi4BVrUI2UstMGxHzR8vomIV1EJ9fMLz7xiAkQDEqJzp00wfNviq5a');
+// Initialize Stripe
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Create payment intent for Stripe
 router.post('/create-intent', async (req, res) => {

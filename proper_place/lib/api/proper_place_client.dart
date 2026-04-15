@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:proper_place/config/app_config.dart';
@@ -17,7 +18,7 @@ class ProperPlaceClient {
     final url = AppConfig.properPlaceBackendUrl;
     // Verify URL is valid
     if (url.isEmpty || url.length < 10 || !url.startsWith('http')) {
-      print('[ProperPlaceClient] ⚠️ Invalid base URL: "$url", using hardcoded fallback');
+    debugPrint('[ProperPlaceClient] ⚠️ Invalid base URL: "$url", using hardcoded fallback');
       return 'https://octopus-app-lxh2t.ondigitalocean.app';
     }
     return url;
@@ -135,7 +136,7 @@ class ProperPlaceClient {
 
       return response;
     } catch (e) {
-      print('Login failed: $e');
+    debugPrint('Login failed: $e');
       rethrow;
     }
   }
@@ -160,7 +161,7 @@ class ProperPlaceClient {
 
       return response;
     } catch (e) {
-      print('Signup failed: $e');
+    debugPrint('Signup failed: $e');
       rethrow;
     }
   }
@@ -171,7 +172,7 @@ class ProperPlaceClient {
       final response = await get('/auth/me');
       return response;
     } catch (e) {
-      print('Failed to get current user: $e');
+    debugPrint('Failed to get current user: $e');
       rethrow;
     }
   }
@@ -182,7 +183,7 @@ class ProperPlaceClient {
       // Optionally notify backend
       await post('/auth/logout', {});
     } catch (e) {
-      print('Logout request failed: $e');
+    debugPrint('Logout request failed: $e');
     } finally {
       clearAccessToken();
     }
@@ -202,7 +203,7 @@ class ProperPlaceClient {
 
       return null;
     } catch (e) {
-      print('Token refresh failed: $e');
+    debugPrint('Token refresh failed: $e');
       clearAccessToken();
       return null;
     }
@@ -220,7 +221,7 @@ class ProperPlaceClient {
       }
       return [];
     } catch (e) {
-      print('Failed to get places: $e');
+    debugPrint('Failed to get places: $e');
       return [];
     }
   }
@@ -234,7 +235,7 @@ class ProperPlaceClient {
       }
       return null;
     } catch (e) {
-      print('Failed to get place: $e');
+    debugPrint('Failed to get place: $e');
       return null;
     }
   }
@@ -245,7 +246,7 @@ class ProperPlaceClient {
       final response = await post('/bookings', bookingData);
       return response;
     } catch (e) {
-      print('Failed to create booking: $e');
+    debugPrint('Failed to create booking: $e');
       rethrow;
     }
   }
@@ -261,7 +262,7 @@ class ProperPlaceClient {
       }
       return [];
     } catch (e) {
-      print('Failed to get bookings: $e');
+    debugPrint('Failed to get bookings: $e');
       return [];
     }
   }
@@ -277,7 +278,7 @@ class ProperPlaceClient {
       }
       return [];
     } catch (e) {
-      print('Failed to get place reviews: $e');
+    debugPrint('Failed to get place reviews: $e');
       return [];
     }
   }

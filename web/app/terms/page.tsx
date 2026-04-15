@@ -15,7 +15,7 @@ export default function TermsPage() {
       <section className="bg-dark-bg text-white py-16">
         <div className="container-md">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Terms of Service</h1>
-          <p className="text-gray-400">Last updated: March 2026</p>
+          <p className="text-gray-400">Last updated: April 2026</p>
         </div>
       </section>
 
@@ -23,14 +23,6 @@ export default function TermsPage() {
       <section className="py-16 bg-white">
         <div className="container-md">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-gray-50 rounded-2xl p-8 mb-8">
-              <p className="text-gray-600 italic text-center">
-                Full terms of service details coming soon.
-              </p>
-              <p className="text-gray-500 text-center mt-4">
-                We are finalising our terms of service and will publish the complete document shortly.
-              </p>
-            </div>
 
             <h2 className="text-2xl font-bold mt-8 mb-4">1. Acceptance of Terms</h2>
             <p className="text-gray-600 mb-6">

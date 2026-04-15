@@ -18,7 +18,7 @@ class ApiService {
     final url = AppConfig.properPlaceBackendUrl;
     // Verify URL is not empty or just "base"
     if (url.isEmpty || url.length < 10 || !url.startsWith('http')) {
-      print('[ApiService] ⚠️ Invalid base URL: "$url", using hardcoded fallback');
+    debugPrint('[ApiService] ⚠️ Invalid base URL: "$url", using hardcoded fallback');
       return 'https://octopus-app-lxh2t.ondigitalocean.app';
     }
     return url;
@@ -40,11 +40,11 @@ class ApiService {
     try {
       final refreshToken = await StorageService.getRefreshToken();
       if (refreshToken == null) {
-        print('[ApiService] No refresh token available');
+    debugPrint('[ApiService] No refresh token available');
         return false;
       }
 
-      print('[ApiService] Attempting token refresh...');
+    debugPrint('[ApiService] Attempting token refresh...');
       final url = Uri.parse('$_baseUrl/auth/refresh');
       final response = await http.post(
         url,
@@ -62,15 +62,15 @@ class ApiService {
           if (newRefreshToken != null) {
             await StorageService.saveRefreshToken(newRefreshToken);
           }
-          print('[ApiService] Token refresh successful');
+    debugPrint('[ApiService] Token refresh successful');
           return true;
         }
       }
 
-      print('[ApiService] Token refresh failed: ${response.statusCode}');
+    debugPrint('[ApiService] Token refresh failed: ${response.statusCode}');
       return false;
     } catch (e) {
-      print('[ApiService] Token refresh error: $e');
+    debugPrint('[ApiService] Token refresh error: $e');
       return false;
     } finally {
       _isRefreshing = false;
@@ -170,7 +170,7 @@ class ApiService {
       } else {
         // Handle 401 - try to refresh token automatically
         if (response.statusCode == 401 && !isRetry) {
-          print('[ApiService] Got 401 - attempting auto-refresh');
+    debugPrint('[ApiService] Got 401 - attempting auto-refresh');
           final refreshed = await _refreshAccessToken();
           if (refreshed) {
             // Retry the original request with new token
@@ -183,7 +183,7 @@ class ApiService {
             );
           }
           // Refresh failed - clear auth
-          print('[ApiService] Token refresh failed - clearing auth');
+    debugPrint('[ApiService] Token refresh failed - clearing auth');
           await StorageService.clearAll();
         }
         throw ApiException(
@@ -193,27 +193,27 @@ class ApiService {
         );
       }
     } on io.SocketException catch (e) {
-      print('[ApiService._request] [ERROR] SocketException: ${e.message}');
-      print('[ApiService._request] [ERROR] Attempted URL: $_baseUrl');
+    debugPrint('[ApiService._request] [ERROR] SocketException: ${e.message}');
+    debugPrint('[ApiService._request] [ERROR] Attempted URL: $_baseUrl');
       throw ApiException(
         statusCode: 0,
         message: 'Network error: ${e.message}',
       );
     } on TimeoutException catch (e) {
-      print('[ApiService._request] [ERROR] TimeoutException: ${e.message}');
+    debugPrint('[ApiService._request] [ERROR] TimeoutException: ${e.message}');
       throw ApiException(
         statusCode: 0,
         message: e.message,
       );
     } on FormatException catch (e) {
-      print('[ApiService._request] [ERROR] FormatException: ${e.message}');
+    debugPrint('[ApiService._request] [ERROR] FormatException: ${e.message}');
       throw ApiException(
         statusCode: 0,
         message: 'Invalid response format: ${e.message}',
       );
     } catch (e) {
-      print('[ApiService._request] [ERROR] Unexpected error: $e');
-      print('[ApiService._request] [ERROR] Attempted base URL: $_baseUrl');
+    debugPrint('[ApiService._request] [ERROR] Unexpected error: $e');
+    debugPrint('[ApiService._request] [ERROR] Attempted base URL: $_baseUrl');
       throw ApiException(
         statusCode: 0,
         message: 'Unexpected error: ${e.toString()}',
@@ -392,7 +392,7 @@ class ApiService {
       }
       return [];
     } catch (e) {
-      print('Error fetching facilities: $e');
+    debugPrint('Error fetching facilities: $e');
       rethrow;
     }
   }

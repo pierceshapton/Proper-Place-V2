@@ -34,7 +34,7 @@ class _AdminPlaceApprovalScreenState extends State<AdminPlaceApprovalScreen> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error loading pending places: $e');
+    debugPrint('Error loading pending places: $e');
       setState(() => isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

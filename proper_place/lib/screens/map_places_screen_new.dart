@@ -121,7 +121,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       await _loadPlaces();
       setState(() => isLoading = false);
     } catch (e) {
-      print('Error initializing map: $e');
+    debugPrint('Error initializing map: $e');
       setState(() => isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -139,7 +139,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
         favoriteIds = favoritesList.toSet();
       });
     } catch (e) {
-      print('Error loading favorites: $e');
+    debugPrint('Error loading favorites: $e');
     }
   }
 
@@ -227,7 +227,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       await prefs.setStringList('favorite_places', favoritesList);
       await _updateMarkersForZoom(); // Refresh markers with updated favorites
     } catch (e) {
-      print('Error toggling favorite: $e');
+    debugPrint('Error toggling favorite: $e');
     }
   }
 
@@ -244,7 +244,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       
       return totalRating / reviews.length;
     } catch (e) {
-      print('Error getting average rating: $e');
+    debugPrint('Error getting average rating: $e');
       return 0.0;
     }
   }
@@ -286,14 +286,14 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
             zoom: currentZoom,
           );
         });
-        print('Updated location to: ${position.latitude}, ${position.longitude}');
+    debugPrint('Updated location to: ${position.latitude}, ${position.longitude}');
         // Don't auto-zoom — let the user control the map view.
         // The blue dot shows their location anyway.
       } else {
-        print('Detected simulator default location, keeping cached location');
+    debugPrint('Detected simulator default location, keeping cached location');
       }
     } catch (e) {
-      print('Error getting location: $e');
+    debugPrint('Error getting location: $e');
     }
   }
 
@@ -365,7 +365,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
         });
       }
     } catch (e) {
-      print('Error loading places: $e');
+    debugPrint('Error loading places: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading places')),

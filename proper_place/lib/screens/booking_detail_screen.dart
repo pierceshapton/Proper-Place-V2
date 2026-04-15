@@ -381,8 +381,7 @@ class BookingDetailScreen extends StatelessWidget {
             final origNights = currentCheckOut.difference(currentCheckIn).inDays;
             final newNights = (newCheckOut ?? currentCheckOut).difference(newCheckIn ?? currentCheckIn).inDays;
             final additionalNights = newNights - origNights;
-            final priceRaw = place.pricePerNight;
-            final pricePerNight = priceRaw is String ? double.tryParse(priceRaw) ?? 0.0 : (priceRaw is num ? priceRaw.toDouble() : 0.0);
+            final pricePerNight = place.pricePerNight;
             final additionalCost = additionalNights * pricePerNight;
 
             return AlertDialog(
@@ -923,9 +922,10 @@ class BookingDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                     ],
-                  // Cancel button - appears for upcoming confirmed/pending bookings
+                  // Cancel button - appears for upcoming confirmed/pending bookings (hidden within 24h of check-in)
                   if ((booking['status']?.toLowerCase() == 'confirmed' || booking['status']?.toLowerCase() == 'pending') &&
-                      _isUpcoming(booking['check_out']))
+                      _isUpcoming(booking['check_out']) &&
+                      _canCancelBooking(booking['check_in']))
                     ...[
                       // Extend Stay button
                       ElevatedButton.icon(

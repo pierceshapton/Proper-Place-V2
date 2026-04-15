@@ -213,7 +213,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     final allBookings = <Map<String, dynamic>>[];
     final now = DateTime.now();
     
-    print('\n📅 _bookingsForSelectedDate called at: $now');
+    debugPrint('\n📅 _bookingsForSelectedDate called at: $now');
     
     for (var dateBookings in _bookingsByDate.values) {
       for (var booking in dateBookings) {
@@ -224,10 +224,10 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
         final bookingId = bookingCopy['id'] ?? 'unknown';
         final currentStatus = bookingCopy['status'] as String;
         
-        print('  Booking $bookingId: CheckOut=$checkOut, CheckOutAtNoon=$checkOutAtNoon, CurrentStatus=$currentStatus');
+    debugPrint('  Booking $bookingId: CheckOut=$checkOut, CheckOutAtNoon=$checkOutAtNoon, CurrentStatus=$currentStatus');
         
         if (now.isAfter(checkOutAtNoon) && bookingCopy['status'] != 'Cancelled') {
-          print('    → Auto-completing (now is after checkout noon)');
+    debugPrint('    → Auto-completing (now is after checkout noon)');
           bookingCopy['status'] = 'Completed';
         }
         
@@ -1428,11 +1428,11 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
     final checkIn = booking['checkIn'] as DateTime?;
     final checkOut = booking['checkOut'] as DateTime?;
     
-    print('🔍 _canCancelBooking - ID: $bookingId, Status: $status, CheckIn: $checkIn, CheckOut: $checkOut');
+    debugPrint('🔍 _canCancelBooking - ID: $bookingId, Status: $status, CheckIn: $checkIn, CheckOut: $checkOut');
     
     // Never allow cancel if Completed
     if (status == 'Completed') {
-      print('  ✗ Status is Completed - hiding button');
+    debugPrint('  ✗ Status is Completed - hiding button');
       return false;
     }
     
@@ -1442,16 +1442,16 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
       final now = DateTime.now();
       final hoursUntilCheckIn = checkInDate.difference(now).inHours;
       
-      print('  Confirmed booking - hours until check-in: $hoursUntilCheckIn');
+    debugPrint('  Confirmed booking - hours until check-in: $hoursUntilCheckIn');
       
       // Hide cancel if check-in is within the next 24 hours
       if (hoursUntilCheckIn <= 24 && hoursUntilCheckIn >= 0) {
-        print('  ✗ Within 24 hours of check-in - hiding button');
+    debugPrint('  ✗ Within 24 hours of check-in - hiding button');
         return false;
       }
     }
     
-    print('  ✓ Showing cancel button');
+    debugPrint('  ✓ Showing cancel button');
     return true;
   }
 

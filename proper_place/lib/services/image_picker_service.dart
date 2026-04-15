@@ -28,7 +28,7 @@ class ImagePickerService {
       await tempFile.writeAsBytes(cleanedBytes);
       return tempFile;
     } catch (e) {
-      print('Error stripping EXIF data: $e');
+    debugPrint('Error stripping EXIF data: $e');
       // Return original file if stripping fails
       return imageFile;
     }
@@ -47,7 +47,7 @@ class ImagePickerService {
         return File(pickedFile.path);
       }
     } catch (e) {
-      print('Error picking single image: $e');
+    debugPrint('Error picking single image: $e');
     }
     return null;
   }
@@ -76,7 +76,7 @@ class ImagePickerService {
         return files;
       }
     } catch (e) {
-      print('Error picking multiple images: $e');
+    debugPrint('Error picking multiple images: $e');
     }
     return [];
   }

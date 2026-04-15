@@ -43,7 +43,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
         _longitude = position.longitude;
       });
     } catch (e) {
-      print('Error getting location: $e');
+    debugPrint('Error getting location: $e');
       // Use UK center as default
       setState(() {
         _latitude = 54.5973;

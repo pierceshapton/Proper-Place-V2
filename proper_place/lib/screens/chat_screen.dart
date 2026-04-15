@@ -259,7 +259,7 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } catch (e) {
-      print('Error sending message: $e');
+    debugPrint('Error sending message: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to send message: $e'), backgroundColor: Colors.red),
       );
