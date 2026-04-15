@@ -46,6 +46,7 @@ const hostLeadsRoutes = require('./routes/hostLeads');
 const hostApplicationRoutes = require('./routes/hostApplications');
 const referralRoutes = require('./routes/referrals');
 const webhookRoutes = require('./routes/webhooks');
+const crmRoutes = require('./routes/crm');
 const pushService = require('./services/pushNotificationService');
 
 // User controller for user endpoints
@@ -152,6 +153,7 @@ app.use('/auto-messages', autoMessagesRoutes);
 app.use('/host-leads', hostLeadsRoutes);
 app.use('/host-applications', hostApplicationRoutes);
 app.use('/referrals', referralRoutes);
+app.use('/crm', crmRoutes);
 
 // User routes
 app.get('/users/:id', userController.getUserProfile);

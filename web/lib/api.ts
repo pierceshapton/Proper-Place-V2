@@ -502,3 +502,213 @@ export interface Pagination {
   total: number;
   pages: number;
 }
+
+// ─── CRM Types ──────────────────────────────────────────────────────
+
+export interface CRMLead {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  business_name: string | null;
+  location: string | null;
+  website: string | null;
+  property_type: string | null;
+  pipeline_stage: string;
+  priority: string;
+  parking_spaces: number | null;
+  parking_type: string | null;
+  ownership_type: string | null;
+  estimated_value: number | null;
+  google_place_id: string | null;
+  google_rating: number | null;
+  google_reviews_count: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  satellite_image_url: string | null;
+  tags: string[] | null;
+  admin_notes: string | null;
+  last_contact_date: string | null;
+  next_follow_up: string | null;
+  source: string | null;
+  assigned_to: number | null;
+  created_at: string;
+  updated_at: string;
+  activity_count?: number;
+  pending_tasks?: number;
+  last_activity_at?: string | null;
+}
+
+export interface CRMActivity {
+  id: number;
+  lead_id: number;
+  activity_type: string;
+  title: string;
+  description: string | null;
+  metadata: Record<string, unknown>;
+  created_by: number | null;
+  created_by_name: string | null;
+  created_at: string;
+}
+
+export interface CRMTask {
+  id: number;
+  lead_id: number | null;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  priority: string;
+  status: string;
+  assigned_to: number | null;
+  completed_at: string | null;
+  created_at: string;
+  business_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+}
+
+export interface CRMEmailTemplate {
+  id: number;
+  name: string;
+  subject: string;
+  body: string;
+  template_type: string;
+  variables: string[];
+  is_active: boolean;
+  usage_count?: number;
+  created_at: string;
+}
+
+export interface CRMEmailLog {
+  id: number;
+  lead_id: number;
+  template_id: number | null;
+  subject: string;
+  body: string;
+  to_email: string;
+  status: string;
+  sent_at: string;
+  template_name?: string | null;
+}
+
+export interface CRMSiteVisit {
+  id: number;
+  lead_id: number;
+  visit_date: string;
+  contact_name: string | null;
+  contact_role: string | null;
+  car_park_surface: string | null;
+  car_park_spaces: number | null;
+  motorhome_access: string | null;
+  level_ground: boolean | null;
+  electric_hookup: string | null;
+  water_access: boolean | null;
+  ownership_type: string | null;
+  owner_reaction: string | null;
+  objections: string | null;
+  follow_up_agreed: boolean | null;
+  follow_up_date: string | null;
+  photos: string[] | null;
+  verdict: string | null;
+  verdict_reason: string | null;
+  notes: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+}
+
+export interface CRMSequence {
+  id: number;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  step_count?: number;
+  active_leads?: number;
+  created_at: string;
+}
+
+export interface CRMStats {
+  pipeline: { pipeline_stage: string; count: string }[];
+  totals: {
+    total_leads: string;
+    converted: string;
+    lost: string;
+    new_this_week: string;
+    new_this_month: string;
+    hot_leads: string;
+    conversion_rate: string;
+  };
+  overdue_tasks: number;
+  upcoming_tasks: number;
+  emails_sent_30d: number;
+  recent_activities: (CRMActivity & { business_name?: string; first_name?: string; last_name?: string })[];
+}
+
+export interface CRMPipelineStage {
+  pipeline_stage: string;
+  count: string;
+  hot: string;
+  warm: string;
+  medium: string;
+  cold: string;
+}
+
+// ─── CRM API ────────────────────────────────────────────────────────
+
+export const crmApi = {
+  // Stats
+  stats: () => api<CRMStats>('/crm/stats'),
+
+  // Leads
+  getLeads: (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return api<{ leads: CRMLead[]; total: number }>(`/crm/leads${qs}`);
+  },
+  getLead: (id: number) => api<{ lead: CRMLead }>(`/crm/leads/${id}`),
+  createLead: (data: Partial<CRMLead>) => api<{ lead: CRMLead }>('/crm/leads', { method: 'POST', body: data }),
+  updateLead: (id: number, data: Partial<CRMLead>) => api<{ lead: CRMLead }>(`/crm/leads/${id}`, { method: 'PATCH', body: data }),
+  deleteLead: (id: number) => api(`/crm/leads/${id}`, { method: 'DELETE' }),
+  pipelineSummary: () => api<{ stages: CRMPipelineStage[] }>('/crm/leads/pipeline/summary'),
+
+  // Activities
+  getActivities: (leadId: number) => api<{ activities: CRMActivity[] }>(`/crm/leads/${leadId}/activities`),
+  createActivity: (leadId: number, data: { activity_type: string; title: string; description?: string }) =>
+    api<{ activity: CRMActivity }>(`/crm/leads/${leadId}/activities`, { method: 'POST', body: data }),
+
+  // Site Visits
+  getSiteVisits: (leadId: number) => api<{ visits: CRMSiteVisit[] }>(`/crm/leads/${leadId}/site-visits`),
+  createSiteVisit: (leadId: number, data: Partial<CRMSiteVisit>) =>
+    api<{ visit: CRMSiteVisit }>(`/crm/leads/${leadId}/site-visits`, { method: 'POST', body: data }),
+
+  // Emails
+  sendEmail: (leadId: number, data: { subject: string; body: string; template_id?: number }) =>
+    api(`/crm/leads/${leadId}/send-email`, { method: 'POST', body: data }),
+  getEmailLog: (leadId: number) => api<{ emails: CRMEmailLog[] }>(`/crm/leads/${leadId}/emails`),
+
+  // Tasks
+  getTasks: (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return api<{ tasks: CRMTask[] }>(`/crm/tasks${qs}`);
+  },
+  createTask: (data: { lead_id?: number; title: string; description?: string; due_date?: string; priority?: string }) =>
+    api<{ task: CRMTask }>('/crm/tasks', { method: 'POST', body: data }),
+  updateTask: (id: number, data: Partial<CRMTask>) => api<{ task: CRMTask }>(`/crm/tasks/${id}`, { method: 'PATCH', body: data }),
+  deleteTask: (id: number) => api(`/crm/tasks/${id}`, { method: 'DELETE' }),
+
+  // Email Templates
+  getTemplates: () => api<{ templates: CRMEmailTemplate[] }>('/crm/emails/templates'),
+  createTemplate: (data: { name: string; subject: string; body: string; template_type?: string }) =>
+    api<{ template: CRMEmailTemplate }>('/crm/emails/templates', { method: 'POST', body: data }),
+  updateTemplate: (id: number, data: Partial<CRMEmailTemplate>) =>
+    api<{ template: CRMEmailTemplate }>(`/crm/emails/templates/${id}`, { method: 'PATCH', body: data }),
+  deleteTemplate: (id: number) => api(`/crm/emails/templates/${id}`, { method: 'DELETE' }),
+
+  // Sequences
+  getSequences: () => api<{ sequences: CRMSequence[] }>('/crm/emails/sequences'),
+  createSequence: (data: { name: string; description?: string; steps?: { step_order: number; template_id: number; delay_days: number }[] }) =>
+    api<{ sequence: CRMSequence }>('/crm/emails/sequences', { method: 'POST', body: data }),
+
+  // Settings
+  getSettings: () => api<{ settings: { key: string; value: string }[] }>('/crm/settings'),
+  updateSettings: (settings: Record<string, unknown>) => api('/crm/settings', { method: 'PATCH', body: { settings } }),
+};

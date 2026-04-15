@@ -135,6 +135,7 @@ export default function Navbar() {
                     <>
                       <hr className="my-1 border-gray-100" />
                       <Link href="/dashboard/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setProfileOpen(false)}>Admin Panel</Link>
+                      <Link href="/crm" className="block px-4 py-2 text-sm text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={() => setProfileOpen(false)}>⬡ Operations CRM</Link>
                     </>
                   )}
                   <hr className="my-1 border-gray-100" />
@@ -185,6 +186,7 @@ export default function Navbar() {
               {mobileLink('/dashboard/admin/users', 'Manage Users')}
               {mobileLink('/dashboard/admin/bookings', 'All Bookings')}
               {mobileLink('/dashboard/admin/contacts', 'Support Tickets')}
+              {mobileLink('/crm', '⬡ Operations CRM')}
             </>
           )}
           <hr className="my-2 border-gray-600" />
