@@ -1041,6 +1041,192 @@ function wrapEmailHtml(body) {
   `;
 }
 
+// ─── Google Places Enrichment ────────────────────────────────────────
+
+const axios = require('axios');
+
+const GMAPS_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
+
+async function enrichFromGoogle(name, lat, lng) {
+  try {
+    // Step 1: Text search (prefer nearby if we have coords)
+    let placeId = null;
+    if (lat && lng) {
+      const nearby = await axios.get('https://maps.googleapis.com/maps/api/place/nearbysearch/json', {
+        params: { location: `${lat},${lng}`, radius: 100, keyword: name, key: GMAPS_KEY },
+        timeout: 5000,
+      });
+      if (nearby.data.results?.length > 0) placeId = nearby.data.results[0].place_id;
+    }
+    if (!placeId) {
+      const text = await axios.get('https://maps.googleapis.com/maps/api/place/textsearch/json', {
+        params: { query: name, key: GMAPS_KEY },
+        timeout: 5000,
+      });
+      if (text.data.results?.length > 0) placeId = text.data.results[0].place_id;
+    }
+    if (!placeId) return null;
+
+    // Step 2: Get details
+    const details = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+      params: {
+        place_id: placeId,
+        fields: 'name,formatted_phone_number,website,rating,user_ratings_total,formatted_address,geometry',
+        key: GMAPS_KEY,
+      },
+      timeout: 5000,
+    });
+    const p = details.data.result;
+    if (!p) return null;
+
+    return {
+      google_place_id: placeId,
+      phone: p.formatted_phone_number || null,
+      website: p.website || null,
+      google_rating: p.rating || null,
+      google_reviews_count: p.user_ratings_total || null,
+      location: p.formatted_address || null,
+      latitude: p.geometry?.location?.lat || null,
+      longitude: p.geometry?.location?.lng || null,
+    };
+  } catch (err) {
+    logger.warn('Google Places enrichment failed', { name, error: err.message });
+    return null;
+  }
+}
+
+/**
+ * POST /crm/leads/:id/enrich
+ * Enrich an existing lead with Google Places data
+ */
+async function enrichLead(req, res, next) {
+  try {
+    const { id } = req.params;
+    const leadRes = await db.query('SELECT * FROM host_leads WHERE id = $1', [id]);
+    if (!leadRes.rows.length) return res.status(404).json({ error: 'Lead not found' });
+    const lead = leadRes.rows[0];
+
+    const enriched = await enrichFromGoogle(
+      lead.business_name || `${lead.first_name} ${lead.last_name}`.trim(),
+      lead.latitude,
+      lead.longitude
+    );
+    if (!enriched) return res.status(422).json({ error: 'Could not find this business on Google Places' });
+
+    const updates = [];
+    const values = [];
+    const fields = ['phone', 'website', 'google_place_id', 'google_rating', 'google_reviews_count', 'location', 'latitude', 'longitude'];
+    for (const f of fields) {
+      if (enriched[f] !== null && enriched[f] !== undefined) {
+        values.push(enriched[f]);
+        updates.push(`${f} = $${values.length}`);
+      }
+    }
+    if (!updates.length) return res.status(422).json({ error: 'No new data found' });
+
+    values.push(id);
+    const updated = await db.query(`UPDATE host_leads SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`, values);
+
+    await db.query(
+      `INSERT INTO crm_activities (lead_id, activity_type, title, description, created_by) VALUES ($1, 'note', 'Enriched from Google Places', $2, $3)`,
+      [id, `Rating: ${enriched.google_rating || '–'} (${enriched.google_reviews_count || 0} reviews). Website: ${enriched.website || 'none'}`, req.user.userId]
+    );
+
+    res.json({ lead: updated.rows[0], enriched });
+  } catch (error) {
+    logger.error('enrichLead error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * POST /crm/leads/import
+ * Bulk import leads (e.g. from KML), optionally enriching each via Google Places
+ */
+async function importLeads(req, res, next) {
+  try {
+    const { places, enrich = false, pipeline_stage = 'new', priority = 'medium' } = req.body;
+    if (!Array.isArray(places) || places.length === 0) {
+      return res.status(400).json({ error: 'places array required' });
+    }
+    if (places.length > 200) {
+      return res.status(400).json({ error: 'Max 200 places per import' });
+    }
+
+    const results = [];
+    let enrichedCount = 0;
+
+    for (const place of places) {
+      const { name, description, lat, lng, address } = place;
+      if (!name) continue;
+
+      let data = {
+        business_name: name,
+        location: address || null,
+        latitude: lat || null,
+        longitude: lng || null,
+        pipeline_stage,
+        priority,
+        source: 'kml_import',
+      };
+
+      if (enrich) {
+        const enriched = await enrichFromGoogle(name, lat, lng);
+        if (enriched) {
+          enrichedCount++;
+          data = {
+            ...data,
+            phone: enriched.phone,
+            website: enriched.website,
+            google_place_id: enriched.google_place_id,
+            google_rating: enriched.google_rating,
+            google_reviews_count: enriched.google_reviews_count,
+            location: enriched.location || data.location,
+            latitude: enriched.latitude || data.latitude,
+            longitude: enriched.longitude || data.longitude,
+          };
+        }
+      }
+
+      try {
+        const r = await db.query(
+          `INSERT INTO host_leads (
+            business_name, location, latitude, longitude, phone, website,
+            google_place_id, google_rating, google_reviews_count,
+            pipeline_stage, priority, admin_notes, source, assigned_to
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          ON CONFLICT DO NOTHING
+          RETURNING id`,
+          [
+            data.business_name, data.location, data.latitude, data.longitude,
+            data.phone || null, data.website || null,
+            data.google_place_id || null, data.google_rating || null, data.google_reviews_count || null,
+            data.pipeline_stage, data.priority,
+            description || null, data.source, req.user.userId,
+          ]
+        );
+        if (r.rows.length > 0) {
+          results.push({ name, id: r.rows[0].id, status: 'created' });
+          await db.query(
+            `INSERT INTO crm_activities (lead_id, activity_type, title, created_by) VALUES ($1, 'lead_created', 'Imported from KML', $2)`,
+            [r.rows[0].id, req.user.userId]
+          );
+        } else {
+          results.push({ name, status: 'skipped' });
+        }
+      } catch (e) {
+        results.push({ name, status: 'error', error: e.message });
+      }
+    }
+
+    const created = results.filter(r => r.status === 'created').length;
+    res.json({ created, enriched: enrichedCount, total: places.length, results });
+  } catch (error) {
+    logger.error('importLeads error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getLeads, getLead, createLead, updateLead, deleteLead, getPipelineSummary,
   getActivities, createActivity,
@@ -1057,4 +1243,6 @@ module.exports = {
   getCustomFields, createCustomField, updateCustomField, deleteCustomField,
   // Custom Values per lead
   getCustomValues, setCustomValues,
+  // Import & Enrich
+  importLeads, enrichLead,
 };

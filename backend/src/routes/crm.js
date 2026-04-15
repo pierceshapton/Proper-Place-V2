@@ -34,6 +34,10 @@ router.patch('/settings', crm.updateSettings);
 router.get('/content', cmsContent.getContent);
 router.put('/content', cmsContent.updateContent);
 
+// ─── Import & Enrich ────────────────
+router.post('/leads/import', crm.importLeads);
+router.post('/leads/:id/enrich', crm.enrichLead);
+
 // ─── Pipeline ───────────────────────
 router.get('/leads/pipeline/summary', crm.getPipelineSummary);
 

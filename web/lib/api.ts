@@ -768,4 +768,9 @@ export const crmApi = {
   getCustomValues: (leadId: number) => api<{ values: { field_id: number; value: string }[] }>(`/crm/leads/${leadId}/custom-values`),
   setCustomValues: (leadId: number, values: { field_id: number; value: string }[]) =>
     api(`/crm/leads/${leadId}/custom-values`, { method: 'PUT', body: { values } }),
+  // Import & Enrich
+  importLeads: (places: { name: string; description?: string; lat?: number; lng?: number; address?: string }[], enrich: boolean, pipeline_stage?: string, priority?: string) =>
+    api<{ created: number; enriched: number; total: number; results: { name: string; id?: number; status: string; error?: string }[] }>('/crm/leads/import', { method: 'POST', body: { places, enrich, pipeline_stage, priority } }),
+  enrichLead: (leadId: number) =>
+    api<{ lead: CRMLead; enriched: Record<string, unknown> }>(`/crm/leads/${leadId}/enrich`, { method: 'POST', body: {} }),
 };
