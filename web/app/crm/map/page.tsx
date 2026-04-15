@@ -56,6 +56,7 @@ export default function CRMMapPage() {
   const [activeStages, setActiveStages] = useState<Set<string>>(new Set());
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
+  const hasFitBounds = useRef(false);
 
   const { isLoaded } = useJsApiLoader({ id: 'crm-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY });
 
@@ -92,7 +93,8 @@ export default function CRMMapPage() {
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
-    if (mappableLeads.length > 0) {
+    if (!hasFitBounds.current && mappableLeads.length > 0) {
+      hasFitBounds.current = true;
       const bounds = new google.maps.LatLngBounds();
       mappableLeads.forEach(l => bounds.extend({ lat: Number(l.latitude), lng: Number(l.longitude) }));
       map.fitBounds(bounds, 60);
