@@ -282,7 +282,13 @@ export default function LeadsPage() {
                         <InlineDateCell value={lead.next_follow_up ? lead.next_follow_up.split('T')[0] : ''} overdue={overdue} onSave={v => patchLead(lead.id, { next_follow_up: v || null } as Partial<CRMLead>)} />
                       </td>
                       <td className="px-3 py-2.5">
-                        <Link href={`/crm/leads/${lead.id}`} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-emerald-400 text-sm transition-all">→</Link>
+                        <Link href={`/crm/leads/${lead.id}`} className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-6 h-6 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-700 transition-all" title="Open lead">
+                          <span className="flex flex-col gap-[3px] items-center">
+                            <span className="w-[3px] h-[3px] rounded-full bg-current" />
+                            <span className="w-[3px] h-[3px] rounded-full bg-current" />
+                            <span className="w-[3px] h-[3px] rounded-full bg-current" />
+                          </span>
+                        </Link>
                       </td>
                     </tr>
                   );
