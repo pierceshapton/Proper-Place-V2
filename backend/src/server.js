@@ -944,6 +944,7 @@ async function initializeDatabase() {
 async function runSqlMigration(filename, label) {
   const fs = require('fs');
   const path = require('path');
+  const db = require('./config/database');
   const sql = fs.readFileSync(path.join(__dirname, 'migrations', filename), 'utf8');
   // Split into individual statements, skip blank lines and comments-only lines
   const statements = sql
