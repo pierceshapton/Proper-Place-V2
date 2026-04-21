@@ -90,6 +90,16 @@ export default function PipelinePage() {
     }
   }
 
+  const getPendingTasksCount = (lead: CRMLead): number => {
+    const raw = lead.pending_tasks;
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string') {
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredLeads = leads.filter(lead => {
     const matchesQuery =
@@ -105,7 +115,7 @@ export default function PipelinePage() {
       ].some(value => (value || '').toLowerCase().includes(normalizedQuery));
 
     const matchesPriority = priorityFilter === 'all' || lead.priority === priorityFilter;
-    const needsAttention = isLeadOverdue(lead) || (lead.pending_tasks || 0) > 0;
+    const needsAttention = isLeadOverdue(lead) || getPendingTasksCount(lead) > 0;
 
     return matchesQuery && matchesPriority && (!attentionOnly || needsAttention);
   });
@@ -113,7 +123,7 @@ export default function PipelinePage() {
   const leadsByStage = (stage: string) => filteredLeads.filter(lead => lead.pipeline_stage === stage);
   const hotLeads = filteredLeads.filter(lead => lead.priority === 'hot').length;
   const overdueFollowUps = filteredLeads.filter(isLeadOverdue).length;
-  const openTasks = filteredLeads.reduce((total, lead) => total + (lead.pending_tasks || 0), 0);
+  const openTasks = filteredLeads.reduce((total, lead) => total + getPendingTasksCount(lead), 0);
 
   if (loading) {
     return (
