@@ -32,6 +32,13 @@ export default async function Home() {
 
   return (
     <main>
+      {/* Opening Soon Banner */}
+      <div className="bg-light-blue text-white text-center py-3 px-4">
+        <p className="text-sm md:text-base font-medium">
+          Proper Place is opening soon for campervan owners looking for safe, affordable and reliable overnight parking across the UK.
+        </p>
+      </div>
+
       {/* Hero Section */}
       <section className="relative bg-dark-bg text-white overflow-hidden">
         <div className="absolute inset-0">
