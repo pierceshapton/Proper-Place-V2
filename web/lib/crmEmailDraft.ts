@@ -80,21 +80,32 @@ export function generatePersonalizedDraft(lead: CRMLead, template?: CRMEmailTemp
 }
 
 export function mergeTemplate(input: string, lead: CRMLead): string {
+  const fullName = `${lead.first_name || ''} ${lead.last_name || ''}`.trim();
+  const businessOrName = lead.business_name || fullName;
+
   const replacements: Record<string, string> = {
-    first_name: lead.first_name || '',
+    first_name: firstNonEmpty(lead.first_name, lead.business_name) || 'there',
     last_name: lead.last_name || '',
-    business_name: lead.business_name || '',
-    location: lead.location || '',
-    property_type: lead.property_type || '',
-    source: lead.source || '',
+    business_name: businessOrName || 'your site',
+    location: lead.location || 'your area',
+    property_type: lead.property_type || 'site',
+    source: lead.source || 'our research',
     parking_spaces: lead.parking_spaces ? String(lead.parking_spaces) : '',
-    parking_type: lead.parking_type || '',
-    website: lead.website || '',
-    phone: lead.phone || '',
-    email: lead.email || '',
+    parking_type: lead.parking_type || 'on-site',
+    website: lead.website || 'your website',
+    phone: lead.phone || 'your phone number',
+    email: lead.email || 'your email',
   };
 
-  return input.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => replacements[key] || '');
+  return input.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => {
+    if (Object.prototype.hasOwnProperty.call(replacements, key)) {
+      return replacements[key] || '';
+    }
+
+    const rawValue = (lead as Record<string, unknown>)[key];
+    if (rawValue === null || rawValue === undefined) return '';
+    return String(rawValue);
+  });
 }
 
 function pick<T>(values: T[], seed: number): T {

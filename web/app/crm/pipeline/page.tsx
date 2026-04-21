@@ -12,7 +12,7 @@ import {
   type CRMStage,
   type CRMTask,
 } from '@/lib/api';
-import { generatePersonalizedDraft } from '@/lib/crmEmailDraft';
+import { generatePersonalizedDraft, mergeTemplate } from '@/lib/crmEmailDraft';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
@@ -519,8 +519,12 @@ function LeadDetailModal({
       return;
     }
 
-    const draft = generatePersonalizedDraft(lead, template);
-    setEmailForm({ template_id: templateId, subject: draft.subject, body: draft.body });
+    // On template select, show exact merged template values so the user can verify every field before send.
+    setEmailForm({
+      template_id: templateId,
+      subject: mergeTemplate(template.subject || '', lead),
+      body: mergeTemplate(template.body || '', lead),
+    });
   }
 
   function handlePrewriteDraft() {

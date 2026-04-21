@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { crmApi, type CRMLead, type CRMActivity, type CRMTask, type CRMEmailLog, type CRMSiteVisit, type CRMStage, type CRMCustomField, type CRMEmailTemplate } from '@/lib/api';
-import { generatePersonalizedDraft } from '@/lib/crmEmailDraft';
+import { generatePersonalizedDraft, mergeTemplate } from '@/lib/crmEmailDraft';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
@@ -154,8 +154,12 @@ export default function LeadDetailPage() {
       return;
     }
 
-    const draft = generatePersonalizedDraft(lead, template);
-    setEmailForm({ template_id: templateId, subject: draft.subject, body: draft.body });
+    // On template select, keep content deterministic and pre-filled from this lead's details.
+    setEmailForm({
+      template_id: templateId,
+      subject: mergeTemplate(template.subject || '', lead),
+      body: mergeTemplate(template.body || '', lead),
+    });
   }
 
   function handlePrewriteDraft() {
