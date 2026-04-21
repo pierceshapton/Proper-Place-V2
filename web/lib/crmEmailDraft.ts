@@ -32,12 +32,13 @@ export function generatePersonalizedDraft(lead: CRMLead, template?: CRMEmailTemp
   const cta = pick(CTA_LINES, seed + 2);
   const closing = pick(CLOSINGS, seed + 3);
 
+  const cleanBusinessName = sanitizeBusinessName(lead.business_name);
   const contactName = firstNonEmpty(lead.first_name, lead.last_name) || 'there';
-  const businessName = lead.business_name || 'your site';
+  const businessName = cleanBusinessName || 'your site';
 
   const contextLines: string[] = [];
-  if (lead.business_name && lead.location) {
-    contextLines.push(`I was looking at ${lead.business_name} in ${lead.location} and thought it could be a great fit for overnight motorhome stays.`);
+  if (cleanBusinessName && lead.location) {
+    contextLines.push(`I was looking at ${cleanBusinessName} in ${lead.location} and thought it could be a great fit for overnight motorhome stays.`);
   } else if (lead.location) {
     contextLines.push(`I was looking at locations around ${lead.location} and wanted to reach out.`);
   } else {
@@ -87,10 +88,11 @@ export function generatePersonalizedDraft(lead: CRMLead, template?: CRMEmailTemp
 
 export function mergeTemplate(input: string, lead: CRMLead): string {
   const fullName = `${lead.first_name || ''} ${lead.last_name || ''}`.trim();
-  const businessOrName = lead.business_name || fullName;
+  const cleanBusinessName = sanitizeBusinessName(lead.business_name);
+  const businessOrName = cleanBusinessName || fullName;
 
   const replacements: Record<string, string> = {
-    first_name: firstNonEmpty(lead.first_name, lead.business_name) || 'there',
+    first_name: firstNonEmpty(lead.first_name) || 'there',
     last_name: lead.last_name || '',
     business_name: businessOrName || 'your site',
     location: lead.location || 'your area',
@@ -129,4 +131,17 @@ function firstNonEmpty(...values: Array<string | null | undefined>): string {
     if (value && value.trim()) return value.trim();
   }
   return '';
+}
+
+function sanitizeBusinessName(value: string | null | undefined): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  const commaIndex = trimmed.indexOf(',');
+  if (commaIndex > 0) {
+    return trimmed.slice(0, commaIndex).trim();
+  }
+
+  return trimmed;
 }
