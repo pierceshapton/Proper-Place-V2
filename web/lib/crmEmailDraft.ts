@@ -63,6 +63,12 @@ export function generatePersonalizedDraft(lead: CRMLead, template?: CRMEmailTemp
 
   const subject = mergedTemplateSubject || `Quick idea for ${businessName}`;
 
+  // If a template already provides full copy, keep pre-write deterministic and avoid
+  // appending extra AI intro/outro blocks that can duplicate greetings/sign-offs.
+  if (mergedTemplateBody) {
+    return { subject, body: mergedTemplateBody };
+  }
+
   const intro = `Hi ${contactName},\n\n${opener}`;
 
   const middle = mergedTemplateBody
@@ -97,7 +103,7 @@ export function mergeTemplate(input: string, lead: CRMLead): string {
     email: lead.email || 'your email',
   };
 
-  return input.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => {
+  const merged = input.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => {
     if (Object.prototype.hasOwnProperty.call(replacements, key)) {
       return replacements[key] || '';
     }
@@ -106,6 +112,12 @@ export function mergeTemplate(input: string, lead: CRMLead): string {
     if (rawValue === null || rawValue === undefined) return '';
     return String(rawValue);
   });
+
+  return merged
+    .replace(/\bHi\s*,/gi, 'Hi there,')
+    .replace(/\bDear\s*,/gi, 'Hello,')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function pick<T>(values: T[], seed: number): T {
