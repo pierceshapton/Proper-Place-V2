@@ -106,7 +106,8 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
 
       // Load cached map location
       final cachedLocation = await StorageService.getCachedMapLocation();
-      setState(() {
+        if (!mounted) return;
+        setState(() {
         currentLocation =
             LatLng(cachedLocation['latitude']!, cachedLocation['longitude']!);
         currentZoom = cachedLocation['zoom']!;
@@ -119,10 +120,12 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
         await _getCurrentLocation();
       }
       await _loadPlaces();
-      setState(() => isLoading = false);
+        if (!mounted) return;
+        setState(() => isLoading = false);
     } catch (e) {
     debugPrint('Error initializing map: $e');
-      setState(() => isLoading = false);
+        if (!mounted) return;
+        setState(() => isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading map: $e')),
@@ -135,7 +138,8 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final favoritesList = prefs.getStringList('favorite_places') ?? [];
-      setState(() {
+        if (!mounted) return;
+        setState(() {
         favoriteIds = favoritesList.toSet();
       });
     } catch (e) {
@@ -277,7 +281,8 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       // Only update location if it's NOT the simulator default
       // Otherwise keep the cached location
       if (!isSanFrancisco) {
-        setState(() {
+          if (!mounted) return;
+          setState(() {
           currentLocation = LatLng(position.latitude, position.longitude);
           // Save the new location to cache for next time (preserve current zoom)
           StorageService.cacheMapLocation(
@@ -348,7 +353,8 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
         }
       }
 
-      setState(() {
+        if (!mounted) return;
+        setState(() {
         places = loadedPlaces;
       });
 
@@ -427,7 +433,8 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       }
     }
 
-    setState(() {
+      if (!mounted) return;
+      setState(() {
       markers = newMarkers;
     });
   }

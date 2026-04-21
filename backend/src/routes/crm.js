@@ -29,6 +29,7 @@ router.put('/leads/:id/custom-values', crm.setCustomValues);
 // ─── Settings ───────────────────────
 router.get('/settings', crm.getSettings);
 router.patch('/settings', crm.updateSettings);
+router.get('/automation-status', crm.getAutomationStatus);
 
 // ─── CMS Content ────────────────────
 router.get('/content', cmsContent.getContent);

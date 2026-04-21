@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { crmApi, type CRMLead, type CRMActivity, type CRMTask, type CRMEmailLog, type CRMSiteVisit, type CRMStage, type CRMCustomField } from '@/lib/api';
+import { crmApi, type CRMLead, type CRMActivity, type CRMTask, type CRMEmailLog, type CRMSiteVisit, type CRMStage, type CRMCustomField, type CRMEmailTemplate } from '@/lib/api';
+import { generatePersonalizedDraft } from '@/lib/crmEmailDraft';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
@@ -35,6 +36,7 @@ export default function LeadDetailPage() {
   const [customValues, setCustomValues] = useState<Record<number, string>>({});
   const [customValuesDirty, setCustomValuesDirty] = useState<Record<number, string>>({});
   const [customValuesSaving, setCustomValuesSaving] = useState(false);
+  const [templates, setTemplates] = useState<CRMEmailTemplate[]>([]);
 
   // Add activity form
   const [showAddActivity, setShowAddActivity] = useState(false);
@@ -46,7 +48,7 @@ export default function LeadDetailPage() {
 
   // Send email form
   const [showSendEmail, setShowSendEmail] = useState(false);
-  const [emailForm, setEmailForm] = useState({ subject: '', body: '' });
+  const [emailForm, setEmailForm] = useState({ subject: '', body: '', template_id: '' });
 
   // Site visit form
   const [showVisitForm, setShowVisitForm] = useState(false);
@@ -59,27 +61,23 @@ export default function LeadDetailPage() {
     follow_up_date: '', verdict: 'promising', verdict_reason: '', notes: '',
   });
 
-  useEffect(() => {
-    loadAll();
-    crmApi.getStages().then(r => setStages(r.stages.sort((a: CRMStage, b: CRMStage) => a.sort_order - b.sort_order))).catch(() => {});
-    crmApi.getCustomFields().then(r => setCustomFields(r.fields.sort((a: CRMCustomField, b: CRMCustomField) => a.sort_order - b.sort_order))).catch(() => {});
-  }, [leadId]);
-
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [leadRes, actRes, taskRes, emailRes, visitRes] = await Promise.all([
+      const [leadRes, actRes, taskRes, emailRes, visitRes, templateRes] = await Promise.all([
         crmApi.getLead(leadId),
         crmApi.getActivities(leadId),
         crmApi.getTasks({ lead_id: String(leadId) }),
         crmApi.getEmailLog(leadId),
         crmApi.getSiteVisits(leadId),
+        crmApi.getTemplates(),
       ]);
       setLead(leadRes.lead);
       setActivities(actRes.activities);
       setTasks(taskRes.tasks);
       setEmails(emailRes.emails);
       setVisits(visitRes.visits);
+      setTemplates(templateRes.templates || []);
       // Load custom values
       try {
         const cv = await crmApi.getCustomValues(leadId);
@@ -93,7 +91,13 @@ export default function LeadDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [leadId, router]);
+
+  useEffect(() => {
+    loadAll();
+    crmApi.getStages().then(r => setStages(r.stages.sort((a: CRMStage, b: CRMStage) => a.sort_order - b.sort_order))).catch(() => {});
+    crmApi.getCustomFields().then(r => setCustomFields(r.fields.sort((a: CRMCustomField, b: CRMCustomField) => a.sort_order - b.sort_order))).catch(() => {});
+  }, [leadId, loadAll]);
 
   async function handleStageChange(stage: string) {
     if (!lead) return;
@@ -132,10 +136,33 @@ export default function LeadDetailPage() {
 
   async function handleSendEmail(e: React.FormEvent) {
     e.preventDefault();
-    await crmApi.sendEmail(leadId, emailForm);
+    await crmApi.sendEmail(leadId, {
+      subject: emailForm.subject,
+      body: emailForm.body,
+      template_id: emailForm.template_id ? Number(emailForm.template_id) : undefined,
+    });
     setShowSendEmail(false);
-    setEmailForm({ subject: '', body: '' });
+    setEmailForm({ subject: '', body: '', template_id: '' });
     loadAll();
+  }
+
+  function handleTemplateSelect(templateId: string) {
+    if (!lead) return;
+    const template = templates.find(item => String(item.id) === templateId);
+    if (!template) {
+      setEmailForm({ template_id: '', subject: '', body: '' });
+      return;
+    }
+
+    const draft = generatePersonalizedDraft(lead, template);
+    setEmailForm({ template_id: templateId, subject: draft.subject, body: draft.body });
+  }
+
+  function handlePrewriteDraft() {
+    if (!lead) return;
+    const template = templates.find(item => String(item.id) === emailForm.template_id);
+    const draft = generatePersonalizedDraft(lead, template);
+    setEmailForm(current => ({ ...current, subject: draft.subject, body: draft.body }));
   }
 
   async function handleCompleteTask(taskId: number) {
@@ -277,6 +304,19 @@ export default function LeadDetailPage() {
       {showSendEmail && (
         <form onSubmit={handleSendEmail} className="bg-slate-900 border border-blue-500/30 rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-semibold text-blue-400">Send Email to {lead.email}</h3>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Template</label>
+            <select
+              value={emailForm.template_id}
+              onChange={e => handleTemplateSelect(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+            >
+              <option value="">No template</option>
+              {templates.map(template => (
+                <option key={template.id} value={template.id}>{template.name}</option>
+              ))}
+            </select>
+          </div>
           <CRMInput label="Subject" value={emailForm.subject} onChange={v => setEmailForm(f => ({ ...f, subject: v }))} placeholder="Quick intro from Proper Place" />
           <div>
             <label className="block text-xs text-slate-400 mb-1">Body (HTML supported, use {'{{business_name}}'} etc. for merge fields)</label>
@@ -287,6 +327,14 @@ export default function LeadDetailPage() {
               rows={6}
               placeholder="Hi {{first_name}},&#10;&#10;I noticed {{business_name}} has a great location for motorhome guests..."
             />
+          </div>
+          <button type="button" onClick={handlePrewriteDraft} className="text-xs text-emerald-400 hover:text-emerald-300">
+            Pre-write personal draft
+          </button>
+          <div className="flex flex-wrap gap-1.5 text-[10px] text-slate-500">
+            {['{{first_name}}', '{{last_name}}', '{{business_name}}', '{{location}}', '{{property_type}}', '{{source}}'].map(token => (
+              <span key={token} className="px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-400">{token}</span>
+            ))}
           </div>
           <div className="flex gap-2">
             <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg">Send Email</button>

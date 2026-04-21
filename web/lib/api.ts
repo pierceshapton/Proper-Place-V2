@@ -682,6 +682,16 @@ export interface CmsRow {
   sort_order: number;
 }
 
+export interface CRMAutomationStatus {
+  server_kill_switch_enabled: boolean;
+  setting_enabled: boolean;
+  gate_ready: boolean;
+  effective_enabled: boolean;
+  threshold: number;
+  min_fit_score: number;
+  daily_limit: number;
+}
+
 // ─── CRM API ────────────────────────────────────────────────────────
 
 export const crmApi = {
@@ -740,6 +750,7 @@ export const crmApi = {
   // Settings
   getSettings: () => api<{ settings: { key: string; value: string }[] }>('/crm/settings'),
   updateSettings: (settings: Record<string, unknown>) => api('/crm/settings', { method: 'PATCH', body: { settings } }),
+  getAutomationStatus: () => api<CRMAutomationStatus>('/crm/automation-status'),
 
   // CMS Content
   getCmsContent: () => api<{ content: Record<string, string>; rows: CmsRow[] }>('/crm/content'),
@@ -769,7 +780,22 @@ export const crmApi = {
   setCustomValues: (leadId: number, values: { field_id: number; value: string }[]) =>
     api(`/crm/leads/${leadId}/custom-values`, { method: 'PUT', body: { values } }),
   // Import & Enrich
-  importLeads: (places: { name: string; description?: string; lat?: number; lng?: number; address?: string }[], enrich: boolean, pipeline_stage?: string, priority?: string) =>
+  importLeads: (
+    places: {
+      name: string;
+      description?: string;
+      lat?: number;
+      lng?: number;
+      address?: string;
+      fit_score?: number;
+      parking_confidence?: number;
+      access_score?: number;
+      campervan_priority?: number;
+    }[],
+    enrich: boolean,
+    pipeline_stage?: string,
+    priority?: string
+  ) =>
     api<{ created: number; enriched: number; total: number; results: { name: string; id?: number; status: string; error?: string }[] }>('/crm/leads/import', { method: 'POST', body: { places, enrich, pipeline_stage, priority } }),
   enrichLead: (leadId: number) =>
     api<{ lead: CRMLead; enriched: Record<string, unknown> }>(`/crm/leads/${leadId}/enrich`, { method: 'POST', body: {} }),

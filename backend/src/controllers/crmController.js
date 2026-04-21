@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
+const nodemailer = require('nodemailer');
 
 // ─── LEADS ──────────────────────────────────────────────────────────
 
@@ -629,28 +630,7 @@ async function sendEmail(req, res, next) {
     const interpolated = interpolateTemplate(body, lead);
     const interpolatedSubject = interpolateTemplate(subject, lead);
 
-    // Send via nodemailer
-    const emailUtil = require('../utils/email');
-    const nodemailer = require('nodemailer');
-    const crmReplyTo = process.env.CRM_FROM_EMAIL || 'pierce.shapton@proper-place.co.uk';
-    const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
-    const smtpUser = process.env.SMTP_USER;
-
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp-relay.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: false,
-      requireTLS: true,
-      auth: { user: smtpUser, pass: process.env.SMTP_PASS },
-    });
-
-    await transporter.sendMail({
-      from: `"${crmFromName}" <${smtpUser}>`,
-      replyTo: crmReplyTo,
-      to: lead.email,
-      subject: interpolatedSubject,
-      html: wrapEmailHtml(interpolated),
-    });
+    await sendCrmLeadEmail(lead.email, interpolatedSubject, interpolated);
 
     // Log to email log
     await db.query(
@@ -829,6 +809,38 @@ async function getSettings(req, res, next) {
     res.json({ settings });
   } catch (error) {
     logger.error('CRM getSettings error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * GET /crm/automation-status
+ * Returns effective automation status including server kill-switch.
+ */
+async function getAutomationStatus(req, res, next) {
+  try {
+    const settings = await getSettingsMap();
+
+    const serverEnabled = String(process.env.CRM_DISCOVERY_AUTO_EMAIL_ENABLED || '').toLowerCase() === 'true';
+    const settingEnabled = parseBoolSetting(settings.discovery_auto_email_enabled, false);
+    const gateReady = parseBoolSetting(settings.discovery_auto_mode_ready, false);
+    const threshold = parseIntSetting(settings.auto_mode_threshold, 85);
+    const minFitScore = parseIntSetting(settings.discovery_auto_email_min_fit_score, 85);
+    const dailyLimit = parseIntSetting(settings.discovery_auto_email_daily_limit, 20);
+
+    const effectiveEnabled = serverEnabled && settingEnabled && gateReady;
+
+    res.json({
+      server_kill_switch_enabled: serverEnabled,
+      setting_enabled: settingEnabled,
+      gate_ready: gateReady,
+      effective_enabled: effectiveEnabled,
+      threshold,
+      min_fit_score: minFitScore,
+      daily_limit: dailyLimit,
+    });
+  } catch (error) {
+    logger.error('CRM getAutomationStatus error', { error: error.message });
     next(error);
   }
 }
@@ -1172,7 +1184,17 @@ async function importLeads(req, res, next) {
     let enrichedCount = 0;
 
     for (const place of places) {
-      const { name, description, lat, lng, address } = place;
+      const {
+        name,
+        description,
+        lat,
+        lng,
+        address,
+        fit_score,
+        parking_confidence,
+        access_score,
+        campervan_priority,
+      } = place;
       if (!name) continue;
 
       let data = {
@@ -1183,6 +1205,11 @@ async function importLeads(req, res, next) {
         pipeline_stage,
         priority,
         source: 'kml_import',
+        discovery_fit_score: fit_score || null,
+        discovery_parking_confidence: parking_confidence || null,
+        discovery_access_score: access_score || null,
+        discovery_campervan_priority: campervan_priority || null,
+        discovery_last_analyzed_at: fit_score ? new Date().toISOString() : null,
       };
 
       if (enrich) {
@@ -1208,8 +1235,10 @@ async function importLeads(req, res, next) {
           `INSERT INTO host_leads (
             business_name, location, latitude, longitude, phone, website,
             google_place_id, google_rating, google_reviews_count,
-            pipeline_stage, priority, admin_notes, source, assigned_to
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            pipeline_stage, priority, admin_notes, source, assigned_to,
+            discovery_fit_score, discovery_parking_confidence, discovery_access_score,
+            discovery_campervan_priority, discovery_last_analyzed_at
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
           ON CONFLICT DO NOTHING
           RETURNING id`,
           [
@@ -1218,6 +1247,8 @@ async function importLeads(req, res, next) {
             data.google_place_id || null, data.google_rating || null, data.google_reviews_count || null,
             data.pipeline_stage, data.priority,
             description || null, data.source, req.user.userId,
+            data.discovery_fit_score, data.discovery_parking_confidence, data.discovery_access_score,
+            data.discovery_campervan_priority, data.discovery_last_analyzed_at,
           ]
         );
         if (r.rows.length > 0) {
@@ -1242,6 +1273,155 @@ async function importLeads(req, res, next) {
   }
 }
 
+async function processDiscoveryAutoEmails() {
+  try {
+    // Hard kill switch: remains deactivated unless explicitly turned on in server env.
+    if (String(process.env.CRM_DISCOVERY_AUTO_EMAIL_ENABLED || '').toLowerCase() !== 'true') {
+      return;
+    }
+
+    const settings = await getSettingsMap();
+    const autoEnabled = parseBoolSetting(settings.discovery_auto_email_enabled, false);
+    const gateReady = parseBoolSetting(settings.discovery_auto_mode_ready, false);
+    const minFitScore = parseIntSetting(settings.discovery_auto_email_min_fit_score, 85);
+    const dailyLimit = parseIntSetting(settings.discovery_auto_email_daily_limit, 20);
+
+    if (!autoEnabled || !gateReady || dailyLimit <= 0) {
+      return;
+    }
+
+    const sentTodayRes = await db.query(
+      `SELECT COUNT(*) AS count
+       FROM crm_email_log
+       WHERE status = 'sent'
+         AND sent_at >= date_trunc('day', NOW())
+         AND sent_at < date_trunc('day', NOW()) + interval '1 day'
+         AND (subject ILIKE '%proper place%' OR subject ILIKE '%campervan%' OR subject ILIKE '%motorhome%')`
+    );
+    const sentToday = parseInt(sentTodayRes.rows[0].count, 10) || 0;
+    const remaining = Math.max(0, dailyLimit - sentToday);
+    if (remaining <= 0) return;
+
+    const leadsRes = await db.query(
+      `SELECT hl.*
+       FROM host_leads hl
+       WHERE hl.email IS NOT NULL
+         AND hl.email <> ''
+         AND hl.pipeline_stage = 'new'
+         AND COALESCE(hl.discovery_fit_score, 0) >= $1
+         AND COALESCE(hl.discovery_campervan_priority, 0) >= 40
+         AND NOT EXISTS (
+           SELECT 1 FROM crm_email_log cel
+           WHERE cel.lead_id = hl.id
+             AND cel.status = 'sent'
+             AND cel.sent_at >= NOW() - interval '60 days'
+         )
+       ORDER BY COALESCE(hl.discovery_campervan_priority, 0) DESC,
+                COALESCE(hl.discovery_fit_score, 0) DESC,
+                hl.created_at ASC
+       LIMIT $2`,
+      [minFitScore, remaining]
+    );
+
+    if (!leadsRes.rows.length) return;
+
+    const templateRes = await db.query(
+      `SELECT * FROM crm_email_templates
+       WHERE is_active = true
+         AND template_type = 'outreach'
+       ORDER BY created_at DESC
+       LIMIT 1`
+    );
+
+    if (!templateRes.rows.length) {
+      logger.warn('Discovery auto-email skipped: no active outreach template');
+      return;
+    }
+
+    const template = templateRes.rows[0];
+
+    for (const lead of leadsRes.rows) {
+      const subject = interpolateTemplate(template.subject || 'Partnership with {{business_name}}', lead);
+      const body = interpolateTemplate(template.body || defaultOutreachBody(), lead);
+
+      try {
+        await sendCrmLeadEmail(lead.email, subject, body);
+
+        await db.query(
+          `INSERT INTO crm_email_log (lead_id, template_id, subject, body, to_email, status, created_by)
+           VALUES ($1, $2, $3, $4, $5, 'sent', NULL)`,
+          [lead.id, template.id, subject, body, lead.email]
+        );
+
+        await db.query(
+          `INSERT INTO crm_activities (lead_id, activity_type, title, description, created_by)
+           VALUES ($1, 'email', 'Auto outreach sent', $2, NULL)`,
+          [lead.id, `Auto outreach gate approved. Fit: ${lead.discovery_fit_score || 0}, Campervan: ${lead.discovery_campervan_priority || 0}`]
+        );
+
+        await db.query(
+          `UPDATE host_leads
+           SET last_contact_date = NOW(), updated_at = NOW(), pipeline_stage = 'contacted'
+           WHERE id = $1`,
+          [lead.id]
+        );
+      } catch (err) {
+        logger.warn('Discovery auto-email send failed', { leadId: lead.id, error: err.message });
+      }
+    }
+  } catch (error) {
+    logger.error('processDiscoveryAutoEmails error', { error: error.message });
+  }
+}
+
+async function sendCrmLeadEmail(to, subject, body) {
+  const crmReplyTo = process.env.CRM_FROM_EMAIL || 'pierce.shapton@proper-place.co.uk';
+  const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
+  const smtpUser = process.env.SMTP_USER;
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp-relay.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: false,
+    requireTLS: true,
+    auth: { user: smtpUser, pass: process.env.SMTP_PASS },
+  });
+
+  await transporter.sendMail({
+    from: `"${crmFromName}" <${smtpUser}>`,
+    replyTo: crmReplyTo,
+    to,
+    subject,
+    html: wrapEmailHtml(body),
+  });
+}
+
+async function getSettingsMap() {
+  const response = await db.query('SELECT key, value FROM crm_settings');
+  const map = {};
+  response.rows.forEach(row => {
+    map[row.key] = row.value;
+  });
+  return map;
+}
+
+function parseBoolSetting(value, fallback = false) {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.toLowerCase() === 'true';
+  return fallback;
+}
+
+function parseIntSetting(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  const parsed = parseInt(String(value), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function defaultOutreachBody() {
+  return 'Hi {{first_name}},<br/><br/>I came across {{business_name}} and thought it might be a strong fit for overnight motorhome stays with Proper Place. We help venues generate extra revenue from existing parking and open space with responsible guests.<br/><br/>Would you be open to a quick chat to see if this could work for you?<br/><br/>Best,<br/>Pierce';
+}
+
 module.exports = {
   getLeads, getLead, createLead, updateLead, deleteLead, getPipelineSummary,
   getActivities, createActivity,
@@ -1251,6 +1431,7 @@ module.exports = {
   sendEmail, getEmailLog,
   getSequences, createSequence,
   getStats,
+  getAutomationStatus,
   getSettings, updateSettings,
   // Stages
   getStages, createStage, updateStage, deleteStage, reorderStages,
@@ -1260,4 +1441,5 @@ module.exports = {
   getCustomValues, setCustomValues,
   // Import & Enrich
   importLeads, enrichLead,
+  processDiscoveryAutoEmails,
 };

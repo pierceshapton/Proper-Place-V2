@@ -1,18 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { crmApi, type CRMLead, type CRMStage, type CRMActivity, type CRMTask, type CRMSiteVisit, type CRMEmailLog } from '@/lib/api';
+import {
+  crmApi,
+  type CRMActivity,
+  type CRMEmailLog,
+  type CRMEmailTemplate,
+  type CRMLead,
+  type CRMSiteVisit,
+  type CRMStage,
+  type CRMTask,
+} from '@/lib/api';
+import { generatePersonalizedDraft } from '@/lib/crmEmailDraft';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
-  { id: 1, slug: 'new',         name: 'New',         color: 'blue',    sort_order: 1, is_won: false, is_lost: false },
-  { id: 2, slug: 'contacted',   name: 'Contacted',   color: 'amber',   sort_order: 2, is_won: false, is_lost: false },
-  { id: 3, slug: 'assessing',   name: 'Assessing',   color: 'violet',  sort_order: 3, is_won: false, is_lost: false },
-  { id: 4, slug: 'negotiating', name: 'Negotiating', color: 'orange',  sort_order: 4, is_won: false, is_lost: false },
-  { id: 5, slug: 'converted',   name: 'Converted',   color: 'emerald', sort_order: 5, is_won: true,  is_lost: false },
-  { id: 6, slug: 'lost',        name: 'Lost',        color: 'red',     sort_order: 6, is_won: false, is_lost: true  },
+  { id: 1, slug: 'new', name: 'New', color: 'blue', sort_order: 1, is_won: false, is_lost: false },
+  { id: 2, slug: 'contacted', name: 'Contacted', color: 'amber', sort_order: 2, is_won: false, is_lost: false },
+  { id: 3, slug: 'assessing', name: 'Assessing', color: 'violet', sort_order: 3, is_won: false, is_lost: false },
+  { id: 4, slug: 'negotiating', name: 'Negotiating', color: 'orange', sort_order: 4, is_won: false, is_lost: false },
+  { id: 5, slug: 'converted', name: 'Converted', color: 'emerald', sort_order: 5, is_won: true, is_lost: false },
+  { id: 6, slug: 'lost', name: 'Lost', color: 'red', sort_order: 6, is_won: false, is_lost: true },
 ];
+
+const PRIORITIES = ['hot', 'warm', 'medium', 'cold'];
 
 const PRIORITY_COLORS: Record<string, string> = {
   hot: 'text-red-400 bg-red-500/10',
@@ -26,18 +38,24 @@ export default function PipelinePage() {
   const [leads, setLeads] = useState<CRMLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('new');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [attentionOnly, setAttentionOnly] = useState(false);
   const [draggedLead, setDraggedLead] = useState<number | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
 
   useEffect(() => {
     loadLeads();
-    crmApi.getStages().then(r => setStages(r.stages.sort((a: CRMStage, b: CRMStage) => a.sort_order - b.sort_order))).catch(() => {});
+    crmApi
+      .getStages()
+      .then(response => setStages(response.stages.sort((a, b) => a.sort_order - b.sort_order)))
+      .catch(() => {});
   }, []);
 
   async function loadLeads() {
     try {
-      const res = await crmApi.getLeads({ limit: '500' });
-      setLeads(res.leads);
+      const response = await crmApi.getLeads({ limit: '500' });
+      setLeads(response.leads);
     } catch {
       // ignore
     } finally {
@@ -48,31 +66,54 @@ export default function PipelinePage() {
   async function moveToStage(leadId: number, newStage: string) {
     try {
       await crmApi.updateLead(leadId, { pipeline_stage: newStage } as Partial<CRMLead>);
-      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, pipeline_stage: newStage } : l));
+      setLeads(prev => prev.map(lead => (lead.id === leadId ? { ...lead, pipeline_stage: newStage } : lead)));
     } catch {
       // ignore
     }
   }
 
-  function handleDragStart(e: React.DragEvent, leadId: number) {
+  function handleDragStart(event: React.DragEvent, leadId: number) {
     setDraggedLead(leadId);
-    e.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.effectAllowed = 'move';
   }
 
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+  function handleDragOver(event: React.DragEvent) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
   }
 
-  function handleDrop(e: React.DragEvent, stage: string) {
-    e.preventDefault();
+  function handleDrop(event: React.DragEvent, stage: string) {
+    event.preventDefault();
     if (draggedLead !== null) {
       moveToStage(draggedLead, stage);
       setDraggedLead(null);
     }
   }
 
-  const leadsByStage = (stage: string) => leads.filter(l => l.pipeline_stage === stage);
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredLeads = leads.filter(lead => {
+    const matchesQuery =
+      normalizedQuery === '' ||
+      [
+        lead.business_name,
+        `${lead.first_name} ${lead.last_name}`.trim(),
+        lead.email,
+        lead.phone,
+        lead.location,
+        lead.source,
+        lead.property_type,
+      ].some(value => (value || '').toLowerCase().includes(normalizedQuery));
+
+    const matchesPriority = priorityFilter === 'all' || lead.priority === priorityFilter;
+    const needsAttention = isLeadOverdue(lead) || (lead.pending_tasks || 0) > 0;
+
+    return matchesQuery && matchesPriority && (!attentionOnly || needsAttention);
+  });
+
+  const leadsByStage = (stage: string) => filteredLeads.filter(lead => lead.pipeline_stage === stage);
+  const hotLeads = filteredLeads.filter(lead => lead.priority === 'hot').length;
+  const overdueFollowUps = filteredLeads.filter(isLeadOverdue).length;
+  const openTasks = filteredLeads.reduce((total, lead) => total + (lead.pending_tasks || 0), 0);
 
   if (loading) {
     return (
@@ -87,23 +128,70 @@ export default function PipelinePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Pipeline</h1>
-          <p className="text-sm text-slate-500 mt-1">{leads.length} total leads</p>
+          <p className="text-sm text-slate-500 mt-1">{filteredLeads.length} of {leads.length} leads shown</p>
         </div>
         <Link href="/crm/leads?new=true" className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
           + Add Lead
         </Link>
       </div>
 
-      {/* Desktop: Kanban columns */}
-      <div className={`hidden lg:grid gap-3 min-h-[calc(100vh-12rem)]`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <SummaryCard label="Visible Leads" value={filteredLeads.length.toString()} tone="slate" />
+        <SummaryCard label="Hot Prospects" value={hotLeads.toString()} tone="red" />
+        <SummaryCard label="Overdue Follow-ups" value={overdueFollowUps.toString()} tone="amber" />
+        <SummaryCard label="Open Tasks" value={openTasks.toString()} tone="blue" />
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_auto_auto]">
+          <div>
+            <label className="block text-[11px] text-slate-500 uppercase tracking-wider mb-1.5">Search</label>
+            <input
+              value={searchQuery}
+              onChange={event => setSearchQuery(event.target.value)}
+              placeholder="Search name, business, email, phone, location..."
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] text-slate-500 uppercase tracking-wider mb-1.5">Priority</label>
+            <select
+              value={priorityFilter}
+              onChange={event => setPriorityFilter(event.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+            >
+              <option value="all">All priorities</option>
+              {PRIORITIES.map(priority => (
+                <option key={priority} value={priority}>{priority}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <label className="flex items-center gap-2 text-sm text-slate-300 h-[42px] px-3 rounded-lg border border-slate-700 bg-slate-800/60">
+              <input
+                type="checkbox"
+                checked={attentionOnly}
+                onChange={event => setAttentionOnly(event.target.checked)}
+                className="accent-emerald-500"
+              />
+              Needs attention
+            </label>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+          <span className="px-2 py-1 rounded-full bg-slate-800 border border-slate-700">Searches across name, business, email, phone, source, and location</span>
+          {attentionOnly && <span className="px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">Showing only overdue follow-ups or leads with open tasks</span>}
+        </div>
+      </div>
+
+      <div className="hidden lg:grid gap-3 min-h-[calc(100vh-12rem)]" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
         {stages.map(stage => (
           <div
             key={stage.slug}
             className="bg-slate-900/50 border border-slate-800 rounded-xl flex flex-col"
             onDragOver={handleDragOver}
-            onDrop={e => handleDrop(e, stage.slug)}
+            onDrop={event => handleDrop(event, stage.slug)}
           >
-            {/* Column header */}
             <div className={`px-3 py-2.5 border-b border-slate-800 border-t-2 ${stageColors(stage.color).border} rounded-t-xl`}>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">{stage.name}</span>
@@ -111,7 +199,6 @@ export default function PipelinePage() {
               </div>
             </div>
 
-            {/* Cards */}
             <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-16rem)]">
               {leadsByStage(stage.slug).map(lead => (
                 <LeadCard key={lead.id} lead={lead} onDragStart={handleDragStart} onClick={() => setSelectedLeadId(lead.id)} />
@@ -124,9 +211,7 @@ export default function PipelinePage() {
         ))}
       </div>
 
-      {/* Mobile: Tabs + list */}
       <div className="lg:hidden">
-        {/* Tab bar */}
         <div className="flex gap-1 overflow-x-auto pb-2 -mx-1 px-1">
           {stages.map(stage => (
             <button
@@ -143,7 +228,6 @@ export default function PipelinePage() {
           ))}
         </div>
 
-        {/* Mobile move controls */}
         <div className="space-y-2 mt-3">
           {leadsByStage(activeTab).map(lead => (
             <div key={lead.id} className="bg-slate-900 border border-slate-800 rounded-lg p-3">
@@ -152,21 +236,25 @@ export default function PipelinePage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-200 truncate">{lead.business_name || `${lead.first_name} ${lead.last_name}`.trim()}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{lead.location || '—'}</p>
+                    {lead.next_follow_up && (
+                      <p className={`text-[11px] mt-1 ${isLeadOverdue(lead) ? 'text-red-400' : 'text-slate-500'}`}>
+                        Follow-up: {formatDateShort(lead.next_follow_up)}
+                      </p>
+                    )}
                   </div>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[lead.priority] || PRIORITY_COLORS.medium}`}>
                     {lead.priority}
                   </span>
                 </div>
               </div>
-              {/* Stage move buttons */}
               <div className="flex gap-1 mt-2 overflow-x-auto">
-                {stages.filter(s => s.slug !== lead.pipeline_stage).map(s => (
+                {stages.filter(stage => stage.slug !== lead.pipeline_stage).map(stage => (
                   <button
-                    key={s.slug}
-                    onClick={() => moveToStage(lead.id, s.slug)}
+                    key={stage.slug}
+                    onClick={() => moveToStage(lead.id, stage.slug)}
                     className="flex-shrink-0 text-[10px] px-2 py-1 rounded border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
                   >
-                    → {s.name}
+                    → {stage.name}
                   </button>
                 ))}
               </div>
@@ -178,14 +266,16 @@ export default function PipelinePage() {
         </div>
       </div>
 
-      {/* Lead Detail Modal */}
       {selectedLeadId && (
         <LeadDetailModal
           leadId={selectedLeadId}
           stages={stages}
           onClose={() => setSelectedLeadId(null)}
           onStageChange={(id, stage) => {
-            setLeads(prev => prev.map(l => l.id === id ? { ...l, pipeline_stage: stage } : l));
+            setLeads(prev => prev.map(lead => (lead.id === id ? { ...lead, pipeline_stage: stage } : lead)));
+          }}
+          onLeadUpdate={updatedLead => {
+            setLeads(prev => prev.map(lead => (lead.id === updatedLead.id ? { ...lead, ...updatedLead } : lead)));
           }}
         />
       )}
@@ -193,12 +283,30 @@ export default function PipelinePage() {
   );
 }
 
-function LeadCard({ lead, onDragStart, onClick }: { lead: CRMLead; onDragStart: (e: React.DragEvent, id: number) => void; onClick: () => void }) {
+function SummaryCard({ label, value, tone }: { label: string; value: string; tone: 'slate' | 'red' | 'amber' | 'blue' }) {
+  const tones = {
+    slate: 'text-slate-300 border-slate-800 bg-slate-900',
+    red: 'text-red-400 border-red-500/20 bg-red-500/10',
+    amber: 'text-amber-400 border-amber-500/20 bg-amber-500/10',
+    blue: 'text-blue-400 border-blue-500/20 bg-blue-500/10',
+  };
+
+  return (
+    <div className={`rounded-xl border p-4 ${tones[tone]}`}>
+      <p className="text-[11px] uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-2xl font-bold mt-2">{value}</p>
+    </div>
+  );
+}
+
+function LeadCard({ lead, onDragStart, onClick }: { lead: CRMLead; onDragStart: (event: React.DragEvent, id: number) => void; onClick: () => void }) {
+  const overdue = isLeadOverdue(lead);
+
   return (
     <div onClick={onClick}>
       <div
         draggable
-        onDragStart={e => onDragStart(e, lead.id)}
+        onDragStart={event => onDragStart(event, lead.id)}
         className="bg-slate-800 hover:bg-slate-750 border border-slate-700/50 hover:border-slate-600 rounded-lg p-2.5 cursor-grab active:cursor-grabbing transition-all group"
       >
         <div className="flex items-start justify-between gap-1">
@@ -206,33 +314,26 @@ function LeadCard({ lead, onDragStart, onClick }: { lead: CRMLead; onDragStart: 
             {lead.business_name || `${lead.first_name} ${lead.last_name}`.trim() || 'Unnamed'}
           </p>
           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1 ${
-            lead.priority === 'hot' ? 'bg-red-500' :
-            lead.priority === 'warm' ? 'bg-orange-400' :
-            lead.priority === 'cold' ? 'bg-blue-400' : 'bg-slate-500'
+            lead.priority === 'hot' ? 'bg-red-500' : lead.priority === 'warm' ? 'bg-orange-400' : lead.priority === 'cold' ? 'bg-blue-400' : 'bg-slate-500'
           }`}></span>
         </div>
-        {lead.location && (
-          <p className="text-[11px] text-slate-500 mt-1 truncate">📍 {lead.location}</p>
-        )}
-        {lead.google_rating && (
-          <p className="text-[11px] text-slate-500 mt-0.5">⭐ {lead.google_rating}</p>
-        )}
+        {lead.location && <p className="text-[11px] text-slate-500 mt-1 truncate">📍 {lead.location}</p>}
+        {lead.google_rating && <p className="text-[11px] text-slate-500 mt-0.5">⭐ {lead.google_rating}</p>}
+        {lead.source && <p className="text-[11px] text-slate-600 mt-0.5 truncate">Source: {lead.source}</p>}
         <div className="flex items-center gap-2 mt-1.5">
-          {(lead.pending_tasks || 0) > 0 && (
-            <span className="text-[10px] text-amber-400">☐ {lead.pending_tasks}</span>
-          )}
-          {lead.next_follow_up && new Date(lead.next_follow_up) <= new Date() && (
-            <span className="text-[10px] text-red-400">⚠ overdue</span>
-          )}
+          {(lead.pending_tasks || 0) > 0 && <span className="text-[10px] text-amber-400">☐ {lead.pending_tasks}</span>}
+          {overdue && <span className="text-[10px] text-red-400">⚠ overdue</span>}
         </div>
+        {lead.next_follow_up && (
+          <p className={`text-[10px] mt-1 ${overdue ? 'text-red-400' : 'text-slate-500'}`}>
+            Follow-up: {formatDateShort(lead.next_follow_up)}
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
-/* ── Lead Detail Modal ─────────────────────────────────────── */
-
-const PRIORITIES = ['hot', 'warm', 'medium', 'cold'];
 const PRIORITY_BADGE: Record<string, string> = {
   hot: 'bg-red-500 text-white',
   warm: 'bg-orange-500 text-white',
@@ -240,81 +341,142 @@ const PRIORITY_BADGE: Record<string, string> = {
   cold: 'bg-blue-500 text-white',
 };
 
-function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
+function LeadDetailModal({
+  leadId,
+  stages,
+  onClose,
+  onStageChange,
+  onLeadUpdate,
+}: {
   leadId: number;
   stages: CRMStage[];
   onClose: () => void;
   onStageChange: (id: number, stage: string) => void;
+  onLeadUpdate: (lead: CRMLead) => void;
 }) {
   const [lead, setLead] = useState<CRMLead | null>(null);
   const [activities, setActivities] = useState<CRMActivity[]>([]);
   const [tasks, setTasks] = useState<CRMTask[]>([]);
   const [visits, setVisits] = useState<CRMSiteVisit[]>([]);
   const [emails, setEmails] = useState<CRMEmailLog[]>([]);
+  const [templates, setTemplates] = useState<CRMEmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('activity');
+  const [showQuickEdit, setShowQuickEdit] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<CRMLead>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
 
-  // Send email form
   const [showSendEmail, setShowSendEmail] = useState(false);
-  const [emailForm, setEmailForm] = useState({ subject: '', body: '' });
+  const [emailForm, setEmailForm] = useState({ subject: '', body: '', template_id: '' });
 
-  // Add note form
   const [showAddNote, setShowAddNote] = useState(false);
   const [noteForm, setNoteForm] = useState({ activity_type: 'note', title: '', description: '' });
 
-  // Add task form
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: '', due_date: '', priority: 'medium' });
 
-  useEffect(() => {
-    loadData();
-  }, [leadId]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [leadRes, actRes, taskRes, visitRes, emailRes] = await Promise.all([
+      const [leadRes, actRes, taskRes, visitRes, emailRes, templateRes] = await Promise.all([
         crmApi.getLead(leadId),
         crmApi.getActivities(leadId),
         crmApi.getTasks({ lead_id: String(leadId) }),
         crmApi.getSiteVisits(leadId),
         crmApi.getEmailLog(leadId),
+        crmApi.getTemplates(),
       ]);
       setLead(leadRes.lead);
+      setEditForm({
+        business_name: leadRes.lead.business_name || '',
+        first_name: leadRes.lead.first_name || '',
+        last_name: leadRes.lead.last_name || '',
+        email: leadRes.lead.email || '',
+        phone: leadRes.lead.phone || '',
+        location: leadRes.lead.location || '',
+        website: leadRes.lead.website || '',
+        source: leadRes.lead.source || '',
+        property_type: leadRes.lead.property_type || '',
+        parking_type: leadRes.lead.parking_type || '',
+        parking_spaces: leadRes.lead.parking_spaces,
+        estimated_value: leadRes.lead.estimated_value,
+        next_follow_up: leadRes.lead.next_follow_up ? formatDateInput(leadRes.lead.next_follow_up) : '',
+        admin_notes: leadRes.lead.admin_notes || '',
+      });
       setActivities(actRes.activities);
       setTasks(taskRes.tasks);
       setVisits(visitRes.visits);
       setEmails(emailRes.emails || []);
+      setTemplates(templateRes.templates || []);
     } catch {
       onClose();
     } finally {
       setLoading(false);
     }
-  }
+  }, [leadId, onClose]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   async function handleStageChange(stage: string) {
     if (!lead) return;
     await crmApi.updateLead(leadId, { pipeline_stage: stage } as Partial<CRMLead>);
-    setLead({ ...lead, pipeline_stage: stage });
+    const updatedLead = { ...lead, pipeline_stage: stage };
+    setLead(updatedLead);
     onStageChange(leadId, stage);
+    onLeadUpdate(updatedLead);
   }
 
   async function handlePriorityChange(priority: string) {
     if (!lead) return;
     await crmApi.updateLead(leadId, { priority } as Partial<CRMLead>);
-    setLead({ ...lead, priority });
+    const updatedLead = { ...lead, priority };
+    setLead(updatedLead);
+    onLeadUpdate(updatedLead);
   }
 
-  async function handleAddNote(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSaveEdit() {
+    if (!lead) return;
+
+    setSavingEdit(true);
+    try {
+      const payload: Partial<CRMLead> = {
+        business_name: normalizeOptionalString(editForm.business_name),
+        first_name: stringValue(editForm.first_name),
+        last_name: stringValue(editForm.last_name),
+        email: stringValue(editForm.email),
+        phone: stringValue(editForm.phone),
+        location: normalizeOptionalString(editForm.location),
+        website: normalizeOptionalString(editForm.website),
+        source: normalizeOptionalString(editForm.source),
+        property_type: normalizeOptionalString(editForm.property_type),
+        parking_type: normalizeOptionalString(editForm.parking_type),
+        parking_spaces: normalizeOptionalNumber(editForm.parking_spaces),
+        estimated_value: normalizeOptionalNumber(editForm.estimated_value),
+        next_follow_up: normalizeOptionalString(editForm.next_follow_up),
+        admin_notes: normalizeOptionalString(editForm.admin_notes),
+      };
+
+      const response = await crmApi.updateLead(leadId, payload);
+      setLead(response.lead);
+      onLeadUpdate(response.lead);
+      setShowQuickEdit(false);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleAddNote(event: React.FormEvent) {
+    event.preventDefault();
     await crmApi.createActivity(leadId, noteForm);
     setShowAddNote(false);
     setNoteForm({ activity_type: 'note', title: '', description: '' });
     loadData();
   }
 
-  async function handleAddTask(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleAddTask(event: React.FormEvent) {
+    event.preventDefault();
     await crmApi.createTask({ lead_id: leadId, ...taskForm });
     setShowAddTask(false);
     setTaskForm({ title: '', due_date: '', priority: 'medium' });
@@ -326,12 +488,36 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
     loadData();
   }
 
-  async function handleSendEmail(e: React.FormEvent) {
-    e.preventDefault();
-    await crmApi.sendEmail(leadId, emailForm);
+  async function handleSendEmail(event: React.FormEvent) {
+    event.preventDefault();
+    await crmApi.sendEmail(leadId, {
+      subject: emailForm.subject,
+      body: emailForm.body,
+      template_id: emailForm.template_id ? Number(emailForm.template_id) : undefined,
+    });
     setShowSendEmail(false);
-    setEmailForm({ subject: '', body: '' });
+    setEmailForm({ subject: '', body: '', template_id: '' });
     loadData();
+  }
+
+  function handleTemplateSelect(templateId: string) {
+    if (!lead) return;
+
+    const template = templates.find(item => String(item.id) === templateId);
+    if (!template) {
+      setEmailForm({ template_id: '', subject: '', body: '' });
+      return;
+    }
+
+    const draft = generatePersonalizedDraft(lead, template);
+    setEmailForm({ template_id: templateId, subject: draft.subject, body: draft.body });
+  }
+
+  function handlePrewriteDraft() {
+    if (!lead) return;
+    const template = templates.find(item => String(item.id) === emailForm.template_id);
+    const draft = generatePersonalizedDraft(lead, template);
+    setEmailForm(current => ({ ...current, subject: draft.subject, body: draft.body }));
   }
 
   if (loading || !lead) {
@@ -348,9 +534,8 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div
         className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl"
-        onClick={e => e.stopPropagation()}
+        onClick={event => event.stopPropagation()}
       >
-        {/* Header */}
         <div className="p-5 border-b border-slate-800">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
@@ -366,18 +551,23 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
             <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none flex-shrink-0 mt-1">✕</button>
           </div>
 
-          {/* Stage + Priority */}
           <div className="flex flex-wrap gap-2 mt-3">
+            <button
+              onClick={() => setShowQuickEdit(current => !current)}
+              className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${showQuickEdit ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200'}`}
+            >
+              {showQuickEdit ? 'Hide quick edit' : 'Quick edit'}
+            </button>
             <div className="flex flex-wrap gap-1">
               {stages.map(stage => {
                 const active = lead.pipeline_stage === stage.slug;
-                const c = stageColors(stage.color);
+                const colors = stageColors(stage.color);
                 return (
                   <button
                     key={stage.slug}
                     onClick={() => handleStageChange(stage.slug)}
                     className={`text-[10px] px-2.5 py-1 rounded-full font-medium transition-all ${
-                      active ? `${c.bg} text-white` : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
+                      active ? `${colors.bg} text-white` : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
                     }`}
                   >
                     {stage.name}
@@ -386,75 +576,103 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
               })}
             </div>
             <div className="border-l border-slate-700 pl-2 flex gap-1">
-              {PRIORITIES.map(p => (
+              {PRIORITIES.map(priority => (
                 <button
-                  key={p}
-                  onClick={() => handlePriorityChange(p)}
+                  key={priority}
+                  onClick={() => handlePriorityChange(priority)}
                   className={`text-[10px] px-2.5 py-1 rounded-full font-medium transition-all ${
-                    lead.priority === p
-                      ? `${PRIORITY_BADGE[p]} `
-                      : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
+                    lead.priority === priority ? PRIORITY_BADGE[priority] : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
                   }`}
                 >
-                  {p}
+                  {priority}
                 </button>
               ))}
             </div>
           </div>
+
+          {showQuickEdit && (
+            <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <QuickEditInput label="Business Name" value={stringValue(editForm.business_name)} onChange={value => setEditForm(form => ({ ...form, business_name: value }))} />
+                <QuickEditInput label="Lead Source" value={stringValue(editForm.source)} onChange={value => setEditForm(form => ({ ...form, source: value }))} />
+                <QuickEditInput label="Contact First Name" value={stringValue(editForm.first_name)} onChange={value => setEditForm(form => ({ ...form, first_name: value }))} />
+                <QuickEditInput label="Contact Last Name" value={stringValue(editForm.last_name)} onChange={value => setEditForm(form => ({ ...form, last_name: value }))} />
+                <QuickEditInput label="Email" value={stringValue(editForm.email)} onChange={value => setEditForm(form => ({ ...form, email: value }))} type="email" />
+                <QuickEditInput label="Phone" value={stringValue(editForm.phone)} onChange={value => setEditForm(form => ({ ...form, phone: value }))} />
+                <QuickEditInput label="Location" value={stringValue(editForm.location)} onChange={value => setEditForm(form => ({ ...form, location: value }))} />
+                <QuickEditInput label="Website" value={stringValue(editForm.website)} onChange={value => setEditForm(form => ({ ...form, website: value }))} type="url" />
+                <QuickEditInput label="Property Type" value={stringValue(editForm.property_type)} onChange={value => setEditForm(form => ({ ...form, property_type: value }))} />
+                <QuickEditInput label="Parking Type" value={stringValue(editForm.parking_type)} onChange={value => setEditForm(form => ({ ...form, parking_type: value }))} />
+                <QuickEditInput label="Parking Spaces" value={numberValue(editForm.parking_spaces)} onChange={value => setEditForm(form => ({ ...form, parking_spaces: value === '' ? null : Number(value) }))} type="number" />
+                <QuickEditInput label="Est. Value" value={numberValue(editForm.estimated_value)} onChange={value => setEditForm(form => ({ ...form, estimated_value: value === '' ? null : Number(value) }))} type="number" />
+                <QuickEditInput label="Next Follow-up" value={stringValue(editForm.next_follow_up)} onChange={value => setEditForm(form => ({ ...form, next_follow_up: value }))} type="date" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 uppercase tracking-wider mb-1.5">Admin notes</label>
+                <textarea
+                  value={stringValue(editForm.admin_notes)}
+                  onChange={event => setEditForm(form => ({ ...form, admin_notes: event.target.value }))}
+                  rows={3}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleSaveEdit} disabled={savingEdit} className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg">
+                  {savingEdit ? 'Saving…' : 'Save lead changes'}
+                </button>
+                <button onClick={() => setShowQuickEdit(false)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg">Close</button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-1 border-b border-slate-800 px-5">
           {[
             { key: 'activity', label: 'Activity', count: activities.length },
             { key: 'emails', label: 'Emails', count: emails.length },
-            { key: 'tasks', label: 'Tasks', count: tasks.filter(t => t.status === 'pending').length },
+            { key: 'tasks', label: 'Tasks', count: tasks.filter(task => task.status === 'pending').length },
             { key: 'visits', label: 'Visits', count: visits.length },
             { key: 'info', label: 'Details' },
-          ].map(t => (
+          ].map(item => (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={item.key}
+              onClick={() => setTab(item.key)}
               className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
-                tab === t.key
-                  ? 'border-emerald-500 text-emerald-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-300'
+                tab === item.key ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
-              {t.label}
-              {t.count !== undefined && t.count > 0 && (
-                <span className="ml-1 bg-slate-800 text-slate-400 text-[10px] px-1.5 py-0.5 rounded-full">{t.count}</span>
+              {item.label}
+              {item.count !== undefined && item.count > 0 && (
+                <span className="ml-1 bg-slate-800 text-slate-400 text-[10px] px-1.5 py-0.5 rounded-full">{item.count}</span>
               )}
             </button>
           ))}
         </div>
 
-        {/* Tab content */}
         <div className="flex-1 overflow-y-auto p-5 min-h-0">
-          {/* Activity tab */}
           {tab === 'activity' && (
             <div className="space-y-3">
-              <button onClick={() => setShowAddNote(!showAddNote)} className="text-xs text-emerald-400 hover:text-emerald-300">+ Add note</button>
+              <button onClick={() => setShowAddNote(current => !current)} className="text-xs text-emerald-400 hover:text-emerald-300">+ Add note</button>
               {showAddNote && (
                 <form onSubmit={handleAddNote} className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
                   <select
                     value={noteForm.activity_type}
-                    onChange={e => setNoteForm(f => ({ ...f, activity_type: e.target.value }))}
+                    onChange={event => setNoteForm(form => ({ ...form, activity_type: event.target.value }))}
                     className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
                   >
-                    {['note', 'call', 'email', 'meeting', 'site_visit'].map(o => (
-                      <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1).replace('_', ' ')}</option>
+                    {['note', 'call', 'email', 'meeting', 'site_visit'].map(option => (
+                      <option key={option} value={option}>{option.charAt(0).toUpperCase() + option.slice(1).replace('_', ' ')}</option>
                     ))}
                   </select>
                   <input
                     value={noteForm.title}
-                    onChange={e => setNoteForm(f => ({ ...f, title: e.target.value }))}
+                    onChange={event => setNoteForm(form => ({ ...form, title: event.target.value }))}
                     placeholder="Title..."
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                   />
                   <textarea
                     value={noteForm.description}
-                    onChange={e => setNoteForm(f => ({ ...f, description: e.target.value }))}
+                    onChange={event => setNoteForm(form => ({ ...form, description: event.target.value }))}
                     placeholder="Details..."
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                     rows={2}
@@ -466,13 +684,13 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
                 <p className="text-sm text-slate-600 text-center py-6">No activity yet</p>
               ) : (
                 <div className="space-y-1">
-                  {activities.map(a => (
-                    <div key={a.id} className="flex items-start gap-3 py-2.5 border-b border-slate-800/50">
-                      <ActivityIcon type={a.activity_type} />
+                  {activities.map(activity => (
+                    <div key={activity.id} className="flex items-start gap-3 py-2.5 border-b border-slate-800/50">
+                      <ActivityIcon type={activity.activity_type} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-300">{a.title}</p>
-                        {a.description && <p className="text-xs text-slate-500 mt-0.5">{a.description}</p>}
-                        <p className="text-[11px] text-slate-600 mt-1">{a.created_by_name || 'System'} · {timeAgo(a.created_at)}</p>
+                        <p className="text-sm text-slate-300">{activity.title}</p>
+                        {activity.description && <p className="text-xs text-slate-500 mt-0.5">{activity.description}</p>}
+                        <p className="text-[11px] text-slate-600 mt-1">{activity.created_by_name || 'System'} · {timeAgo(activity.created_at)}</p>
                       </div>
                     </div>
                   ))}
@@ -481,24 +699,30 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
             </div>
           )}
 
-          {/* Tasks tab */}
           {tab === 'tasks' && (
             <div className="space-y-3">
-              <button onClick={() => setShowAddTask(!showAddTask)} className="text-xs text-emerald-400 hover:text-emerald-300">+ Add task</button>
+              <button onClick={() => setShowAddTask(current => !current)} className="text-xs text-emerald-400 hover:text-emerald-300">+ Add task</button>
               {showAddTask && (
                 <form onSubmit={handleAddTask} className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
                   <input
                     value={taskForm.title}
-                    onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
+                    onChange={event => setTaskForm(form => ({ ...form, title: event.target.value }))}
                     placeholder="Task title..."
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                   />
                   <div className="flex gap-2">
-                    <input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))}
-                      className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500" />
-                    <select value={taskForm.priority} onChange={e => setTaskForm(f => ({ ...f, priority: e.target.value }))}
-                      className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-                      {['hot', 'medium', 'cold'].map(o => <option key={o} value={o}>{o}</option>)}
+                    <input
+                      type="date"
+                      value={taskForm.due_date}
+                      onChange={event => setTaskForm(form => ({ ...form, due_date: event.target.value }))}
+                      className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                    />
+                    <select
+                      value={taskForm.priority}
+                      onChange={event => setTaskForm(form => ({ ...form, priority: event.target.value }))}
+                      className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                    >
+                      {['hot', 'medium', 'cold'].map(option => <option key={option} value={option}>{option}</option>)}
                     </select>
                   </div>
                   <button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg">Add Task</button>
@@ -508,22 +732,22 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
                 <p className="text-sm text-slate-600 text-center py-6">No tasks</p>
               ) : (
                 <div className="space-y-1">
-                  {tasks.map(t => (
-                    <div key={t.id} className={`flex items-center gap-3 py-2.5 border-b border-slate-800/50 ${t.status === 'completed' ? 'opacity-50' : ''}`}>
+                  {tasks.map(task => (
+                    <div key={task.id} className={`flex items-center gap-3 py-2.5 border-b border-slate-800/50 ${task.status === 'completed' ? 'opacity-50' : ''}`}>
                       <button
-                        onClick={() => t.status !== 'completed' && handleCompleteTask(t.id)}
+                        onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
                         className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center text-[10px] ${
-                          t.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'border-slate-600 hover:border-emerald-500'
+                          task.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'border-slate-600 hover:border-emerald-500'
                         }`}
                       >
-                        {t.status === 'completed' ? '✓' : ''}
+                        {task.status === 'completed' ? '✓' : ''}
                       </button>
                       <div className="flex-1">
-                        <p className={`text-sm ${t.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{t.title}</p>
-                        {t.due_date && (
-                          <p className={`text-[11px] mt-0.5 ${new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-400' : 'text-slate-500'}`}>
-                            Due: {new Date(t.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            {new Date(t.due_date) < new Date() && t.status !== 'completed' && ' ⚠ overdue'}
+                        <p className={`text-sm ${task.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{task.title}</p>
+                        {task.due_date && (
+                          <p className={`text-[11px] mt-0.5 ${new Date(task.due_date) < new Date() && task.status !== 'completed' ? 'text-red-400' : 'text-slate-500'}`}>
+                            Due: {new Date(task.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {new Date(task.due_date) < new Date() && task.status !== 'completed' && ' ⚠ overdue'}
                           </p>
                         )}
                       </div>
@@ -534,26 +758,46 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
             </div>
           )}
 
-          {/* Emails tab */}
           {tab === 'emails' && (
             <div className="space-y-3">
-              <button onClick={() => setShowSendEmail(!showSendEmail)} className="text-xs text-blue-400 hover:text-blue-300">+ Send email</button>
+              <button onClick={() => setShowSendEmail(current => !current)} className="text-xs text-blue-400 hover:text-blue-300">+ Send email</button>
               {showSendEmail && (
                 <form onSubmit={handleSendEmail} className="bg-slate-800/50 border border-blue-500/30 rounded-lg p-3 space-y-2">
                   <p className="text-xs text-blue-400 font-medium">Send Email to {lead.email || 'no email on file'}</p>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Template</label>
+                    <select
+                      value={emailForm.template_id}
+                      onChange={event => handleTemplateSelect(event.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="">No template</option>
+                      {templates.map(template => (
+                        <option key={template.id} value={template.id}>{template.name}</option>
+                      ))}
+                    </select>
+                  </div>
                   <input
                     value={emailForm.subject}
-                    onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}
+                    onChange={event => setEmailForm(form => ({ ...form, subject: event.target.value }))}
                     placeholder="Subject..."
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                   />
                   <textarea
                     value={emailForm.body}
-                    onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))}
+                    onChange={event => setEmailForm(form => ({ ...form, body: event.target.value }))}
                     placeholder={"Hi {{first_name}},\n\nI noticed {{business_name}} has a great location..."}
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
-                    rows={4}
+                    rows={5}
                   />
+                  <button type="button" onClick={handlePrewriteDraft} className="text-xs text-emerald-400 hover:text-emerald-300">
+                    Pre-write personal draft
+                  </button>
+                  <div className="flex flex-wrap gap-1.5 text-[10px] text-slate-500">
+                    {['{{first_name}}', '{{last_name}}', '{{business_name}}', '{{location}}', '{{property_type}}', '{{source}}'].map(token => (
+                      <span key={token} className="px-2 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-400">{token}</span>
+                    ))}
+                  </div>
                   <div className="flex gap-2">
                     <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg">Send</button>
                     <button type="button" onClick={() => setShowSendEmail(false)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg">Cancel</button>
@@ -564,14 +808,14 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
                 <p className="text-sm text-slate-600 text-center py-6">No emails sent</p>
               ) : (
                 <div className="space-y-2">
-                  {emails.map(e => (
-                    <div key={e.id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                  {emails.map(email => (
+                    <div key={email.id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-slate-300">{e.subject}</p>
-                        <span className="text-[10px] text-slate-500">{timeAgo(e.sent_at)}</span>
+                        <p className="text-sm font-medium text-slate-300">{email.subject}</p>
+                        <span className="text-[10px] text-slate-500">{timeAgo(email.sent_at)}</span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">To: {e.to_email}</p>
-                      <div className="text-xs text-slate-400 mt-2 prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: e.body }} />
+                      <p className="text-xs text-slate-500 mt-1">To: {email.to_email}</p>
+                      <div className="text-xs text-slate-400 mt-2 prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: email.body }} />
                     </div>
                   ))}
                 </div>
@@ -579,41 +823,37 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
             </div>
           )}
 
-          {/* Visits tab */}
           {tab === 'visits' && (
             <div className="space-y-3">
               {visits.length === 0 ? (
                 <p className="text-sm text-slate-600 text-center py-6">No site visits recorded</p>
               ) : (
-                visits.map(v => (
-                  <div key={v.id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
+                visits.map(visit => (
+                  <div key={visit.id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-300">
-                        {new Date(v.visit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        {new Date(visit.visit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </span>
-                      {v.verdict && (
+                      {visit.verdict && (
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                          v.verdict === 'convert' ? 'bg-emerald-500/10 text-emerald-400' :
-                          v.verdict === 'promising' ? 'bg-amber-500/10 text-amber-400' :
-                          'bg-red-500/10 text-red-400'
-                        }`}>{v.verdict.replace(/_/g, ' ')}</span>
+                          visit.verdict === 'convert' ? 'bg-emerald-500/10 text-emerald-400' : visit.verdict === 'promising' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'
+                        }`}>{visit.verdict.replace(/_/g, ' ')}</span>
                       )}
                     </div>
-                    {v.contact_name && <p className="text-xs text-slate-400">Spoke to: {v.contact_name} ({v.contact_role || '—'})</p>}
+                    {visit.contact_name && <p className="text-xs text-slate-400">Spoke to: {visit.contact_name} ({visit.contact_role || '—'})</p>}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      <InfoField label="Surface" value={v.car_park_surface} />
-                      <InfoField label="Spaces" value={v.car_park_spaces?.toString()} />
-                      <InfoField label="Access" value={v.motorhome_access} />
-                      <InfoField label="Reaction" value={v.owner_reaction?.replace('_', ' ')} />
+                      <InfoField label="Surface" value={visit.car_park_surface} />
+                      <InfoField label="Spaces" value={visit.car_park_spaces?.toString()} />
+                      <InfoField label="Access" value={visit.motorhome_access} />
+                      <InfoField label="Reaction" value={visit.owner_reaction?.replace('_', ' ')} />
                     </div>
-                    {v.notes && <p className="text-xs text-slate-400 italic">{v.notes}</p>}
+                    {visit.notes && <p className="text-xs text-slate-400 italic">{visit.notes}</p>}
                   </div>
                 ))
               )}
             </div>
           )}
 
-          {/* Details tab */}
           {tab === 'info' && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
@@ -643,7 +883,6 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
                   </div>
                 </div>
               )}
-              {/* Link to full detail page */}
               <Link href={`/crm/leads/${lead.id}`} className="inline-block text-xs text-emerald-400 hover:text-emerald-300 mt-2">
                 Open full detail page →
               </Link>
@@ -651,6 +890,20 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function QuickEditInput({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
+  return (
+    <div>
+      <label className="block text-[11px] text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+      />
     </div>
   );
 }
@@ -675,10 +928,18 @@ function ActivityIcon({ type }: { type: string }) {
     lead_created: 'bg-emerald-500/20 text-emerald-400',
     meeting: 'bg-purple-500/20 text-purple-400',
   };
+
   const icons: Record<string, string> = {
-    email: '✉', call: '📞', site_visit: '📍', stage_change: '→',
-    note: '📝', task_created: '☐', lead_created: '+', meeting: '🤝',
+    email: '✉',
+    call: '📞',
+    site_visit: '📍',
+    stage_change: '→',
+    note: '📝',
+    task_created: '☐',
+    lead_created: '+',
+    meeting: '🤝',
   };
+
   return (
     <div className={`w-7 h-7 rounded-lg ${colors[type] || 'bg-slate-500/20 text-slate-400'} flex items-center justify-center text-xs flex-shrink-0`}>
       {icons[type] || '•'}
@@ -696,4 +957,35 @@ function timeAgo(dateStr: string) {
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d ago`;
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function formatDateShort(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function formatDateInput(dateStr: string) {
+  return new Date(dateStr).toISOString().split('T')[0];
+}
+
+function isLeadOverdue(lead: CRMLead) {
+  return !!lead.next_follow_up && new Date(lead.next_follow_up) <= new Date();
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+function numberValue(value: unknown) {
+  return typeof value === 'number' ? String(value) : '';
+}
+
+function normalizeOptionalString(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+function normalizeOptionalNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return null;
 }

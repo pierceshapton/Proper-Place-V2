@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'package:proper_place/screens/welcome_screen.dart';
 import 'package:proper_place/screens/login_screen.dart';
 import 'package:proper_place/screens/signup_screen.dart';
@@ -9,6 +11,10 @@ import 'package:proper_place/screens/admin_place_approval_screen.dart';
 import 'package:proper_place/screens/my_bookings_screen.dart';
 import 'package:proper_place/screens/booking_detail_screen.dart';
 import 'package:proper_place/screens/stripe_payout_setup_screen.dart';
+import 'package:proper_place/screens/place_detail_screen.dart';
+import 'package:proper_place/screens/favorites_screen.dart';
+import 'package:proper_place/screens/more_user_screen.dart';
+import 'package:proper_place/models/place.dart';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/config/app_constants.dart';
 import 'package:proper_place/services/storage_service.dart';
@@ -38,12 +44,83 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+// Global navigator key for programmatic navigation
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// Screenshot helper: switch to a specific tab on HomeScreen
+void goToTab(int index) {
+  HomeScreen.setNextTab(index);
+  Future.delayed(Duration(milliseconds: 50), () {
+    navigatorKey.currentState!.pushNamedAndRemoveUntil('/home', (r) => false);
+  });
+}
+
+// Screenshot helper: switch to map tab and open a specific place popup
+void openMapPlace(String placeId, double lat, double lng) {
+  HomeScreen.setNextTab(0);
+  HomeScreen.setFocusPlace(placeId, lat, lng);
+  Future.delayed(Duration(milliseconds: 50), () {
+    navigatorKey.currentState!.pushNamedAndRemoveUntil('/home', (r) => false);
+  });
+}
+
+// Screenshot helper: open place detail by fetching place data from API
+Future<void> openPlace(int placeId) async {
+  final token = await StorageService.getToken();
+  final resp = await http.get(
+    Uri.parse('${AppConfig.properPlaceBackendUrl}/places/$placeId'),
+    headers: {'Authorization': 'Bearer $token'},
+  );
+  if (resp.statusCode == 200) {
+    final data = jsonDecode(resp.body);
+    Future.delayed(Duration(milliseconds: 50), () {
+      navigatorKey.currentState!.push(
+        MaterialPageRoute(builder: (_) => PlaceDetailScreen(place: data)),
+      );
+    });
+  }
+}
+
+// Screenshot helper: open booking detail by fetching booking + place data
+Future<void> openBooking(int bookingId) async {
+  final token = await StorageService.getToken();
+  final resp = await http.get(
+    Uri.parse('${AppConfig.properPlaceBackendUrl}/bookings/$bookingId'),
+    headers: {'Authorization': 'Bearer $token'},
+  );
+  if (resp.statusCode == 200) {
+    final booking = jsonDecode(resp.body);
+    final placeResp = await http.get(
+      Uri.parse('${AppConfig.properPlaceBackendUrl}/places/${booking['place_id']}'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (placeResp.statusCode == 200) {
+      final placeJson = jsonDecode(placeResp.body);
+      final place = Place.fromJson(placeJson is Map<String, dynamic> ? placeJson : placeJson['place']);
+      Future.delayed(Duration(milliseconds: 50), () {
+        navigatorKey.currentState!.push(
+          MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking, place: place)),
+        );
+      });
+    }
+  }
+}
+
+// Screenshot helper: pop current screen
+void goBack() {
+  Future.delayed(Duration(milliseconds: 50), () {
+    navigatorKey.currentState!.pop();
+  });
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
       title: 'Proper Place',
       theme: ThemeData(
         useMaterial3: true,

@@ -966,6 +966,7 @@ async function runCRMMigration()             { await runSqlMigration('016_crm_ta
 async function runCMSMigration()             { await runSqlMigration('017_cms_content.sql',                 'CMS content'); }
 async function runStagesMigration()          { await runSqlMigration('018_crm_stages_custom_fields.sql',    'CRM stages + custom fields'); }
 async function runNullableLeadFieldsMigration() { await runSqlMigration('019_nullable_lead_fields.sql',    'Nullable lead fields'); }
+async function runDiscoveryAutomationMigration() { await runSqlMigration('020_discovery_automation.sql',    'Discovery automation'); }
 
 // Start server
 async function start() {
@@ -975,6 +976,7 @@ async function start() {
     await runCMSMigration();
     await runStagesMigration();
     await runNullableLeadFieldsMigration();
+    await runDiscoveryAutomationMigration();
     pushService.initialize();
 
     // Start auto-message scheduler (runs every 15 minutes)
@@ -985,6 +987,15 @@ async function start() {
     // Run once on startup after a short delay
     setTimeout(() => autoMessageController.processScheduledMessages(), 30000);
     console.log('[SERVER] Auto-message scheduler started (every 15 min)');
+
+    // Discovery auto-email scheduler (runs every 20 minutes)
+    const crmController = require('./controllers/crmController');
+    setInterval(() => {
+      crmController.processDiscoveryAutoEmails();
+    }, 20 * 60 * 1000);
+    // Run once on startup after a short delay
+    setTimeout(() => crmController.processDiscoveryAutoEmails(), 45000);
+    console.log('[SERVER] Discovery auto-email scheduler started (every 20 min, gated)');
 
     // Start expired authorization checker (runs every hour)
     const bookingCtrl = require('./controllers/bookingController');
