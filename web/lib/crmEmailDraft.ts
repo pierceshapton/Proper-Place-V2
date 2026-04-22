@@ -110,7 +110,7 @@ export function mergeTemplate(input: string, lead: CRMLead): string {
       return replacements[key] || '';
     }
 
-    const rawValue = (lead as Record<string, unknown>)[key];
+    const rawValue = key in lead ? lead[key as keyof CRMLead] : undefined;
     if (rawValue === null || rawValue === undefined) return '';
     return String(rawValue);
   });
