@@ -20,9 +20,12 @@ export default function DiscoverPage() {
   const [searchError, setSearchError] = useState('');
 
   const [results, setResults] = useState<ScoredCandidate[]>([]);
-  const [selectedResultIds, setSelectedResultIds] = useState<Set<string>>(new Set());
-  const [isImporting, setIsImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
+  const [activeCandidate, setActiveCandidate] = useState<ScoredCandidate | null>(null);
+  const [reviewStars, setReviewStars] = useState(0);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [rejectedSites, setRejectedSites] = useState<RejectedSite[]>([]);
+  const [firstStage, setFirstStage] = useState<{ slug: string; name: string }>({ slug: 'new', name: 'New' });
 
   const [threshold, setThreshold] = useState(85);
   const [feedbackHistory, setFeedbackHistory] = useState<DiscoveryFeedbackItem[]>([]);
@@ -88,8 +91,20 @@ export default function DiscoverPage() {
       const parsedFeedback = safeParseFeedback(rawFeedback);
       setFeedbackHistory(parsedFeedback);
 
+      const rawRejected = settingsMap.discovery_rejected_sites_v1 || '[]';
+      const parsedRejected = safeParseRejected(rawRejected);
+      setRejectedSites(parsedRejected);
+
       setAutoEmailEnabled(settingsMap.discovery_auto_email_enabled === 'true');
       setAutoFindEnabled(settingsMap.discovery_auto_find_enabled === 'true');
+
+      try {
+        const stageRes = await crmApi.getStages();
+        if (stageRes.stages.length > 0) {
+          const sorted = [...stageRes.stages].sort((a, b) => a.sort_order - b.sort_order);
+          setFirstStage({ slug: sorted[0].slug, name: sorted[0].name });
+        }
+      } catch {}
 
       const automation = await crmApi.getAutomationStatus();
       setAutomationStatus(automation);
@@ -167,9 +182,9 @@ export default function DiscoverPage() {
         })
         .sort((a, b) => b.score - a.score);
 
-      setResults(scored);
-      const autoSelected = scored.filter(item => item.score >= 68).slice(0, 35).map(item => item.id);
-      setSelectedResultIds(new Set(autoSelected));
+      const filtered = scored.filter(item => !isRejected(item, rejectedSites));
+
+      setResults(filtered);
       setUserScoreMap({});
     } catch {
       setSearchError('Google Places search failed. Check API access and billing.');
@@ -233,11 +248,7 @@ export default function DiscoverPage() {
       return;
     }
 
-    const targetIds = selectedResultIds.size > 0
-      ? Array.from(selectedResultIds)
-      : results.slice(0, 20).map(item => item.id);
-
-    const candidates = results.filter(item => targetIds.includes(item.id)).slice(0, 25);
+    const candidates = results.slice(0, 25);
     if (candidates.length === 0) {
       setSettingsMessage('No sites selected for analysis.');
       return;
@@ -361,34 +372,84 @@ export default function DiscoverPage() {
     }
   }
 
-  async function importSelected() {
-    const chosen = results.filter(item => selectedResultIds.has(item.id));
-    if (chosen.length === 0) return;
+  async function submitCandidateReview() {
+    if (!activeCandidate || reviewStars < 1 || reviewStars > 5) return;
 
-    setIsImporting(true);
+    const userScore = reviewStars * 20;
+    const feedbackRow: DiscoveryFeedbackItem = {
+      id: activeCandidate.id,
+      aiScore: activeCandidate.score,
+      userScore,
+      name: activeCandidate.name,
+      address: activeCandidate.address,
+      createdAt: new Date().toISOString(),
+    };
+
+    const nextFeedback = dedupeFeedback([...feedbackHistory, feedbackRow]);
+    const nextRejected = reviewStars <= 3
+      ? dedupeRejected([
+          ...rejectedSites,
+          {
+            id: activeCandidate.id,
+            name: activeCandidate.name,
+            address: activeCandidate.address,
+            stars: reviewStars,
+            createdAt: new Date().toISOString(),
+          },
+        ])
+      : rejectedSites;
+
+    setSubmittingReview(true);
     setImportMessage('');
     try {
-      const response = await crmApi.importLeads(
-        chosen.map(item => ({
-          name: item.name,
-          address: item.address,
-          lat: item.latitude || undefined,
-          lng: item.longitude || undefined,
-          description: item.reasons.join(' · '),
-          fit_score: item.score,
-          parking_confidence: item.siteAnalysis?.parkingConfidence,
-          access_score: item.siteAnalysis?.accessScore,
-          campervan_priority: item.siteAnalysis?.campervanPriority,
-        })),
-        true,
-        'new',
-        'medium'
+      if (reviewStars >= 4) {
+        await crmApi.importLeads(
+          [
+            {
+              name: activeCandidate.name,
+              address: activeCandidate.address,
+              lat: activeCandidate.latitude || undefined,
+              lng: activeCandidate.longitude || undefined,
+              description: activeCandidate.reasons.join(' · '),
+              fit_score: activeCandidate.score,
+              parking_confidence: activeCandidate.siteAnalysis?.parkingConfidence,
+              access_score: activeCandidate.siteAnalysis?.accessScore,
+              campervan_priority: activeCandidate.siteAnalysis?.campervanPriority,
+            },
+          ],
+          true,
+          firstStage.slug,
+          'medium'
+        );
+      }
+
+      const metrics = computeLearningMetrics(nextFeedback);
+      const thresholdPassed = metrics.samples >= 15 && metrics.accuracy >= threshold;
+
+      await crmApi.updateSettings({
+        discovery_feedback_v1: JSON.stringify(nextFeedback),
+        discovery_rejected_sites_v1: JSON.stringify(nextRejected),
+        discovery_learning_samples: String(metrics.samples),
+        discovery_learning_accuracy: String(metrics.accuracy),
+        discovery_learning_agreement: String(metrics.agreementRate),
+        discovery_auto_mode_ready: thresholdPassed ? 'true' : 'false',
+      });
+
+      setFeedbackHistory(nextFeedback);
+      setRejectedSites(nextRejected);
+      setResults(current => current.filter(item => item.id !== activeCandidate.id));
+      setImportMessage(
+        reviewStars >= 4
+          ? `${activeCandidate.name} added to ${firstStage.name} and learning saved.`
+          : `${activeCandidate.name} rejected (${reviewStars}★), removed, and remembered for future searches.`
       );
-      setImportMessage(`Imported ${response.created} leads (${response.enriched} enriched).`);
+      setActiveCandidate(null);
+      setReviewStars(0);
+      loadLeads();
     } catch {
-      setImportMessage('Import failed. Please try again.');
+      setImportMessage('Could not save this review. Please try again.');
     } finally {
-      setIsImporting(false);
+      setSubmittingReview(false);
     }
   }
 
@@ -535,7 +596,7 @@ export default function DiscoverPage() {
             {isSearching ? 'Finding and scoring locations…' : 'Identify Similar Sites'}
           </button>
 
-          <p className="text-xs text-slate-500">This scores candidates against your selected CRM examples, then pre-selects high-fit results.</p>
+          <p className="text-xs text-slate-500">This scores candidates against your selected CRM examples. Nothing is auto-added; review each site first.</p>
         </section>
       </div>
 
@@ -547,14 +608,13 @@ export default function DiscoverPage() {
         <section className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-200">Scored Candidate Locations</h2>
-            <span className="text-xs text-slate-500">{results.length} found · {selectedResultIds.size} selected</span>
+            <span className="text-xs text-slate-500">{results.length} pending review</span>
           </div>
 
           <div className="max-h-[440px] overflow-y-auto">
             <table className="w-full min-w-[900px]">
               <thead className="bg-slate-950 sticky top-0">
                 <tr>
-                  <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Pick</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Site</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Fit Score</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Rating</th>
@@ -564,28 +624,13 @@ export default function DiscoverPage() {
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Signals</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Your Score</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Why It Matches</th>
+                  <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Review</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/70">
                 {results.map(item => {
-                  const checked = selectedResultIds.has(item.id);
                   return (
-                    <tr key={item.id} className={checked ? 'bg-emerald-500/5' : ''}>
-                      <td className="px-3 py-2 align-top">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            setSelectedResultIds(prev => {
-                              const next = new Set(prev);
-                              if (next.has(item.id)) next.delete(item.id);
-                              else next.add(item.id);
-                              return next;
-                            });
-                          }}
-                          className="accent-emerald-500"
-                        />
-                      </td>
+                    <tr key={item.id}>
                       <td className="px-3 py-2 align-top">
                         <p className="text-sm text-slate-200 font-medium">{item.name}</p>
                         <p className="text-xs text-slate-500 max-w-[280px]">{item.address || '—'}</p>
@@ -635,6 +680,17 @@ export default function DiscoverPage() {
                       <td className="px-3 py-2 align-top">
                         <p className="text-[11px] text-slate-400 max-w-[340px]">{item.reasons.join(' · ')}</p>
                       </td>
+                      <td className="px-3 py-2 align-top">
+                        <button
+                          onClick={() => {
+                            setActiveCandidate(item);
+                            setReviewStars(0);
+                          }}
+                          className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs px-3 py-1.5 rounded-lg border border-emerald-500/30"
+                        >
+                          Open Summary
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -643,7 +699,7 @@ export default function DiscoverPage() {
           </div>
 
           <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
-            <p className="text-xs text-slate-500">Selected candidates are imported to CRM as new leads with enrichment enabled.</p>
+            <p className="text-xs text-slate-500">Rate each site in summary: 4-5★ adds to {firstStage.name}, 1-3★ is removed and remembered.</p>
             <div className="flex items-center gap-2">
               <button
                 onClick={saveLearningFeedback}
@@ -652,16 +708,71 @@ export default function DiscoverPage() {
               >
                 {settingsBusy ? 'Saving Learning…' : 'Save Learning'}
               </button>
-              <button
-                onClick={importSelected}
-                disabled={isImporting || selectedResultIds.size === 0}
-                className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
-              >
-                {isImporting ? 'Importing…' : `Import Selected (${selectedResultIds.size})`}
-              </button>
             </div>
           </div>
         </section>
+      )}
+
+      {activeCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setActiveCandidate(null)}>
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-100">{activeCandidate.name}</h3>
+                <p className="text-xs text-slate-400 mt-1">{activeCandidate.address || 'No address'}</p>
+                {activeCandidate.website && (
+                  <a href={activeCandidate.website} target="_blank" rel="noreferrer" className="text-xs text-emerald-400 hover:underline mt-1 inline-block">{activeCandidate.website}</a>
+                )}
+              </div>
+              <button onClick={() => setActiveCandidate(null)} className="text-slate-500 hover:text-slate-300">✕</button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              <SummaryStat label="AI Fit" value={String(activeCandidate.score)} />
+              <SummaryStat label="Google" value={activeCandidate.rating ? `${activeCandidate.rating}★` : '—'} />
+              <SummaryStat label="Reviews" value={activeCandidate.reviews ? String(activeCandidate.reviews) : '—'} />
+              <SummaryStat label="Type" value={activeCandidate.primaryType || activeCandidate.types[0] || '—'} />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <SignalPill label="Parking" value={activeCandidate.siteAnalysis?.parkingConfidence ?? 0} color="emerald" />
+              <SignalPill label="Access" value={activeCandidate.siteAnalysis?.accessScore ?? 0} color="sky" />
+              <SignalPill label="Campervan" value={activeCandidate.siteAnalysis?.campervanPriority ?? 0} color="amber" />
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Why it matches</p>
+              <p className="text-xs text-slate-300">{activeCandidate.reasons.join(' · ')}</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Your rating</p>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    onClick={() => setReviewStars(star)}
+                    className={`text-xl leading-none ${reviewStars >= star ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">4-5 stars adds to {firstStage.name}. 1-3 stars removes and remembers this site.</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={submitCandidateReview}
+                disabled={submittingReview || reviewStars === 0}
+                className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
+              >
+                {submittingReview ? 'Submitting…' : 'Submit Review'}
+              </button>
+              <button onClick={() => setActiveCandidate(null)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg">Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {importMessage && (
@@ -803,6 +914,60 @@ function safeParseFeedback(raw: string): DiscoveryFeedbackItem[] {
   }
 }
 
+interface RejectedSite {
+  id: string;
+  name: string;
+  address: string;
+  stars: number;
+  createdAt: string;
+}
+
+function safeParseRejected(raw: string): RejectedSite[] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter(item => item && typeof item.id === 'string')
+      .map(item => ({
+        id: item.id,
+        name: typeof item.name === 'string' ? item.name : '',
+        address: typeof item.address === 'string' ? item.address : '',
+        stars: clamp(Number(item.stars), 1, 5),
+        createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function dedupeFeedback(rows: DiscoveryFeedbackItem[]): DiscoveryFeedbackItem[] {
+  const map = new Map<string, DiscoveryFeedbackItem>();
+  rows.forEach(row => map.set(row.id, row));
+  return Array.from(map.values()).slice(-500);
+}
+
+function dedupeRejected(rows: RejectedSite[]): RejectedSite[] {
+  const map = new Map<string, RejectedSite>();
+  rows.forEach(row => {
+    const key = row.id || normalizeText(`${row.name}|${row.address}`);
+    map.set(key, row);
+  });
+  return Array.from(map.values()).slice(-1000);
+}
+
+function isRejected(candidate: CandidatePlace, rejectedRows: RejectedSite[]): boolean {
+  const candidateKey = candidate.id || normalizeText(`${candidate.name}|${candidate.address}`);
+  return rejectedRows.some(row => {
+    const rowKey = row.id || normalizeText(`${row.name}|${row.address}`);
+    return rowKey === candidateKey;
+  });
+}
+
+function normalizeText(value: string): string {
+  return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -830,6 +995,15 @@ function SignalPill({ label, value, color }: { label: string; value: number; col
     <div className={`text-[10px] px-2 py-1 rounded-md border ${tone} flex items-center justify-between`}>
       <span>{label}</span>
       <span className="font-semibold">{Math.round(value)}</span>
+    </div>
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-slate-800/60 border border-slate-700 rounded-md px-2 py-1.5">
+      <p className="text-[10px] text-slate-500 uppercase tracking-wide">{label}</p>
+      <p className="text-xs text-slate-200 mt-0.5">{value}</p>
     </div>
   );
 }
