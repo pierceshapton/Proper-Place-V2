@@ -1470,7 +1470,6 @@ async function processDiscoveryAutoFind(options = {}) {
       .slice(0, Math.max(remaining * 3, 30));
 
     // Also filter against stored rejection memory before queuing
-    const settings = await getSettingsMap();
     const rawRejected = settings.discovery_rejected_sites_v1 || '[]';
     let rejectedMemory = [];
     try { rejectedMemory = JSON.parse(rawRejected); if (!Array.isArray(rejectedMemory)) rejectedMemory = []; } catch { rejectedMemory = []; }
