@@ -31,6 +31,7 @@ export default function DiscoverPage() {
   const [settingsMessage, setSettingsMessage] = useState('');
   const [isAnalyzingSites, setIsAnalyzingSites] = useState(false);
   const [autoEmailEnabled, setAutoEmailEnabled] = useState(false);
+  const [autoFindEnabled, setAutoFindEnabled] = useState(false);
   const [automationStatus, setAutomationStatus] = useState<CRMAutomationStatus | null>(null);
 
   const loadLeads = useCallback(async () => {
@@ -88,6 +89,7 @@ export default function DiscoverPage() {
       setFeedbackHistory(parsedFeedback);
 
       setAutoEmailEnabled(settingsMap.discovery_auto_email_enabled === 'true');
+      setAutoFindEnabled(settingsMap.discovery_auto_find_enabled === 'true');
 
       const automation = await crmApi.getAutomationStatus();
       setAutomationStatus(automation);
@@ -325,6 +327,40 @@ export default function DiscoverPage() {
     }
   }
 
+  async function toggleAutoFind(enable: boolean) {
+    setSettingsBusy(true);
+    setSettingsMessage('');
+    try {
+      await crmApi.updateSettings({
+        discovery_auto_find_enabled: enable ? 'true' : 'false',
+      });
+      setAutoFindEnabled(enable);
+      setSettingsMessage(enable ? 'Auto-find enabled (email remains disabled).' : 'Auto-find disabled.');
+    } catch {
+      setSettingsMessage('Could not update auto-find setting.');
+    } finally {
+      setSettingsBusy(false);
+    }
+  }
+
+  async function runAutoFindNow() {
+    setSettingsBusy(true);
+    setSettingsMessage('');
+    try {
+      const result = await crmApi.runAutoDiscovery();
+      if (result.skipped) {
+        setSettingsMessage(`Auto-find skipped: ${result.reason || 'not ready'}.`);
+      } else {
+        setSettingsMessage(`Auto-find completed. Imported ${result.created || 0} sites from ${result.considered || 0} candidates (no emails sent).`);
+        loadLeads();
+      }
+    } catch {
+      setSettingsMessage('Auto-find run failed.');
+    } finally {
+      setSettingsBusy(false);
+    }
+  }
+
   async function importSelected() {
     const chosen = results.filter(item => selectedResultIds.has(item.id));
     if (chosen.length === 0) return;
@@ -389,12 +425,27 @@ export default function DiscoverPage() {
       <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-2 justify-between">
         <div>
           <p className="text-sm text-slate-200 font-semibold">Automation Controls</p>
-          <p className="text-xs text-slate-500 mt-0.5">Analyze signals to improve scoring, then unlock auto-email at threshold.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Run autonomous site finding and keep email separate.</p>
+          <p className="text-xs text-slate-400 mt-1">Auto-find: <span className={autoFindEnabled ? 'text-emerald-400' : 'text-slate-400'}>{autoFindEnabled ? 'ON' : 'OFF'}</span> · Auto-email: <span className={autoEmailEnabled ? 'text-amber-400' : 'text-slate-400'}>{autoEmailEnabled ? 'ON' : 'OFF'}</span></p>
           {automationStatus && !automationStatus.server_kill_switch_enabled && (
             <p className="text-xs text-amber-300 mt-1">Automation deactivated by server kill-switch. This is safe mode until explicitly activated in backend env.</p>
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => toggleAutoFind(!autoFindEnabled)}
+            disabled={settingsBusy}
+            className={`${autoFindEnabled ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-slate-700 hover:bg-slate-600'} disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg`}
+          >
+            {autoFindEnabled ? 'Disable Auto Find' : 'Enable Auto Find'}
+          </button>
+          <button
+            onClick={runAutoFindNow}
+            disabled={settingsBusy}
+            className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
+          >
+            Run Auto-Find Now
+          </button>
           <button
             onClick={analyzeSignalsForSelected}
             disabled={isAnalyzingSites || results.length === 0}

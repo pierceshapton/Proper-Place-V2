@@ -1374,6 +1374,257 @@ async function processDiscoveryAutoEmails() {
   }
 }
 
+/**
+ * POST /crm/discovery/auto-find/run
+ * Manual trigger for AI site finding without email sending.
+ */
+async function runDiscoveryAutoFind(req, res, next) {
+  try {
+    const result = await processDiscoveryAutoFind({ manual: true, requestedBy: req.user?.userId || null });
+    res.json(result);
+  } catch (error) {
+    logger.error('runDiscoveryAutoFind error', { error: error.message });
+    next(error);
+  }
+}
+
+async function processDiscoveryAutoFind(options = {}) {
+  const { manual = false, requestedBy = null } = options;
+
+  try {
+    const serverEnabled = String(process.env.CRM_DISCOVERY_AUTO_FIND_ENABLED || 'true').toLowerCase() === 'true';
+    if (!manual && !serverEnabled) {
+      return { success: true, skipped: true, reason: 'server_kill_switch_off' };
+    }
+
+    const settings = await getSettingsMap();
+    const settingEnabled = parseBoolSetting(settings.discovery_auto_find_enabled, false);
+    if (!manual && !settingEnabled) {
+      return { success: true, skipped: true, reason: 'setting_disabled' };
+    }
+
+    const region = String(settings.discovery_auto_find_region || 'South West England').trim();
+    const keywords = String(
+      settings.discovery_auto_find_keywords ||
+      'pub with parking, country inn, farm shop, vineyard, rural hotel'
+    )
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+
+    const minFitScore = parseIntSetting(settings.discovery_auto_find_min_fit_score, 72);
+    const dailyLimit = parseIntSetting(settings.discovery_auto_find_daily_limit, 25);
+
+    if (!region || keywords.length === 0 || dailyLimit <= 0) {
+      return { success: true, skipped: true, reason: 'invalid_configuration' };
+    }
+
+    const createdTodayRes = await db.query(
+      `SELECT COUNT(*) AS count
+       FROM host_leads
+       WHERE source = 'discovery_auto_find'
+         AND created_at >= date_trunc('day', NOW())
+         AND created_at < date_trunc('day', NOW()) + interval '1 day'`
+    );
+
+    const createdToday = parseInt(createdTodayRes.rows[0].count, 10) || 0;
+    const remaining = Math.max(0, dailyLimit - createdToday);
+    if (remaining <= 0) {
+      return { success: true, skipped: true, reason: 'daily_limit_reached', created_today: createdToday };
+    }
+
+    const profileRes = await db.query(
+      `SELECT
+         COALESCE(AVG(google_rating), 4.2) AS avg_rating,
+         COALESCE(AVG(NULLIF(google_reviews_count, 0)), 140) AS avg_reviews
+       FROM host_leads
+       WHERE google_rating IS NOT NULL
+         AND pipeline_stage IN ('converted', 'negotiating')`
+    );
+
+    const targetProfile = {
+      avgRating: Number(profileRes.rows[0].avg_rating) || 4.2,
+      avgReviews: Number(profileRes.rows[0].avg_reviews) || 140,
+    };
+
+    const allCandidates = [];
+    for (const keyword of keywords) {
+      const rows = await searchGooglePlacesText(keyword, region);
+      allCandidates.push(...rows);
+    }
+
+    const deduped = new Map();
+    allCandidates.forEach(item => {
+      const key = item.google_place_id || `${item.business_name}|${item.location}`.toLowerCase();
+      if (!deduped.has(key)) deduped.set(key, item);
+    });
+
+    const scored = Array.from(deduped.values())
+      .map(item => {
+        const signals = scoreAutoDiscoveryCandidate(item, targetProfile);
+        return { ...item, ...signals };
+      })
+      .filter(item => item.discovery_fit_score >= minFitScore)
+      .sort((a, b) => b.discovery_fit_score - a.discovery_fit_score)
+      .slice(0, Math.max(remaining * 3, 30));
+
+    let created = 0;
+    const imported = [];
+
+    for (const item of scored) {
+      if (created >= remaining) break;
+
+      const result = await db.query(
+        `INSERT INTO host_leads (
+          business_name, location, latitude, longitude, website,
+          google_place_id, google_rating, google_reviews_count,
+          pipeline_stage, priority, admin_notes, source, assigned_to,
+          discovery_fit_score, discovery_parking_confidence, discovery_access_score,
+          discovery_campervan_priority, discovery_last_analyzed_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW())
+        ON CONFLICT DO NOTHING
+        RETURNING id, business_name`,
+        [
+          item.business_name,
+          item.location || null,
+          item.latitude,
+          item.longitude,
+          item.website || null,
+          item.google_place_id || null,
+          item.google_rating || null,
+          item.google_reviews_count || null,
+          'new',
+          'medium',
+          `Auto-found from ${region}. Keywords: ${keywords.join(', ')}`,
+          'discovery_auto_find',
+          requestedBy,
+          item.discovery_fit_score,
+          item.discovery_parking_confidence,
+          item.discovery_access_score,
+          item.discovery_campervan_priority,
+        ]
+      );
+
+      if (result.rows.length > 0) {
+        created += 1;
+        imported.push({ id: result.rows[0].id, name: result.rows[0].business_name });
+      }
+    }
+
+    return {
+      success: true,
+      skipped: false,
+      created,
+      considered: scored.length,
+      remaining_capacity: Math.max(0, remaining - created),
+      imported,
+      mode: manual ? 'manual' : 'scheduled',
+      email_sent: 0,
+    };
+  } catch (error) {
+    logger.error('processDiscoveryAutoFind error', { error: error.message });
+    if (manual) throw error;
+    return { success: false, skipped: true, reason: 'error', error: error.message };
+  }
+}
+
+async function searchGooglePlacesText(keyword, region) {
+  const response = await axios.post(
+    'https://places.googleapis.com/v1/places:searchText',
+    {
+      textQuery: `${keyword} in ${region}`,
+      maxResultCount: 20,
+      languageCode: 'en-GB',
+    },
+    {
+      timeout: 8000,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GMAPS_KEY,
+        'X-Goog-FieldMask': [
+          'places.id',
+          'places.displayName',
+          'places.formattedAddress',
+          'places.location',
+          'places.rating',
+          'places.userRatingCount',
+          'places.websiteUri',
+          'places.primaryType',
+          'places.types',
+          'places.parkingOptions',
+          'places.accessibilityOptions',
+        ].join(','),
+      },
+    }
+  );
+
+  const places = Array.isArray(response.data?.places) ? response.data.places : [];
+
+  return places.map(place => ({
+    business_name: place.displayName?.text || 'Unnamed Site',
+    location: place.formattedAddress || '',
+    latitude: typeof place.location?.latitude === 'number' ? place.location.latitude : null,
+    longitude: typeof place.location?.longitude === 'number' ? place.location.longitude : null,
+    google_place_id: place.id || null,
+    google_rating: typeof place.rating === 'number' ? place.rating : null,
+    google_reviews_count: typeof place.userRatingCount === 'number' ? place.userRatingCount : null,
+    website: place.websiteUri || null,
+    primary_type: place.primaryType || null,
+    types: Array.isArray(place.types) ? place.types : [],
+    parking_options: place.parkingOptions || null,
+    accessibility_options: place.accessibilityOptions || null,
+  }));
+}
+
+function scoreAutoDiscoveryCandidate(candidate, profile) {
+  const rating = typeof candidate.google_rating === 'number' ? candidate.google_rating : null;
+  const reviews = typeof candidate.google_reviews_count === 'number' ? candidate.google_reviews_count : null;
+  const types = Array.isArray(candidate.types) ? candidate.types.map(t => String(t).toLowerCase()) : [];
+
+  let score = 45;
+
+  if (rating !== null) {
+    const ratingDelta = Math.abs(rating - profile.avgRating);
+    score += Math.max(0, 25 - ratingDelta * 10);
+  }
+
+  if (reviews !== null) {
+    const target = Math.max(20, profile.avgReviews);
+    const ratio = Math.min(reviews / target, 2);
+    score += Math.round(ratio * 10);
+  }
+
+  const typeBoost = types.some(type => /pub|bar|inn|hotel|farm|vineyard/.test(type)) ? 10 : 0;
+  score += typeBoost;
+
+  const parkingOptions = candidate.parking_options || {};
+  const accessibilityOptions = candidate.accessibility_options || {};
+
+  let parkingConfidence = 45;
+  if (parkingOptions.freeParkingLot || parkingOptions.freeStreetParking) parkingConfidence += 30;
+  if (parkingOptions.paidParkingLot || parkingOptions.paidStreetParking) parkingConfidence += 15;
+  if (parkingOptions.valetParking) parkingConfidence -= 10;
+
+  let accessScore = 50;
+  if (accessibilityOptions.wheelchairAccessibleParking) accessScore += 20;
+  if (accessibilityOptions.wheelchairAccessibleEntrance) accessScore += 15;
+
+  const campervanPriority = Math.round((parkingConfidence * 0.55) + (accessScore * 0.45));
+  score += Math.round((campervanPriority - 50) * 0.25);
+
+  return {
+    discovery_fit_score: clampInt(score, 0, 100),
+    discovery_parking_confidence: clampInt(parkingConfidence, 0, 100),
+    discovery_access_score: clampInt(accessScore, 0, 100),
+    discovery_campervan_priority: clampInt(campervanPriority, 0, 100),
+  };
+}
+
+function clampInt(value, min, max) {
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
 async function sendCrmLeadEmail(to, subject, body) {
   const crmReplyTo = process.env.CRM_FROM_EMAIL || 'pierce.shapton@proper-place.co.uk';
   const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
@@ -1441,5 +1692,7 @@ module.exports = {
   getCustomValues, setCustomValues,
   // Import & Enrich
   importLeads, enrichLead,
+  runDiscoveryAutoFind,
+  processDiscoveryAutoFind,
   processDiscoveryAutoEmails,
 };

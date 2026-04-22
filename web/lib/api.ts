@@ -751,6 +751,7 @@ export const crmApi = {
   getSettings: () => api<{ settings: { key: string; value: string }[] }>('/crm/settings'),
   updateSettings: (settings: Record<string, unknown>) => api('/crm/settings', { method: 'PATCH', body: { settings } }),
   getAutomationStatus: () => api<CRMAutomationStatus>('/crm/automation-status'),
+  runAutoDiscovery: () => api<{ success: boolean; skipped?: boolean; created?: number; considered?: number; reason?: string }>('/crm/discovery/auto-find/run', { method: 'POST' }),
 
   // CMS Content
   getCmsContent: () => api<{ content: Record<string, string>; rows: CmsRow[] }>('/crm/content'),
