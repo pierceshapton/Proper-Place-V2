@@ -590,7 +590,7 @@ export default function DiscoverPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-800/70">
                   {reviewQueue.map(item => (
-                    <tr key={item.id}>
+                    <tr key={item.id} onClick={() => { setActiveQueueItem(item); setQueueReviewStars(0); }} className="cursor-pointer hover:bg-slate-800/40">
                       <td className="px-3 py-2 align-top">
                         <p className="text-sm text-slate-200 font-medium">{item.business_name}</p>
                         <p className="text-xs text-slate-500">{item.location || '—'}</p>
@@ -614,7 +614,7 @@ export default function DiscoverPage() {
                       </td>
                       <td className="px-3 py-2 align-top">
                         <button
-                          onClick={() => { setActiveQueueItem(item); setQueueReviewStars(0); }}
+                          onClick={e => { e.stopPropagation(); setActiveQueueItem(item); setQueueReviewStars(0); }}
                           className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs px-3 py-1.5 rounded-lg border border-amber-500/30"
                         >
                           Review
@@ -735,7 +735,7 @@ export default function DiscoverPage() {
               <tbody className="divide-y divide-slate-800/70">
                 {results.map(item => {
                   return (
-                    <tr key={item.id}>
+                    <tr key={item.id} onClick={() => { setActiveCandidate(item); setReviewStars(0); }} className="cursor-pointer hover:bg-slate-800/40">
                       <td className="px-3 py-2 align-top">
                         <p className="text-sm text-slate-200 font-medium">{item.name}</p>
                         <p className="text-xs text-slate-500 max-w-[280px]">{item.address || '—'}</p>
@@ -787,10 +787,7 @@ export default function DiscoverPage() {
                       </td>
                       <td className="px-3 py-2 align-top">
                         <button
-                          onClick={() => {
-                            setActiveCandidate(item);
-                            setReviewStars(0);
-                          }}
+                          onClick={e => { e.stopPropagation(); setActiveCandidate(item); setReviewStars(0); }}
                           className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs px-3 py-1.5 rounded-lg border border-emerald-500/30"
                         >
                           Open Summary
