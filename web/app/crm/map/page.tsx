@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
-import { crmApi, type CRMLead, type CRMStage, type CRMActivity, type CRMTask, type CRMSiteVisit, type CRMEmailLog } from '@/lib/api';
+import { crmApi, type CRMLead, type CRMStage, type CRMActivity, type CRMTask, type CRMSiteVisit, type CRMEmailLog, type DiscoveryQueueItem } from '@/lib/api';
 import { stageColors } from '@/lib/stageColors';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
@@ -55,6 +55,9 @@ export default function CRMMapPage() {
   const [loading, setLoading] = useState(true);
   const [activeStages, setActiveStages] = useState<Set<string>>(new Set());
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [reviewQueue, setReviewQueue] = useState<DiscoveryQueueItem[]>([]);
+  const [showQueuePins, setShowQueuePins] = useState(true);
+  const [selectedQueueItemId, setSelectedQueueItemId] = useState<number | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const hasFitBounds = useRef(false);
   const [initialCenter] = useState({ lat: 52.5, lng: -1.5 });
@@ -65,6 +68,7 @@ export default function CRMMapPage() {
   useEffect(() => {
     crmApi.getStages().then(r => setStages(r.stages.sort((a: CRMStage, b: CRMStage) => a.sort_order - b.sort_order))).catch(() => {});
     loadLeads();
+    crmApi.getDiscoveryReviewQueue().then(r => setReviewQueue(r.queue)).catch(() => {});
   }, []);
 
   async function loadLeads() {
@@ -76,9 +80,15 @@ export default function CRMMapPage() {
 
   const mappableLeads = leads.filter(l => l.latitude && l.longitude);
 
+  // Exclude is_lost stages from the default "All" view
+  const nonLostMappableLeads = mappableLeads.filter(l => !stages.find(s => s.slug === l.pipeline_stage)?.is_lost);
+
   const filteredLeads = activeStages.size === 0
-    ? mappableLeads
+    ? nonLostMappableLeads
     : mappableLeads.filter(l => activeStages.has(l.pipeline_stage));
+
+  const mappableQueue = reviewQueue.filter(q => q.latitude && q.longitude);
+  const selectedQueueItem = selectedQueueItemId != null ? reviewQueue.find(q => q.id === selectedQueueItemId) ?? null : null;
 
   function toggleStage(slug: string) {
     setActiveStages(prev => {
@@ -105,6 +115,7 @@ export default function CRMMapPage() {
 
   const leadsWithCoords = filteredLeads.filter(l => l.latitude && l.longitude);
   const leadsNoCoords = leads.length - mappableLeads.length;
+  const lostCount = mappableLeads.length - nonLostMappableLeads.length;
 
   return (
     <div className="space-y-3">
@@ -114,6 +125,8 @@ export default function CRMMapPage() {
           <h1 className="text-2xl font-bold text-slate-100">Lead Map</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {leadsWithCoords.length} lead{leadsWithCoords.length !== 1 ? 's' : ''} shown
+            {showQueuePins && mappableQueue.length > 0 && <span className="text-amber-500"> · {mappableQueue.length} in review queue</span>}
+            {lostCount > 0 && activeStages.size === 0 && <span className="text-slate-600"> · {lostCount} lost hidden</span>}
             {leadsNoCoords > 0 && <span className="text-slate-600"> · {leadsNoCoords} without coordinates</span>}
           </p>
         </div>
@@ -148,6 +161,17 @@ export default function CRMMapPage() {
             </button>
           );
         })}
+        {mappableQueue.length > 0 && (
+          <button
+            onClick={() => setShowQueuePins(p => !p)}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
+              showQueuePins ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
+            }`}
+          >
+            <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#f59e0b' }}></span>
+            Review Queue ({mappableQueue.length})
+          </button>
+        )}
       </div>
 
       {/* Map */}
@@ -186,6 +210,19 @@ export default function CRMMapPage() {
                 onClick={() => setSelectedLeadId(lead.id)}
               />
             ))}
+            {showQueuePins && mappableQueue.map(item => (
+              <Marker
+                key={`q-${item.id}`}
+                position={{ lat: Number(item.latitude), lng: Number(item.longitude) }}
+                icon={{
+                  url: buildPinSvg('#f59e0b'),
+                  scaledSize: new google.maps.Size(28, 40),
+                  anchor: new google.maps.Point(14, 40),
+                }}
+                title={`[Queue] ${item.business_name}`}
+                onClick={() => setSelectedQueueItemId(item.id)}
+              />
+            ))}
           </GoogleMap>
         )}
       </div>
@@ -197,6 +234,54 @@ export default function CRMMapPage() {
           stages={stages}
           onClose={() => setSelectedLeadId(null)}
         />
+      )}
+
+      {/* Discovery Queue Item Mini Panel */}
+      {selectedQueueItem && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setSelectedQueueItemId(null)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full uppercase tracking-wide">Review Queue</span>
+                <h3 className="text-base font-semibold text-slate-100 mt-1">{selectedQueueItem.business_name}</h3>
+                <p className="text-xs text-slate-400">{selectedQueueItem.location}</p>
+              </div>
+              <button onClick={() => setSelectedQueueItemId(null)} className="text-slate-500 hover:text-slate-300 mt-1">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {selectedQueueItem.discovery_fit_score != null && (
+                <div className="bg-slate-800 rounded-lg px-3 py-2">
+                  <p className="text-slate-500 text-[10px] uppercase tracking-wide">Fit Score</p>
+                  <p className="text-slate-100 font-semibold">{selectedQueueItem.discovery_fit_score}/100</p>
+                </div>
+              )}
+              {selectedQueueItem.google_rating != null && (
+                <div className="bg-slate-800 rounded-lg px-3 py-2">
+                  <p className="text-slate-500 text-[10px] uppercase tracking-wide">Google Rating</p>
+                  <p className="text-slate-100 font-semibold">{selectedQueueItem.google_rating} ★ ({selectedQueueItem.google_reviews_count ?? 0})</p>
+                </div>
+              )}
+              {selectedQueueItem.discovery_parking_confidence != null && (
+                <div className="bg-slate-800 rounded-lg px-3 py-2">
+                  <p className="text-slate-500 text-[10px] uppercase tracking-wide">Parking</p>
+                  <p className="text-slate-100 font-semibold">{selectedQueueItem.discovery_parking_confidence}%</p>
+                </div>
+              )}
+              {selectedQueueItem.discovery_campervan_priority != null && (
+                <div className="bg-slate-800 rounded-lg px-3 py-2">
+                  <p className="text-slate-500 text-[10px] uppercase tracking-wide">Campervan</p>
+                  <p className="text-slate-100 font-semibold">{selectedQueueItem.discovery_campervan_priority}/10</p>
+                </div>
+              )}
+            </div>
+            {selectedQueueItem.admin_notes && (
+              <p className="text-xs text-slate-500 italic">{selectedQueueItem.admin_notes}</p>
+            )}
+            <Link href="/crm/discover" className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-4 py-2 rounded-lg" onClick={() => setSelectedQueueItemId(null)}>
+              Review in Discover →
+            </Link>
+          </div>
+        </div>
       )}
     </div>
   );

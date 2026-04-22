@@ -5,6 +5,7 @@ export interface DiscoveryFeedbackItem {
   name: string;
   address: string;
   createdAt: string;
+  note?: string;
 }
 
 export interface DiscoveryLearningMetrics {

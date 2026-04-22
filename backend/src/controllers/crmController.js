@@ -1654,6 +1654,7 @@ async function submitDiscoveryQueueReview(req, res, next) {
   try {
     const { id } = req.params;
     const numStars = parseInt(String(req.body.stars), 10);
+    const reviewNotes = typeof req.body.notes === 'string' ? req.body.notes.trim().slice(0, 2000) : null;
     if (!Number.isFinite(numStars) || numStars < 1 || numStars > 5) {
       return res.status(400).json({ error: 'stars must be 1-5' });
     }
@@ -1723,8 +1724,8 @@ async function submitDiscoveryQueueReview(req, res, next) {
     }
 
     await db.query(
-      `UPDATE discovery_review_queue SET status = $1, reviewed_at = NOW() WHERE id = $2`,
-      [numStars >= 4 ? 'approved' : 'rejected', id]
+      `UPDATE discovery_review_queue SET status = $1, reviewed_at = NOW(), review_notes = $3 WHERE id = $2`,
+      [numStars >= 4 ? 'approved' : 'rejected', id, reviewNotes]
     );
 
     res.json({ success: true, action: numStars >= 4 ? 'imported' : 'rejected', lead_id: leadId });

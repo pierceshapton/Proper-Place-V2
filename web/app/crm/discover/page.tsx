@@ -23,6 +23,7 @@ export default function DiscoverPage() {
   const [importMessage, setImportMessage] = useState('');
   const [activeCandidate, setActiveCandidate] = useState<ScoredCandidate | null>(null);
   const [reviewStars, setReviewStars] = useState(0);
+  const [reviewNote, setReviewNote] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [rejectedSites, setRejectedSites] = useState<RejectedSite[]>([]);
   const [firstStage, setFirstStage] = useState<{ slug: string; name: string }>({ slug: 'new', name: 'New' });
@@ -31,6 +32,7 @@ export default function DiscoverPage() {
   const [queueLoading, setQueueLoading] = useState(false);
   const [activeQueueItem, setActiveQueueItem] = useState<DiscoveryQueueItem | null>(null);
   const [queueReviewStars, setQueueReviewStars] = useState(0);
+  const [queueReviewNote, setQueueReviewNote] = useState('');
   const [submittingQueueReview, setSubmittingQueueReview] = useState(false);
 
   const [threshold, setThreshold] = useState(85);
@@ -137,7 +139,7 @@ export default function DiscoverPage() {
     setSubmittingQueueReview(true);
     setImportMessage('');
     try {
-      await crmApi.submitDiscoveryQueueReview(activeQueueItem.id, queueReviewStars);
+      await crmApi.submitDiscoveryQueueReview(activeQueueItem.id, queueReviewStars, queueReviewNote.trim() || undefined);
       setReviewQueue(current => current.filter(item => item.id !== activeQueueItem.id));
       setImportMessage(
         queueReviewStars >= 4
@@ -146,6 +148,7 @@ export default function DiscoverPage() {
       );
       setActiveQueueItem(null);
       setQueueReviewStars(0);
+      setQueueReviewNote('');
       if (queueReviewStars >= 4) loadLeads();
     } catch {
       setImportMessage('Could not save queue review. Please try again.');
@@ -424,6 +427,7 @@ export default function DiscoverPage() {
       name: activeCandidate.name,
       address: activeCandidate.address,
       createdAt: new Date().toISOString(),
+      ...(reviewNote.trim() ? { note: reviewNote.trim() } : {}),
     };
 
     const nextFeedback = dedupeFeedback([...feedbackHistory, feedbackRow]);
@@ -486,6 +490,7 @@ export default function DiscoverPage() {
       );
       setActiveCandidate(null);
       setReviewStars(0);
+      setReviewNote('');
       loadLeads();
     } catch {
       setImportMessage('Could not save this review. Please try again.');
@@ -878,6 +883,17 @@ export default function DiscoverPage() {
               <p className="text-[11px] text-slate-500 mt-1">4-5 stars adds to {firstStage.name}. 1-3 stars removes and remembers this site.</p>
             </div>
 
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Notes for AI (optional)</p>
+              <textarea
+                value={reviewNote}
+                onChange={e => setReviewNote(e.target.value)}
+                rows={2}
+                placeholder="e.g. Good car park visible on map, rural location, seemed keen when I visited…"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 resize-none"
+              />
+            </div>
+
             <div className="flex items-center gap-2">
               <button
                 onClick={submitCandidateReview}
@@ -958,6 +974,17 @@ export default function DiscoverPage() {
                 ))}
               </div>
               <p className="text-[11px] text-slate-500 mt-1">4-5 stars adds to {firstStage.name}. 1-3 stars removes and remembers this site.</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Notes for AI (optional)</p>
+              <textarea
+                value={queueReviewNote}
+                onChange={e => setQueueReviewNote(e.target.value)}
+                rows={2}
+                placeholder="e.g. Visited once, great access road, owner was friendly…"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 resize-none"
+              />
             </div>
 
             <div className="flex items-center gap-2">
