@@ -292,6 +292,16 @@ class ApiService {
     );
   }
 
+  /// Permanently delete the authenticated user's account
+  static Future<Map<String, dynamic>> deleteAccount({
+    required String userId,
+  }) async {
+    return _request(
+      method: 'DELETE',
+      endpoint: '$_authUserEndpoint/$userId',
+    );
+  }
+
   /// Request password reset email
   static Future<Map<String, dynamic>> forgotPassword({
     required String email,

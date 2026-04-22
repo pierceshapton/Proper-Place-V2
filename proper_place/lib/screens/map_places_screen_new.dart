@@ -5,7 +5,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/services/google_places_service.dart';
@@ -45,6 +48,12 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   String? destinationAddress;
   double? startLat, startLng;
   double? destLat, destLng;
+  Set<Polyline> _routePolylines = {};
+  Set<String> _routeFilteredPlaceIds = {};
+  bool _isRouteActive = false;
+  bool _isComputingRoute = false;
+  String _routeDurationText = '';
+  String _routeDistanceText = '';
 
   // Pending focus place (set before places are loaded)
   Map<String, dynamic>? _pendingFocus;
@@ -407,6 +416,9 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
       for (var place in places) {
         // Apply favourites filter
         if (_showOnlyFavorites && !favoriteIds.contains(place.placeId)) continue;
+
+        // Apply route filter — only show places on the route
+        if (_isRouteActive && !_routeFilteredPlaceIds.contains(place.placeId)) continue;
 
         // Apply facility filters
         if (_activeFacilityFilters.isNotEmpty) {
@@ -866,6 +878,367 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
     );
   }
 
+  // ── Route planning helpers ────────────────────────────────────────────────
+
+  /// Decode a Google-encoded polyline string into a list of LatLng points.
+  List<LatLng> _decodePolyline(String encoded) {
+    final List<LatLng> points = [];
+    int index = 0;
+    final int len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      final int dlat = ((result & 1) != 0) ? ~(result >> 1) : (result >> 1);
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      final int dlng = ((result & 1) != 0) ? ~(result >> 1) : (result >> 1);
+      lng += dlng;
+
+      points.add(LatLng(lat / 1e5, lng / 1e5));
+    }
+    return points;
+  }
+
+  /// Haversine distance in km between two lat/lng points.
+  double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
+    const double R = 6371.0;
+    final double dLat = (lat2 - lat1) * math.pi / 180;
+    final double dLng = (lng2 - lng1) * math.pi / 180;
+    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
+
+  /// Minimum distance in km from a point to a polyline segment.
+  double _minDistToSegmentKm(
+      double pLat, double pLng, double aLat, double aLng, double bLat, double bLng) {
+    final double dx = bLat - aLat;
+    final double dy = bLng - aLng;
+    if (dx == 0 && dy == 0) return _haversineKm(pLat, pLng, aLat, aLng);
+    final double t = ((pLat - aLat) * dx + (pLng - aLng) * dy) / (dx * dx + dy * dy);
+    final double clampedT = t.clamp(0.0, 1.0);
+    return _haversineKm(pLat, pLng, aLat + clampedT * dx, aLng + clampedT * dy);
+  }
+
+  /// Minimum distance in km from a point to any segment of the polyline.
+  double _minDistToPolylineKm(double pLat, double pLng, List<LatLng> polyline) {
+    double minDist = double.infinity;
+    for (int i = 0; i < polyline.length - 1; i++) {
+      final double d = _minDistToSegmentKm(
+          pLat, pLng,
+          polyline[i].latitude, polyline[i].longitude,
+          polyline[i + 1].latitude, polyline[i + 1].longitude);
+      if (d < minDist) minDist = d;
+    }
+    return minDist;
+  }
+
+  /// Fetch route from Google Directions API, draw polyline, filter places.
+  Future<void> _computeRoute() async {
+    if (startLat == null || startLng == null || destLat == null || destLng == null) return;
+
+    setState(() => _isComputingRoute = true);
+
+    try {
+      const String apiKey = 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
+      final uri = Uri.https('maps.googleapis.com', '/maps/api/directions/json', {
+        'origin': '$startLat,$startLng',
+        'destination': '$destLat,$destLng',
+        'mode': 'driving',
+        'key': apiKey,
+      });
+
+      final response = await http.get(uri);
+      if (response.statusCode != 200) throw Exception('Directions API error ${response.statusCode}');
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (data['status'] != 'OK') {
+        throw Exception('Directions API status: ${data['status']}');
+      }
+
+      final route = data['routes'][0];
+      final leg = route['legs'][0];
+      final String durationText = leg['duration']['text'] as String? ?? '';
+      final String distanceText = leg['distance']['text'] as String? ?? '';
+
+      final String encodedPolyline =
+          route['overview_polyline']['points'] as String;
+      final List<LatLng> routePoints = _decodePolyline(encodedPolyline);
+
+      // Convert maxTimeOffRoute (minutes) to km using 60 km/h average speed
+      final double maxDistKm = maxTimeOffRoute * 1.0; // 1 km per minute
+
+      // Filter places within maxDistKm of the route
+      final Set<String> filteredIds = {};
+      for (final place in places) {
+        final double dist = _minDistToPolylineKm(
+            place.locationLat, place.locationLng, routePoints);
+        if (dist <= maxDistKm) {
+          filteredIds.add(place.placeId);
+        }
+      }
+
+      // Build route polyline for the map
+      final Polyline polyline = Polyline(
+        polylineId: const PolylineId('route'),
+        points: routePoints,
+        color: const Color(0xFF5B8DEE),
+        width: 5,
+        onTap: _showRouteSummary,
+      );
+
+      setState(() {
+        _routePolylines = {polyline};
+        _routeFilteredPlaceIds = filteredIds;
+        _isRouteActive = true;
+        _isComputingRoute = false;
+        _routeDurationText = durationText;
+        _routeDistanceText = distanceText;
+      });
+
+      await _updateMarkersForZoom();
+
+      // Zoom map to fit the route bounds
+      if (routePoints.isNotEmpty && mapController != null) {
+        double minLat = routePoints.first.latitude;
+        double maxLat = routePoints.first.latitude;
+        double minLng = routePoints.first.longitude;
+        double maxLng = routePoints.first.longitude;
+        for (final p in routePoints) {
+          if (p.latitude < minLat) minLat = p.latitude;
+          if (p.latitude > maxLat) maxLat = p.latitude;
+          if (p.longitude < minLng) minLng = p.longitude;
+          if (p.longitude > maxLng) maxLng = p.longitude;
+        }
+        mapController!.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(minLat - 0.05, minLng - 0.05),
+              northeast: LatLng(maxLat + 0.05, maxLng + 0.05),
+            ),
+            80,
+          ),
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${filteredIds.length} place${filteredIds.length == 1 ? '' : 's'} within '
+              '${maxTimeOffRoute.toStringAsFixed(0)} min of your route',
+            ),
+            backgroundColor: const Color(0xFF5B8DEE),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isComputingRoute = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load route: $e')),
+        );
+      }
+    }
+  }
+
+  void _clearRoute() {
+    setState(() {
+      _routePolylines = {};
+      _routeFilteredPlaceIds = {};
+      _isRouteActive = false;
+      _routeDurationText = '';
+      _routeDistanceText = '';
+      startAddress = null;
+      destinationAddress = null;
+      startLat = startLng = destLat = destLng = null;
+    });
+    _updateMarkersForZoom();
+  }
+
+  void _showRouteSummary() {
+    final routePlaces = places
+        .where((p) => _routeFilteredPlaceIds.contains(p.placeId))
+        .toList()
+      ..sort((a, b) => a.pricePerNight.compareTo(b.pricePerNight));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.35,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Journey summary
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.directions_car, color: Color(0xFF5B8DEE), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${startAddress ?? 'Start'} → ${destinationAddress ?? 'Destination'}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  _routeStatChip(Icons.schedule, _routeDurationText),
+                  const SizedBox(width: 8),
+                  _routeStatChip(Icons.straighten, _routeDistanceText),
+                  const Spacer(),
+                  Text(
+                    '${routePlaces.length} site${routePlaces.length == 1 ? '' : 's'} nearby',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 20),
+            // Places list
+            Expanded(
+              child: routePlaces.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No sites within ${maxTimeOffRoute.toStringAsFixed(0)} min of this route',
+                        style: TextStyle(color: Colors.grey[500]),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : ListView.separated(
+                      controller: scrollController,
+                      itemCount: routePlaces.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+                      itemBuilder: (context, index) {
+                        final place = routePlaces[index];
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: place.imageUrl != null
+                                ? Image.network(
+                                    place.imageUrl!,
+                                    width: 52,
+                                    height: 52,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _placeholderThumb(),
+                                  )
+                                : _placeholderThumb(),
+                          ),
+                          title: Text(
+                            place.name,
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            place.address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '£${place.pricePerNight.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF5B8DEE),
+                                  fontSize: 15,
+                                ),
+                              ),
+                              Text('/night', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                            ],
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            mapController?.animateCamera(
+                              CameraUpdate.newLatLngZoom(
+                                LatLng(place.locationLat, place.locationLng),
+                                14,
+                              ),
+                            );
+                            Future.delayed(const Duration(milliseconds: 600), () {
+                              if (mounted) _showPlaceDetails(place);
+                            });
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _routeStatChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF5B8DEE).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF5B8DEE)),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF5B8DEE), fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _placeholderThumb() {
+    return Container(
+      width: 52,
+      height: 52,
+      color: Colors.grey[200],
+      child: const Icon(Icons.landscape, color: Colors.grey, size: 24),
+    );
+  }
+
   void _showRouteForm() {
     double localMaxTimeOffRoute = maxTimeOffRoute;
     showModalBottomSheet(
@@ -1044,13 +1417,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                     maxTimeOffRoute = localMaxTimeOffRoute;
                   });
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Finding places within ${localMaxTimeOffRoute.toStringAsFixed(0)} min of your route...',
-                      ),
-                    ),
-                  );
+                  _computeRoute();
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1115,28 +1482,114 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
                       ),
                       markers: markers,
                       circles: _searchCircles,
+                      polylines: _routePolylines,
                       mapType: mapType,
                       myLocationEnabled: true,
                       myLocationButtonEnabled: false,
                       zoomControlsEnabled: false,
                     ),
-                    // Top left - Plan Route button
+                    // Top left - Plan Route / Clear Route button
                     Positioned(
                       top: 60,
                       left: 16,
-                      child: ElevatedButton.icon(
-                        onPressed: _showRouteForm,
-                        icon: const Icon(Icons.directions),
-                        label: const Text('Plan Route'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                      child: _isComputingRoute
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.15),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF5B8DEE),
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('Finding places...', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            )
+                          : _isRouteActive
+                              ? ElevatedButton.icon(
+                                  onPressed: _clearRoute,
+                                  icon: const Icon(Icons.close),
+                                  label: const Text('Clear Route'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF5B8DEE),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                )
+                              : ElevatedButton.icon(
+                                  onPressed: _showRouteForm,
+                                  icon: const Icon(Icons.directions),
+                                  label: const Text('Plan Route'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                    ),
+                    // Route info bar — shown below the button when route is active
+                    if (_isRouteActive && _routeDurationText.isNotEmpty)
+                      Positioned(
+                        top: 108,
+                        left: 16,
+                        right: 16,
+                        child: GestureDetector(
+                          onTap: _showRouteSummary,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.12),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.schedule, size: 15, color: Color(0xFF5B8DEE)),
+                                const SizedBox(width: 4),
+                                Text(_routeDurationText, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                const SizedBox(width: 10),
+                                const Icon(Icons.straighten, size: 15, color: Color(0xFF5B8DEE)),
+                                const SizedBox(width: 4),
+                                Text(_routeDistanceText, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                const Spacer(),
+                                Text(
+                                  '${_routeFilteredPlaceIds.length} site${_routeFilteredPlaceIds.length == 1 ? '' : 's'}',
+                                  style: const TextStyle(fontSize: 13, color: Color(0xFF5B8DEE), fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.chevron_right, size: 16, color: Color(0xFF5B8DEE)),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     // Left side - Search button (below Plan Route)
                     Positioned(
                       top: 115,

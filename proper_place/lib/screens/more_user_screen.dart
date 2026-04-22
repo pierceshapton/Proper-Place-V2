@@ -129,6 +129,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
     return Scaffold(
       backgroundColor: cream,
       body: CustomScrollView(
+        physics: const ClampingScrollPhysics(),
         slivers: [
           // Header Section
           SliverToBoxAdapter(
@@ -352,7 +353,33 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
 
                   // Sign Out
                   _buildSignOutCard(),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 16),
+
+                  // Delete Account
+                  GestureDetector(
+                    onTap: _deleteAccount,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFD1D5DB)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.delete_outline, color: Color(0xFF9CA3AF), size: 18),
+                          SizedBox(width: 10),
+                          Text(
+                            'Delete Account',
+                            style: TextStyle(
+                              color: Color(0xFF9CA3AF),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -979,6 +1006,47 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'Are you sure you want to permanently delete your account? This will remove all your bookings, reviews, and data. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final userId = await StorageService.getUserId();
+    if (userId == null) return;
+
+    try {
+      await ApiService.deleteAccount(userId: userId);
+      await StorageService.clearUserData();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+        (_) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete account: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Widget _buildSignOutCard() {
