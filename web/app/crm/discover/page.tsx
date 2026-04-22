@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { crmApi, type CRMAutomationStatus, type CRMLead } from '@/lib/api';
+import { crmApi, type CRMAutomationStatus, type CRMLead, type DiscoveryQueueItem } from '@/lib/api';
 import { buildDiscoveryProfile, scoreCandidate, type CandidatePlace, type ScoredCandidate } from '@/lib/discoveryScoring';
 import { applyScoreCalibration, computeLearningMetrics, type DiscoveryFeedbackItem } from '@/lib/discoveryLearning';
 import type { SiteAnalysisResult } from '@/lib/discoverySiteAnalysis';
@@ -26,6 +26,12 @@ export default function DiscoverPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [rejectedSites, setRejectedSites] = useState<RejectedSite[]>([]);
   const [firstStage, setFirstStage] = useState<{ slug: string; name: string }>({ slug: 'new', name: 'New' });
+
+  const [reviewQueue, setReviewQueue] = useState<DiscoveryQueueItem[]>([]);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [activeQueueItem, setActiveQueueItem] = useState<DiscoveryQueueItem | null>(null);
+  const [queueReviewStars, setQueueReviewStars] = useState(0);
+  const [submittingQueueReview, setSubmittingQueueReview] = useState(false);
 
   const [threshold, setThreshold] = useState(85);
   const [feedbackHistory, setFeedbackHistory] = useState<DiscoveryFeedbackItem[]>([]);
@@ -57,6 +63,7 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     loadLearningSettings();
+    loadReviewQueue();
   }, []);
 
   const filteredLeadChoices = useMemo(() => {
@@ -110,6 +117,40 @@ export default function DiscoverPage() {
       setAutomationStatus(automation);
     } catch {
       setSettingsMessage('Could not load learning settings. Using defaults.');
+    }
+  }
+
+  async function loadReviewQueue() {
+    setQueueLoading(true);
+    try {
+      const response = await crmApi.getDiscoveryReviewQueue();
+      setReviewQueue(response.queue);
+    } catch {
+      // non-fatal — queue section just stays empty
+    } finally {
+      setQueueLoading(false);
+    }
+  }
+
+  async function submitQueueItemReview() {
+    if (!activeQueueItem || queueReviewStars < 1 || queueReviewStars > 5) return;
+    setSubmittingQueueReview(true);
+    setImportMessage('');
+    try {
+      await crmApi.submitDiscoveryQueueReview(activeQueueItem.id, queueReviewStars);
+      setReviewQueue(current => current.filter(item => item.id !== activeQueueItem.id));
+      setImportMessage(
+        queueReviewStars >= 4
+          ? `${activeQueueItem.business_name} added to ${firstStage.name} from review queue.`
+          : `${activeQueueItem.business_name} rejected (${queueReviewStars}★) and remembered for future finds.`
+      );
+      setActiveQueueItem(null);
+      setQueueReviewStars(0);
+      if (queueReviewStars >= 4) loadLeads();
+    } catch {
+      setImportMessage('Could not save queue review. Please try again.');
+    } finally {
+      setSubmittingQueueReview(false);
     }
   }
 
@@ -362,8 +403,8 @@ export default function DiscoverPage() {
       if (result.skipped) {
         setSettingsMessage(`Auto-find skipped: ${result.reason || 'not ready'}.`);
       } else {
-        setSettingsMessage(`Auto-find completed. Imported ${result.created || 0} sites from ${result.considered || 0} candidates (no emails sent).`);
-        loadLeads();
+        setSettingsMessage(`Auto-find completed. ${result.queued || 0} site(s) added to review queue (${result.considered || 0} candidates scored).`);
+        loadReviewQueue();
       }
     } catch {
       setSettingsMessage('Auto-find run failed.');
@@ -523,6 +564,70 @@ export default function DiscoverPage() {
           </button>
         </div>
       </section>
+
+      {(reviewQueue.length > 0 || queueLoading) && (
+        <section className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-200">Auto-Find Review Queue</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Sites found by the background scheduler — rate each before it enters the pipeline.</p>
+            </div>
+            <span className="text-xs text-amber-400 font-semibold">{queueLoading ? 'Loading…' : `${reviewQueue.length} pending`}</span>
+          </div>
+
+          {!queueLoading && reviewQueue.length > 0 && (
+            <div className="max-h-[360px] overflow-y-auto">
+              <table className="w-full min-w-[700px]">
+                <thead className="bg-slate-950 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Site</th>
+                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Fit</th>
+                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Rating</th>
+                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Reviews</th>
+                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Signals</th>
+                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Review</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/70">
+                  {reviewQueue.map(item => (
+                    <tr key={item.id}>
+                      <td className="px-3 py-2 align-top">
+                        <p className="text-sm text-slate-200 font-medium">{item.business_name}</p>
+                        <p className="text-xs text-slate-500">{item.location || '—'}</p>
+                        {item.website && (
+                          <a href={item.website} target="_blank" rel="noreferrer" className="text-[11px] text-emerald-400 hover:underline">{item.website}</a>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 align-top">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.discovery_fit_score >= 75 ? 'bg-emerald-500/15 text-emerald-400' : item.discovery_fit_score >= 60 ? 'bg-amber-500/15 text-amber-400' : 'bg-slate-700 text-slate-300'}`}>
+                          {item.discovery_fit_score}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.google_rating ?? '—'}</td>
+                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.google_reviews_count ?? '—'}</td>
+                      <td className="px-3 py-2 align-top">
+                        <div className="space-y-1 min-w-[150px]">
+                          <SignalPill label="Parking" value={item.discovery_parking_confidence} color="emerald" />
+                          <SignalPill label="Access" value={item.discovery_access_score} color="sky" />
+                          <SignalPill label="Campervan" value={item.discovery_campervan_priority} color="amber" />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 align-top">
+                        <button
+                          onClick={() => { setActiveQueueItem(item); setQueueReviewStars(0); }}
+                          className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs px-3 py-1.5 rounded-lg border border-amber-500/30"
+                        >
+                          Review
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-4">
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
@@ -775,8 +880,75 @@ export default function DiscoverPage() {
         </div>
       )}
 
+      {activeQueueItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setActiveQueueItem(null)}>
+          <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase tracking-wide">Auto-Found</span>
+                </div>
+                <h3 className="text-lg font-semibold text-slate-100 mt-1">{activeQueueItem.business_name}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{activeQueueItem.location || 'No address'}</p>
+                {activeQueueItem.website && (
+                  <a href={activeQueueItem.website} target="_blank" rel="noreferrer" className="text-xs text-emerald-400 hover:underline mt-1 inline-block">{activeQueueItem.website}</a>
+                )}
+              </div>
+              <button onClick={() => setActiveQueueItem(null)} className="text-slate-500 hover:text-slate-300">✕</button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              <SummaryStat label="Fit Score" value={String(activeQueueItem.discovery_fit_score)} />
+              <SummaryStat label="Google" value={activeQueueItem.google_rating ? `${activeQueueItem.google_rating}★` : '—'} />
+              <SummaryStat label="Reviews" value={activeQueueItem.google_reviews_count ? String(activeQueueItem.google_reviews_count) : '—'} />
+              <SummaryStat label="Found" value={new Date(activeQueueItem.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <SignalPill label="Parking" value={activeQueueItem.discovery_parking_confidence} color="emerald" />
+              <SignalPill label="Access" value={activeQueueItem.discovery_access_score} color="sky" />
+              <SignalPill label="Campervan" value={activeQueueItem.discovery_campervan_priority} color="amber" />
+            </div>
+
+            {activeQueueItem.admin_notes && (
+              <div>
+                <p className="text-xs text-slate-500 mb-1">Notes</p>
+                <p className="text-xs text-slate-300">{activeQueueItem.admin_notes}</p>
+              </div>
+            )}
+
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Your rating</p>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    onClick={() => setQueueReviewStars(star)}
+                    className={`text-xl leading-none ${queueReviewStars >= star ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">4-5 stars adds to {firstStage.name}. 1-3 stars removes and remembers this site.</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={submitQueueItemReview}
+                disabled={submittingQueueReview || queueReviewStars === 0}
+                className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
+              >
+                {submittingQueueReview ? 'Submitting…' : 'Submit Review'}
+              </button>
+              <button onClick={() => setActiveQueueItem(null)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {importMessage && (
-        <div className={`text-sm px-3 py-2 rounded-lg border ${importMessage.startsWith('Imported') ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+        <div className={`text-sm px-3 py-2 rounded-lg border ${importMessage.includes('added to') ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : importMessage.includes('rejected') ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
           {importMessage}
         </div>
       )}

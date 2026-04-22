@@ -1422,7 +1422,7 @@ async function processDiscoveryAutoFind(options = {}) {
 
     const createdTodayRes = await db.query(
       `SELECT COUNT(*) AS count
-       FROM host_leads
+       FROM discovery_review_queue
        WHERE source = 'discovery_auto_find'
          AND created_at >= date_trunc('day', NOW())
          AND created_at < date_trunc('day', NOW()) + interval '1 day'`
@@ -1469,21 +1469,38 @@ async function processDiscoveryAutoFind(options = {}) {
       .sort((a, b) => b.discovery_fit_score - a.discovery_fit_score)
       .slice(0, Math.max(remaining * 3, 30));
 
-    let created = 0;
-    const imported = [];
+    // Also filter against stored rejection memory before queuing
+    const settings = await getSettingsMap();
+    const rawRejected = settings.discovery_rejected_sites_v1 || '[]';
+    let rejectedMemory = [];
+    try { rejectedMemory = JSON.parse(rawRejected); if (!Array.isArray(rejectedMemory)) rejectedMemory = []; } catch { rejectedMemory = []; }
+    const rejectedKeys = new Set(rejectedMemory.map(r => r.id || ''));
+
+    // Also skip place_ids already in the queue (pending) or recently in host_leads
+    const pendingRes = await db.query(`SELECT google_place_id FROM discovery_review_queue WHERE status = 'pending' AND google_place_id IS NOT NULL`);
+    const pendingPlaceIds = new Set(pendingRes.rows.map(r => r.google_place_id));
+    const existingRes = await db.query(`SELECT google_place_id FROM host_leads WHERE google_place_id IS NOT NULL`);
+    const existingPlaceIds = new Set(existingRes.rows.map(r => r.google_place_id));
+
+    let queued = 0;
+    const queuedItems = [];
 
     for (const item of scored) {
-      if (created >= remaining) break;
+      if (queued >= remaining) break;
+
+      const placeKey = item.google_place_id || null;
+      if (placeKey && (pendingPlaceIds.has(placeKey) || existingPlaceIds.has(placeKey))) continue;
+      const rejectionKey = placeKey || `${item.business_name}|${item.location}`.toLowerCase();
+      if (rejectedKeys.has(rejectionKey)) continue;
 
       const result = await db.query(
-        `INSERT INTO host_leads (
+        `INSERT INTO discovery_review_queue (
           business_name, location, latitude, longitude, website,
           google_place_id, google_rating, google_reviews_count,
-          pipeline_stage, priority, admin_notes, source, assigned_to,
+          admin_notes, source,
           discovery_fit_score, discovery_parking_confidence, discovery_access_score,
-          discovery_campervan_priority, discovery_last_analyzed_at
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW())
-        ON CONFLICT DO NOTHING
+          discovery_campervan_priority
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
         RETURNING id, business_name`,
         [
           item.business_name,
@@ -1494,11 +1511,8 @@ async function processDiscoveryAutoFind(options = {}) {
           item.google_place_id || null,
           item.google_rating || null,
           item.google_reviews_count || null,
-          'new',
-          'medium',
           `Auto-found from ${region}. Keywords: ${keywords.join(', ')}`,
           'discovery_auto_find',
-          requestedBy,
           item.discovery_fit_score,
           item.discovery_parking_confidence,
           item.discovery_access_score,
@@ -1507,18 +1521,18 @@ async function processDiscoveryAutoFind(options = {}) {
       );
 
       if (result.rows.length > 0) {
-        created += 1;
-        imported.push({ id: result.rows[0].id, name: result.rows[0].business_name });
+        queued += 1;
+        queuedItems.push({ id: result.rows[0].id, name: result.rows[0].business_name });
       }
     }
 
     return {
       success: true,
       skipped: false,
-      created,
+      queued,
       considered: scored.length,
-      remaining_capacity: Math.max(0, remaining - created),
-      imported,
+      remaining_capacity: Math.max(0, remaining - queued),
+      queued_items: queuedItems,
       mode: manual ? 'manual' : 'scheduled',
       email_sent: 0,
     };
@@ -1625,6 +1639,102 @@ function clampInt(value, min, max) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
+async function getDiscoveryReviewQueue(req, res, next) {
+  try {
+    const result = await db.query(
+      `SELECT * FROM discovery_review_queue WHERE status = 'pending' ORDER BY discovery_fit_score DESC, created_at DESC LIMIT 100`
+    );
+    res.json({ queue: result.rows });
+  } catch (error) {
+    logger.error('getDiscoveryReviewQueue error', { error: error.message });
+    next(error);
+  }
+}
+
+async function submitDiscoveryQueueReview(req, res, next) {
+  try {
+    const { id } = req.params;
+    const numStars = parseInt(String(req.body.stars), 10);
+    if (!Number.isFinite(numStars) || numStars < 1 || numStars > 5) {
+      return res.status(400).json({ error: 'stars must be 1-5' });
+    }
+
+    const itemRes = await db.query(
+      `SELECT * FROM discovery_review_queue WHERE id = $1 AND status = 'pending'`,
+      [id]
+    );
+    if (itemRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Queue item not found or already reviewed' });
+    }
+    const item = itemRes.rows[0];
+
+    let leadId = null;
+
+    if (numStars >= 4) {
+      const stagesRes = await db.query(`SELECT slug FROM crm_pipeline_stages ORDER BY sort_order ASC LIMIT 1`);
+      const firstStageSlug = stagesRes.rows.length > 0 ? stagesRes.rows[0].slug : 'new';
+
+      const leadResult = await db.query(
+        `INSERT INTO host_leads (
+          business_name, location, latitude, longitude, website,
+          google_place_id, google_rating, google_reviews_count,
+          pipeline_stage, priority, admin_notes, source,
+          discovery_fit_score, discovery_parking_confidence, discovery_access_score,
+          discovery_campervan_priority, discovery_last_analyzed_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW())
+        ON CONFLICT DO NOTHING
+        RETURNING id`,
+        [
+          item.business_name,
+          item.location,
+          item.latitude,
+          item.longitude,
+          item.website,
+          item.google_place_id,
+          item.google_rating,
+          item.google_reviews_count,
+          firstStageSlug,
+          'medium',
+          item.admin_notes,
+          'discovery_auto_find',
+          item.discovery_fit_score,
+          item.discovery_parking_confidence,
+          item.discovery_access_score,
+          item.discovery_campervan_priority,
+        ]
+      );
+      if (leadResult.rows.length > 0) leadId = leadResult.rows[0].id;
+    } else {
+      // Save to rejection memory
+      const settings = await getSettingsMap();
+      const rawRejected = settings.discovery_rejected_sites_v1 || '[]';
+      let rejected = [];
+      try { rejected = JSON.parse(rawRejected); if (!Array.isArray(rejected)) rejected = []; } catch { rejected = []; }
+
+      const key = item.google_place_id || `${item.business_name}|${item.location || ''}`.toLowerCase();
+      rejected = rejected.filter(r => (r.id || '') !== key);
+      rejected.push({ id: key, name: item.business_name, address: item.location || '', stars: numStars, createdAt: new Date().toISOString() });
+      if (rejected.length > 1000) rejected = rejected.slice(-1000);
+
+      await db.query(
+        `INSERT INTO crm_settings (key, value) VALUES ($1, $2)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+        ['discovery_rejected_sites_v1', JSON.stringify(rejected)]
+      );
+    }
+
+    await db.query(
+      `UPDATE discovery_review_queue SET status = $1, reviewed_at = NOW() WHERE id = $2`,
+      [numStars >= 4 ? 'approved' : 'rejected', id]
+    );
+
+    res.json({ success: true, action: numStars >= 4 ? 'imported' : 'rejected', lead_id: leadId });
+  } catch (error) {
+    logger.error('submitDiscoveryQueueReview error', { error: error.message });
+    next(error);
+  }
+}
+
 async function sendCrmLeadEmail(to, subject, body) {
   const crmReplyTo = process.env.CRM_FROM_EMAIL || 'pierce.shapton@proper-place.co.uk';
   const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
@@ -1694,5 +1804,7 @@ module.exports = {
   importLeads, enrichLead,
   runDiscoveryAutoFind,
   processDiscoveryAutoFind,
+  getDiscoveryReviewQueue,
+  submitDiscoveryQueueReview,
   processDiscoveryAutoEmails,
 };

@@ -692,6 +692,25 @@ export interface CRMAutomationStatus {
   daily_limit: number;
 }
 
+export interface DiscoveryQueueItem {
+  id: number;
+  google_place_id: string | null;
+  business_name: string;
+  location: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  website: string | null;
+  google_rating: number | null;
+  google_reviews_count: number | null;
+  discovery_fit_score: number;
+  discovery_parking_confidence: number;
+  discovery_access_score: number;
+  discovery_campervan_priority: number;
+  admin_notes: string | null;
+  source: string;
+  created_at: string;
+}
+
 // ─── CRM API ────────────────────────────────────────────────────────
 
 export const crmApi = {
@@ -751,7 +770,10 @@ export const crmApi = {
   getSettings: () => api<{ settings: { key: string; value: string }[] }>('/crm/settings'),
   updateSettings: (settings: Record<string, unknown>) => api('/crm/settings', { method: 'PATCH', body: { settings } }),
   getAutomationStatus: () => api<CRMAutomationStatus>('/crm/automation-status'),
-  runAutoDiscovery: () => api<{ success: boolean; skipped?: boolean; created?: number; considered?: number; reason?: string }>('/crm/discovery/auto-find/run', { method: 'POST' }),
+  runAutoDiscovery: () => api<{ success: boolean; skipped?: boolean; queued?: number; considered?: number; reason?: string }>('/crm/discovery/auto-find/run', { method: 'POST' }),
+  getDiscoveryReviewQueue: () => api<{ queue: DiscoveryQueueItem[] }>('/crm/discovery/review-queue'),
+  submitDiscoveryQueueReview: (id: number, stars: number) =>
+    api<{ success: boolean; action: 'imported' | 'rejected'; lead_id: number | null }>(`/crm/discovery/review-queue/${id}/submit`, { method: 'POST', body: { stars } }),
 
   // CMS Content
   getCmsContent: () => api<{ content: Record<string, string>; rows: CmsRow[] }>('/crm/content'),
