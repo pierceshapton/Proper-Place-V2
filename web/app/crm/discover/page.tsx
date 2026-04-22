@@ -842,6 +842,17 @@ export default function DiscoverPage() {
               <SignalPill label="Campervan" value={activeCandidate.siteAnalysis?.campervanPriority ?? 0} color="amber" />
             </div>
 
+            {activeCandidate.latitude !== null && activeCandidate.longitude !== null && GOOGLE_MAPS_API_KEY && (
+              <div className="rounded-lg overflow-hidden border border-slate-700">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getSatellitePreviewUrl(activeCandidate.latitude, activeCandidate.longitude, GOOGLE_MAPS_API_KEY, '640x280')}
+                  alt={`Satellite view of ${activeCandidate.name}`}
+                  className="w-full object-cover"
+                />
+              </div>
+            )}
+
             <div>
               <p className="text-xs text-slate-500 mb-1">Why it matches</p>
               <p className="text-xs text-slate-300">{activeCandidate.reasons.join(' · ')}</p>
@@ -906,6 +917,17 @@ export default function DiscoverPage() {
               <SignalPill label="Access" value={activeQueueItem.discovery_access_score} color="sky" />
               <SignalPill label="Campervan" value={activeQueueItem.discovery_campervan_priority} color="amber" />
             </div>
+
+            {activeQueueItem.latitude !== null && activeQueueItem.longitude !== null && GOOGLE_MAPS_API_KEY && (
+              <div className="rounded-lg overflow-hidden border border-slate-700">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getSatellitePreviewUrl(Number(activeQueueItem.latitude), Number(activeQueueItem.longitude), GOOGLE_MAPS_API_KEY, '640x280')}
+                  alt={`Satellite view of ${activeQueueItem.business_name}`}
+                  className="w-full object-cover"
+                />
+              </div>
+            )}
 
             {activeQueueItem.admin_notes && (
               <div>
@@ -1141,15 +1163,16 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function getSatellitePreviewUrl(lat: number, lng: number, apiKey: string): string {
+function getSatellitePreviewUrl(lat: number, lng: number, apiKey: string, size = '280x180'): string {
   const center = `${lat},${lng}`;
   const params = new URLSearchParams({
     center,
-    zoom: '19',
-    size: '280x180',
+    zoom: '17',
+    size,
     maptype: 'satellite',
     key: apiKey,
   });
+  params.append('markers', `color:red|${lat},${lng}`);
   return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
 }
 
