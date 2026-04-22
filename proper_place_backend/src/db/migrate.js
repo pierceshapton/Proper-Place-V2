@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'normal_user',
+  stripe_connect_account_id VARCHAR(255),
+  stripe_connect_onboarded BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -66,6 +68,16 @@ CREATE INDEX IF NOT EXISTS idx_bookings_guest_id ON bookings(guest_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 `;
 
+// Additive migrations for columns that may not exist on an already-running database
+const alterMigrationsSQL = [
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_connect_account_id VARCHAR(255)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_connect_onboarded BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_intent_id VARCHAR(255)`,
+  `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50)`,
+  `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS connected_account_id VARCHAR(255)`,
+  `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_captured BOOLEAN NOT NULL DEFAULT false`,
+];
+
 export async function runMigrations() {
   console.log('🔄 Running database migrations...');
   try {
@@ -75,6 +87,11 @@ export async function runMigrations() {
       if (statement.trim()) {
         await query(statement);
       }
+    }
+
+    // Run additive ALTER TABLE migrations (safe to re-run)
+    for (const statement of alterMigrationsSQL) {
+      await query(statement);
     }
     
     console.log('✅ Migrations completed successfully');

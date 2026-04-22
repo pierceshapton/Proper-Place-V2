@@ -462,22 +462,27 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       debugPrint('🟦 BOOKING: About to call PaymentService.processPayment...');
 
       // Process payment FIRST before creating booking
-      final paymentSuccess = await PaymentService.processPayment(
+      final paymentResult = await PaymentService.processPayment(
         amount: totalPrice,
         currency: 'GBP',
         bookingId: 'booking_${DateTime.now().millisecondsSinceEpoch}',
         context: context,
+        placeId: widget.place.placeId,
+        checkOutDate: checkOutDate,
       );
 
-      debugPrint('🟦 BOOKING: Payment returned: $paymentSuccess');
+      debugPrint('🟦 BOOKING: Payment returned: $paymentResult');
 
-      if (paymentSuccess == null) {
+      if (paymentResult == null) {
         debugPrint('❌ BOOKING: Payment was cancelled by user');
         setState(() {
           isSubmitting = false;
         });
         return;
       }
+
+      final paymentIntentId = paymentResult.paymentIntentId;
+      final connectedAccountId = paymentResult.connectedAccountId;
 
       debugPrint('✅ BOOKING: Payment successful, creating booking...');
 
@@ -489,6 +494,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         checkOut: _formatDate(checkOutDate!),
         totalPrice: totalPrice,
         vanRegistration: _userVanReg ?? '',
+        paymentIntentId: paymentIntentId,
+        connectedAccountId: connectedAccountId,
       );
 
       debugPrint('✅ BOOKING: Booking created successfully');

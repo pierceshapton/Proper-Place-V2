@@ -543,6 +543,8 @@ class ApiService {
     required String checkOut,
     required double totalPrice,
     String? vanRegistration,
+    String? paymentIntentId,
+    String? connectedAccountId,
   }) async {
     return _request(
       method: 'POST',
@@ -552,7 +554,19 @@ class ApiService {
         'check_in_date': checkIn,
         'check_out_date': checkOut,
         if (vanRegistration != null) 'van_registration': vanRegistration,
+        if (paymentIntentId != null) 'paymentIntentId': paymentIntentId,
+        if (connectedAccountId != null) 'connectedAccountId': connectedAccountId,
       },
+    );
+  }
+
+  /// Mark a booking as completed and trigger payment capture on the backend.
+  static Future<Map<String, dynamic>> completeBooking({
+    required String bookingId,
+  }) async {
+    return _request(
+      method: 'POST',
+      endpoint: '/bookings/$bookingId/complete',
     );
   }
 
@@ -686,11 +700,15 @@ class ApiService {
     );
   }
 
-  /// Create payment intent with Stripe
+  /// Create payment intent with Stripe Connect direct charge.
+  /// Returns clientSecret, paymentIntentId, connectedAccountId (may be null
+  /// if the host has not yet completed Connect onboarding), and captureMethod
+  /// ('manual' = held until checkout, 'automatic' = charged immediately).
   static Future<Map<String, dynamic>> createPaymentIntent({
     required int amount,
     required String currency,
-    int? placeId,
+    String? placeId,
+    DateTime? checkOutDate,
   }) async {
     final body = <String, dynamic>{
       'amount': amount,
@@ -698,6 +716,9 @@ class ApiService {
     };
     if (placeId != null) {
       body['place_id'] = placeId;
+    }
+    if (checkOutDate != null) {
+      body['check_out_date'] = checkOutDate.toIso8601String();
     }
     return _request(
       method: 'POST',
@@ -714,6 +735,7 @@ class ApiService {
     required String checkIn,
     required String checkOut,
     required double totalPrice,
+    String? connectedAccountId,
   }) async {
     return _request(
       method: 'POST',
@@ -725,6 +747,7 @@ class ApiService {
         'checkIn': checkIn,
         'checkOut': checkOut,
         'totalPrice': totalPrice,
+        if (connectedAccountId != null) 'connectedAccountId': connectedAccountId,
       },
     );
   }
@@ -732,13 +755,38 @@ class ApiService {
   /// Refund a payment
   static Future<Map<String, dynamic>> refundPayment({
     required String paymentIntentId,
+    String? connectedAccountId,
   }) async {
     return _request(
       method: 'POST',
       endpoint: '/payments/refund',
       body: {
         'paymentIntentId': paymentIntentId,
+        if (connectedAccountId != null) 'connectedAccountId': connectedAccountId,
       },
+    );
+  }
+
+  /// Start Stripe Connect onboarding for a host. Returns the Stripe-hosted URL
+  /// the user must open to enter their bank/identity details.
+  static Future<Map<String, dynamic>> getConnectOnboardingUrl({
+    required String userId,
+  }) async {
+    return _request(
+      method: 'POST',
+      endpoint: '/payments/connect/onboard',
+      body: {'userId': userId},
+    );
+  }
+
+  /// Check whether a host has completed Stripe Connect onboarding.
+  static Future<Map<String, dynamic>> getConnectStatus({
+    required String userId,
+  }) async {
+    return _request(
+      method: 'POST',
+      endpoint: '/payments/connect/status',
+      body: {'userId': userId},
     );
   }
 

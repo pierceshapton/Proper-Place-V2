@@ -36,6 +36,9 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
   Map<int, int> _unreadByBooking = {};
   Map<int, List<dynamic>> _pendingExtensions = {};
   Timer? _unreadPollingTimer;
+  // Tracks bookings for which we have already fired the complete/capture call
+  // so it only runs once per session even if this getter is called many times.
+  final Set<String> _completedBookingIds = {};
 
   @override
   void initState() {
@@ -229,6 +232,18 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
         if (now.isAfter(checkOutAtNoon) && bookingCopy['status'] != 'Cancelled') {
     debugPrint('    → Auto-completing (now is after checkout noon)');
           bookingCopy['status'] = 'Completed';
+          // Fire payment capture exactly once per booking per app session
+          final id = bookingId.toString();
+          if (id.isNotEmpty && id != 'unknown' && !_completedBookingIds.contains(id)) {
+            _completedBookingIds.add(id);
+            ApiService.completeBooking(bookingId: id).then((_) {
+              debugPrint('✅ Payment captured for booking $id');
+            }).catchError((e) {
+              debugPrint('⚠️ Capture call failed for booking $id: $e');
+              // Remove so it will retry next time the screen is opened
+              _completedBookingIds.remove(id);
+            });
+          }
         }
         
         allBookings.add(bookingCopy);

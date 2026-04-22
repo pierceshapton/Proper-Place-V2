@@ -26,12 +26,13 @@ class PaymentService {
 
   /// Process payment for a booking
   /// Returns the paymentIntentId if payment authorised, null otherwise
-  static Future<String?> processPayment({
+  static Future<({String paymentIntentId, String? connectedAccountId})?> processPayment({
     required double amount,
     required String currency,
     required String bookingId,
     required BuildContext context,
-    int? placeId,
+    String? placeId,
+    DateTime? checkOutDate,
   }) async {
     try {
       debugPrint('🟦 PAYMENT: Starting payment process for £${amount.toStringAsFixed(2)}');
@@ -43,10 +44,16 @@ class PaymentService {
         amount: (amount * 100).toInt(), // Convert to cents
         currency: currency,
         placeId: placeId,
+        checkOutDate: checkOutDate,
       );
       debugPrint('🟦 PAYMENT: Payment intent created: ${paymentIntentData['clientSecret'] != null}');
 
       final paymentIntentId = paymentIntentData['paymentIntentId'] as String?;
+      final connectedAccountId = paymentIntentData['connectedAccountId'] as String?;
+
+      // For direct charges the connected account ID must be set on the Stripe
+      // singleton before initialising the payment sheet, then cleared afterwards.
+      Stripe.stripeAccountId = connectedAccountId;
 
       // Initialize payment sheet
       debugPrint('🟦 PAYMENT: Initializing payment sheet...');
@@ -69,8 +76,13 @@ class PaymentService {
       await Stripe.instance.presentPaymentSheet();
       debugPrint('🟦 PAYMENT: ✅ Payment sheet presented and payment authorised');
 
-      return paymentIntentId;
+      // Reset connected account so subsequent platform-level calls aren't affected
+      Stripe.stripeAccountId = null;
+
+      if (paymentIntentId == null) return null;
+      return (paymentIntentId: paymentIntentId, connectedAccountId: connectedAccountId);
     } on StripeException catch (e) {
+      Stripe.stripeAccountId = null;
       debugPrint('🔴 PAYMENT STRIPE ERROR: ${e.error.localizedMessage}');
       debugPrint('🔴 PAYMENT STRIPE ERROR Details: $e');
       if (context.mounted) {
@@ -83,6 +95,7 @@ class PaymentService {
       }
       return null;
     } catch (e) {
+      Stripe.stripeAccountId = null;
       debugPrint('🔴 PAYMENT ERROR: $e');
       debugPrint('🔴 PAYMENT ERROR Type: ${e.runtimeType}');
       if (context.mounted) {
@@ -101,13 +114,15 @@ class PaymentService {
   static Future<Map<String, dynamic>> _createPaymentIntent({
     required int amount,
     required String currency,
-    int? placeId,
+    String? placeId,
+    DateTime? checkOutDate,
   }) async {
     try {
       final response = await ApiService.createPaymentIntent(
         amount: amount,
         currency: currency,
         placeId: placeId,
+        checkOutDate: checkOutDate,
       );
       return response;
     } catch (e) {

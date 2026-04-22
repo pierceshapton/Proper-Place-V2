@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/storage_service.dart';
 import '../services/api_service.dart';
 import '../services/offline_service.dart';
+import 'stripe_connect_screen.dart';
 import 'home_screen.dart';
 import 'host_application_form_screen.dart';
 import 'offline_regions_screen.dart';
@@ -31,6 +32,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
   bool _sizeFilterEnabled = false;
   String? _hostApplicationStatus;
   bool _isLoading = false;
+  bool _stripeConnectOnboarded = false;
 
   @override
   void initState() {
@@ -48,6 +50,16 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
       var hostAppStatus = await StorageService.getHostApplicationStatus();
       final sizeFilter = await StorageService.getSizeFilterEnabled();
 
+      // Refresh Connect onboarding status from the backend
+      bool connectOnboarded = false;
+      try {
+        final userId = await StorageService.getUserId();
+        if (userId != null) {
+          final status = await ApiService.getConnectStatus(userId: userId);
+          connectOnboarded = status['onboarded'] == true;
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _userName = name ?? 'User';
@@ -55,6 +67,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
           _isHostMode = hostMode;
           _hostApplicationStatus = hostAppStatus;
           _sizeFilterEnabled = sizeFilter;
+          _stripeConnectOnboarded = connectOnboarded;
         });
       }
     } catch (e) {
@@ -340,6 +353,10 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
                     _buildSectionTitle('Host Mode'),
                     const SizedBox(height: 12),
                     _buildActivateHostCard(),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('Payouts'),
+                    const SizedBox(height: 12),
+                    _buildStripeConnectCard(),
                     const SizedBox(height: 24),
                   ],
 
@@ -786,6 +803,94 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStripeConnectCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: lightBlue.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _stripeConnectOnboarded
+                      ? Colors.green.withOpacity(0.1)
+                      : const Color(0xFF635BFF).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _stripeConnectOnboarded ? Icons.check_circle : Icons.account_balance,
+                  color: _stripeConnectOnboarded ? Colors.green : const Color(0xFF635BFF),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _stripeConnectOnboarded ? 'Payouts Connected' : 'Set Up Payouts',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _stripeConnectOnboarded
+                          ? 'Your earnings are paid directly to your bank account.'
+                          : 'Connect your bank account to receive your earnings.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (!_stripeConnectOnboarded) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StripeConnectScreen()),
+                  );
+                  if (result == true) {
+                    _loadUserData();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF635BFF),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Connect with Stripe', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
         ],
       ),
     );

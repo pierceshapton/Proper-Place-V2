@@ -438,19 +438,22 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       }
 
       // Process payment via Stripe (authorises card but doesn't capture yet)
-      final paymentIntentId = await PaymentService.processPayment(
+      final paymentResult = await PaymentService.processPayment(
         amount: totalPrice,
         currency: 'GBP',
         bookingId: 'booking_${DateTime.now().millisecondsSinceEpoch}',
         context: context,
-        placeId: widget.place['id'] is int ? widget.place['id'] : int.tryParse(widget.place['id'].toString()),
+        placeId: widget.place['id']?.toString(),
+        checkOutDate: _checkOutDate,
       );
 
-      if (paymentIntentId == null) {
+      if (paymentResult == null) {
         // User cancelled or payment failed — don't create booking
         setState(() => _isProcessingPayment = false);
         return;
       }
+
+      final paymentIntentId = paymentResult.paymentIntentId;
 
       // Payment authorised — now create the booking (pending host approval)
       final token = await StorageService.getToken();
@@ -472,7 +475,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           'check_out_time': checkOutTimeStr,
           'van_registration': _userVanReg,
           'total_price': totalPrice,
-          'payment_intent_id': paymentIntentId,
+          'paymentIntentId': paymentIntentId,
+          if (paymentResult.connectedAccountId != null)
+            'connectedAccountId': paymentResult.connectedAccountId,
         }),
       );
 

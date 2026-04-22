@@ -53,7 +53,7 @@ export class BookingsService {
   }
 
   // Create a new booking
-  static async createBooking(placeId, guestId, checkIn, checkOut, totalPrice, paymentIntentId) {
+  static async createBooking(placeId, guestId, checkIn, checkOut, totalPrice, paymentIntentId, connectedAccountId) {
     try {
       // Validate dates
       const checkInDate = new Date(checkIn);
@@ -79,10 +79,10 @@ export class BookingsService {
 
       // Create booking
       const result = await query(
-        `INSERT INTO bookings (place_id, guest_id, check_in, check_out, total_price, payment_intent_id, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'confirmed')
-         RETURNING booking_id, place_id, guest_id, check_in, check_out, total_price, payment_intent_id, status, created_at`,
-        [placeId, guestId, checkIn, checkOut, totalPrice, paymentIntentId]
+        `INSERT INTO bookings (place_id, guest_id, check_in, check_out, total_price, payment_intent_id, connected_account_id, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'confirmed')
+         RETURNING booking_id, place_id, guest_id, check_in, check_out, total_price, payment_intent_id, connected_account_id, status, created_at`,
+        [placeId, guestId, checkIn, checkOut, totalPrice, paymentIntentId ?? null, connectedAccountId ?? null]
       );
 
       return result.rows[0];
@@ -200,6 +200,63 @@ export class BookingsService {
       };
     } catch (error) {
       console.error('Error getting available dates:', error);
+      throw error;
+    }
+  }
+
+  // Complete a booking: capture the held payment and mark as completed.
+  // Safe to call multiple times — if payment is already captured, it skips the
+  // Stripe call and just ensures the DB status is correct.
+  static async completeBooking(bookingId) {
+    try {
+      const bookingResult = await query(
+        `SELECT * FROM bookings WHERE booking_id = $1`,
+        [bookingId]
+      );
+
+      if (bookingResult.rows.length === 0) {
+        throw new Error('Booking not found');
+      }
+
+      const booking = bookingResult.rows[0];
+
+      if (booking.status === 'cancelled') {
+        throw new Error('Cannot complete a cancelled booking');
+      }
+
+      // Capture payment if not already done
+      if (booking.payment_intent_id && !booking.payment_captured) {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+        try {
+          const captureOptions = booking.connected_account_id
+            ? { stripeAccount: booking.connected_account_id }
+            : {};
+          await stripe.paymentIntents.capture(
+            booking.payment_intent_id,
+            {},
+            captureOptions
+          );
+          console.log(`✅ Payment captured for booking ${bookingId}`);
+        } catch (captureError) {
+          // If already captured Stripe returns 'already_captured' error — treat as success
+          if (captureError?.code !== 'charge_already_captured') {
+            console.error('Stripe capture error:', captureError.message);
+            throw new Error(`Payment capture failed: ${captureError.message}`);
+          }
+        }
+      }
+
+      const result = await query(
+        `UPDATE bookings
+         SET status = 'completed', payment_captured = true, updated_at = CURRENT_TIMESTAMP
+         WHERE booking_id = $1
+         RETURNING *`,
+        [bookingId]
+      );
+
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error completing booking:', error);
       throw error;
     }
   }
