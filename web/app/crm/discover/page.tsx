@@ -37,7 +37,6 @@ export default function DiscoverPage() {
 
   const [threshold, setThreshold] = useState(85);
   const [feedbackHistory, setFeedbackHistory] = useState<DiscoveryFeedbackItem[]>([]);
-  const [userScoreMap, setUserScoreMap] = useState<Record<string, string>>({});
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState('');
   const [isAnalyzingSites, setIsAnalyzingSites] = useState(false);
@@ -229,65 +228,10 @@ export default function DiscoverPage() {
       const filtered = scored.filter(item => !isRejected(item, rejectedSites));
 
       setResults(filtered);
-      setUserScoreMap({});
     } catch {
       setSearchError('Google Places search failed. Check API access and billing.');
     } finally {
       setIsSearching(false);
-    }
-  }
-
-  async function saveLearningFeedback() {
-    const scoredRows = results
-      .filter(item => userScoreMap[item.id] !== undefined && userScoreMap[item.id].trim() !== '')
-      .map(item => {
-        const userScore = clamp(Number(userScoreMap[item.id]), 0, 100);
-        const stars = Math.round(userScore / 20) as number;
-        return {
-          id: item.id,
-          aiScore: item.score,
-          userScore,
-          stars: clamp(stars, 1, 5),
-          name: item.name,
-          address: item.address,
-          createdAt: new Date().toISOString(),
-        };
-      })
-      .filter(item => Number.isFinite(item.userScore));
-
-    if (scoredRows.length === 0) {
-      setSettingsMessage('Add at least one manual score to save learning feedback.');
-      return;
-    }
-
-    const deduped = new Map<string, DiscoveryFeedbackItem>();
-    [...feedbackHistory, ...scoredRows].forEach(item => {
-      deduped.set(item.id, item);
-    });
-    const merged = Array.from(deduped.values()).slice(-500);
-    const metrics = computeLearningMetrics(merged);
-    const thresholdPassed = metrics.samples >= 15 && metrics.accuracy >= threshold;
-
-    setSettingsBusy(true);
-    setSettingsMessage('');
-    try {
-      await crmApi.updateSettings({
-        discovery_feedback_v1: JSON.stringify(merged),
-        discovery_learning_samples: String(metrics.samples),
-        discovery_learning_accuracy: String(metrics.accuracy),
-        discovery_learning_agreement: String(metrics.agreementRate),
-        discovery_auto_mode_ready: thresholdPassed ? 'true' : 'false',
-      });
-      setFeedbackHistory(merged);
-      try {
-        const automation = await crmApi.getAutomationStatus();
-        setAutomationStatus(automation);
-      } catch {}
-      setSettingsMessage(`Learning saved. Accuracy ${metrics.accuracy}% (${metrics.samples} scored sites).`);
-    } catch {
-      setSettingsMessage('Saving learning feedback failed.');
-    } finally {
-      setSettingsBusy(false);
     }
   }
 
@@ -738,7 +682,6 @@ export default function DiscoverPage() {
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Type</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Satellite</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Signals</th>
-                  <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Your Score</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Why It Matches</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Review</th>
                 </tr>
@@ -780,20 +723,6 @@ export default function DiscoverPage() {
                         </div>
                       </td>
                       <td className="px-3 py-2 align-top">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={userScoreMap[item.id] || ''}
-                            onChange={e => setUserScoreMap(prev => ({ ...prev, [item.id]: e.target.value }))}
-                            placeholder="0-100"
-                            className="w-20 bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200"
-                          />
-                          <span className="text-[11px] text-slate-500">AI {item.score}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 align-top">
                         <p className="text-[11px] text-slate-400 max-w-[340px]">{item.reasons.join(' · ')}</p>
                       </td>
                       <td className="px-3 py-2 align-top">
@@ -811,17 +740,8 @@ export default function DiscoverPage() {
             </table>
           </div>
 
-          <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
+          <div className="px-4 py-3 border-t border-slate-800">
             <p className="text-xs text-slate-500">Rate each site in summary: 4-5★ adds to {firstStage.name}, 1-3★ is removed and remembered.</p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={saveLearningFeedback}
-                disabled={settingsBusy}
-                className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
-              >
-                {settingsBusy ? 'Saving Learning…' : 'Save Learning'}
-              </button>
-            </div>
           </div>
         </section>
       )}
