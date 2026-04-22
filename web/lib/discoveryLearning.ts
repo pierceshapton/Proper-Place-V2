@@ -2,6 +2,7 @@ export interface DiscoveryFeedbackItem {
   id: string;
   aiScore: number;
   userScore: number;
+  stars: number;
   name: string;
   address: string;
   createdAt: string;

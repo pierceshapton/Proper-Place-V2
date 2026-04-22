@@ -240,14 +240,19 @@ export default function DiscoverPage() {
   async function saveLearningFeedback() {
     const scoredRows = results
       .filter(item => userScoreMap[item.id] !== undefined && userScoreMap[item.id].trim() !== '')
-      .map(item => ({
-        id: item.id,
-        aiScore: item.score,
-        userScore: clamp(Number(userScoreMap[item.id]), 0, 100),
-        name: item.name,
-        address: item.address,
-        createdAt: new Date().toISOString(),
-      }))
+      .map(item => {
+        const userScore = clamp(Number(userScoreMap[item.id]), 0, 100);
+        const stars = Math.round(userScore / 20) as number;
+        return {
+          id: item.id,
+          aiScore: item.score,
+          userScore,
+          stars: clamp(stars, 1, 5),
+          name: item.name,
+          address: item.address,
+          createdAt: new Date().toISOString(),
+        };
+      })
       .filter(item => Number.isFinite(item.userScore));
 
     if (scoredRows.length === 0) {
@@ -424,6 +429,7 @@ export default function DiscoverPage() {
       id: activeCandidate.id,
       aiScore: activeCandidate.score,
       userScore,
+      stars: reviewStars,
       name: activeCandidate.name,
       address: activeCandidate.address,
       createdAt: new Date().toISOString(),
@@ -1126,14 +1132,23 @@ function safeParseFeedback(raw: string): DiscoveryFeedbackItem[] {
 
     return parsed
       .filter(item => item && typeof item.id === 'string')
-      .map(item => ({
-        id: item.id,
-        aiScore: clamp(Number(item.aiScore), 0, 100),
-        userScore: clamp(Number(item.userScore), 0, 100),
-        name: typeof item.name === 'string' ? item.name : 'Unknown',
-        address: typeof item.address === 'string' ? item.address : '',
-        createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
-      }))
+      .map(item => {
+        const userScore = clamp(Number(item.userScore), 0, 100);
+        // Preserve stored stars; fall back to deriving from userScore for old records
+        const stars = Number.isFinite(Number(item.stars)) && Number(item.stars) >= 1
+          ? clamp(Number(item.stars), 1, 5)
+          : clamp(Math.round(userScore / 20), 1, 5);
+        return {
+          id: item.id,
+          aiScore: clamp(Number(item.aiScore), 0, 100),
+          userScore,
+          stars,
+          name: typeof item.name === 'string' ? item.name : 'Unknown',
+          address: typeof item.address === 'string' ? item.address : '',
+          createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+          ...(typeof item.note === 'string' && item.note ? { note: item.note } : {}),
+        };
+      })
       .filter(item => Number.isFinite(item.aiScore) && Number.isFinite(item.userScore));
   } catch {
     return [];
