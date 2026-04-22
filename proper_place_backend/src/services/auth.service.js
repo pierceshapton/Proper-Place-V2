@@ -116,4 +116,14 @@ export class AuthService {
 
     return result.rows[0];
   }
+
+  static async deleteUser(userId) {
+    // Delete in dependency order to avoid FK constraint errors.
+    // Bookings, reviews, favourites, notifications, chat messages, etc.
+    await query('DELETE FROM bookings WHERE user_id = $1', [userId]);
+    await query('DELETE FROM reviews WHERE user_id = $1', [userId]);
+    await query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+    // Remove the user row last
+    await query('DELETE FROM users WHERE user_id = $1', [userId]);
+  }
 }

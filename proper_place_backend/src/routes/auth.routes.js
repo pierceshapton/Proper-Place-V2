@@ -97,4 +97,37 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
+// DELETE /auth/user/:userId - Permanently delete account (user must own the account)
+router.delete('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Verify the token belongs to the requesting user
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Unauthorised' });
+    }
+    const token = authHeader.slice(7);
+    let decoded;
+    try {
+      decoded = AuthService.verifyToken(token);
+    } catch {
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+
+    if (String(decoded.user_id) !== String(userId)) {
+      return res.status(403).json({ message: 'You can only delete your own account' });
+    }
+
+    await AuthService.deleteUser(userId);
+
+    return res.status(200).json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    return res.status(500).json({
+      message: error.message || 'Failed to delete account',
+    });
+  }
+});
+
 export default router;
