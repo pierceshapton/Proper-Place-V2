@@ -844,11 +844,15 @@ export default function DiscoverPage() {
 
             {activeCandidate.latitude !== null && activeCandidate.longitude !== null && GOOGLE_MAPS_API_KEY && (
               <div className="rounded-lg overflow-hidden border border-slate-700">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={getSatellitePreviewUrl(activeCandidate.latitude, activeCandidate.longitude, GOOGLE_MAPS_API_KEY, '640x280')}
-                  alt={`Satellite view of ${activeCandidate.name}`}
-                  className="w-full object-cover"
+                <iframe
+                  title={`Map of ${activeCandidate.name}`}
+                  width="100%"
+                  height="280"
+                  style={{ border: 0, display: 'block' }}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${activeCandidate.latitude},${activeCandidate.longitude}&zoom=17&maptype=satellite`}
                 />
               </div>
             )}
@@ -920,11 +924,15 @@ export default function DiscoverPage() {
 
             {activeQueueItem.latitude !== null && activeQueueItem.longitude !== null && GOOGLE_MAPS_API_KEY && (
               <div className="rounded-lg overflow-hidden border border-slate-700">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={getSatellitePreviewUrl(Number(activeQueueItem.latitude), Number(activeQueueItem.longitude), GOOGLE_MAPS_API_KEY, '640x280')}
-                  alt={`Satellite view of ${activeQueueItem.business_name}`}
-                  className="w-full object-cover"
+                <iframe
+                  title={`Map of ${activeQueueItem.business_name}`}
+                  width="100%"
+                  height="280"
+                  style={{ border: 0, display: 'block' }}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${Number(activeQueueItem.latitude)},${Number(activeQueueItem.longitude)}&zoom=17&maptype=satellite`}
                 />
               </div>
             )}
