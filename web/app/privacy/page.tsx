@@ -16,7 +16,7 @@ export default function PrivacyPage() {
       <section className="bg-dark-bg text-white py-16">
         <div className="container-md">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Privacy Policy</h1>
-          <p className="text-gray-400">Last updated: March 2026</p>
+          <p className="text-gray-400">Last updated: April 2026</p>
         </div>
       </section>
 
@@ -66,6 +66,8 @@ export default function PrivacyPage() {
               <li>Payment information (processed by Stripe &mdash; we do not store card details)</li>
               <li>Payment authorisation and capture status (pending, confirmed, refunded)</li>
               <li>Fund holding records associated with completed stays</li>
+              <li>Stripe Connect account identifiers (for Hosts who have completed payout onboarding)</li>
+              <li>Platform service fee records (15% of each booking, deducted from Host payouts)</li>
               <li>Reviews and ratings</li>
             </ul>
 
@@ -142,7 +144,7 @@ export default function PrivacyPage() {
             <h2 className="text-2xl font-bold mt-8 mb-4">5. Data Sharing</h2>
             <p className="text-gray-600 mb-4">We share your data with the following third parties:</p>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-6">
-              <li><strong>Stripe:</strong> Payment processing, fund holding, and host payouts (PCI-DSS compliant). All customer funds are held by Stripe — Proper Place never holds or has custody of user funds.</li>
+              <li><strong>Stripe:</strong> Payment processing, fund holding, and host payouts via Stripe Connect Express (PCI-DSS compliant). Hosts who list on Proper Place are required to complete Stripe Connect onboarding; Stripe collects and processes identity and payout information for this purpose. All customer funds are held by Stripe — Proper Place never holds or has custody of user funds.</li>
               <li><strong>DigitalOcean:</strong> Cloud hosting and database services (EU/UK data centres)</li>
               <li><strong>Google Maps:</strong> Location and mapping services</li>
               <li><strong>Email service providers:</strong> For transactional emails</li>
