@@ -26,7 +26,7 @@ export default function DiscoverPage() {
   const [reviewNote, setReviewNote] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [rejectedSites, setRejectedSites] = useState<RejectedSite[]>([]);
-  const [firstStage, setFirstStage] = useState<{ slug: string; name: string }>({ slug: 'new', name: 'New' });
+  const [firstStage, setFirstStage] = useState<{ slug: string; name: string }>({ slug: 'reviewed', name: 'Reviewed' });
 
   const [reviewQueue, setReviewQueue] = useState<DiscoveryQueueItem[]>([]);
   const [queueLoading, setQueueLoading] = useState(false);

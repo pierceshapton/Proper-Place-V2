@@ -7,7 +7,7 @@ import { crmApi, type CRMLead, type CRMStage } from '@/lib/api';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
-  { id: 1, slug: 'new',         name: 'New',         color: 'blue',    sort_order: 1, is_won: false, is_lost: false },
+  { id: 1, slug: 'reviewed',    name: 'Reviewed',    color: 'blue',    sort_order: 1, is_won: false, is_lost: false },
   { id: 2, slug: 'contacted',   name: 'Contacted',   color: 'amber',   sort_order: 2, is_won: false, is_lost: false },
   { id: 3, slug: 'assessing',   name: 'Assessing',   color: 'violet',  sort_order: 3, is_won: false, is_lost: false },
   { id: 4, slug: 'negotiating', name: 'Negotiating', color: 'orange',  sort_order: 4, is_won: false, is_lost: false },
@@ -46,7 +46,7 @@ export default function LeadsPage() {
 
   const [form, setForm] = useState({
     business_name: '', first_name: '', last_name: '', email: '', phone: '',
-    location: '', website: '', property_type: 'pub', pipeline_stage: 'new', priority: 'medium',
+    location: '', website: '', property_type: 'pub', pipeline_stage: 'reviewed', priority: 'medium',
     admin_notes: '',
   });
   const [saving, setSaving] = useState(false);
@@ -75,7 +75,7 @@ export default function LeadsPage() {
     try {
       await crmApi.createLead(form as unknown as Partial<CRMLead>);
       setShowForm(false);
-      setForm({ business_name: '', first_name: '', last_name: '', email: '', phone: '', location: '', website: '', property_type: 'pub', pipeline_stage: 'new', priority: 'medium', admin_notes: '' });
+      setForm({ business_name: '', first_name: '', last_name: '', email: '', phone: '', location: '', website: '', property_type: 'pub', pipeline_stage: 'reviewed', priority: 'medium', admin_notes: '' });
       loadLeads();
     } catch {} finally { setSaving(false); }
   }

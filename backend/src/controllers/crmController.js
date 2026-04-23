@@ -124,7 +124,7 @@ async function createLead(req, res, next) {
         first_name || '', last_name || '', email || '', phone || '',
         business_name || null, location || null, website || null,
         property_type || null, parking_spaces || null, parking_type || null,
-        ownership_type || null, pipeline_stage || 'new', priority || 'medium',
+        ownership_type || null, pipeline_stage || 'reviewed', priority || 'medium',
         notes || null, tags || null, latitude || null, longitude || null,
         google_place_id || null, google_rating || null, google_reviews_count || null,
         'crm_manual', req.user.userId,
@@ -1172,7 +1172,7 @@ async function enrichLead(req, res, next) {
  */
 async function importLeads(req, res, next) {
   try {
-    const { places, enrich = false, pipeline_stage = 'new', priority = 'medium' } = req.body;
+    const { places, enrich = false, pipeline_stage = 'reviewed', priority = 'medium' } = req.body;
     if (!Array.isArray(places) || places.length === 0) {
       return res.status(400).json({ error: 'places array required' });
     }
@@ -1307,7 +1307,7 @@ async function processDiscoveryAutoEmails() {
        FROM host_leads hl
        WHERE hl.email IS NOT NULL
          AND hl.email <> ''
-         AND hl.pipeline_stage = 'new'
+         AND hl.pipeline_stage = 'reviewed'
          AND COALESCE(hl.discovery_fit_score, 0) >= $1
          AND COALESCE(hl.discovery_campervan_priority, 0) >= 40
          AND NOT EXISTS (
@@ -1722,7 +1722,7 @@ async function submitDiscoveryQueueReview(req, res, next) {
 
     if (numStars >= 4) {
       const stagesRes = await db.query(`SELECT slug FROM crm_stages ORDER BY sort_order, id ASC LIMIT 1`);
-      const firstStageSlug = stagesRes.rows.length > 0 ? stagesRes.rows[0].slug : 'new';
+      const firstStageSlug = stagesRes.rows.length > 0 ? stagesRes.rows[0].slug : 'reviewed';
 
       const leadResult = await db.query(
         `INSERT INTO host_leads (
