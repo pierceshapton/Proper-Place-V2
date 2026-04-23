@@ -1660,23 +1660,9 @@ async function replaceDiscoveryQueue(req, res, next) {
     // Delete only pending items — leave approved/rejected (pipeline & memory) intact
     await db.query(`DELETE FROM discovery_review_queue WHERE status = 'pending'`);
 
-    // Get existing host_leads place IDs so we don't re-queue already-imported sites
-    const existingRes = await db.query(`SELECT google_place_id FROM host_leads WHERE google_place_id IS NOT NULL`);
-    const existingPlaceIds = new Set(existingRes.rows.map(r => r.google_place_id));
-
-    // Get rejection memory
-    const settings = await getSettingsMap();
-    const rawRejected = settings.discovery_rejected_sites_v1 || '[]';
-    let rejectedMemory = [];
-    try { rejectedMemory = JSON.parse(rawRejected); if (!Array.isArray(rejectedMemory)) rejectedMemory = []; } catch { rejectedMemory = []; }
-    const rejectedKeys = new Set(rejectedMemory.map(r => r.id || ''));
-
     let queued = 0;
     for (const item of candidates.slice(0, 100)) {
       const placeId = item.google_place_id || item.id || null;
-      if (placeId && existingPlaceIds.has(placeId)) continue;
-      const rejKey = placeId || `${item.name}|${item.address || ''}`.toLowerCase();
-      if (rejectedKeys.has(rejKey)) continue;
 
       await db.query(
         `INSERT INTO discovery_review_queue (

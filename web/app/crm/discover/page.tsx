@@ -14,8 +14,8 @@ export default function DiscoverPage() {
   const [exampleSearch, setExampleSearch] = useState('');
   const [initializedExamples, setInitializedExamples] = useState(false);
 
-  const [regionQuery, setRegionQuery] = useState('South West England');
-  const [keywordInput, setKeywordInput] = useState('pub with parking, farm shop, country inn, vineyard, rural hotel');
+  const [regionQuery, setRegionQuery] = useState('');
+  const [keywordInput, setKeywordInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
