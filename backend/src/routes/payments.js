@@ -9,6 +9,13 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 // Platform fee percentage kept by Proper Place
 const PLATFORM_FEE_PERCENT = 0.15;
 
+// Estimated Stripe processing fee for UK/EU cards (1.5% + 20p).
+// Added to application_fee_amount so Stripe's fee comes from the host's 85%
+// rather than from the platform's 15%. This ensures the platform always nets
+// exactly 15% regardless of card type.
+const STRIPE_FEE_PERCENT = 0.015;
+const STRIPE_FEE_FIXED_PENCE = 20;
+
 // ─── Stripe Connect onboarding ────────────────────────────────────────────────
 
 // Create or retrieve a Stripe Connect Express account for a host, then return
@@ -153,7 +160,12 @@ router.post('/create-intent', async (req, res) => {
     // Destination charges: 15% application fee to platform, 85% auto-transferred to host.
     // Note: on_behalf_of is intentionally omitted — mobile SDKs require the PI to be
     // looked up on the platform account, which is incompatible with on_behalf_of.
-    const applicationFee = Math.round(Math.round(amount) * PLATFORM_FEE_PERCENT);
+    //
+    // The application_fee_amount includes an estimate of Stripe's processing fee so that
+    // the platform always nets exactly 15% and Stripe's fee is borne by the host's 85%.
+    const platformFee = Math.round(amount * PLATFORM_FEE_PERCENT);
+    const estimatedStripeFee = Math.round(amount * STRIPE_FEE_PERCENT) + STRIPE_FEE_FIXED_PENCE;
+    const applicationFee = platformFee + estimatedStripeFee;
 
     // Hybrid capture: hold the card (manual) when checkout is within 6 days —
     // Stripe card authorisations expire after 7 days on most UK cards.
@@ -174,6 +186,8 @@ router.post('/create-intent', async (req, res) => {
         platform: 'proper_place',
         place_id: String(place_id),
         host_account: hostAccountId,
+        platform_fee: String(platformFee),
+        estimated_stripe_fee: String(estimatedStripeFee),
         application_fee: String(applicationFee),
       },
     };
