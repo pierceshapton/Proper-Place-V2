@@ -57,6 +57,7 @@ const schemas = {
     contact_phone: Joi.string(),
     special_requests: Joi.string().max(1000),
     payment_intent_id: Joi.string().optional(),
+    paymentIntentId: Joi.string().optional(),
     total_price: Joi.number().optional(),
   }),
 

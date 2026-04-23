@@ -813,6 +813,15 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 34 error:', err.message);
     }
 
+    // Migration 35: Add payment_captured flag for hybrid manual/automatic capture tracking
+    try {
+      console.log('[SERVER] Running migration 35: bookings payment_captured column...');
+      await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_captured BOOLEAN DEFAULT false`);
+      console.log('[SERVER] ✅ Migration 35 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 35 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

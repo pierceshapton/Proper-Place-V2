@@ -6,10 +6,113 @@ const db = require('../config/database');
 // Initialize Stripe
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
+// Platform fee percentage kept by Proper Place
+const PLATFORM_FEE_PERCENT = 0.15;
+
+// ─── Stripe Connect onboarding ────────────────────────────────────────────────
+
+// Create or retrieve a Stripe Connect Express account for a host, then return
+// an onboarding link so they can enter their bank details on Stripe's hosted page.
+router.post('/connect/onboard', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ message: 'userId is required' });
+    }
+
+    const userResult = await db.query(
+      'SELECT id, email, name, stripe_account_id, stripe_onboarding_complete FROM users WHERE id = $1',
+      [userId]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+    let accountId = user.stripe_account_id;
+
+    // Create a new Express account if one does not exist yet
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        email: user.email,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        business_type: 'individual',
+        metadata: { user_id: String(userId) },
+      });
+      accountId = account.id;
+      await db.query(
+        'UPDATE users SET stripe_account_id = $1, updated_at = NOW() WHERE id = $2',
+        [accountId, userId]
+      );
+    }
+
+    // Generate a fresh onboarding link (they expire quickly)
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: 'properplace://connect/refresh',
+      return_url: 'properplace://connect/complete',
+      type: 'account_onboarding',
+    });
+
+    logger.info('Connect onboarding link created', { userId, accountId });
+    return res.status(200).json({ url: accountLink.url, accountId });
+  } catch (error) {
+    logger.error('Error creating Connect onboarding link:', error);
+    return res.status(500).json({ message: 'Failed to create onboarding link', error: error.message });
+  }
+});
+
+// Called after the host returns from Stripe's onboarding page to check status
+router.post('/connect/status', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ message: 'userId is required' });
+    }
+
+    const userResult = await db.query(
+      'SELECT stripe_account_id, stripe_onboarding_complete FROM users WHERE id = $1',
+      [userId]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const { stripe_account_id: accountId, stripe_onboarding_complete: alreadyOnboarded } = userResult.rows[0];
+
+    if (!accountId) {
+      return res.status(200).json({ onboarded: false, accountId: null });
+    }
+
+    // Fetch current state from Stripe
+    const account = await stripe.accounts.retrieve(accountId);
+    const onboarded = account.details_submitted && account.charges_enabled;
+
+    // Persist updated state if it changed
+    if (onboarded && !alreadyOnboarded) {
+      await db.query(
+        'UPDATE users SET stripe_onboarding_complete = true, updated_at = NOW() WHERE id = $1',
+        [userId]
+      );
+    }
+
+    return res.status(200).json({ onboarded, accountId });
+  } catch (error) {
+    logger.error('Error checking Connect status:', error);
+    return res.status(500).json({ message: 'Failed to check Connect status', error: error.message });
+  }
+});
+
+// ─── Payment intents ──────────────────────────────────────────────────────────
+
 // Create payment intent for Stripe
 router.post('/create-intent', async (req, res) => {
   try {
-    const { amount, currency, place_id } = req.body;
+    const { amount, currency, place_id, check_out_date } = req.body;
 
     if (!amount || !currency) {
       return res.status(400).json({
@@ -47,16 +150,22 @@ router.post('/create-intent', async (req, res) => {
       });
     }
 
-    // Destination charges with application fee:
-    // - 15% application fee goes to Proper Place platform balance
-    // - 85% is transferred to the host's connected account
-    // - on_behalf_of means Stripe processing fees (1.5% + 20p) come from the host's share
-    const applicationFee = Math.round(Math.round(amount) * 0.15);
+    // Destination charges: 15% application fee to platform, 85% auto-transferred to host.
+    // Stripe processing fees come from the host's 85% (via on_behalf_of).
+    const applicationFee = Math.round(Math.round(amount) * PLATFORM_FEE_PERCENT);
+
+    // Hybrid capture: hold the card (manual) when checkout is within 6 days —
+    // Stripe card authorisations expire after 7 days on most UK cards.
+    // For longer lead times, charge immediately; cancellation triggers an automatic refund.
+    const daysUntilCheckout = check_out_date
+      ? Math.ceil((new Date(check_out_date) - new Date()) / (1000 * 60 * 60 * 24))
+      : 0;
+    const captureMethod = daysUntilCheckout <= 6 ? 'manual' : 'automatic';
 
     const paymentIntentParams = {
-      amount: Math.round(amount), // Amount in smallest currency unit (pence)
+      amount: Math.round(amount),
       currency: currency.toLowerCase(),
-      capture_method: 'manual',
+      capture_method: captureMethod,
       automatic_payment_methods: { enabled: true },
       application_fee_amount: applicationFee,
       transfer_data: { destination: hostAccountId },
@@ -85,12 +194,15 @@ router.post('/create-intent', async (req, res) => {
     logger.info(`Payment intent created: ${paymentIntent.id}`, {
       hostAccount: hostAccountId,
       placeId: place_id,
+      captureMethod,
     });
-    
+
     return res.status(200).json({
       message: 'Payment intent created',
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
+      connectedAccountId: hostAccountId,
+      captureMethod,
     });
 
   } catch (error) {
