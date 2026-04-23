@@ -60,10 +60,12 @@ router.post('/:id(\\d+)/complete', authMiddleware, async (req, res) => {
         await stripe.paymentIntents.capture(booking.payment_intent_id);
         logger.info('Payment captured on complete', { bookingId: id, paymentIntentId: booking.payment_intent_id });
       } catch (captureErr) {
-        if (captureErr.code !== 'charge_already_captured') {
+        // payment_intent_unexpected_state is Stripe's code when already captured
+        if (captureErr.code !== 'charge_already_captured' && captureErr.code !== 'payment_intent_unexpected_state') {
           logger.error('Stripe capture failed on complete', { bookingId: id, error: captureErr.message });
           return res.status(502).json({ message: 'Payment capture failed', error: captureErr.message });
         }
+        logger.info('Payment already captured, continuing', { bookingId: id });
       }
     }
 
