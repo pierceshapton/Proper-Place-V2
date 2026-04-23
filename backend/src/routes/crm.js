@@ -32,6 +32,7 @@ router.patch('/settings', crm.updateSettings);
 router.get('/automation-status', crm.getAutomationStatus);
 router.post('/discovery/auto-find/run', crm.runDiscoveryAutoFind);
 router.get('/discovery/review-queue', crm.getDiscoveryReviewQueue);
+router.post('/discovery/review-queue/replace', crm.replaceDiscoveryQueue);
 router.post('/discovery/review-queue/:id/submit', crm.submitDiscoveryQueueReview);
 
 // ─── CMS Content ────────────────────

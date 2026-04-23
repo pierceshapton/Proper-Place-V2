@@ -1650,6 +1650,69 @@ async function getDiscoveryReviewQueue(req, res, next) {
   }
 }
 
+async function replaceDiscoveryQueue(req, res, next) {
+  try {
+    const candidates = req.body.candidates;
+    if (!Array.isArray(candidates)) {
+      return res.status(400).json({ error: 'candidates must be an array' });
+    }
+
+    // Delete only pending items — leave approved/rejected (pipeline & memory) intact
+    await db.query(`DELETE FROM discovery_review_queue WHERE status = 'pending'`);
+
+    // Get existing host_leads place IDs so we don't re-queue already-imported sites
+    const existingRes = await db.query(`SELECT google_place_id FROM host_leads WHERE google_place_id IS NOT NULL`);
+    const existingPlaceIds = new Set(existingRes.rows.map(r => r.google_place_id));
+
+    // Get rejection memory
+    const settings = await getSettingsMap();
+    const rawRejected = settings.discovery_rejected_sites_v1 || '[]';
+    let rejectedMemory = [];
+    try { rejectedMemory = JSON.parse(rawRejected); if (!Array.isArray(rejectedMemory)) rejectedMemory = []; } catch { rejectedMemory = []; }
+    const rejectedKeys = new Set(rejectedMemory.map(r => r.id || ''));
+
+    let queued = 0;
+    for (const item of candidates.slice(0, 100)) {
+      const placeId = item.google_place_id || item.id || null;
+      if (placeId && existingPlaceIds.has(placeId)) continue;
+      const rejKey = placeId || `${item.name}|${item.address || ''}`.toLowerCase();
+      if (rejectedKeys.has(rejKey)) continue;
+
+      await db.query(
+        `INSERT INTO discovery_review_queue (
+          business_name, location, latitude, longitude, website,
+          google_place_id, google_rating, google_reviews_count,
+          admin_notes, source,
+          discovery_fit_score, discovery_parking_confidence,
+          discovery_access_score, discovery_campervan_priority
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+        [
+          item.name || 'Unknown',
+          item.address || null,
+          item.latitude ?? null,
+          item.longitude ?? null,
+          item.website || null,
+          placeId,
+          item.rating ?? null,
+          item.reviews ?? null,
+          item.summary || null,
+          'discovery_manual_identify',
+          Math.round(item.score ?? 0),
+          Math.round(item.siteAnalysis?.parkingConfidence ?? 0),
+          Math.round(item.siteAnalysis?.accessScore ?? 0),
+          Math.round(item.siteAnalysis?.campervanPriority ?? 0),
+        ]
+      );
+      queued += 1;
+    }
+
+    res.json({ success: true, queued, replaced: true });
+  } catch (error) {
+    logger.error('replaceDiscoveryQueue error', { error: error.message });
+    next(error);
+  }
+}
+
 async function submitDiscoveryQueueReview(req, res, next) {
   try {
     const { id } = req.params;
@@ -1805,6 +1868,7 @@ module.exports = {
   runDiscoveryAutoFind,
   processDiscoveryAutoFind,
   getDiscoveryReviewQueue,
+  replaceDiscoveryQueue,
   submitDiscoveryQueueReview,
   processDiscoveryAutoEmails,
 };

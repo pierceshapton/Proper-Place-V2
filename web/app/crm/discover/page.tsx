@@ -228,6 +228,14 @@ export default function DiscoverPage() {
       const filtered = scored.filter(item => !isRejected(item, rejectedSites));
 
       setResults(filtered);
+
+      // Overwrite the pending review queue with the new search results
+      try {
+        await crmApi.replaceDiscoveryQueue(filtered);
+        loadReviewQueue();
+      } catch {
+        // non-fatal — queue refresh failure doesn't block the UI results
+      }
     } catch {
       setSearchError('Google Places search failed. Check API access and billing.');
     } finally {
