@@ -536,7 +536,6 @@ export default function DiscoverPage() {
                 <thead className="bg-slate-950 sticky top-0">
                   <tr>
                     <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Site</th>
-                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Fit</th>
                     <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Rating</th>
                     <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Reviews</th>
                     <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Signals</th>
@@ -552,11 +551,6 @@ export default function DiscoverPage() {
                         {item.website && (
                           <a href={item.website} target="_blank" rel="noreferrer" className="text-[11px] text-emerald-400 hover:underline">{item.website}</a>
                         )}
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.discovery_fit_score >= 75 ? 'bg-emerald-500/15 text-emerald-400' : item.discovery_fit_score >= 60 ? 'bg-amber-500/15 text-amber-400' : 'bg-slate-700 text-slate-300'}`}>
-                          {item.discovery_fit_score}
-                        </span>
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">{item.google_rating ?? '—'}</td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">{item.google_reviews_count ?? '—'}</td>
@@ -676,7 +670,6 @@ export default function DiscoverPage() {
               <thead className="bg-slate-950 sticky top-0">
                 <tr>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Site</th>
-                  <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Fit Score</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Rating</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Reviews</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Type</th>
@@ -693,11 +686,6 @@ export default function DiscoverPage() {
                       <td className="px-3 py-2 align-top">
                         <p className="text-sm text-slate-200 font-medium">{item.name}</p>
                         <p className="text-xs text-slate-500 max-w-[280px]">{item.address || '—'}</p>
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.score >= 75 ? 'bg-emerald-500/15 text-emerald-400' : item.score >= 60 ? 'bg-amber-500/15 text-amber-400' : 'bg-slate-700 text-slate-300'}`}>
-                          {item.score}
-                        </span>
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">{item.rating ?? '—'}</td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">{item.reviews ?? '—'}</td>
@@ -761,7 +749,6 @@ export default function DiscoverPage() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-              <SummaryStat label="AI Fit" value={String(activeCandidate.score)} />
               <SummaryStat label="Google" value={activeCandidate.rating ? `${activeCandidate.rating}★` : '—'} />
               <SummaryStat label="Reviews" value={activeCandidate.reviews ? String(activeCandidate.reviews) : '—'} />
               <SummaryStat label="Type" value={activeCandidate.primaryType || activeCandidate.types[0] || '—'} />
@@ -856,7 +843,6 @@ export default function DiscoverPage() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-              <SummaryStat label="Fit Score" value={String(activeQueueItem.discovery_fit_score)} />
               <SummaryStat label="Google" value={activeQueueItem.google_rating ? `${activeQueueItem.google_rating}★` : '—'} />
               <SummaryStat label="Reviews" value={activeQueueItem.google_reviews_count ? String(activeQueueItem.google_reviews_count) : '—'} />
               <SummaryStat label="Found" value={new Date(activeQueueItem.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} />
