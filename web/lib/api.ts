@@ -771,7 +771,7 @@ export const crmApi = {
   updateSettings: (settings: Record<string, unknown>) => api('/crm/settings', { method: 'PATCH', body: { settings } }),
   getAutomationStatus: () => api<CRMAutomationStatus>('/crm/automation-status'),
   runAutoDiscovery: () => api<{ success: boolean; skipped?: boolean; queued?: number; considered?: number; reason?: string }>('/crm/discovery/auto-find/run', { method: 'POST' }),
-  getDiscoveryReviewQueue: () => api<{ queue: DiscoveryQueueItem[] }>('/crm/discovery/review-queue'),
+  getDiscoveryReviewQueue: () => api<{ queue: DiscoveryQueueItem[] }>(`/crm/discovery/review-queue?_t=${Date.now()}`),
   replaceDiscoveryQueue: (candidates: unknown[]) =>
     api<{ success: boolean; queued: number }>('/crm/discovery/review-queue/replace', { method: 'POST', body: { candidates } }),
   submitDiscoveryQueueReview: (id: number, stars: number, notes?: string) =>
