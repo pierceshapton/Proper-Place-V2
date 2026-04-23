@@ -151,7 +151,8 @@ router.post('/create-intent', async (req, res) => {
     }
 
     // Destination charges: 15% application fee to platform, 85% auto-transferred to host.
-    // Stripe processing fees come from the host's 85% (via on_behalf_of).
+    // Note: on_behalf_of is intentionally omitted — mobile SDKs require the PI to be
+    // looked up on the platform account, which is incompatible with on_behalf_of.
     const applicationFee = Math.round(Math.round(amount) * PLATFORM_FEE_PERCENT);
 
     // Hybrid capture: hold the card (manual) when checkout is within 6 days —
@@ -169,7 +170,6 @@ router.post('/create-intent', async (req, res) => {
       automatic_payment_methods: { enabled: true },
       application_fee_amount: applicationFee,
       transfer_data: { destination: hostAccountId },
-      on_behalf_of: hostAccountId,
       metadata: {
         platform: 'proper_place',
         place_id: String(place_id),
