@@ -778,12 +778,16 @@ export default function DiscoverPage() {
                 <iframe
                   title={`Map of ${activeCandidate.name}`}
                   width="100%"
-                  height="280"
+                  height="300"
                   style={{ border: 0, display: 'block' }}
                   loading="lazy"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"
-                  src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${activeCandidate.latitude},${activeCandidate.longitude}&zoom=17&maptype=satellite`}
+                  src={(() => {
+                    const rawId = activeCandidate.id.startsWith('places/') ? activeCandidate.id.slice(7) : activeCandidate.id;
+                    const q = rawId ? `place_id:${rawId}` : encodeURIComponent(`${activeCandidate.name} ${activeCandidate.address}`);
+                    return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${q}&zoom=16`;
+                  })()}
                 />
               </div>
             )}
@@ -869,12 +873,17 @@ export default function DiscoverPage() {
                 <iframe
                   title={`Map of ${activeQueueItem.business_name}`}
                   width="100%"
-                  height="280"
+                  height="300"
                   style={{ border: 0, display: 'block' }}
                   loading="lazy"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"
-                  src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${Number(activeQueueItem.latitude)},${Number(activeQueueItem.longitude)}&zoom=17&maptype=satellite`}
+                  src={(() => {
+                    const q = activeQueueItem.google_place_id
+                      ? `place_id:${activeQueueItem.google_place_id}`
+                      : encodeURIComponent(`${activeQueueItem.business_name} ${activeQueueItem.location ?? ''}`);
+                    return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${q}&zoom=16`;
+                  })()}
                 />
               </div>
             )}
