@@ -51,9 +51,8 @@ class PaymentService {
       final paymentIntentId = paymentIntentData['paymentIntentId'] as String?;
       final connectedAccountId = paymentIntentData['connectedAccountId'] as String?;
 
-      // For direct charges the connected account ID must be set on the Stripe
-      // singleton before initialising the payment sheet, then cleared afterwards.
-      Stripe.stripeAccountId = connectedAccountId;
+      // Destination charges: PI is on the platform account, so stripeAccountId
+      // must NOT be set on the client (that is only for direct charges).
 
       // Initialize payment sheet
       debugPrint('🟦 PAYMENT: Initializing payment sheet...');
@@ -76,13 +75,9 @@ class PaymentService {
       await Stripe.instance.presentPaymentSheet();
       debugPrint('🟦 PAYMENT: ✅ Payment sheet presented and payment authorised');
 
-      // Reset connected account so subsequent platform-level calls aren't affected
-      Stripe.stripeAccountId = null;
-
       if (paymentIntentId == null) return null;
       return (paymentIntentId: paymentIntentId, connectedAccountId: connectedAccountId);
     } on StripeException catch (e) {
-      Stripe.stripeAccountId = null;
       debugPrint('🔴 PAYMENT STRIPE ERROR: ${e.error.localizedMessage}');
       debugPrint('🔴 PAYMENT STRIPE ERROR Details: $e');
       if (context.mounted) {
@@ -95,7 +90,6 @@ class PaymentService {
       }
       return null;
     } catch (e) {
-      Stripe.stripeAccountId = null;
       debugPrint('🔴 PAYMENT ERROR: $e');
       debugPrint('🔴 PAYMENT ERROR Type: ${e.runtimeType}');
       if (context.mounted) {
