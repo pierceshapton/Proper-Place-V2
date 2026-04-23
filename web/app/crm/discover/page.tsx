@@ -736,7 +736,7 @@ export default function DiscoverPage() {
 
       {activeCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setActiveCandidate(null)}>
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3 overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-slate-100">{activeCandidate.name}</h3>
@@ -779,9 +779,9 @@ export default function DiscoverPage() {
               </div>
             )}
 
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Why it matches</p>
-              <p className="text-xs text-slate-300">{activeCandidate.reasons.join(' · ')}</p>
+            <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg px-3 py-2">
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">AI Summary</p>
+              <p className="text-xs text-slate-300 leading-relaxed">{generateCandidateSummary(activeCandidate)}</p>
             </div>
 
             <div>
@@ -827,7 +827,7 @@ export default function DiscoverPage() {
 
       {activeQueueItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setActiveQueueItem(null)}>
-          <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3 overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -874,12 +874,10 @@ export default function DiscoverPage() {
               </div>
             )}
 
-            {activeQueueItem.admin_notes && (
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Notes</p>
-                <p className="text-xs text-slate-300">{activeQueueItem.admin_notes}</p>
-              </div>
-            )}
+            <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg px-3 py-2">
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">AI Summary</p>
+              <p className="text-xs text-slate-300 leading-relaxed">{generateQueueSummary(activeQueueItem)}</p>
+            </div>
 
             <div>
               <p className="text-xs text-slate-500 mb-1">Your rating</p>
@@ -1163,4 +1161,53 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
       <p className="text-xs text-slate-200 mt-0.5">{value}</p>
     </div>
   );
+}
+
+function generateQueueSummary(item: DiscoveryQueueItem): string {
+  const ratingPart = item.google_rating != null
+    ? ` with a ${item.google_rating}\u2605 Google rating${item.google_reviews_count ? ` from ${item.google_reviews_count.toLocaleString()} reviews` : ''}`
+    : '';
+  const locationPart = item.location ? ` in ${item.location}` : '';
+  const s1 = `${item.business_name} is a venue${locationPart}${ratingPart}.`;
+
+  const parking = item.discovery_parking_confidence ?? 0;
+  const access = item.discovery_access_score ?? 0;
+  const campervan = item.discovery_campervan_priority ?? 0;
+  const signals: string[] = [];
+  if (parking >= 70) signals.push(`strong parking confidence (${parking}%)`);
+  else if (parking >= 40) signals.push(`moderate parking signals (${parking}%)`);
+  if (access >= 70) signals.push(`good accessibility (${access}%)`);
+  if (campervan >= 7) signals.push(`high campervan suitability (${campervan}/10)`);
+  else if (campervan >= 5) signals.push(`moderate campervan suitability (${campervan}/10)`);
+
+  const s2 = signals.length > 0
+    ? `It shows ${signals.join(' and ')}, making it a promising Proper Place candidate.`
+    : 'Signal analysis is mixed \u2014 review the map and Google listing before deciding.';
+
+  return `${s1} ${s2}`;
+}
+
+function generateCandidateSummary(item: ScoredCandidate): string {
+  const typeLabel = (item.primaryType || item.types?.[0] || 'venue').replace(/_/g, ' ');
+  const ratingPart = item.rating != null
+    ? ` rated ${item.rating}\u2605${item.reviews ? ` by ${item.reviews.toLocaleString()} reviewers` : ''}`
+    : '';
+  const addressShort = item.address ? ` in ${item.address.split(',').slice(-3, -1).join(',').trim()}` : '';
+  const s1 = `${item.name} is a ${typeLabel}${addressShort}${ratingPart}.`;
+
+  const parking = item.siteAnalysis?.parkingConfidence ?? 0;
+  const access = item.siteAnalysis?.accessScore ?? 0;
+  const campervan = item.siteAnalysis?.campervanPriority ?? 0;
+  const signals: string[] = [];
+  if (parking >= 70) signals.push(`strong parking (${parking}%)`);
+  else if (parking >= 40) signals.push(`moderate parking signals (${parking}%)`);
+  if (access >= 70) signals.push(`good accessibility (${access}%)`);
+  if (campervan >= 7) signals.push(`high campervan suitability (${campervan}/10)`);
+  else if (campervan >= 5) signals.push(`moderate campervan suitability (${campervan}/10)`);
+
+  const s2 = signals.length > 0
+    ? `Site analysis shows ${signals.join(' and ')}.`
+    : item.reasons?.[0] ?? 'Use the map and Google listing to judge suitability.';
+
+  return `${s1} ${s2}`.trim();
 }
