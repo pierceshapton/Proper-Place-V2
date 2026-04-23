@@ -1671,7 +1671,7 @@ async function submitDiscoveryQueueReview(req, res, next) {
     let leadId = null;
 
     if (numStars >= 4) {
-      const stagesRes = await db.query(`SELECT slug FROM crm_pipeline_stages ORDER BY sort_order ASC LIMIT 1`);
+      const stagesRes = await db.query(`SELECT slug FROM crm_stages ORDER BY sort_order, id ASC LIMIT 1`);
       const firstStageSlug = stagesRes.rows.length > 0 ? stagesRes.rows[0].slug : 'new';
 
       const leadResult = await db.query(
