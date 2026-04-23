@@ -368,7 +368,7 @@ async function getOnboardingStatus(req, res, next) {
 
     // Check if they have any approved sites
     const sitesResult = await db.query(
-      `SELECT id, name, approval_status FROM places WHERE host_id = $1`,
+      `SELECT id, name, approval_status FROM places WHERE owner_id = $1`,
       [userId]
     );
     const sites = sitesResult.rows;
