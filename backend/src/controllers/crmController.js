@@ -1643,6 +1643,7 @@ async function getDiscoveryReviewQueue(req, res, next) {
     const result = await db.query(
       `SELECT * FROM discovery_review_queue WHERE status = 'pending' ORDER BY discovery_fit_score DESC, created_at DESC LIMIT 100`
     );
+    res.set('Cache-Control', 'no-store');
     res.json({ queue: result.rows });
   } catch (error) {
     logger.error('getDiscoveryReviewQueue error', { error: error.message });
