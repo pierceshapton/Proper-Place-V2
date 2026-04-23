@@ -10,9 +10,6 @@ const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || process.e
 
 export default function DiscoverPage() {
   const [leads, setLeads] = useState<CRMLead[]>([]);
-  const [exampleIds, setExampleIds] = useState<Set<number>>(new Set());
-  const [exampleSearch, setExampleSearch] = useState('');
-  const [initializedExamples, setInitializedExamples] = useState(false);
 
   const [regionQuery, setRegionQuery] = useState('');
   const [keywordInput, setKeywordInput] = useState('');
@@ -48,15 +45,10 @@ export default function DiscoverPage() {
     try {
       const response = await crmApi.getLeads({ limit: '500' });
       setLeads(response.leads);
-      if (!initializedExamples) {
-        const defaults = getDefaultExampleIds(response.leads);
-        setExampleIds(new Set(defaults));
-        setInitializedExamples(true);
-      }
     } catch {
       setSearchError('Unable to load CRM leads.');
     }
-  }, [initializedExamples]);
+  }, []);
 
   useEffect(() => {
     loadLeads();
@@ -67,18 +59,7 @@ export default function DiscoverPage() {
     loadReviewQueue();
   }, []);
 
-  const filteredLeadChoices = useMemo(() => {
-    const q = exampleSearch.trim().toLowerCase();
-    if (!q) return leads;
-    return leads.filter(lead => {
-      const name = lead.business_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim();
-      return [name, lead.location, lead.property_type, lead.source]
-        .some(value => (value || '').toLowerCase().includes(q));
-    });
-  }, [leads, exampleSearch]);
-
-  const exampleLeads = useMemo(() => leads.filter(lead => exampleIds.has(lead.id)), [leads, exampleIds]);
-  const profile = useMemo(() => buildDiscoveryProfile(exampleLeads), [exampleLeads]);
+  const profile = useMemo(() => buildDiscoveryProfile(leads), [leads]);
   const learningMetrics = useMemo(() => computeLearningMetrics(feedbackHistory), [feedbackHistory]);
   const autoModeReady = learningMetrics.samples >= 15 && learningMetrics.accuracy >= threshold;
 
@@ -156,40 +137,12 @@ export default function DiscoverPage() {
     }
   }
 
-  function toggleExample(leadId: number) {
-    setExampleIds(prev => {
-      const next = new Set(prev);
-      if (next.has(leadId)) next.delete(leadId);
-      else next.add(leadId);
-      return next;
-    });
-  }
-
-  function applyConvertedExamples() {
-    const converted = leads.filter(lead => lead.pipeline_stage === 'converted').slice(0, 35).map(lead => lead.id);
-    if (converted.length > 0) setExampleIds(new Set(converted));
-  }
-
-  function applyTopRatedExamples() {
-    const topRated = [...leads]
-      .filter(lead => typeof lead.google_rating === 'number')
-      .sort((a, b) => (b.google_rating || 0) - (a.google_rating || 0))
-      .slice(0, 35)
-      .map(lead => lead.id);
-    if (topRated.length > 0) setExampleIds(new Set(topRated));
-  }
-
   async function runDiscovery() {
     setSearchError('');
     setImportMessage('');
 
     if (!GOOGLE_MAPS_API_KEY) {
       setSearchError('Missing Google Maps API key in website environment.');
-      return;
-    }
-
-    if (exampleLeads.length === 0) {
-      setSearchError('Select at least one CRM lead as an example profile.');
       return;
     }
 
@@ -461,7 +414,7 @@ export default function DiscoverPage() {
     <div className="space-y-5 max-w-7xl">
       <div>
         <h1 className="text-xl font-bold text-slate-100">Discover Leads</h1>
-        <p className="text-sm text-slate-500 mt-1">Example-driven location identification from your CRM selections</p>
+        <p className="text-sm text-slate-500 mt-1">Location identification scored against your pipeline</p>
       </div>
 
       <section className="grid md:grid-cols-4 gap-3">
@@ -586,47 +539,7 @@ export default function DiscoverPage() {
         </section>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-4">
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-200">Example Profile Leads</h2>
-            <span className="text-xs text-emerald-400">{exampleLeads.length} selected</span>
-          </div>
-
-          <div className="flex gap-2">
-            <button onClick={applyConvertedExamples} className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100">Use 35 Converted</button>
-            <button onClick={applyTopRatedExamples} className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100">Use Top Rated 35</button>
-          </div>
-
-          <input
-            value={exampleSearch}
-            onChange={e => setExampleSearch(e.target.value)}
-            placeholder="Filter leads by name, location, type..."
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-          />
-
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-800 divide-y divide-slate-800">
-            {filteredLeadChoices.map(lead => {
-              const name = lead.business_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unnamed';
-              const checked = exampleIds.has(lead.id);
-              return (
-                <label key={lead.id} className="flex items-start gap-2.5 px-3 py-2 cursor-pointer hover:bg-slate-800/40">
-                  <input type="checkbox" checked={checked} onChange={() => toggleExample(lead.id)} className="accent-emerald-500 mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-sm text-slate-200 truncate">{name}</p>
-                    <p className="text-[11px] text-slate-500 truncate">{lead.location || '—'} · {lead.property_type || '—'} · {lead.pipeline_stage}</p>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-500">
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg px-2.5 py-2">Avg rating target: <span className="text-slate-300">{profile.averageRating.toFixed(2)}</span></div>
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg px-2.5 py-2">Avg reviews target: <span className="text-slate-300">{Math.round(profile.averageReviews)}</span></div>
-          </div>
-        </section>
-
+      <div className="grid gap-4">
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
           <h2 className="text-sm font-semibold text-slate-200">Search Region</h2>
 
@@ -658,7 +571,7 @@ export default function DiscoverPage() {
             {isSearching ? 'Finding and scoring locations…' : 'Identify Similar Sites'}
           </button>
 
-          <p className="text-xs text-slate-500">This scores candidates against your selected CRM examples. Nothing is auto-added; review each site first.</p>
+          <p className="text-xs text-slate-500">Candidates are scored against your existing pipeline leads ({leads.length} loaded). Nothing is auto-added; review each site first.</p>
         </section>
       </div>
 
@@ -941,19 +854,6 @@ export default function DiscoverPage() {
       )}
     </div>
   );
-}
-
-function getDefaultExampleIds(leads: CRMLead[]): number[] {
-  const tagged = leads.filter(lead => (lead.tags || []).some(tag => ['example', 'ideal', 'model'].includes((tag || '').toLowerCase())));
-  if (tagged.length > 0) return tagged.slice(0, 35).map(lead => lead.id);
-
-  const converted = leads.filter(lead => lead.pipeline_stage === 'converted');
-  if (converted.length > 0) return converted.slice(0, 35).map(lead => lead.id);
-
-  return [...leads]
-    .sort((a, b) => (b.google_rating || 0) - (a.google_rating || 0))
-    .slice(0, 35)
-    .map(lead => lead.id);
 }
 
 async function searchGooglePlacesBatch(keywords: string[], region: string, apiKey: string): Promise<CandidatePlace[]> {
