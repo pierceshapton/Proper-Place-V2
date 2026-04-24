@@ -1661,9 +1661,13 @@ async function replaceDiscoveryQueue(req, res, next) {
     // Delete only pending items — leave approved/rejected (pipeline & memory) intact
     await db.query(`DELETE FROM discovery_review_queue WHERE status = 'pending'`);
 
+    const existingRes = await db.query(`SELECT google_place_id FROM host_leads WHERE google_place_id IS NOT NULL`);
+    const existingPlaceIds = new Set(existingRes.rows.map(row => normalizePlaceId(row.google_place_id)).filter(Boolean));
+
     let queued = 0;
     for (const item of candidates.slice(0, 100)) {
-      const placeId = item.google_place_id || item.id || null;
+      const placeId = normalizePlaceId(item.google_place_id || item.id || null);
+      if (placeId && existingPlaceIds.has(placeId)) continue;
 
       await db.query(
         `INSERT INTO discovery_review_queue (
@@ -1698,6 +1702,13 @@ async function replaceDiscoveryQueue(req, res, next) {
     logger.error('replaceDiscoveryQueue error', { error: error.message });
     next(error);
   }
+}
+
+function normalizePlaceId(value) {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  return trimmed.startsWith('places/') ? trimmed.slice(7) : trimmed;
 }
 
 async function submitDiscoveryQueueReview(req, res, next) {

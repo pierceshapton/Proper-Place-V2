@@ -51,6 +51,10 @@ export default function DiscoverPage() {
   }, []);
 
   const profile = useMemo(() => buildDiscoveryProfile(leads), [leads]);
+  const existingPlaceIds = useMemo(
+    () => new Set(leads.map(lead => normalizePlaceId(lead.google_place_id)).filter((value): value is string => !!value)),
+    [leads]
+  );
   const learningMetrics = useMemo(() => computeLearningMetrics(feedbackHistory), [feedbackHistory]);
   const autoModeReady = learningMetrics.samples >= 15 && learningMetrics.accuracy >= threshold;
 
@@ -133,7 +137,12 @@ export default function DiscoverPage() {
         })
         .sort((a, b) => b.score - a.score);
 
-      const filtered = scored.filter(item => !isRejected(item, rejectedSites));
+      const filtered = scored.filter(item => {
+        if (isRejected(item, rejectedSites)) return false;
+
+        const placeId = normalizePlaceId(item.id);
+        return placeId ? !existingPlaceIds.has(placeId) : true;
+      });
 
       setResults(filtered);
 
@@ -213,7 +222,7 @@ export default function DiscoverPage() {
 
       setResults(rescored);
       const analyzedCount = analysisRows.filter(row => !!row.analysis).length;
-      setSettingsMessage(`Analyzed ${analyzedCount} sites with website/parking/access signals.`);
+      setSettingsMessage(`Analyzed ${analyzedCount} sites with website, parking, and access details.`);
     } catch {
       setSettingsMessage('Site analysis failed.');
     } finally {
@@ -332,7 +341,7 @@ export default function DiscoverPage() {
     <div className="space-y-5 max-w-7xl">
       <div>
         <h1 className="text-xl font-bold text-slate-100">Discover Leads</h1>
-        <p className="text-sm text-slate-500 mt-1">Location identification scored against your pipeline</p>
+        <p className="text-sm text-slate-500 mt-1">Location identification matched against your pipeline</p>
       </div>
 
       <section className="grid md:grid-cols-4 gap-3">
@@ -342,14 +351,14 @@ export default function DiscoverPage() {
           <p className="text-[11px] text-slate-500 mt-1">Target: {threshold}%</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-          <p className="text-[11px] text-slate-500 uppercase tracking-wide">Scored Sites</p>
+          <p className="text-[11px] text-slate-500 uppercase tracking-wide">Learning Samples</p>
           <p className="text-xl font-bold text-slate-100 mt-1">{learningMetrics.samples}</p>
           <p className="text-[11px] text-slate-500 mt-1">Min 15 required</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
           <p className="text-[11px] text-slate-500 uppercase tracking-wide">Agreement (±10)</p>
           <p className="text-xl font-bold text-slate-100 mt-1">{learningMetrics.agreementRate}%</p>
-          <p className="text-[11px] text-slate-500 mt-1">AI vs your scores</p>
+          <p className="text-[11px] text-slate-500 mt-1">AI vs your ratings</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
           <p className="text-[11px] text-slate-500 uppercase tracking-wide">Auto Email Gate</p>
@@ -368,13 +377,6 @@ export default function DiscoverPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={analyzeSignalsForSelected}
-            disabled={isAnalyzingSites || results.length === 0}
-            className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
-          >
-            {isAnalyzingSites ? 'Analyzing…' : 'Analyze Parking + Access'}
-          </button>
           <button
             onClick={() => toggleAutoEmail(!autoEmailEnabled)}
             disabled={settingsBusy}
@@ -414,10 +416,10 @@ export default function DiscoverPage() {
             disabled={isSearching}
             className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg"
           >
-            {isSearching ? 'Finding and scoring locations…' : 'Identify Similar Sites'}
+            {isSearching ? 'Finding matching locations…' : 'Identify Similar Sites'}
           </button>
 
-          <p className="text-xs text-slate-500">Candidates are scored against your existing pipeline leads ({leads.length} loaded). Nothing is auto-added; review each site first.</p>
+          <p className="text-xs text-slate-500">Candidates are matched against your existing pipeline leads ({leads.length} loaded). Nothing is auto-added; review each site first.</p>
         </section>
       </div>
 
@@ -428,7 +430,7 @@ export default function DiscoverPage() {
       {results.length > 0 && (
         <section className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-200">Scored Candidate Locations</h2>
+            <h2 className="text-sm font-semibold text-slate-200">Candidate Locations</h2>
             <span className="text-xs text-slate-500">{results.length} pending review</span>
           </div>
 
@@ -441,7 +443,6 @@ export default function DiscoverPage() {
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Reviews</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Type</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Satellite</th>
-                  <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Signals</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Why It Matches</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Review</th>
                 </tr>
@@ -469,13 +470,6 @@ export default function DiscoverPage() {
                         ) : (
                           <span className="text-[11px] text-slate-500">No coords</span>
                         )}
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <div className="space-y-1 min-w-[170px]">
-                          <SignalPill label="Parking" value={item.siteAnalysis?.parkingConfidence ?? 0} color="emerald" />
-                          <SignalPill label="Access" value={item.siteAnalysis?.accessScore ?? 0} color="sky" />
-                          <SignalPill label="Campervan" value={item.siteAnalysis?.campervanPriority ?? 0} color="amber" />
-                        </div>
                       </td>
                       <td className="px-3 py-2 align-top">
                         <p className="text-[11px] text-slate-400 max-w-[340px]">{item.reasons.join(' · ')}</p>
@@ -519,12 +513,6 @@ export default function DiscoverPage() {
               <SummaryStat label="Google" value={activeCandidate.rating ? `${activeCandidate.rating}★` : '—'} />
               <SummaryStat label="Reviews" value={activeCandidate.reviews ? String(activeCandidate.reviews) : '—'} />
               <SummaryStat label="Type" value={activeCandidate.primaryType || activeCandidate.types[0] || '—'} />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <SignalPill label="Parking" value={activeCandidate.siteAnalysis?.parkingConfidence ?? 0} color="emerald" />
-              <SignalPill label="Access" value={activeCandidate.siteAnalysis?.accessScore ?? 0} color="sky" />
-              <SignalPill label="Campervan" value={activeCandidate.siteAnalysis?.campervanPriority ?? 0} color="amber" />
             </div>
 
             {activeCandidate.latitude !== null && activeCandidate.longitude !== null && GOOGLE_MAPS_API_KEY && (
@@ -786,6 +774,13 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+function normalizePlaceId(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  return trimmed.startsWith('places/') ? trimmed.slice(7) : trimmed;
+}
+
 function getSatellitePreviewUrl(lat: number, lng: number, apiKey: string, size = '280x180'): string {
   const center = `${lat},${lng}`;
   const params = new URLSearchParams({
@@ -797,21 +792,6 @@ function getSatellitePreviewUrl(lat: number, lng: number, apiKey: string, size =
   });
   params.append('markers', `color:red|${lat},${lng}`);
   return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
-}
-
-function SignalPill({ label, value, color }: { label: string; value: number; color: 'emerald' | 'sky' | 'amber' }) {
-  const tone = value >= 70
-    ? color === 'emerald' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : color === 'sky' ? 'bg-sky-500/15 text-sky-300 border-sky-500/30' : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-    : value >= 40
-      ? 'bg-slate-700/60 text-slate-200 border-slate-600'
-      : 'bg-slate-800 text-slate-400 border-slate-700';
-
-  return (
-    <div className={`text-[10px] px-2 py-1 rounded-md border ${tone} flex items-center justify-between`}>
-      <span>{label}</span>
-      <span className="font-semibold">{Math.round(value)}</span>
-    </div>
-  );
 }
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
@@ -831,19 +811,14 @@ function generateCandidateSummary(item: ScoredCandidate): string {
   const addressShort = item.address ? ` in ${item.address.split(',').slice(-3, -1).join(',').trim()}` : '';
   const s1 = `${item.name} is a ${typeLabel}${addressShort}${ratingPart}.`;
 
-  const parking = item.siteAnalysis?.parkingConfidence ?? 0;
-  const access = item.siteAnalysis?.accessScore ?? 0;
-  const campervan = item.siteAnalysis?.campervanPriority ?? 0;
-  const signals: string[] = [];
-  if (parking >= 70) signals.push(`strong parking (${parking}%)`);
-  else if (parking >= 40) signals.push(`moderate parking signals (${parking}%)`);
-  if (access >= 70) signals.push(`good accessibility (${access}%)`);
-  if (campervan >= 7) signals.push(`high campervan suitability (${campervan}/10)`);
-  else if (campervan >= 5) signals.push(`moderate campervan suitability (${campervan}/10)`);
+  const highlights = (item.reasons || [])
+    .filter(reason => !/calibrated using/i.test(reason))
+    .slice(0, 2)
+    .join(' and ');
 
-  const s2 = signals.length > 0
-    ? `Site analysis shows ${signals.join(' and ')}.`
-    : item.reasons?.[0] ?? 'Use the map and Google listing to judge suitability.';
+  const s2 = highlights
+    ? `It matches your search because ${highlights.toLowerCase()}.`
+    : 'It appears to match your search area and venue preferences.';
 
   return `${s1} ${s2}`.trim();
 }
