@@ -1006,12 +1006,7 @@ async function start() {
     setTimeout(() => crmController.processDiscoveryAutoEmails(), 45000);
     console.log('[SERVER] Discovery auto-email scheduler started (every 20 min, gated)');
 
-    // Discovery auto-find scheduler (runs every 30 minutes, no email sending)
-    setInterval(() => {
-      crmController.processDiscoveryAutoFind();
-    }, 30 * 60 * 1000);
-    setTimeout(() => crmController.processDiscoveryAutoFind(), 60000);
-    console.log('[SERVER] Discovery auto-find scheduler started (every 30 min, email-free)');
+    console.log('[SERVER] Discovery auto-find scheduler disabled');
 
     // Start expired authorization checker (runs every hour)
     const bookingCtrl = require('./controllers/bookingController');

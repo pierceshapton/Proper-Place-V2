@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { crmApi, type CRMAutomationStatus, type CRMLead, type DiscoveryQueueItem } from '@/lib/api';
+import { crmApi, type CRMAutomationStatus, type CRMLead } from '@/lib/api';
 import { buildDiscoveryProfile, scoreCandidate, type CandidatePlace, type ScoredCandidate } from '@/lib/discoveryScoring';
 import { applyScoreCalibration, computeLearningMetrics, type DiscoveryFeedbackItem } from '@/lib/discoveryLearning';
 import type { SiteAnalysisResult } from '@/lib/discoverySiteAnalysis';
@@ -25,20 +25,12 @@ export default function DiscoverPage() {
   const [rejectedSites, setRejectedSites] = useState<RejectedSite[]>([]);
   const [firstStage, setFirstStage] = useState<{ slug: string; name: string }>({ slug: 'reviewed', name: 'Reviewed' });
 
-  const [reviewQueue, setReviewQueue] = useState<DiscoveryQueueItem[]>([]);
-  const [queueLoading, setQueueLoading] = useState(false);
-  const [activeQueueItem, setActiveQueueItem] = useState<DiscoveryQueueItem | null>(null);
-  const [queueReviewStars, setQueueReviewStars] = useState(0);
-  const [queueReviewNote, setQueueReviewNote] = useState('');
-  const [submittingQueueReview, setSubmittingQueueReview] = useState(false);
-
   const [threshold, setThreshold] = useState(85);
   const [feedbackHistory, setFeedbackHistory] = useState<DiscoveryFeedbackItem[]>([]);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState('');
   const [isAnalyzingSites, setIsAnalyzingSites] = useState(false);
   const [autoEmailEnabled, setAutoEmailEnabled] = useState(false);
-  const [autoFindEnabled, setAutoFindEnabled] = useState(false);
   const [automationStatus, setAutomationStatus] = useState<CRMAutomationStatus | null>(null);
 
   const loadLeads = useCallback(async () => {
@@ -56,7 +48,6 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     loadLearningSettings();
-    loadReviewQueue();
   }, []);
 
   const profile = useMemo(() => buildDiscoveryProfile(leads), [leads]);
@@ -85,7 +76,6 @@ export default function DiscoverPage() {
       setRejectedSites(parsedRejected);
 
       setAutoEmailEnabled(settingsMap.discovery_auto_email_enabled === 'true');
-      setAutoFindEnabled(settingsMap.discovery_auto_find_enabled === 'true');
 
       try {
         const stageRes = await crmApi.getStages();
@@ -99,41 +89,6 @@ export default function DiscoverPage() {
       setAutomationStatus(automation);
     } catch {
       setSettingsMessage('Could not load learning settings. Using defaults.');
-    }
-  }
-
-  async function loadReviewQueue() {
-    setQueueLoading(true);
-    try {
-      const response = await crmApi.getDiscoveryReviewQueue();
-      setReviewQueue(response.queue);
-    } catch {
-      // non-fatal — queue section just stays empty
-    } finally {
-      setQueueLoading(false);
-    }
-  }
-
-  async function submitQueueItemReview() {
-    if (!activeQueueItem || queueReviewStars < 1 || queueReviewStars > 5) return;
-    setSubmittingQueueReview(true);
-    setImportMessage('');
-    try {
-      await crmApi.submitDiscoveryQueueReview(activeQueueItem.id, queueReviewStars, queueReviewNote.trim() || undefined);
-      setReviewQueue(current => current.filter(item => item.id !== activeQueueItem.id));
-      setImportMessage(
-        queueReviewStars >= 4
-          ? `${activeQueueItem.business_name} added to ${firstStage.name} from review queue.`
-          : `${activeQueueItem.business_name} rejected (${queueReviewStars}★) and remembered for future finds.`
-      );
-      setActiveQueueItem(null);
-      setQueueReviewStars(0);
-      setQueueReviewNote('');
-      if (queueReviewStars >= 4) loadLeads();
-    } catch {
-      setImportMessage('Could not save queue review. Please try again.');
-    } finally {
-      setSubmittingQueueReview(false);
     }
   }
 
@@ -185,7 +140,6 @@ export default function DiscoverPage() {
       // Overwrite the pending review queue with the new search results
       try {
         await crmApi.replaceDiscoveryQueue(filtered);
-        loadReviewQueue();
       } catch {
         // non-fatal — queue refresh failure doesn't block the UI results
       }
@@ -292,40 +246,6 @@ export default function DiscoverPage() {
     }
   }
 
-  async function toggleAutoFind(enable: boolean) {
-    setSettingsBusy(true);
-    setSettingsMessage('');
-    try {
-      await crmApi.updateSettings({
-        discovery_auto_find_enabled: enable ? 'true' : 'false',
-      });
-      setAutoFindEnabled(enable);
-      setSettingsMessage(enable ? 'Auto-find enabled (email remains disabled).' : 'Auto-find disabled.');
-    } catch {
-      setSettingsMessage('Could not update auto-find setting.');
-    } finally {
-      setSettingsBusy(false);
-    }
-  }
-
-  async function runAutoFindNow() {
-    setSettingsBusy(true);
-    setSettingsMessage('');
-    try {
-      const result = await crmApi.runAutoDiscovery();
-      if (result.skipped) {
-        setSettingsMessage(`Auto-find skipped: ${result.reason || 'not ready'}.`);
-      } else {
-        setSettingsMessage(`Auto-find completed. ${result.queued || 0} site(s) added to review queue (${result.considered || 0} candidates scored).`);
-        loadReviewQueue();
-      }
-    } catch {
-      setSettingsMessage('Auto-find run failed.');
-    } finally {
-      setSettingsBusy(false);
-    }
-  }
-
   async function submitCandidateReview() {
     if (!activeCandidate || reviewStars < 1 || reviewStars > 5) return;
 
@@ -394,11 +314,9 @@ export default function DiscoverPage() {
       setFeedbackHistory(nextFeedback);
       setRejectedSites(nextRejected);
       setResults(current => current.filter(item => item.id !== activeCandidate.id));
-      setImportMessage(
-        reviewStars >= 4
-          ? `${activeCandidate.name} added to ${firstStage.name} and learning saved.`
-          : `${activeCandidate.name} rejected (${reviewStars}★), removed, and remembered for future searches.`
-      );
+      if (reviewStars >= 4) {
+        setImportMessage(`${activeCandidate.name} added to ${firstStage.name} and learning saved.`);
+      }
       setActiveCandidate(null);
       setReviewStars(0);
       setReviewNote('');
@@ -442,28 +360,14 @@ export default function DiscoverPage() {
 
       <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-2 justify-between">
         <div>
-          <p className="text-sm text-slate-200 font-semibold">Automation Controls</p>
-          <p className="text-xs text-slate-500 mt-0.5">Run autonomous site finding and keep email separate.</p>
-          <p className="text-xs text-slate-400 mt-1">Auto-find: <span className={autoFindEnabled ? 'text-emerald-400' : 'text-slate-400'}>{autoFindEnabled ? 'ON' : 'OFF'}</span> · Auto-email: <span className={autoEmailEnabled ? 'text-amber-400' : 'text-slate-400'}>{autoEmailEnabled ? 'ON' : 'OFF'}</span></p>
+          <p className="text-sm text-slate-200 font-semibold">Email Automation</p>
+          <p className="text-xs text-slate-500 mt-0.5">Keep outreach gated until the model is accurate enough.</p>
+          <p className="text-xs text-slate-400 mt-1">Auto-email: <span className={autoEmailEnabled ? 'text-amber-400' : 'text-slate-400'}>{autoEmailEnabled ? 'ON' : 'OFF'}</span></p>
           {automationStatus && !automationStatus.server_kill_switch_enabled && (
             <p className="text-xs text-amber-300 mt-1">Automation deactivated by server kill-switch. This is safe mode until explicitly activated in backend env.</p>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => toggleAutoFind(!autoFindEnabled)}
-            disabled={settingsBusy}
-            className={`${autoFindEnabled ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-slate-700 hover:bg-slate-600'} disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg`}
-          >
-            {autoFindEnabled ? 'Disable Auto Find' : 'Enable Auto Find'}
-          </button>
-          <button
-            onClick={runAutoFindNow}
-            disabled={settingsBusy}
-            className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
-          >
-            Run Auto-Find Now
-          </button>
           <button
             onClick={analyzeSignalsForSelected}
             disabled={isAnalyzingSites || results.length === 0}
@@ -480,64 +384,6 @@ export default function DiscoverPage() {
           </button>
         </div>
       </section>
-
-      {(reviewQueue.length > 0 || queueLoading) && (
-        <section className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-200">Auto-Find Review Queue</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Sites found by the background scheduler — rate each before it enters the pipeline.</p>
-            </div>
-            <span className="text-xs text-amber-400 font-semibold">{queueLoading ? 'Loading…' : `${reviewQueue.length} pending`}</span>
-          </div>
-
-          {!queueLoading && reviewQueue.length > 0 && (
-            <div className="max-h-[360px] overflow-y-auto">
-              <table className="w-full min-w-[700px]">
-                <thead className="bg-slate-950 sticky top-0">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Site</th>
-                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Rating</th>
-                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Reviews</th>
-                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Signals</th>
-                    <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Review</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/70">
-                  {reviewQueue.map(item => (
-                    <tr key={item.id} onClick={() => { setActiveQueueItem(item); setQueueReviewStars(0); }} className="cursor-pointer hover:bg-slate-800/40">
-                      <td className="px-3 py-2 align-top">
-                        <p className="text-sm text-slate-200 font-medium">{item.business_name}</p>
-                        <p className="text-xs text-slate-500">{item.location || '—'}</p>
-                        {item.website && (
-                          <a href={item.website} target="_blank" rel="noreferrer" className="text-[11px] text-emerald-400 hover:underline">{item.website}</a>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.google_rating ?? '—'}</td>
-                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.google_reviews_count ?? '—'}</td>
-                      <td className="px-3 py-2 align-top">
-                        <div className="space-y-1 min-w-[150px]">
-                          <SignalPill label="Parking" value={item.discovery_parking_confidence} color="emerald" />
-                          <SignalPill label="Access" value={item.discovery_access_score} color="sky" />
-                          <SignalPill label="Campervan" value={item.discovery_campervan_priority} color="amber" />
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <button
-                          onClick={e => { e.stopPropagation(); setActiveQueueItem(item); setQueueReviewStars(0); }}
-                          className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs px-3 py-1.5 rounded-lg border border-amber-500/30"
-                        >
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
 
       <div className="grid gap-4">
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
@@ -746,100 +592,6 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {activeQueueItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setActiveQueueItem(null)}>
-          <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3 overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase tracking-wide">Auto-Found</span>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-100 mt-1">{activeQueueItem.business_name}</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{activeQueueItem.location || 'No address'}</p>
-                {activeQueueItem.website && (
-                  <a href={activeQueueItem.website} target="_blank" rel="noreferrer" className="text-xs text-emerald-400 hover:underline mt-1 inline-block">{activeQueueItem.website}</a>
-                )}
-              </div>
-              <button onClick={() => setActiveQueueItem(null)} className="text-slate-500 hover:text-slate-300">✕</button>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-              <SummaryStat label="Google" value={activeQueueItem.google_rating ? `${activeQueueItem.google_rating}★` : '—'} />
-              <SummaryStat label="Reviews" value={activeQueueItem.google_reviews_count ? String(activeQueueItem.google_reviews_count) : '—'} />
-              <SummaryStat label="Found" value={new Date(activeQueueItem.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <SignalPill label="Parking" value={activeQueueItem.discovery_parking_confidence} color="emerald" />
-              <SignalPill label="Access" value={activeQueueItem.discovery_access_score} color="sky" />
-              <SignalPill label="Campervan" value={activeQueueItem.discovery_campervan_priority} color="amber" />
-            </div>
-
-            {activeQueueItem.latitude !== null && activeQueueItem.longitude !== null && GOOGLE_MAPS_API_KEY && (
-              <div className="rounded-lg overflow-hidden border border-slate-700">
-                <iframe
-                  title={`Map of ${activeQueueItem.business_name}`}
-                  width="100%"
-                  height="300"
-                  style={{ border: 0, display: 'block' }}
-                  loading="lazy"
-                  allowFullScreen
-                  referrerPolicy="no-referrer-when-downgrade"
-                  src={(() => {
-                    const q = activeQueueItem.google_place_id
-                      ? `place_id:${activeQueueItem.google_place_id}`
-                      : encodeURIComponent(`${activeQueueItem.business_name} ${activeQueueItem.location ?? ''}`);
-                    return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${q}&zoom=16`;
-                  })()}
-                />
-              </div>
-            )}
-
-            <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg px-3 py-2">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">AI Summary</p>
-              <p className="text-xs text-slate-300 leading-relaxed">{generateQueueSummary(activeQueueItem)}</p>
-            </div>
-
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Your rating</p>
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <button
-                    key={star}
-                    onClick={() => setQueueReviewStars(star)}
-                    className={`text-xl leading-none ${queueReviewStars >= star ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'}`}
-                  >
-                    ★
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">4-5 stars adds to {firstStage.name}. 1-3 stars removes and remembers this site.</p>
-            </div>
-
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Notes for AI (optional)</p>
-              <textarea
-                value={queueReviewNote}
-                onChange={e => setQueueReviewNote(e.target.value)}
-                rows={2}
-                placeholder="e.g. Visited once, great access road, owner was friendly…"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 resize-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={submitQueueItemReview}
-                disabled={submittingQueueReview || queueReviewStars === 0}
-                className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
-              >
-                {submittingQueueReview ? 'Submitting…' : 'Submit Review'}
-              </button>
-              <button onClick={() => setActiveQueueItem(null)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {importMessage && (
         <div className={`text-sm px-3 py-2 rounded-lg border ${importMessage.includes('added to') ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : importMessage.includes('rejected') ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
@@ -1069,30 +821,6 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
       <p className="text-xs text-slate-200 mt-0.5">{value}</p>
     </div>
   );
-}
-
-function generateQueueSummary(item: DiscoveryQueueItem): string {
-  const ratingPart = item.google_rating != null
-    ? ` with a ${item.google_rating}\u2605 Google rating${item.google_reviews_count ? ` from ${item.google_reviews_count.toLocaleString()} reviews` : ''}`
-    : '';
-  const locationPart = item.location ? ` in ${item.location}` : '';
-  const s1 = `${item.business_name} is a venue${locationPart}${ratingPart}.`;
-
-  const parking = item.discovery_parking_confidence ?? 0;
-  const access = item.discovery_access_score ?? 0;
-  const campervan = item.discovery_campervan_priority ?? 0;
-  const signals: string[] = [];
-  if (parking >= 70) signals.push(`strong parking confidence (${parking}%)`);
-  else if (parking >= 40) signals.push(`moderate parking signals (${parking}%)`);
-  if (access >= 70) signals.push(`good accessibility (${access}%)`);
-  if (campervan >= 7) signals.push(`high campervan suitability (${campervan}/10)`);
-  else if (campervan >= 5) signals.push(`moderate campervan suitability (${campervan}/10)`);
-
-  const s2 = signals.length > 0
-    ? `It shows ${signals.join(' and ')}, making it a promising Proper Place candidate.`
-    : 'Signal analysis is mixed \u2014 review the map and Google listing before deciding.';
-
-  return `${s1} ${s2}`;
 }
 
 function generateCandidateSummary(item: ScoredCandidate): string {
