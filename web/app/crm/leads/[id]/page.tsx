@@ -50,6 +50,10 @@ export default function LeadDetailPage() {
   const [showSendEmail, setShowSendEmail] = useState(false);
   const [emailForm, setEmailForm] = useState({ subject: '', body: '', template_id: '' });
 
+  // Log inbound reply form
+  const [showLogReply, setShowLogReply] = useState(false);
+  const [replyForm, setReplyForm] = useState({ subject: '', body: '', from_name: '', received_at: new Date().toISOString().slice(0, 16) });
+
   // Site visit form
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitForm, setVisitForm] = useState({
@@ -146,6 +150,19 @@ export default function LeadDetailPage() {
     loadAll();
   }
 
+  async function handleLogReply(e: React.FormEvent) {
+    e.preventDefault();
+    await crmApi.logInboundEmail(leadId, {
+      subject: replyForm.subject || undefined,
+      body: replyForm.body,
+      from_name: replyForm.from_name || undefined,
+      received_at: replyForm.received_at ? new Date(replyForm.received_at).toISOString() : undefined,
+    });
+    setShowLogReply(false);
+    setReplyForm({ subject: '', body: '', from_name: '', received_at: new Date().toISOString().slice(0, 16) });
+    loadAll();
+  }
+
   function handleTemplateSelect(templateId: string) {
     if (!lead) return;
     const template = templates.find(item => String(item.id) === templateId);
@@ -225,7 +242,7 @@ export default function LeadDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={() => setShowSendEmail(true)} className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+            <button onClick={() => { setActiveTab('emails'); setShowSendEmail(true); }} className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
               ✉ Email
             </button>
             <button onClick={() => setShowVisitForm(true)} className="bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 text-violet-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
@@ -302,49 +319,6 @@ export default function LeadDetailPage() {
             <button onClick={() => setEditing(false)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-4 py-2 rounded-lg">Cancel</button>
           </div>
         </div>
-      )}
-
-      {/* Send Email Form */}
-      {showSendEmail && (
-        <form onSubmit={handleSendEmail} className="bg-slate-900 border border-blue-500/30 rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-blue-400">Send Email to {lead.email}</h3>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Template</label>
-            <select
-              value={emailForm.template_id}
-              onChange={e => handleTemplateSelect(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
-            >
-              <option value="">No template</option>
-              {templates.map(template => (
-                <option key={template.id} value={template.id}>{template.name}</option>
-              ))}
-            </select>
-          </div>
-          <CRMInput label="Subject" value={emailForm.subject} onChange={v => setEmailForm(f => ({ ...f, subject: v }))} placeholder="Quick intro from Proper Place" />
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Body (HTML supported, use {'{{business_name}}'} etc. for merge fields)</label>
-            <textarea
-              value={emailForm.body}
-              onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
-              rows={6}
-              placeholder="Hi {{first_name}},&#10;&#10;I noticed {{business_name}} has a great location for motorhome guests..."
-            />
-          </div>
-          <button type="button" onClick={handlePrewriteDraft} className="text-xs text-emerald-400 hover:text-emerald-300">
-            Pre-write personal draft
-          </button>
-          <div className="flex flex-wrap gap-1.5 text-[10px] text-slate-500">
-            {['{{first_name}}', '{{last_name}}', '{{business_name}}', '{{location}}', '{{property_type}}', '{{source}}'].map(token => (
-              <span key={token} className="px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-400">{token}</span>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg">Send Email</button>
-            <button type="button" onClick={() => setShowSendEmail(false)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-4 py-2 rounded-lg">Cancel</button>
-          </div>
-        </form>
       )}
 
       {/* Site Visit Form */}
@@ -504,23 +478,122 @@ export default function LeadDetailPage() {
 
         {/* Emails Tab */}
         {activeTab === 'emails' && (
-          <div className="space-y-3">
-            <button onClick={() => setShowSendEmail(true)} className="text-xs text-blue-400 hover:text-blue-300">+ Send email</button>
-            {emails.length === 0 ? (
-              <p className="text-sm text-slate-600 text-center py-8">No emails sent</p>
-            ) : (
-              <div className="space-y-2">
-                {emails.map(e => (
-                  <div key={e.id} className="bg-slate-900 border border-slate-800 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-slate-300">{e.subject}</p>
-                      <span className="text-[10px] text-slate-500">{timeAgo(e.sent_at)}</span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">To: {e.to_email}</p>
-                    <div className="text-xs text-slate-400 mt-2 prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: e.body }} />
-                  </div>
-                ))}
+          <div className="space-y-0">
+            {/* Action bar */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-slate-500">{emails.length} message{emails.length !== 1 ? 's' : ''}</span>
+              <div className="flex gap-2">
+                <button onClick={() => { setShowLogReply(true); setShowSendEmail(false); }}
+                  className="text-xs text-slate-400 hover:text-slate-200 border border-slate-700 hover:border-slate-600 px-2.5 py-1 rounded-lg transition-colors">
+                  + Log their reply
+                </button>
+                <button onClick={() => { setShowSendEmail(true); setShowLogReply(false); setEmailForm({ subject: '', body: '', template_id: '' }); }}
+                  className="text-xs text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-500/50 px-2.5 py-1 rounded-lg transition-colors">
+                  ✉ Compose
+                </button>
               </div>
+            </div>
+
+            {/* Thread */}
+            {emails.length === 0 ? (
+              <p className="text-sm text-slate-600 text-center py-8">No emails yet — compose your first message below</p>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {emails.map((e, idx) => {
+                  const isInbound = e.direction === 'inbound';
+                  const isLast = idx === emails.length - 1;
+                  return (
+                    <EmailThreadItem
+                      key={e.id}
+                      email={e}
+                      isInbound={isInbound}
+                      isLast={isLast}
+                      leadName={displayName}
+                      leadEmail={lead.email}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Log inbound reply form */}
+            {showLogReply && (
+              <form onSubmit={handleLogReply} className="bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3 mt-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-300">Log received reply</h3>
+                  <button type="button" onClick={() => setShowLogReply(false)} className="text-slate-600 hover:text-slate-400 text-lg leading-none">×</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <CRMInput label="From (name)" value={replyForm.from_name} onChange={v => setReplyForm(f => ({ ...f, from_name: v }))} placeholder={displayName} />
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Received at</label>
+                    <input type="datetime-local" value={replyForm.received_at}
+                      onChange={e => setReplyForm(f => ({ ...f, received_at: e.target.value }))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-slate-500" />
+                  </div>
+                </div>
+                <CRMInput label="Subject (optional)" value={replyForm.subject} onChange={v => setReplyForm(f => ({ ...f, subject: v }))} placeholder="Re: Quick intro from Proper Place" />
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Their message</label>
+                  <textarea value={replyForm.body} onChange={e => setReplyForm(f => ({ ...f, body: e.target.value }))} required
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-slate-500 resize-y"
+                    rows={5} placeholder="Paste their reply here..." />
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" className="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2 rounded-lg">Log Reply</button>
+                  <button type="button" onClick={() => setShowLogReply(false)} className="text-slate-500 text-sm px-3 py-2 hover:text-slate-300">Cancel</button>
+                </div>
+              </form>
+            )}
+
+            {/* Compose form */}
+            {showSendEmail && (
+              <form onSubmit={handleSendEmail} className="bg-slate-900 border border-blue-500/20 rounded-xl overflow-hidden mt-2">
+                {/* Outlook-style compose header */}
+                <div className="bg-[#1e3a5f] px-4 py-2.5 flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-200">New Message</span>
+                  <button type="button" onClick={() => setShowSendEmail(false)} className="text-blue-300 hover:text-white text-lg leading-none">×</button>
+                </div>
+                <div className="bg-slate-900 divide-y divide-slate-800">
+                  <div className="flex items-center px-4 py-2">
+                    <span className="text-xs text-slate-500 w-16 flex-shrink-0">To</span>
+                    <span className="text-sm text-slate-300">{lead.email || '(no email)'}</span>
+                  </div>
+                  <div className="flex items-center px-4 py-2">
+                    <span className="text-xs text-slate-500 w-16 flex-shrink-0">Template</span>
+                    <select value={emailForm.template_id} onChange={e => handleTemplateSelect(e.target.value)}
+                      className="flex-1 bg-transparent text-sm text-slate-300 focus:outline-none">
+                      <option value="">— none —</option>
+                      {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    {emailForm.template_id && (
+                      <button type="button" onClick={handlePrewriteDraft} className="text-[11px] text-emerald-400 hover:text-emerald-300 ml-2 flex-shrink-0">Auto-fill</button>
+                    )}
+                  </div>
+                  <div className="flex items-center px-4 py-2">
+                    <span className="text-xs text-slate-500 w-16 flex-shrink-0">Subject</span>
+                    <input value={emailForm.subject} onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))} required
+                      className="flex-1 bg-transparent text-sm text-slate-200 focus:outline-none placeholder:text-slate-600"
+                      placeholder="Quick intro from Proper Place" />
+                  </div>
+                </div>
+                <textarea value={emailForm.body} onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))} required
+                  className="w-full bg-slate-950 text-sm text-slate-200 px-4 py-3 focus:outline-none resize-y font-mono placeholder:text-slate-700"
+                  rows={8}
+                  placeholder={`Hi ${lead.first_name || 'there'},\n\n`} />
+                <div className="px-4 py-2.5 border-t border-slate-800 flex items-center gap-3">
+                  <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors">Send</button>
+                  <div className="flex flex-wrap gap-1 ml-2">
+                    {['{{first_name}}', '{{business_name}}', '{{location}}'].map(token => (
+                      <button key={token} type="button"
+                        onClick={() => setEmailForm(f => ({ ...f, body: f.body + token }))}
+                        className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-500 hover:text-emerald-400 rounded font-mono transition-colors">
+                        {token}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </form>
             )}
           </div>
         )}
@@ -635,6 +708,88 @@ export default function LeadDetailPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function EmailThreadItem({
+  email, isInbound, isLast, leadName, leadEmail,
+}: {
+  email: CRMEmailLog;
+  isInbound: boolean;
+  isLast: boolean;
+  leadName: string;
+  leadEmail: string | null | undefined;
+}) {
+  const [expanded, setExpanded] = useState(isLast);
+  const isHtml = email.body?.includes('<');
+
+  return (
+    <div className={`rounded-xl border overflow-hidden transition-all ${
+      isInbound
+        ? 'border-slate-700 bg-slate-900'
+        : 'border-blue-900/40 bg-[#0d1f35]'
+    }`}>
+      {/* Header row — always visible */}
+      <button
+        type="button"
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        {/* Avatar */}
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+          isInbound ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'
+        }`}>
+          {isInbound ? (email.from_name?.[0] || leadName[0] || '?').toUpperCase() : 'P'}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <span className="text-sm font-medium text-slate-200 truncate">
+              {isInbound ? (email.from_name || leadName || leadEmail || 'Lead') : 'You'}
+            </span>
+            {!expanded && email.subject && (
+              <span className="text-xs text-slate-500 truncate hidden sm:block">{email.subject}</span>
+            )}
+          </div>
+          {expanded && (
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {isInbound
+                ? `To: you`
+                : `To: ${email.to_email || leadEmail || leadName}`}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isInbound && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Reply</span>
+          )}
+          <span className="text-[11px] text-slate-500">{timeAgo(email.sent_at)}</span>
+          <span className="text-slate-600 text-xs">{expanded ? '▲' : '▼'}</span>
+        </div>
+      </button>
+
+      {/* Subject line when expanded */}
+      {expanded && email.subject && (
+        <div className="px-4 pb-1 border-t border-slate-800/50">
+          <p className="text-xs font-semibold text-slate-300 pt-2">{email.subject}</p>
+        </div>
+      )}
+
+      {/* Body */}
+      {expanded && (
+        <div className="px-4 py-3 border-t border-slate-800/50">
+          {isHtml ? (
+            <div
+              className="text-sm text-slate-300 leading-relaxed [&_a]:text-blue-400 [&_a]:underline [&_p]:mb-2"
+              dangerouslySetInnerHTML={{ __html: email.body }}
+            />
+          ) : (
+            <pre className="text-sm text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">{email.body}</pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -587,6 +587,8 @@ export interface CRMEmailLog {
   subject: string;
   body: string;
   to_email: string;
+  direction: 'outbound' | 'inbound';
+  from_name: string | null;
   status: string;
   sent_at: string;
   template_name?: string | null;
@@ -741,6 +743,8 @@ export const crmApi = {
   // Emails
   sendEmail: (leadId: number, data: { subject: string; body: string; template_id?: number }) =>
     api(`/crm/leads/${leadId}/send-email`, { method: 'POST', body: data }),
+  logInboundEmail: (leadId: number, data: { subject?: string; body: string; from_name?: string; received_at?: string }) =>
+    api(`/crm/leads/${leadId}/emails/inbound`, { method: 'POST', body: data }),
   getEmailLog: (leadId: number) => api<{ emails: CRMEmailLog[] }>(`/crm/leads/${leadId}/emails`),
 
   // Tasks

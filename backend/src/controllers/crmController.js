@@ -733,12 +733,46 @@ async function getEmailLog(req, res, next) {
        FROM crm_email_log el
        LEFT JOIN crm_email_templates et ON el.template_id = et.id
        WHERE el.lead_id = $1
-       ORDER BY el.sent_at DESC`,
+       ORDER BY el.sent_at ASC`,
       [id]
     );
     res.json({ emails: result.rows });
   } catch (error) {
     logger.error('CRM getEmailLog error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * POST /crm/leads/:id/emails/inbound
+ * Manually log a reply received from a lead
+ */
+async function logInboundEmail(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { subject, body, from_name, received_at } = req.body;
+    if (!body) return res.status(400).json({ error: 'body is required' });
+
+    const lead = await db.query('SELECT email FROM host_leads WHERE id = $1', [id]);
+    if (!lead.rows.length) return res.status(404).json({ error: 'Lead not found' });
+
+    const result = await db.query(
+      `INSERT INTO crm_email_log (lead_id, subject, body, to_email, direction, from_name, status, sent_at, created_by)
+       VALUES ($1, $2, $3, $4, 'inbound', $5, 'received', $6, $7)
+       RETURNING *`,
+      [
+        id,
+        subject || '(no subject)',
+        body,
+        lead.rows[0].email || '',
+        from_name || null,
+        received_at || new Date().toISOString(),
+        req.user.userId,
+      ]
+    );
+    res.status(201).json({ email: result.rows[0] });
+  } catch (error) {
+    logger.error('CRM logInboundEmail error', { error: error.message });
     next(error);
   }
 }
@@ -1797,6 +1831,21 @@ async function submitDiscoveryQueueReview(req, res, next) {
 }
 
 async function sendCrmLeadEmail(to, subject, body) {
+  // Append email signature if one is configured in crm_settings
+  let finalBody = body;
+  try {
+    const settingsMap = await getSettingsMap();
+    const signature = (settingsMap['email_signature'] || '').trim();
+    if (signature) {
+      finalBody = `${body}\n\n${signature}`;
+    }
+  } catch { /* signature is optional — don't let a settings failure block sending */ }
+
+  if (isOutlookConfigured()) {
+    await sendCrmLeadEmailViaOutlook(to, subject, finalBody);
+    return;
+  }
+
   const crmReplyTo = process.env.CRM_FROM_EMAIL || 'pierce.shapton@proper-place.co.uk';
   const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
   const smtpUser = process.env.SMTP_USER;
@@ -1814,8 +1863,84 @@ async function sendCrmLeadEmail(to, subject, body) {
     replyTo: crmReplyTo,
     to,
     subject,
-    html: wrapEmailHtml(body),
+    html: wrapEmailHtml(finalBody),
   });
+}
+
+function isOutlookConfigured() {
+  return Boolean(
+    process.env.OUTLOOK_TENANT_ID &&
+    process.env.OUTLOOK_CLIENT_ID &&
+    process.env.OUTLOOK_CLIENT_SECRET &&
+    process.env.OUTLOOK_SENDER_EMAIL
+  );
+}
+
+async function sendCrmLeadEmailViaOutlook(to, subject, body) {
+  const tenantId = process.env.OUTLOOK_TENANT_ID;
+  const clientId = process.env.OUTLOOK_CLIENT_ID;
+  const clientSecret = process.env.OUTLOOK_CLIENT_SECRET;
+  const senderEmail = process.env.OUTLOOK_SENDER_EMAIL;
+
+  const token = await getOutlookAccessToken({ tenantId, clientId, clientSecret });
+
+  const cleanedTo = String(to || '').trim();
+  if (!cleanedTo) {
+    throw new Error('Recipient email is required');
+  }
+
+  await axios.post(
+    `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(senderEmail)}/sendMail`,
+    {
+      message: {
+        subject,
+        body: {
+          contentType: 'HTML',
+          content: wrapEmailHtml(body),
+        },
+        toRecipients: [
+          {
+            emailAddress: { address: cleanedTo },
+          },
+        ],
+        replyTo: [
+          {
+            emailAddress: { address: process.env.CRM_FROM_EMAIL || senderEmail },
+          },
+        ],
+      },
+      saveToSentItems: true,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 15000,
+    }
+  );
+}
+
+async function getOutlookAccessToken({ tenantId, clientId, clientSecret }) {
+  const tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
+
+  const form = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    scope: 'https://graph.microsoft.com/.default',
+    grant_type: 'client_credentials',
+  });
+
+  const tokenRes = await axios.post(tokenUrl, form.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    timeout: 15000,
+  });
+
+  if (!tokenRes.data?.access_token) {
+    throw new Error('Unable to obtain Outlook access token');
+  }
+
+  return tokenRes.data.access_token;
 }
 
 async function getSettingsMap() {
@@ -1850,7 +1975,7 @@ module.exports = {
   getTasks, createTask, updateTask, deleteTask,
   getSiteVisits, createSiteVisit,
   getEmailTemplates, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate,
-  sendEmail, getEmailLog,
+  sendEmail, getEmailLog, logInboundEmail,
   getSequences, createSequence,
   getStats,
   getAutomationStatus,

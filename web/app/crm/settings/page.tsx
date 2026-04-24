@@ -365,6 +365,19 @@ export default function SettingsPage() {
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-emerald-500" />
                 </div>
               ))}
+
+              {/* Email Signature */}
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <label className="block text-sm font-medium text-slate-200 mb-0.5">Email Signature</label>
+                <p className="text-xs text-slate-500 mb-2">Appended to every outgoing CRM email. Plain text or HTML accepted.</p>
+                <textarea
+                  value={settings['email_signature'] || ''}
+                  onChange={e => setSettings(s => ({ ...s, email_signature: e.target.value }))}
+                  rows={6}
+                  placeholder={`Kind regards,\nPierce Shapton\nProper Place\n\nwww.proper-place.co.uk`}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-emerald-500 resize-y placeholder:text-slate-600"
+                />
+              </div>
               <div className="flex items-center gap-3">
                 <button onClick={handleSaveSettings} disabled={settingsSaving} className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg">
                   {settingsSaving ? 'Saving…' : 'Save Settings'}

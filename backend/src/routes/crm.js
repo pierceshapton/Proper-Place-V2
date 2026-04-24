@@ -64,6 +64,7 @@ router.post('/leads/:id/site-visits', crm.createSiteVisit);
 // ─── Email per lead ─────────────────
 router.post('/leads/:id/send-email', crm.sendEmail);
 router.get('/leads/:id/emails', crm.getEmailLog);
+router.post('/leads/:id/emails/inbound', crm.logInboundEmail);
 
 // ─── Tasks ──────────────────────────
 router.get('/tasks', crm.getTasks);
