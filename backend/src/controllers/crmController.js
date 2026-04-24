@@ -616,27 +616,28 @@ async function deleteEmailTemplate(req, res, next) {
 async function sendEmail(req, res, next) {
   try {
     const { id } = req.params;
-    const { subject, body, template_id } = req.body;
+    const { subject, body, template_id, to_email: toEmailOverride } = req.body;
 
     // Get lead
     const leadResult = await db.query('SELECT * FROM host_leads WHERE id = $1', [id]);
     if (leadResult.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
     const lead = leadResult.rows[0];
 
-    if (!lead.email) return res.status(400).json({ error: 'Lead has no email address' });
+    const toEmail = (toEmailOverride && toEmailOverride.trim()) || lead.email;
+    if (!toEmail) return res.status(400).json({ error: 'No email address — add one to the lead or enter it above' });
     if (!subject || !body) return res.status(400).json({ error: 'subject and body required' });
 
     // Interpolate variables
     const interpolated = interpolateTemplate(body, lead);
     const interpolatedSubject = interpolateTemplate(subject, lead);
 
-    await sendCrmLeadEmail(lead.email, interpolatedSubject, interpolated);
+    await sendCrmLeadEmail(toEmail, interpolatedSubject, interpolated);
 
     // Log to email log
     await db.query(
       `INSERT INTO crm_email_log (lead_id, template_id, subject, body, to_email, status, created_by)
        VALUES ($1, $2, $3, $4, $5, 'sent', $6)`,
-      [id, template_id || null, interpolatedSubject, interpolated, lead.email, req.user.userId]
+      [id, template_id || null, interpolatedSubject, interpolated, toEmail, req.user.userId]
     );
 
     // Log activity

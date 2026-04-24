@@ -48,7 +48,7 @@ export default function LeadDetailPage() {
 
   // Send email form
   const [showSendEmail, setShowSendEmail] = useState(true);
-  const [emailForm, setEmailForm] = useState({ subject: '', body: '', template_id: '' });
+  const [emailForm, setEmailForm] = useState({ subject: '', body: '', template_id: '', to_email: '' });
 
   // Log inbound reply form
   const [showLogReply, setShowLogReply] = useState(false);
@@ -82,6 +82,7 @@ export default function LeadDetailPage() {
       setEmails(emailRes.emails);
       setVisits(visitRes.visits);
       setTemplates(templateRes.templates || []);
+      setEmailForm(f => ({ ...f, to_email: leadRes.lead.email || '' }));
       // Load custom values
       try {
         const cv = await crmApi.getCustomValues(leadId);
@@ -144,9 +145,10 @@ export default function LeadDetailPage() {
       subject: emailForm.subject,
       body: emailForm.body,
       template_id: emailForm.template_id ? Number(emailForm.template_id) : undefined,
+      to_email: emailForm.to_email || undefined,
     });
     setShowSendEmail(false);
-    setEmailForm({ subject: '', body: '', template_id: '' });
+    setEmailForm({ subject: '', body: '', template_id: '', to_email: lead?.email || '' });
     loadAll();
   }
 
@@ -167,16 +169,17 @@ export default function LeadDetailPage() {
     if (!lead) return;
     const template = templates.find(item => String(item.id) === templateId);
     if (!template) {
-      setEmailForm({ template_id: '', subject: '', body: '' });
+      setEmailForm(f => ({ ...f, template_id: '', subject: '', body: '' }));
       return;
     }
 
     // On template select, keep content deterministic and pre-filled from this lead's details.
-    setEmailForm({
+    setEmailForm(f => ({
+      ...f,
       template_id: templateId,
       subject: mergeTemplate(template.subject || '', lead),
       body: mergeTemplate(template.body || '', lead),
-    });
+    }));
   }
 
   function handlePrewriteDraft() {
@@ -487,7 +490,7 @@ export default function LeadDetailPage() {
                   className="text-xs text-slate-400 hover:text-slate-200 border border-slate-700 hover:border-slate-600 px-2.5 py-1 rounded-lg transition-colors">
                   + Log their reply
                 </button>
-                <button onClick={() => { setShowSendEmail(true); setShowLogReply(false); setEmailForm({ subject: '', body: '', template_id: '' }); }}
+                <button onClick={() => { setShowSendEmail(true); setShowLogReply(false); setEmailForm({ subject: '', body: '', template_id: '', to_email: lead?.email || '' }); }}
                   className="text-xs text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-500/50 px-2.5 py-1 rounded-lg transition-colors">
                   ✉ Compose
                 </button>
@@ -557,7 +560,13 @@ export default function LeadDetailPage() {
                 <div className="bg-slate-900 divide-y divide-slate-800">
                   <div className="flex items-center px-4 py-2">
                     <span className="text-xs text-slate-500 w-16 flex-shrink-0">To</span>
-                    <span className="text-sm text-slate-300">{lead.email || '(no email)'}</span>
+                    <input
+                      type="email"
+                      value={emailForm.to_email}
+                      onChange={e => setEmailForm(f => ({ ...f, to_email: e.target.value }))}
+                      className="flex-1 bg-transparent text-sm text-slate-200 focus:outline-none placeholder:text-slate-600"
+                      placeholder="recipient@example.com"
+                    />
                   </div>
                   <div className="flex items-center px-4 py-2">
                     <span className="text-xs text-slate-500 w-16 flex-shrink-0">Template</span>

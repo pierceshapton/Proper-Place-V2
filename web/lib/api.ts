@@ -741,7 +741,7 @@ export const crmApi = {
     api<{ visit: CRMSiteVisit }>(`/crm/leads/${leadId}/site-visits`, { method: 'POST', body: data }),
 
   // Emails
-  sendEmail: (leadId: number, data: { subject: string; body: string; template_id?: number }) =>
+  sendEmail: (leadId: number, data: { subject: string; body: string; template_id?: number; to_email?: string }) =>
     api(`/crm/leads/${leadId}/send-email`, { method: 'POST', body: data }),
   logInboundEmail: (leadId: number, data: { subject?: string; body: string; from_name?: string; received_at?: string }) =>
     api(`/crm/leads/${leadId}/emails/inbound`, { method: 'POST', body: data }),
