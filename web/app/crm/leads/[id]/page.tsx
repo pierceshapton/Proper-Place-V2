@@ -47,7 +47,7 @@ export default function LeadDetailPage() {
   const [taskForm, setTaskForm] = useState({ title: '', description: '', due_date: '', priority: 'medium' });
 
   // Send email form
-  const [showSendEmail, setShowSendEmail] = useState(false);
+  const [showSendEmail, setShowSendEmail] = useState(true);
   const [emailForm, setEmailForm] = useState({ subject: '', body: '', template_id: '' });
 
   // Log inbound reply form

@@ -376,7 +376,7 @@ function LeadDetailModal({
   const [editForm, setEditForm] = useState<Partial<CRMLead>>({});
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const [showSendEmail, setShowSendEmail] = useState(false);
+  const [showSendEmail, setShowSendEmail] = useState(true);
   const [emailForm, setEmailForm] = useState({ subject: '', body: '', template_id: '' });
 
   const [showLogReply, setShowLogReply] = useState(false);
