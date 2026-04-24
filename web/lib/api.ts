@@ -566,6 +566,7 @@ export interface CRMTask {
   business_name?: string | null;
   first_name?: string | null;
   last_name?: string | null;
+  source_email_id?: number | null;
 }
 
 export interface CRMEmailTemplate {

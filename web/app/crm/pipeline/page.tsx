@@ -766,22 +766,38 @@ function LeadDetailModal({
               ) : (
                 <div className="space-y-1">
                   {tasks.map(task => (
-                    <div key={task.id} className={`flex items-center gap-3 py-2.5 border-b border-slate-800/50 ${task.status === 'completed' ? 'opacity-50' : ''}`}>
+                    <div key={task.id} className={`flex items-start gap-3 py-2.5 border-b border-slate-800/50 ${task.status === 'completed' ? 'opacity-50' : ''}`}>
                       <button
                         onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
-                        className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center text-[10px] ${
+                        className={`w-5 h-5 mt-0.5 rounded border flex-shrink-0 flex items-center justify-center text-[10px] ${
                           task.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'border-slate-600 hover:border-emerald-500'
                         }`}
                       >
                         {task.status === 'completed' ? '✓' : ''}
                       </button>
-                      <div className="flex-1">
-                        <p className={`text-sm ${task.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{task.title}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {task.source_email_id && (
+                            <span className="text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full">✉ email</span>
+                          )}
+                          <p className={`text-sm ${task.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{task.title}</p>
+                        </div>
+                        {task.description && (
+                          <p className="text-[11px] text-slate-500 mt-0.5 truncate">{task.description}</p>
+                        )}
                         {task.due_date && (
                           <p className={`text-[11px] mt-0.5 ${new Date(task.due_date) < new Date() && task.status !== 'completed' ? 'text-red-400' : 'text-slate-500'}`}>
                             Due: {new Date(task.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                             {new Date(task.due_date) < new Date() && task.status !== 'completed' && ' ⚠ overdue'}
                           </p>
+                        )}
+                        {task.source_email_id && task.status !== 'completed' && (
+                          <button
+                            onClick={() => { setTab('emails'); setShowSendEmail(true); setShowLogReply(false); }}
+                            className="mt-1 text-[11px] text-blue-400 hover:text-blue-300 border border-blue-500/20 hover:border-blue-500/40 px-2 py-0.5 rounded transition-colors"
+                          >
+                            ✉ Reply now
+                          </button>
                         )}
                       </div>
                     </div>

@@ -757,7 +757,7 @@ async function logInboundEmail(req, res, next) {
     const lead = await db.query('SELECT email FROM host_leads WHERE id = $1', [id]);
     if (!lead.rows.length) return res.status(404).json({ error: 'Lead not found' });
 
-    const result = await db.query(
+    const emailResult = await db.query(
       `INSERT INTO crm_email_log (lead_id, subject, body, to_email, direction, from_name, status, sent_at, created_by)
        VALUES ($1, $2, $3, $4, 'inbound', $5, 'received', $6, $7)
        RETURNING *`,
@@ -771,7 +771,21 @@ async function logInboundEmail(req, res, next) {
         req.user.userId,
       ]
     );
-    res.status(201).json({ email: result.rows[0] });
+
+    const emailLogId = emailResult.rows[0].id;
+    const taskTitle = `Reply to: ${subject || '(no subject)'}`;
+    const snippet = body.length > 200 ? body.substring(0, 200) + '…' : body;
+    const taskDescription = from_name ? `From ${from_name}: ${snippet}` : snippet;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const taskResult = await db.query(
+      `INSERT INTO crm_tasks (lead_id, title, description, due_date, priority, status, source_email_id, assigned_to, created_by)
+       VALUES ($1, $2, $3, $4, 'hot', 'pending', $5, $6, $6) RETURNING *`,
+      [id, taskTitle, taskDescription, tomorrow.toISOString(), emailLogId, req.user.userId]
+    );
+
+    res.status(201).json({ email: emailResult.rows[0], task: taskResult.rows[0] });
   } catch (error) {
     logger.error('CRM logInboundEmail error', { error: error.message });
     next(error);

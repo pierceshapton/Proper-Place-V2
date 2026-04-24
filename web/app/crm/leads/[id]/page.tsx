@@ -454,22 +454,38 @@ export default function LeadDetailPage() {
             ) : (
               <div className="space-y-1">
                 {tasks.map(t => (
-                  <div key={t.id} className={`flex items-center gap-3 py-2.5 border-b border-slate-800/50 ${t.status === 'completed' ? 'opacity-50' : ''}`}>
+                  <div key={t.id} className={`flex items-start gap-3 py-2.5 border-b border-slate-800/50 ${t.status === 'completed' ? 'opacity-50' : ''}`}>
                     <button
                       onClick={() => t.status !== 'completed' && handleCompleteTask(t.id)}
-                      className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center text-[10px] transition-colors ${
+                      className={`w-5 h-5 mt-0.5 rounded border flex-shrink-0 flex items-center justify-center text-[10px] transition-colors ${
                         t.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'border-slate-600 hover:border-emerald-500'
                       }`}
                     >
                       {t.status === 'completed' ? '✓' : ''}
                     </button>
-                    <div className="flex-1">
-                      <p className={`text-sm ${t.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{t.title}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {t.source_email_id && (
+                          <span className="text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full">✉ email</span>
+                        )}
+                        <p className={`text-sm ${t.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{t.title}</p>
+                      </div>
+                      {t.description && (
+                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">{t.description}</p>
+                      )}
                       {t.due_date && (
                         <p className={`text-[11px] mt-0.5 ${new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-400' : 'text-slate-500'}`}>
                           Due: {new Date(t.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                           {new Date(t.due_date) < new Date() && t.status !== 'completed' && ' ⚠ overdue'}
                         </p>
+                      )}
+                      {t.source_email_id && t.status !== 'completed' && (
+                        <button
+                          onClick={() => { setActiveTab('emails'); setShowSendEmail(true); setShowLogReply(false); }}
+                          className="mt-1 text-[11px] text-blue-400 hover:text-blue-300 border border-blue-500/20 hover:border-blue-500/40 px-2 py-0.5 rounded transition-colors"
+                        >
+                          ✉ Reply now
+                        </button>
                       )}
                     </div>
                   </div>
