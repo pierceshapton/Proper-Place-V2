@@ -46,44 +46,43 @@ class CustomBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     return Container(
-      color: const Color(0xFFFAF9F6),
-      child: Container(
-        padding: EdgeInsets.only(
-          top: 10,
-          bottom: bottomPadding > 0 ? bottomPadding + 4 : 16,
-          left: 8,
-          right: 8,
+      padding: EdgeInsets.only(
+        top: 10,
+        bottom: bottomPadding > 0 ? bottomPadding + 4 : 16,
+        left: 8,
+        right: 8,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAF9F6),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
         ),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFAF9F6),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Center(
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width.clamp(0.0, 600.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(
-                items.length,
-                (index) => Expanded(
-                  child: _buildNavItem(
-                    index,
-                    items[index]['icon'] as IconData,
-                    items[index]['label'] as String,
-                    index == currentIndex,
-                    () => onTap(index),
-                    badgeCounts?[index] ?? 0,
-                  ),
+        ],
+      ),
+      child: Align(
+        alignment: Alignment.center,
+        heightFactor: 1.0,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width.clamp(0.0, 600.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(
+              items.length,
+              (index) => Expanded(
+                child: _buildNavItem(
+                  index,
+                  items[index]['icon'] as IconData,
+                  items[index]['label'] as String,
+                  index == currentIndex,
+                  () => onTap(index),
+                  badgeCounts?[index] ?? 0,
                 ),
               ),
             ),

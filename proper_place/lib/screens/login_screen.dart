@@ -164,6 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF4A6891),
       body: Stack(
         fit: StackFit.expand,
@@ -309,6 +310,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
+                            autofillHints: const [],
+                            enableSuggestions: false,
                             decoration: InputDecoration(
                               hintText: 'Password',
                               hintStyle: TextStyle(color: Colors.grey[600]),
