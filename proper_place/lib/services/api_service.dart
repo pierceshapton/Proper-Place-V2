@@ -298,7 +298,7 @@ class ApiService {
   }) async {
     return _request(
       method: 'DELETE',
-      endpoint: '$_authUserEndpoint/$userId',
+      endpoint: '/users/$userId',
     );
   }
 
