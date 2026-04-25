@@ -34,7 +34,7 @@ class _MapPlacesScreenState extends State<MapPlacesScreen> {
   List<Place> places = [];
   double currentZoom = 6;
   Set<String> favoriteIds = {};
-  MapType mapType = MapType.normal; // Add map type control
+  MapType mapType = MapType.satellite; // Add map type control
   bool _showOnlyFavorites = false;
   static const double MIN_ZOOM_FOR_MARKERS =
       11; // Show markers only when zoomed in to level 11+
