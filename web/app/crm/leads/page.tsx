@@ -42,7 +42,6 @@ export default function LeadsPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkStage, setBulkStage] = useState('');
-  const [showKmlImport, setShowKmlImport] = useState(false);
 
   const [form, setForm] = useState({
     business_name: '', first_name: '', last_name: '', email: '', phone: '',
@@ -150,19 +149,11 @@ export default function LeadsPage() {
           <p className="text-sm text-slate-500 mt-0.5">{total} total{selected.size > 0 && ` · ${selected.size} selected`}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowKmlImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors">
-            ↑ Import KML
-          </button>
           <button onClick={() => setShowForm(!showForm)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
             {showForm ? 'Cancel' : '+ Add Lead'}
           </button>
         </div>
       </div>
-
-      {/* KML Import Modal */}
-      {showKmlImport && (
-        <KmlImportModal stages={stages} onClose={() => setShowKmlImport(false)} onImported={() => { setShowKmlImport(false); loadLeads(); }} />
-      )}
 
       {/* Add Lead Form */}
       {showForm && (
@@ -484,196 +475,4 @@ function timeAgo(dateStr: string) {
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d ago`;
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-}
-
-// ─── KML parser ───────────────────────────────────────────────────────
-type KmlPlace = { name: string; description: string; lat: number | null; lng: number | null };
-
-function parseKml(text: string): KmlPlace[] {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(text, 'text/xml');
-  const placemarks = Array.from(doc.querySelectorAll('Placemark'));
-  return placemarks.map(pm => {
-    const name = pm.querySelector('name')?.textContent?.trim() || 'Unnamed';
-    const rawDesc = pm.querySelector('description')?.textContent?.trim() || '';
-    // Strip HTML from description
-    const desc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    const coordText = pm.querySelector('Point > coordinates')?.textContent?.trim() || '';
-    const parts = coordText.split(',');
-    const lng = parts[0] ? parseFloat(parts[0]) : null;
-    const lat = parts[1] ? parseFloat(parts[1]) : null;
-    return { name, description: desc, lat, lng };
-  }).filter(p => p.name);
-}
-
-// ─── KML Import Modal ─────────────────────────────────────────────────
-function KmlImportModal({ stages, onClose, onImported }: {
-  stages: CRMStage[];
-  onClose: () => void;
-  onImported: () => void;
-}) {
-  const [places, setPlaces] = useState<KmlPlace[]>([]);
-  const [enrich, setEnrich] = useState(true);
-  const [pipeline_stage, setPipelineStage] = useState('new');
-  const [priority, setPriority] = useState('medium');
-  const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ created: number; enriched: number; total: number } | null>(null);
-  const [error, setError] = useState('');
-  const [dragging, setDragging] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  function handleFile(file: File) {
-    if (!file.name.endsWith('.kml')) { setError('Please select a .kml file'); return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-      const text = e.target?.result as string;
-      const parsed = parseKml(text);
-      if (!parsed.length) { setError('No placemarks found in this KML file'); return; }
-      setError('');
-      setPlaces(parsed);
-    };
-    reader.readAsText(file);
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault(); setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }
-
-  async function handleImport() {
-    if (!places.length) return;
-    setImporting(true); setError('');
-    try {
-      const r = await crmApi.importLeads(
-        places.map(p => ({ name: p.name, description: p.description, lat: p.lat ?? undefined, lng: p.lng ?? undefined })),
-        enrich, pipeline_stage, priority
-      );
-      setResult(r);
-    } catch (e: unknown) {
-      setError((e as Error).message || 'Import failed');
-    } finally {
-      setImporting(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm pt-12 px-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-100">Import from Google My Maps</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Export your map as KML, then upload here</p>
-          </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-xl leading-none">×</button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          {/* How to export hint */}
-          {!places.length && (
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3 text-xs text-slate-400 space-y-1">
-              <p className="font-medium text-slate-300">How to export from Google My Maps:</p>
-              <ol className="list-decimal ml-4 space-y-0.5 text-slate-500">
-                <li>Open your map at <span className="text-slate-300">mymaps.google.com</span></li>
-                <li>Click the <span className="text-slate-300">⋮</span> menu next to your map name</li>
-                <li>Choose <span className="text-slate-300">Export to KML/KMZ</span></li>
-                <li>Tick <span className="text-slate-300">"Export as KML"</span> and download</li>
-              </ol>
-            </div>
-          )}
-
-          {/* Drop zone */}
-          {!places.length && (
-            <div
-              onDragOver={e => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={handleDrop}
-              onClick={() => fileRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragging ? 'border-emerald-500 bg-emerald-500/5' : 'border-slate-700 hover:border-slate-500'}`}
-            >
-              <p className="text-2xl mb-2">📍</p>
-              <p className="text-sm text-slate-300 font-medium">Drop your .kml file here</p>
-              <p className="text-xs text-slate-600 mt-1">or click to browse</p>
-              <input ref={fileRef} type="file" accept=".kml" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-            </div>
-          )}
-
-          {error && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
-
-          {/* Preview */}
-          {places.length > 0 && !result && (
-            <>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-200">{places.length} places found</p>
-                <button onClick={() => setPlaces([])} className="text-xs text-slate-500 hover:text-slate-300">✕ Clear</button>
-              </div>
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-800 divide-y divide-slate-800">
-                {places.map((p, i) => (
-                  <div key={i} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-800/40">
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${p.lat ? 'bg-emerald-500' : 'bg-slate-600'}`} />
-                    <span className="text-sm text-slate-200 flex-1 truncate">{p.name}</span>
-                    {p.lat && <span className="text-[10px] text-slate-600 font-mono">{p.lat.toFixed(4)}, {p.lng?.toFixed(4)}</span>}
-                  </div>
-                ))}
-              </div>
-
-              {/* Options */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1">Import to stage</label>
-                  <select value={pipeline_stage} onChange={e => setPipelineStage(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none">
-                    {stages.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1">Priority</label>
-                  <select value={priority} onChange={e => setPriority(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none">
-                    {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <label className="flex items-start gap-3 bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 cursor-pointer group">
-                <input type="checkbox" checked={enrich} onChange={e => setEnrich(e.target.checked)} className="mt-0.5 accent-emerald-500 w-4 h-4 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-slate-200 group-hover:text-emerald-400 transition-colors">
-                    Enrich with Google Places AI
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    For each place, automatically look up phone number, website, Google rating, and full address. This will be slower but saves a lot of manual research.
-                  </p>
-                </div>
-              </label>
-
-              <button onClick={handleImport} disabled={importing} className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
-                {importing
-                  ? `${enrich ? 'Enriching & importing' : 'Importing'} ${places.length} places…`
-                  : `Import ${places.length} leads${enrich ? ' with AI enrichment' : ''}`}
-              </button>
-              {importing && enrich && (
-                <p className="text-center text-xs text-slate-500">This may take a minute — looking up each place on Google…</p>
-              )}
-            </>
-          )}
-
-          {/* Result */}
-          {result && (
-            <div className="text-center space-y-3 py-4">
-              <div className="text-4xl">✓</div>
-              <p className="text-lg font-semibold text-slate-100">{result.created} leads imported</p>
-              <div className="flex justify-center gap-6 text-sm text-slate-400">
-                <span>{result.total} in file</span>
-                <span className="text-emerald-400">{result.enriched} enriched</span>
-                <span className="text-slate-600">{result.total - result.created} skipped</span>
-              </div>
-              <button onClick={onImported} className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium px-6 py-2 rounded-lg">
-                View Leads
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 }
