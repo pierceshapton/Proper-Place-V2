@@ -15,8 +15,8 @@ INSERT INTO crm_settings (key, value) VALUES
   ('discovery_auto_email_min_fit_score', '85'),
   ('discovery_auto_email_daily_limit', '20'),
   ('discovery_auto_find_enabled', 'false'),
-  ('discovery_auto_find_region', 'South West England'),
-  ('discovery_auto_find_keywords', 'pub with parking, country inn, farm shop, vineyard, rural hotel'),
+  ('discovery_auto_find_region', '"South West England"'),
+  ('discovery_auto_find_keywords', '"pub with parking, country inn, farm shop, vineyard, rural hotel"'),
   ('discovery_auto_find_min_fit_score', '72'),
   ('discovery_auto_find_daily_limit', '25')
 ON CONFLICT (key) DO NOTHING;
