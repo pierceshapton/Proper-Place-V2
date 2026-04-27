@@ -1,6 +1,44 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
 const nodemailer = require('nodemailer');
+const axios = require('axios');
+
+// ─── EMAIL SCRAPER ───────────────────────────────────────────────────────────
+const EMAIL_SPAM = ['example.', 'schema', 'sentry', '.png', '.jpg', '.gif', '.svg',
+  'youremail', 'test@', 'user@', 'email@email', 'noreply', 'no-reply', 'donotreply',
+  'wixpress', 'squarespace', 'wordpress', '@2x'];
+const EMAIL_PREFERRED = ['info@', 'contact@', 'hello@', 'bookings@', 'manager@', 'enquiries@', 'admin@'];
+
+async function scrapeEmailFromWebsite(websiteUrl) {
+  if (!websiteUrl) return null;
+  const base = websiteUrl.replace(/\/$/, '');
+  const domain = base.replace(/https?:\/\/(www\.)?/, '').split('/')[0];
+  const found = {};
+  const paths = ['', '/contact', '/contact-us', '/about', '/about-us'];
+  for (const path of paths) {
+    try {
+      const { data: html } = await axios.get(base + path, {
+        timeout: 8000,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProperPlace/1.0)' },
+        maxRedirects: 5,
+        validateStatus: s => s < 400,
+      });
+      const matches = (typeof html === 'string' ? html : '').match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || [];
+      for (const e of matches) {
+        const el = e.toLowerCase();
+        if (EMAIL_SPAM.some(s => el.includes(s))) continue;
+        const score = domain && el.includes(domain) ? 2 : 1;
+        if (!found[el] || found[el] < score) found[el] = score;
+      }
+    } catch { /* ignore per-path errors */ }
+  }
+  if (!Object.keys(found).length) return null;
+  const sorted = Object.entries(found).sort((a, b) =>
+    b[1] - a[1] || (EMAIL_PREFERRED.some(p => a[0].startsWith(p)) ? -1 : 1)
+  );
+  return sorted[0][0];
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ─── LEADS ──────────────────────────────────────────────────────────
 
@@ -1081,16 +1119,25 @@ async function setCustomValues(req, res, next) {
 // ─── HELPERS ────────────────────────────────────────────────────────
 
 function interpolateTemplate(template, lead) {
+  const firstName = lead.first_name || 'there';
+  const businessName = lead.business_name || 'your site';
+  const location = lead.location || 'your area';
+  const email = lead.email || '';
+  const phone = lead.phone || '';
+  const propertyType = lead.property_type || 'site';
+  const googleRating = lead.google_rating || '';
+  const googleReviewsCount = lead.google_reviews_count || '';
+
   return template
-    .replace(/\{\{first_name\}\}/g, lead.first_name || '')
+    .replace(/\{\{first_name\}\}/g, firstName)
     .replace(/\{\{last_name\}\}/g, lead.last_name || '')
-    .replace(/\{\{business_name\}\}/g, lead.business_name || '')
-    .replace(/\{\{location\}\}/g, lead.location || '')
-    .replace(/\{\{email\}\}/g, lead.email || '')
-    .replace(/\{\{phone\}\}/g, lead.phone || '')
-    .replace(/\{\{property_type\}\}/g, lead.property_type || '')
-    .replace(/\{\{google_rating\}\}/g, lead.google_rating || '')
-    .replace(/\{\{google_reviews_count\}\}/g, lead.google_reviews_count || '');
+    .replace(/\{\{business_name\}\}/g, businessName)
+    .replace(/\{\{location\}\}/g, location)
+    .replace(/\{\{email\}\}/g, email)
+    .replace(/\{\{phone\}\}/g, phone)
+    .replace(/\{\{property_type\}\}/g, propertyType)
+    .replace(/\{\{google_rating\}\}/g, googleRating)
+    .replace(/\{\{google_reviews_count\}\}/g, googleReviewsCount);
 }
 
 function wrapEmailHtml(body) {
@@ -1301,11 +1348,21 @@ async function importLeads(req, res, next) {
           ]
         );
         if (r.rows.length > 0) {
-          results.push({ name, id: r.rows[0].id, status: 'created' });
+          const newLeadId = r.rows[0].id;
+          results.push({ name, id: newLeadId, status: 'created' });
           await db.query(
             `INSERT INTO crm_activities (lead_id, activity_type, title, created_by) VALUES ($1, 'lead_created', 'Imported from KML', $2)`,
-            [r.rows[0].id, req.user.userId]
+            [newLeadId, req.user.userId]
           );
+          // Scrape email from website in background
+          if (data.website) {
+            scrapeEmailFromWebsite(data.website).then(email => {
+              if (email) {
+                db.query('UPDATE host_leads SET email = $1 WHERE id = $2 AND (email IS NULL OR email = \'\')', [email, newLeadId])
+                  .catch(err => logger.warn('Email scrape update failed', { leadId: newLeadId, error: err.message }));
+              }
+            }).catch(() => {});
+          }
         } else {
           results.push({ name, status: 'skipped' });
         }
@@ -1813,7 +1870,18 @@ async function submitDiscoveryQueueReview(req, res, next) {
           item.discovery_campervan_priority,
         ]
       );
-      if (leadResult.rows.length > 0) leadId = leadResult.rows[0].id;
+      if (leadResult.rows.length > 0) {
+        leadId = leadResult.rows[0].id;
+        // Scrape email from website in background (non-blocking)
+        if (item.website) {
+          scrapeEmailFromWebsite(item.website).then(email => {
+            if (email) {
+              db.query('UPDATE host_leads SET email = $1 WHERE id = $2 AND (email IS NULL OR email = \'\')', [email, leadId])
+                .catch(err => logger.warn('Email scrape update failed', { leadId, error: err.message }));
+            }
+          }).catch(() => {});
+        }
+      }
     } else {
       // Save to rejection memory
       const settings = await getSettingsMap();
@@ -1981,7 +2049,7 @@ function parseIntSetting(value, fallback) {
 }
 
 function defaultOutreachBody() {
-  return 'Hi {{first_name}},<br/><br/>I came across {{business_name}} and thought it might be a strong fit for overnight motorhome stays with Proper Place. We help venues generate extra revenue from existing parking and open space with responsible guests.<br/><br/>Would you be open to a quick chat to see if this could work for you?<br/><br/>Best,<br/>Pierce';
+  return 'Hi {{first_name}},<br/><br/>I\'m Pierce, founder of Proper Place, a new app for simple overnight motorhome stays. I\'m 26, based in Bristol, and I\'m personally reaching out as we launch with our first host sites.<br/><br/>I came across {{business_name}} and noticed your reviews are strong ({{google_rating}} from {{google_reviews_count}} reviews), which made me think it could be a great fit. We help hosts earn extra income from existing space by welcoming respectful motorhome guests for easy overnight stays.<br/><br/>If it sounds of interest, I\'d love to show you how it works.<br/><br/>Best regards,<br/>Pierce Shapton<br/>Founder, Proper Place';
 }
 
 module.exports = {
