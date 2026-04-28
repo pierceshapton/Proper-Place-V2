@@ -61,6 +61,16 @@ class PaymentService {
           paymentIntentClientSecret: paymentIntentData['clientSecret'],
           merchantDisplayName: 'Proper Place',
           style: ThemeMode.light,
+          billingDetails: const BillingDetails(
+            address: Address(
+              country: 'GB',
+              city: null,
+              line1: null,
+              line2: null,
+              postalCode: null,
+              state: null,
+            ),
+          ),
           appearance: PaymentSheetAppearance(
             colors: PaymentSheetAppearanceColors(
               primary: const Color(0xFF7BA7D8),

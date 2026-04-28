@@ -564,12 +564,13 @@ function LeadDetailModal({
   const displayName = lead.business_name || `${lead.first_name} ${lead.last_name}`.trim() || 'Unnamed Lead';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
       <div
-        className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl"
+        className="bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-2xl w-full max-w-2xl h-[92dvh] sm:h-auto sm:max-h-[85vh] flex flex-col shadow-2xl"
         onClick={event => event.stopPropagation()}
       >
-        <div className="p-5 border-b border-slate-800">
+        <div className="p-4 sm:p-5 border-b border-slate-800">
+          <div className="sm:hidden w-10 h-1 rounded-full bg-slate-700 mx-auto mb-3"></div>
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-bold text-slate-100 truncate">{displayName}</h2>
@@ -659,7 +660,7 @@ function LeadDetailModal({
           )}
         </div>
 
-        <div className="flex gap-1 border-b border-slate-800 px-5">
+        <div className="flex gap-1 border-b border-slate-800 px-2 sm:px-5 overflow-x-auto">
           {[
             { key: 'activity', label: 'Activity', count: activities.length },
             { key: 'emails', label: 'Emails', count: emails.length },
@@ -670,7 +671,7 @@ function LeadDetailModal({
             <button
               key={item.key}
               onClick={() => setTab(item.key)}
-              className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+              className={`px-3 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
                 tab === item.key ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
@@ -682,7 +683,7 @@ function LeadDetailModal({
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 min-h-0">
           {tab === 'activity' && (
             <div className="space-y-3">
               <button onClick={() => setShowAddNote(current => !current)} className="text-xs text-emerald-400 hover:text-emerald-300">+ Add note</button>
@@ -849,7 +850,7 @@ function LeadDetailModal({
                     <h3 className="text-sm font-semibold text-slate-300">Log received reply</h3>
                     <button type="button" onClick={() => setShowLogReply(false)} className="text-slate-600 hover:text-slate-400 text-lg leading-none">×</button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-slate-400 mb-1">From (name)</label>
                       <input value={replyForm.from_name} onChange={ev => setReplyForm(f => ({ ...f, from_name: ev.target.value }))}
@@ -900,15 +901,15 @@ function LeadDetailModal({
                         placeholder="recipient@example.com"
                       />
                     </div>
-                    <div className="flex items-center px-4 py-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center px-4 py-2 gap-2 sm:gap-0">
                       <span className="text-xs text-slate-500 w-16 flex-shrink-0">Template</span>
                       <select value={emailForm.template_id} onChange={ev => handleTemplateSelect(ev.target.value)}
-                        className="flex-1 bg-transparent text-sm text-slate-300 focus:outline-none">
+                        className="flex-1 bg-transparent text-sm text-slate-300 focus:outline-none w-full sm:w-auto">
                         <option value="">— none —</option>
                         {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
                       {emailForm.template_id && (
-                        <button type="button" onClick={handlePrewriteDraft} className="text-[11px] text-emerald-400 hover:text-emerald-300 ml-2 flex-shrink-0">Auto-fill</button>
+                        <button type="button" onClick={handlePrewriteDraft} className="text-[11px] text-emerald-400 hover:text-emerald-300 sm:ml-2 flex-shrink-0 self-start sm:self-auto">Auto-fill</button>
                       )}
                     </div>
                     <div className="flex items-center px-4 py-2">
@@ -922,9 +923,9 @@ function LeadDetailModal({
                     className="w-full bg-slate-950 text-sm text-slate-200 px-4 py-3 focus:outline-none resize-y font-mono placeholder:text-slate-700"
                     rows={7}
                     placeholder={`Hi ${lead.first_name || 'there'},\n\n`} />
-                  <div className="px-4 py-2.5 border-t border-slate-800 flex items-center gap-3">
-                    <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors">Send</button>
-                    <div className="flex flex-wrap gap-1 ml-2">
+                  <div className="px-4 py-2.5 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors w-full sm:w-auto">Send</button>
+                    <div className="flex flex-wrap gap-1 sm:ml-2">
                       {['{{first_name}}', '{{business_name}}', '{{location}}'].map(token => (
                         <button key={token} type="button"
                           onClick={() => setEmailForm(f => ({ ...f, body: f.body + token }))}

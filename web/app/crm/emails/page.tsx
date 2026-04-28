@@ -221,7 +221,7 @@ export default function EmailsPage() {
             <label className="block text-xs text-slate-400 mb-1">Subject Line</label>
             <input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} required
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-              placeholder="Motorhome parking opportunity for {{business_name}}" />
+                placeholder="Extra income from space you already have" />
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Body (HTML supported)</label>
@@ -235,7 +235,7 @@ export default function EmailsPage() {
               <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} required
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                 rows={10}
-                placeholder={`Hi {{first_name}},\n\nI noticed {{business_name}} in {{location}} has a fantastic setting...\n\nWould you be open to a quick chat about how this works?`} />
+                placeholder={`Hi {{first_name}},\n\nI’m Pierce, founder of Proper Place, a new app for simple overnight motorhome stays. I’m 26, based in Bristol, and I’m personally reaching out as we launch with our first host sites.\n\nI came across {{business_name}} and noticed your reviews are strong ({{google_rating}} from {{google_reviews_count}} reviews), which made me think it could be a great fit.\n\nIf it sounds of interest, I’d love to show you how it works.`} />
             )}
           </div>
           <div className="flex gap-2">

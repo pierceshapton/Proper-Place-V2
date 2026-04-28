@@ -143,7 +143,7 @@ export default function LeadsPage() {
   return (
     <div className="space-y-4 max-w-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-100">Leads</h1>
           <p className="text-sm text-slate-500 mt-0.5">{total} total{selected.size > 0 && ` · ${selected.size} selected`}</p>
@@ -182,8 +182,8 @@ export default function LeadsPage() {
       )}
 
       {/* Toolbar */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex flex-1 min-w-[180px] max-w-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-2 items-start">
+        <div className="flex min-w-0 sm:max-w-sm">
           <input
             type="text" placeholder="Search…" value={search}
             onChange={e => setSearch(e.target.value)}
@@ -192,18 +192,18 @@ export default function LeadsPage() {
           />
           <button onClick={loadLeads} className="bg-slate-800 border border-l-0 border-slate-700 rounded-r-lg px-3 text-slate-400 hover:text-slate-200 text-sm">⌕</button>
         </div>
-        <select value={stageFilter} onChange={e => setStageFilter(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none">
+        <select value={stageFilter} onChange={e => setStageFilter(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none min-w-0">
           <option value="">All Stages</option>
           {stages.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
         </select>
-        <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none">
+        <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none min-w-0">
           <option value="">All Priorities</option>
           {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
         </select>
 
         {/* Bulk action */}
         {selected.size > 0 && (
-          <div className="flex items-center gap-2 ml-auto bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5">
+          <div className="flex flex-wrap items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 sm:col-span-full">
             <span className="text-xs text-slate-400">{selected.size} selected</span>
             <select value={bulkStage} onChange={e => setBulkStage(e.target.value)} className="bg-slate-700 text-xs text-slate-200 rounded px-2 py-1 focus:outline-none">
               <option value="">Move to…</option>
@@ -224,7 +224,69 @@ export default function LeadsPage() {
           <p className="text-slate-600 text-sm">Add your first lead or adjust filters</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-slate-800 overflow-hidden">
+        <>
+          <div className="space-y-3 md:hidden">
+            {sorted.map(lead => {
+              const name = lead.business_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unnamed';
+              const overdue = !!(lead.next_follow_up && new Date(lead.next_follow_up) < new Date());
+              const isSelected = selected.has(lead.id);
+              return (
+                <div key={lead.id} className={`rounded-xl border p-3 bg-slate-900 ${isSelected ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-slate-800'}`}>
+                  <div className="flex items-start gap-3">
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(lead.id)} className="accent-emerald-500 cursor-pointer mt-1" />
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-100 truncate">{name}</p>
+                          {lead.property_type && <p className="text-[11px] text-slate-500 capitalize mt-0.5">{lead.property_type.replace('_', ' ')}</p>}
+                        </div>
+                        <Link href={`/crm/leads/${lead.id}`} className="text-xs text-emerald-400 hover:text-emerald-300 flex-shrink-0">
+                          Open
+                        </Link>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2 text-xs text-slate-400">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Location</p>
+                          <InlineText value={lead.location || ''} placeholder="Add location…" onSave={v => patchLead(lead.id, { location: v })} textClass="text-xs text-slate-300" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Stage</p>
+                            <InlineStageCell stageSlug={lead.pipeline_stage} stages={stages} onSave={v => patchLead(lead.id, { pipeline_stage: v as CRMLead['pipeline_stage'] })} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Priority</p>
+                            <InlinePriorityCell priority={lead.priority} onSave={v => patchLead(lead.id, { priority: v })} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Rating</p>
+                            <span className="text-xs text-slate-300 font-mono">{lead.google_rating ? `${lead.google_rating}★` : '—'}</span>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Follow-up</p>
+                            <InlineDateCell value={lead.next_follow_up ? lead.next_follow_up.split('T')[0] : ''} overdue={overdue} onSave={v => patchLead(lead.id, { next_follow_up: v || null } as Partial<CRMLead>)} />
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Contact</p>
+                          <div className="space-y-0.5">
+                            {lead.email && <p className="truncate">{lead.email}</p>}
+                            {lead.phone && <p className="text-slate-500">{lead.phone}</p>}
+                            {!lead.email && !lead.phone && <p className="text-slate-600">—</p>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden md:block rounded-xl border border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] border-collapse">
               <thead className="bg-slate-900 border-b border-slate-800">
@@ -302,7 +364,8 @@ export default function LeadsPage() {
             <p className="text-xs text-slate-600">{sorted.length} leads shown</p>
             {selected.size > 0 && <p className="text-xs text-emerald-400">{selected.size} selected</p>}
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

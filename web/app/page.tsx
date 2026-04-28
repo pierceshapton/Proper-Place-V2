@@ -96,9 +96,7 @@ export default async function Home() {
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
                 {c(cms, 'homepage.about.body2', "No more expensive campsites or uncertain wild camping. Our verified hosts offer safe, legal, and welcoming places for motorhome owners at prices that won't break the bank.")}
               </p>
-              <div className="bg-gray-100 rounded-xl p-6 text-center">
-                <p className="text-gray-500 italic">Community statistics coming soon</p>
-              </div>
+
             </div>
             <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl">
               <Image
@@ -240,7 +238,7 @@ export default async function Home() {
                 {c(cms, 'homepage.hosts.title', 'Turn your land into extra income')}
               </h2>
               <p className="text-gray-600 text-lg mb-8 leading-relaxed">
-                {c(cms, 'homepage.hosts.body', 'Have unused land, a large garden, or farm space? Join hundreds of hosts earning extra income by welcoming respectful motorhome guests.')}
+                {c(cms, 'homepage.hosts.body', 'Have unused land, a large garden, or farm space? Proper Place makes it simple to welcome motorhome guests and earn extra income from space you already have.')}
               </p>
               <ul className="space-y-4 mb-8">
                 {(['homepage.hosts.item1', 'homepage.hosts.item2', 'homepage.hosts.item3', 'homepage.hosts.item4'] as const).map((key, i) => (
@@ -270,19 +268,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20 bg-white">
-        <div className="container-md">
-          <div className="text-center">
-            <span className="text-light-blue font-semibold text-sm uppercase tracking-wide">Community</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-8">What our users say</h2>
-            <div className="bg-gray-50 rounded-2xl p-12 max-w-2xl mx-auto">
-              <p className="text-gray-500 italic text-lg">Community reviews coming soon</p>
-              <p className="text-gray-400 mt-4">Be one of the first to share your experience with Proper Place</p>
-            </div>
-          </div>
-        </div>
-      </section>
+
 
       {/* CTA - Download App */}
       <section className="relative py-24 overflow-hidden">
@@ -300,7 +286,7 @@ export default async function Home() {
             {c(cms, 'homepage.cta.title', 'Start your next adventure today')}
           </h2>
           <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
-            {c(cms, 'homepage.cta.subtitle', 'Join thousands of motorhome owners discovering affordable, unique places to stay across the UK.')}
+            {c(cms, 'homepage.cta.subtitle', 'Be one of the first to find a better way to stay overnight across the UK. Simple bookings, real places, local hosts.')}
           </p>
           
           {/* Action Buttons */}
