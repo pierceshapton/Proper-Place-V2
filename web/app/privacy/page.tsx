@@ -176,6 +176,7 @@ export default function PrivacyPage() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-800 mb-2">Right to Erasure</h4>
                 <p className="text-sm text-gray-600">Request deletion of your personal data (&quot;right to be forgotten&quot;).</p>
+                <p className="text-sm text-gray-600 mt-2">You can request deletion of your account and all associated data at any time using our <Link href="/delete-account" className="text-light-blue hover:underline">Account Deletion Request Form</Link>.</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-800 mb-2">Right to Data Portability</h4>
