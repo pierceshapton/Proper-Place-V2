@@ -1538,18 +1538,24 @@ async function processDiscoveryAutoFind(options = {}) {
       return { success: true, skipped: true, reason: 'daily_limit_reached', created_today: createdToday };
     }
 
+    // Build profile from ALL pipeline leads + recently approved discovery items
+    // This means the scoring learns from every lead you've ever added, not just converted ones
     const profileRes = await db.query(
       `SELECT
          COALESCE(AVG(google_rating), 4.2) AS avg_rating,
-         COALESCE(AVG(NULLIF(google_reviews_count, 0)), 140) AS avg_reviews
-       FROM host_leads
-       WHERE google_rating IS NOT NULL
-         AND pipeline_stage IN ('converted', 'negotiating')`
+         COALESCE(AVG(NULLIF(google_reviews_count, 0)), 80) AS avg_reviews
+       FROM (
+         SELECT google_rating, google_reviews_count FROM host_leads
+           WHERE google_rating IS NOT NULL
+         UNION ALL
+         SELECT google_rating, google_reviews_count FROM discovery_review_queue
+           WHERE google_rating IS NOT NULL AND status = 'approved'
+       ) AS combined_leads`
     );
 
     const targetProfile = {
       avgRating: Number(profileRes.rows[0].avg_rating) || 4.2,
-      avgReviews: Number(profileRes.rows[0].avg_reviews) || 140,
+      avgReviews: Number(profileRes.rows[0].avg_reviews) || 80,
     };
 
     const allCandidates = [];
@@ -1712,7 +1718,9 @@ function scoreAutoDiscoveryCandidate(candidate, profile) {
     score += Math.round(ratio * 10);
   }
 
-  const typeBoost = types.some(type => /pub|bar|inn|hotel|farm|vineyard/.test(type)) ? 10 : 0;
+  // Broad type matching — motorhome-friendly venues include pubs, farms, camping, rural stays, leisure
+  const goodTypePattern = /pub|bar|inn|hotel|motel|hostel|farm|vineyard|winery|campsite|camping|caravan|lodge|resort|glamping|barn|retreat|country_house|guest_house|bed_and_breakfast|tourist_attraction|rv_park|marina|golf_course|leisure_centre/;
+  const typeBoost = types.some(type => goodTypePattern.test(type)) ? 10 : 0;
   score += typeBoost;
 
   const parkingOptions = candidate.parking_options || {};
