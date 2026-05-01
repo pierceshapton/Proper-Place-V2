@@ -2,6 +2,16 @@ const db = require('../config/database');
 const logger = require('../utils/logger');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
+const OpenAI = require('openai');
+
+// OpenAI client — only active when OPENAI_API_KEY is set
+let _openai = null;
+function getOpenAI() {
+  if (!_openai && process.env.OPENAI_API_KEY) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
 
 // ─── EMAIL SCRAPER ───────────────────────────────────────────────────────────
 const EMAIL_SPAM = ['example.', 'schema', 'sentry', '.png', '.jpg', '.gif', '.svg',
@@ -1570,11 +1580,24 @@ async function processDiscoveryAutoFind(options = {}) {
       if (!deduped.has(key)) deduped.set(key, item);
     });
 
-    const scored = Array.from(deduped.values())
-      .map(item => {
+    // Build LLM context from your existing approved/rejected history
+    const llmContext = await buildDiscoveryLLMContext();
+    const openai = getOpenAI();
+
+    // Score all candidates — use LLM if available, deterministic formula as fallback
+    const candidates = Array.from(deduped.values());
+    const scoredRaw = [];
+    for (const item of candidates) {
+      if (openai) {
+        const llmResult = await llmScoreCandidate(openai, item, llmContext);
+        scoredRaw.push({ ...item, ...llmResult });
+      } else {
         const signals = scoreAutoDiscoveryCandidate(item, targetProfile, item._searchKeyword);
-        return { ...item, ...signals };
-      })
+        scoredRaw.push({ ...item, ...signals });
+      }
+    }
+
+    const scored = scoredRaw
       .filter(item => item.discovery_fit_score >= minFitScore)
       .sort((a, b) => b.discovery_fit_score - a.discovery_fit_score)
       .slice(0, Math.max(remaining * 3, 30));
@@ -1620,7 +1643,9 @@ async function processDiscoveryAutoFind(options = {}) {
           item.google_place_id || null,
           item.google_rating || null,
           item.google_reviews_count || null,
-          `Auto-found from ${region}. Keywords: ${keywords.join(', ')}`,
+          item._llm_reasoning
+            ? `AI: ${item._llm_reasoning}`
+            : `Auto-found from ${region}. Keywords: ${keywords.join(', ')}`,
           'discovery_auto_find',
           item.discovery_fit_score,
           item.discovery_parking_confidence,
@@ -1736,6 +1761,124 @@ async function searchGooglePlacesText(keyword, region) {
       editorial_summary: place.editorialSummary?.text || null,
       _searchKeyword: keyword, // carry through for scoring context
     }));
+}
+
+// ─── LLM Discovery Scoring ───────────────────────────────────────────────────
+
+async function buildDiscoveryLLMContext() {
+  // Pull your best leads from the pipeline as positive examples
+  const leadsRes = await db.query(
+    `SELECT business_name, location, google_rating, google_reviews_count,
+            property_type, parking_type, pipeline_stage, priority, tags, admin_notes
+     FROM host_leads
+     WHERE business_name IS NOT NULL
+     ORDER BY created_at DESC LIMIT 40`
+  );
+
+  // Pull your approved queue items (stars 4-5) — explicit thumbs up
+  const approvedRes = await db.query(
+    `SELECT business_name, location, google_rating, google_reviews_count,
+            review_notes, discovery_fit_score
+     FROM discovery_review_queue
+     WHERE status = 'approved'
+     ORDER BY reviewed_at DESC LIMIT 20`
+  );
+
+  // Pull your rejected queue items (stars 1-3) — explicit thumbs down + reason
+  const rejectedRes = await db.query(
+    `SELECT business_name, location, google_rating, google_reviews_count,
+            review_notes, discovery_fit_score
+     FROM discovery_review_queue
+     WHERE status = 'rejected'
+     ORDER BY reviewed_at DESC LIMIT 20`
+  );
+
+  return {
+    pipelineLeads: leadsRes.rows,
+    approved: approvedRes.rows,
+    rejected: rejectedRes.rows,
+  };
+}
+
+async function llmScoreCandidate(openai, candidate, context) {
+  // Build a compact summary of what good looks like from your data
+  const approvedSummary = context.approved.length > 0
+    ? context.approved.slice(0, 10).map(a =>
+        `✓ ${a.business_name}, ${a.location} (${a.google_rating}★, ${a.google_reviews_count} reviews)${a.review_notes ? ` — "${a.review_notes}"` : ''}`
+      ).join('\n')
+    : 'None yet';
+
+  const rejectedSummary = context.rejected.length > 0
+    ? context.rejected.slice(0, 10).map(r =>
+        `✗ ${r.business_name}, ${r.location} (${r.google_rating}★)${r.review_notes ? ` — reason: "${r.review_notes}"` : ''}`
+      ).join('\n')
+    : 'None yet';
+
+  const pipelineSummary = context.pipelineLeads.length > 0
+    ? context.pipelineLeads.slice(0, 15).map(l =>
+        `${l.business_name}, ${l.location} (${l.google_rating || '?'}★, ${l.google_reviews_count || '?'} reviews, type: ${l.property_type || 'unknown'})`
+      ).join('\n')
+    : 'None yet';
+
+  const candidateDesc = [
+    `Name: ${candidate.business_name}`,
+    `Address: ${candidate.location}`,
+    `Google rating: ${candidate.google_rating || 'unknown'}`,
+    `Review count: ${candidate.google_reviews_count || 'unknown'}`,
+    `Primary type: ${candidate.primary_type || 'unknown'}`,
+    `All types: ${(candidate.types || []).join(', ') || 'unknown'}`,
+    candidate.editorial_summary ? `Description: ${candidate.editorial_summary}` : null,
+    candidate.parking_options ? `Parking signals: ${JSON.stringify(candidate.parking_options)}` : null,
+  ].filter(Boolean).join('\n');
+
+  const systemPrompt = `You are a site discovery agent for Proper Place — a UK app for simple, respectful overnight motorhome stays at host venues. Your job is to evaluate whether a new Google Places result would make a good host site.
+
+Good host sites have: outdoor space or parking, a rural or semi-rural feel, reasonable Google rating (4.0+), are open to visitors, and suit quiet overnight stays. Examples include country pubs, farm shops, vineyards, rural hotels, scenic viewpoints, nature reserves, country parks.
+
+Poor fits include: pure campsites or caravan parks (too much competition), busy urban bars, fast food outlets, convenience stores, chain restaurants, and anywhere with no outdoor space.
+
+Pierce's existing pipeline (sites he's already interested in):
+${pipelineSummary}
+
+Sites Pierce has explicitly APPROVED:
+${approvedSummary}
+
+Sites Pierce has explicitly REJECTED:
+${rejectedSummary}
+
+Based on this context, score the candidate site. Respond with ONLY valid JSON in this exact format:
+{"score": <0-100>, "reasoning": "<one concise sentence explaining the score>", "campervan_priority": <0-100>, "parking_confidence": <0-100>}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Evaluate this candidate:\n${candidateDesc}` },
+      ],
+      temperature: 0.2,
+      max_tokens: 150,
+      response_format: { type: 'json_object' },
+    });
+
+    const raw = JSON.parse(response.choices[0].message.content);
+    const score = Math.max(0, Math.min(100, Math.round(Number(raw.score) || 0)));
+    const campervan = Math.max(0, Math.min(100, Math.round(Number(raw.campervan_priority) || 50)));
+    const parking = Math.max(0, Math.min(100, Math.round(Number(raw.parking_confidence) || 45)));
+
+    return {
+      discovery_fit_score: score,
+      discovery_campervan_priority: campervan,
+      discovery_parking_confidence: parking,
+      discovery_access_score: 50,
+      _llm_reasoning: raw.reasoning || '',
+    };
+  } catch (err) {
+    logger.warn('LLM scoring failed, falling back to formula', { error: err.message, candidate: candidate.business_name });
+    // Graceful fallback to deterministic scoring
+    const profileFallback = { avgRating: 4.2, avgReviews: 80 };
+    return scoreAutoDiscoveryCandidate(candidate, profileFallback, candidate._searchKeyword);
+  }
 }
 
 function scoreAutoDiscoveryCandidate(candidate, profile, searchKeyword) {
