@@ -55,7 +55,15 @@ export default function DiscoverPage() {
     () => new Set(leads.map(lead => normalizePlaceId(lead.google_place_id)).filter((value): value is string => !!value)),
     [leads]
   );
-  const learningMetrics = useMemo(() => computeLearningMetrics(feedbackHistory), [feedbackHistory]);
+  const [storedMetrics, setStoredMetrics] = useState<{ samples: number; accuracy: number; agreementRate: number } | null>(null);
+  const computedMetrics = useMemo(() => computeLearningMetrics(feedbackHistory), [feedbackHistory]);
+  // Use computed metrics when we have feedback items; fall back to server-stored values if parse failed
+  const learningMetrics = computedMetrics.samples > 0 ? computedMetrics : (storedMetrics ? {
+    ...computedMetrics,
+    samples: storedMetrics.samples,
+    accuracy: storedMetrics.accuracy,
+    agreementRate: storedMetrics.agreementRate,
+  } : computedMetrics);
   const autoModeReady = learningMetrics.samples >= 15 && learningMetrics.accuracy >= threshold;
 
   async function loadLearningSettings() {
@@ -74,6 +82,14 @@ export default function DiscoverPage() {
       const rawFeedback = settingsMap.discovery_feedback_v1 || '[]';
       const parsedFeedback = safeParseFeedback(rawFeedback);
       setFeedbackHistory(parsedFeedback);
+
+      // Also read server-stored metric snapshots as a fallback display if parsing fails
+      const storedSamples = Number(settingsMap.discovery_learning_samples || '0');
+      const storedAccuracy = Number(settingsMap.discovery_learning_accuracy || '0');
+      const storedAgreement = Number(settingsMap.discovery_learning_agreement || '0');
+      if (storedSamples > 0) {
+        setStoredMetrics({ samples: storedSamples, accuracy: storedAccuracy, agreementRate: storedAgreement });
+      }
 
       const rawRejected = settingsMap.discovery_rejected_sites_v1 || '[]';
       const parsedRejected = safeParseRejected(rawRejected);
@@ -353,7 +369,7 @@ export default function DiscoverPage() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
           <p className="text-[11px] text-slate-500 uppercase tracking-wide">Learning Samples</p>
           <p className="text-xl font-bold text-slate-100 mt-1">{learningMetrics.samples}</p>
-          <p className="text-[11px] text-slate-500 mt-1">Min 15 required</p>
+          <p className="text-[11px] text-slate-500 mt-1">{leads.length > 0 ? `+${leads.length} pipeline` : 'Min 15 required'}</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
           <p className="text-[11px] text-slate-500 uppercase tracking-wide">Agreement (±10)</p>

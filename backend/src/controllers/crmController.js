@@ -1793,10 +1793,28 @@ async function buildDiscoveryLLMContext() {
      ORDER BY reviewed_at DESC LIMIT 20`
   );
 
+  // Pull manually-rated discover sessions — these have explicit user notes explaining WHY
+  let manualFeedback = [];
+  try {
+    const settingsRes = await db.query(
+      `SELECT value FROM crm_settings WHERE key = 'discovery_feedback_v1'`
+    );
+    if (settingsRes.rows.length > 0) {
+      const raw = settingsRes.rows[0].value;
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (Array.isArray(parsed)) {
+        manualFeedback = parsed;
+      }
+    }
+  } catch (err) {
+    logger.warn('Could not load discovery_feedback_v1 for LLM context', { error: err.message });
+  }
+
   return {
     pipelineLeads: leadsRes.rows,
     approved: approvedRes.rows,
     rejected: rejectedRes.rows,
+    manualFeedback,
   };
 }
 
@@ -1831,20 +1849,43 @@ async function llmScoreCandidate(openai, candidate, context) {
     candidate.parking_options ? `Parking signals: ${JSON.stringify(candidate.parking_options)}` : null,
   ].filter(Boolean).join('\n');
 
+  // Manual feedback from discover sessions — includes Pierce's explicit notes about WHY
+  const manualApproved = (context.manualFeedback || [])
+    .filter(f => (f.stars || 0) >= 4 && f.note)
+    .slice(0, 10)
+    .map(f => `✓ ${f.name}${f.address ? `, ${f.address}` : ''} — "${f.note}"`)
+    .join('\n') || 'None yet';
+
+  const manualRejected = (context.manualFeedback || [])
+    .filter(f => (f.stars || 0) <= 2 && f.note)
+    .slice(0, 10)
+    .map(f => `✗ ${f.name}${f.address ? `, ${f.address}` : ''} — "${f.note}"`)
+    .join('\n') || 'None yet';
+
   const systemPrompt = `You are a site discovery agent for Proper Place — a UK app for simple, respectful overnight motorhome stays at host venues. Your job is to evaluate whether a new Google Places result would make a good host site.
 
 Good host sites have: outdoor space or parking, a rural or semi-rural feel, reasonable Google rating (4.0+), are open to visitors, and suit quiet overnight stays. Examples include country pubs, farm shops, vineyards, rural hotels, scenic viewpoints, nature reserves, country parks.
 
 Poor fits include: pure campsites or caravan parks (too much competition), busy urban bars, fast food outlets, convenience stores, chain restaurants, and anywhere with no outdoor space.
 
-Pierce's existing pipeline (sites he's already interested in):
-${pipelineSummary}
+IMPORTANT — Pierce's specific preferences learned from his manual ratings:
 
-Sites Pierce has explicitly APPROVED:
+Sites Pierce LIKED (4-5 stars, with his notes):
+${manualApproved}
+
+Sites Pierce REJECTED (1-2 stars, with his notes):
+${manualRejected}
+
+Sites Pierce has also APPROVED via the review queue:
 ${approvedSummary}
 
-Sites Pierce has explicitly REJECTED:
+Sites Pierce has REJECTED via the review queue:
 ${rejectedSummary}
+
+Pierce's existing pipeline (sites already in CRM):
+${pipelineSummary}
+
+Pay close attention to Pierce's notes — they reveal specific dealbreakers (e.g. height barriers excluding campervans, no car park) and what he values (e.g. near a beauty spot, big car park, rural feel).
 
 Based on this context, score the candidate site. Respond with ONLY valid JSON in this exact format:
 {"score": <0-100>, "reasoning": "<one concise sentence explaining the score>", "campervan_priority": <0-100>, "parking_confidence": <0-100>}`;
