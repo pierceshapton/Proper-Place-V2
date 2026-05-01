@@ -1510,12 +1510,12 @@ async function processDiscoveryAutoFind(options = {}) {
     const region = String(settings.discovery_auto_find_region || 'South West England').trim();
     const keywords = String(
       settings.discovery_auto_find_keywords ||
-      'pub with parking, country inn, farm shop, vineyard, rural hotel'
+      'pub with parking, country inn, farm shop, vineyard, rural hotel, scenic viewpoint, nature reserve, beauty spot, country park, river walk'
     )
       .split(',')
       .map(item => item.trim())
       .filter(Boolean)
-      .slice(0, 8);
+      .slice(0, 12);
 
     const minFitScore = parseIntSetting(settings.discovery_auto_find_min_fit_score, 72);
     const dailyLimit = parseIntSetting(settings.discovery_auto_find_daily_limit, 25);
@@ -1572,7 +1572,7 @@ async function processDiscoveryAutoFind(options = {}) {
 
     const scored = Array.from(deduped.values())
       .map(item => {
-        const signals = scoreAutoDiscoveryCandidate(item, targetProfile);
+        const signals = scoreAutoDiscoveryCandidate(item, targetProfile, item._searchKeyword);
         return { ...item, ...signals };
       })
       .filter(item => item.discovery_fit_score >= minFitScore)
@@ -1652,16 +1652,43 @@ async function processDiscoveryAutoFind(options = {}) {
   }
 }
 
+// Maps each search keyword pattern to Google Place types that are expected/preferred
+// and types that should be rejected (irrelevant noise)
+const KEYWORD_TYPE_RULES = [
+  { pattern: /pub|inn|tavern|bar/i,          includedTypes: ['bar', 'pub'],                        rejectTypes: ['campsite', 'camping_cabin', 'rv_park', 'campground'] },
+  { pattern: /farm|farmhouse/i,              includedTypes: ['farm'],                              rejectTypes: ['campsite', 'campground'] },
+  { pattern: /vineyard|winery/i,             includedTypes: ['winery', 'vineyard'],                rejectTypes: ['campsite', 'campground', 'rv_park'] },
+  { pattern: /hotel|lodge|guest.*house|b.*b/i, includedTypes: ['hotel', 'lodging', 'guest_house'], rejectTypes: ['campsite', 'rv_park'] },
+  { pattern: /country.*park|nature.*reserve|beauty.*spot|viewpoint|scenic/i, includedTypes: ['park', 'national_park', 'tourist_attraction', 'natural_feature', 'point_of_interest'], rejectTypes: [] },
+  { pattern: /river.*walk|coastal.*walk|walking|hiking/i, includedTypes: ['park', 'natural_feature', 'tourist_attraction'], rejectTypes: [] },
+];
+
+function getKeywordTypeRules(keyword) {
+  for (const rule of KEYWORD_TYPE_RULES) {
+    if (rule.pattern.test(keyword)) return rule;
+  }
+  return { includedTypes: [], rejectTypes: [] };
+}
+
 async function searchGooglePlacesText(keyword, region) {
+  const rules = getKeywordTypeRules(keyword);
+
+  const body = {
+    textQuery: `${keyword} in ${region}`,
+    maxResultCount: 20,
+    languageCode: 'en-GB',
+  };
+
+  // Ask Google to only return relevant types when we have a specific expectation
+  if (rules.includedTypes.length > 0) {
+    body.includedType = rules.includedTypes[0]; // Places API (new) only supports one includedType
+  }
+
   const response = await axios.post(
     'https://places.googleapis.com/v1/places:searchText',
+    body,
     {
-      textQuery: `${keyword} in ${region}`,
-      maxResultCount: 20,
-      languageCode: 'en-GB',
-    },
-    {
-      timeout: 8000,
+      timeout: 15000,
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GMAPS_KEY,
@@ -1677,6 +1704,8 @@ async function searchGooglePlacesText(keyword, region) {
           'places.types',
           'places.parkingOptions',
           'places.accessibilityOptions',
+          'places.editorialSummary',
+          'places.photos',
         ].join(','),
       },
     }
@@ -1684,26 +1713,36 @@ async function searchGooglePlacesText(keyword, region) {
 
   const places = Array.isArray(response.data?.places) ? response.data.places : [];
 
-  return places.map(place => ({
-    business_name: place.displayName?.text || 'Unnamed Site',
-    location: place.formattedAddress || '',
-    latitude: typeof place.location?.latitude === 'number' ? place.location.latitude : null,
-    longitude: typeof place.location?.longitude === 'number' ? place.location.longitude : null,
-    google_place_id: place.id || null,
-    google_rating: typeof place.rating === 'number' ? place.rating : null,
-    google_reviews_count: typeof place.userRatingCount === 'number' ? place.userRatingCount : null,
-    website: place.websiteUri || null,
-    primary_type: place.primaryType || null,
-    types: Array.isArray(place.types) ? place.types : [],
-    parking_options: place.parkingOptions || null,
-    accessibility_options: place.accessibilityOptions || null,
-  }));
+  return places
+    // Hard-filter out places whose primaryType is explicitly unwanted for this keyword
+    .filter(place => {
+      if (rules.rejectTypes.length === 0) return true;
+      const pt = (place.primaryType || '').toLowerCase();
+      return !rules.rejectTypes.some(rt => pt.includes(rt));
+    })
+    .map(place => ({
+      business_name: place.displayName?.text || 'Unnamed Site',
+      location: place.formattedAddress || '',
+      latitude: typeof place.location?.latitude === 'number' ? place.location.latitude : null,
+      longitude: typeof place.location?.longitude === 'number' ? place.location.longitude : null,
+      google_place_id: place.id || null,
+      google_rating: typeof place.rating === 'number' ? place.rating : null,
+      google_reviews_count: typeof place.userRatingCount === 'number' ? place.userRatingCount : null,
+      website: place.websiteUri || null,
+      primary_type: place.primaryType || null,
+      types: Array.isArray(place.types) ? place.types : [],
+      parking_options: place.parkingOptions || null,
+      accessibility_options: place.accessibilityOptions || null,
+      editorial_summary: place.editorialSummary?.text || null,
+      _searchKeyword: keyword, // carry through for scoring context
+    }));
 }
 
-function scoreAutoDiscoveryCandidate(candidate, profile) {
+function scoreAutoDiscoveryCandidate(candidate, profile, searchKeyword) {
   const rating = typeof candidate.google_rating === 'number' ? candidate.google_rating : null;
   const reviews = typeof candidate.google_reviews_count === 'number' ? candidate.google_reviews_count : null;
   const types = Array.isArray(candidate.types) ? candidate.types.map(t => String(t).toLowerCase()) : [];
+  const primaryType = (candidate.primary_type || '').toLowerCase();
 
   let score = 45;
 
@@ -1718,10 +1757,23 @@ function scoreAutoDiscoveryCandidate(candidate, profile) {
     score += Math.round(ratio * 10);
   }
 
-  // Broad type matching — motorhome-friendly venues include pubs, farms, camping, rural stays, leisure
-  const goodTypePattern = /pub|bar|inn|hotel|motel|hostel|farm|vineyard|winery|campsite|camping|caravan|lodge|resort|glamping|barn|retreat|country_house|guest_house|bed_and_breakfast|tourist_attraction|rv_park|marina|golf_course|leisure_centre/;
-  const typeBoost = types.some(type => goodTypePattern.test(type)) ? 10 : 0;
-  score += typeBoost;
+  // Type relevance — check against the keyword that found this place
+  const keywordRules = searchKeyword ? getKeywordTypeRules(searchKeyword) : { includedTypes: [], rejectTypes: [] };
+
+  // Hard penalty if this place's primaryType is irrelevant to the search keyword
+  const isRejectedType = keywordRules.rejectTypes.some(rt => primaryType.includes(rt) || types.some(t => t.includes(rt)));
+  if (isRejectedType) {
+    score -= 30; // Strong penalty — will nearly always drop below minFitScore
+  }
+
+  // Boost if primaryType is exactly what we searched for
+  const isExpectedType = keywordRules.includedTypes.length > 0 &&
+    keywordRules.includedTypes.some(it => primaryType.includes(it) || types.some(t => t.includes(it)));
+  if (isExpectedType) score += 10;
+
+  // Broad type matching — motorhome-friendly venue categories
+  const goodTypePattern = /pub|bar|inn|hotel|motel|farm|vineyard|winery|lodge|resort|barn|retreat|country_house|guest_house|bed_and_breakfast|tourist_attraction|marina|golf_course|park|natural_feature|point_of_interest/;
+  if (!isExpectedType && types.some(type => goodTypePattern.test(type))) score += 5;
 
   const parkingOptions = candidate.parking_options || {};
   const accessibilityOptions = candidate.accessibility_options || {};
