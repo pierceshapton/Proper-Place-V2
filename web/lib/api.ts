@@ -217,6 +217,8 @@ export const contactsApi = {
   get: (id: number) => api<{ contact: Contact }>(`/contacts/${id}`),
   update: (id: number, data: { status?: string; admin_notes?: string }) =>
     api(`/contacts/${id}`, { method: 'PATCH', body: data }),
+  reply: (id: number, text: string) =>
+    api<{ success: boolean; reply: ContactReply; status: string }>(`/contacts/${id}/reply`, { method: 'POST', body: { body: text } }),
   stats: () => api('/contacts/stats/summary'),
 };
 
@@ -434,6 +436,16 @@ export interface NotificationCounts {
   siteSubmissions?: number;
 }
 
+export interface ContactReply {
+  id: number;
+  contact_id: number;
+  admin_id: number | null;
+  body: string;
+  sent_email: boolean;
+  created_at: string;
+  admin_name?: string;
+}
+
 export interface Contact {
   id: number;
   user_id?: number;
@@ -449,6 +461,7 @@ export interface Contact {
   admin_notes?: string;
   created_at: string;
   user?: { name: string; email: string };
+  replies?: ContactReply[];
 }
 
 export interface HostDashboard {

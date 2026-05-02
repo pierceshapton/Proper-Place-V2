@@ -12,5 +12,6 @@ router.get('/', authMiddleware, contactController.getContacts);
 router.get('/stats/summary', authMiddleware, contactController.getContactStats);
 router.get('/:id', authMiddleware, contactController.getContact);
 router.patch('/:id', authMiddleware, contactController.updateContact);
+router.post('/:id/reply', authMiddleware, contactController.addReply);
 
 module.exports = router;

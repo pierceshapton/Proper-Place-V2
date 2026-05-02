@@ -822,6 +822,24 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 35 error:', err.message);
     }
 
+    try {
+      console.log('[SERVER] Running migration 36: contact_replies table...');
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS contact_replies (
+          id SERIAL PRIMARY KEY,
+          contact_id INTEGER NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+          admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          body TEXT NOT NULL,
+          sent_email BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_contact_replies_contact_id ON contact_replies(contact_id)`);
+      console.log('[SERVER] ✅ Migration 36 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 36 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
