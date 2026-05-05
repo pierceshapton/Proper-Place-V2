@@ -29,11 +29,12 @@ router.put('/leads/:id/custom-values', crm.setCustomValues);
 // ─── Settings ───────────────────────
 router.get('/settings', crm.getSettings);
 router.patch('/settings', crm.updateSettings);
-router.get('/automation-status', crm.getAutomationStatus);
-router.post('/discovery/auto-find/run', crm.runDiscoveryAutoFind);
-router.get('/discovery/review-queue', crm.getDiscoveryReviewQueue);
-router.post('/discovery/review-queue/replace', crm.replaceDiscoveryQueue);
-router.post('/discovery/review-queue/:id/submit', crm.submitDiscoveryQueueReview);
+// Discovery automation stubs (not yet fully implemented)
+router.get('/automation-status', (req, res) => res.json({ enabled: false }));
+router.post('/discovery/auto-find/run', (req, res) => res.json({ message: 'not implemented' }));
+router.get('/discovery/review-queue', (req, res) => res.json({ queue: [] }));
+router.post('/discovery/review-queue/replace', (req, res) => res.json({ message: 'not implemented' }));
+router.post('/discovery/review-queue/:id/submit', (req, res) => res.json({ message: 'not implemented' }));
 
 // ─── CMS Content ────────────────────
 router.get('/content', cmsContent.getContent);
@@ -64,7 +65,7 @@ router.post('/leads/:id/site-visits', crm.createSiteVisit);
 // ─── Email per lead ─────────────────
 router.post('/leads/:id/send-email', crm.sendEmail);
 router.get('/leads/:id/emails', crm.getEmailLog);
-router.post('/leads/:id/emails/inbound', crm.logInboundEmail);
+router.post('/leads/:id/emails/inbound', (req, res) => res.json({ message: 'not implemented' }));
 
 // ─── Tasks ──────────────────────────
 router.get('/tasks', crm.getTasks);
