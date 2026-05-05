@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { crmApi, type CRMAutomationStatus, type CRMLead } from '@/lib/api';
 import { buildDiscoveryProfile, scoreCandidate, type CandidatePlace, type ScoredCandidate } from '@/lib/discoveryScoring';
-import { applyScoreCalibration, computeLearningMetrics, type DiscoveryFeedbackItem } from '@/lib/discoveryLearning';
+import { computeLearningMetrics, type DiscoveryFeedbackItem } from '@/lib/discoveryLearning';
 import type { SiteAnalysisResult } from '@/lib/discoverySiteAnalysis';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
@@ -139,27 +139,48 @@ export default function DiscoverPage() {
         subRegions.map(region => searchGooglePlacesBatch(keywords, region, GOOGLE_MAPS_API_KEY))
       );
       const candidates = dedupeByPlaceId(allCandidates.flat());
-      const scoreBias = learningMetrics.scoreBias;
-      const sampleCount = learningMetrics.samples;
-      const scored = candidates
-        .map(candidate => {
-          const base = scoreCandidate(candidate, profile);
-          const calibratedScore = applyScoreCalibration(base.score, scoreBias, sampleCount);
-          const calibrationReason = sampleCount >= 5
-            ? `Calibrated using ${sampleCount} historical reviews (${scoreBias >= 0 ? '+' : ''}${scoreBias.toFixed(1)} bias)`
-            : null;
 
-          return {
-            ...base,
-            score: calibratedScore,
-            reasons: calibrationReason ? [...base.reasons, calibrationReason] : base.reasons,
-          };
-        })
-        .sort((a, b) => b.score - a.score);
+      // Build base scores (used as fallback if AI ranking fails)
+      const basedScored = candidates.map(candidate => scoreCandidate(candidate, profile));
+
+      // Apply OpenAI ranking — re-scores every candidate using feedback as few-shot examples
+      let scored: ScoredCandidate[];
+      try {
+        const rankRes = await fetch('/api/discovery/rank', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            candidates: basedScored,
+            feedback: feedbackHistory,
+            profile: { topTypes: profile.topTypes },
+          }),
+        });
+        if (rankRes.ok) {
+          const rankData = await rankRes.json() as { results?: Array<{ id: string; score: number; reasoning: string }> };
+          const aiMap = new Map((rankData.results || []).map(r => [r.id, r]));
+          scored = basedScored.map(c => {
+            const ai = aiMap.get(c.id);
+            if (ai) {
+              return {
+                ...c,
+                score: ai.score,
+                reasons: [ai.reasoning, ...c.reasons],
+              };
+            }
+            return c;
+          });
+        } else {
+          scored = basedScored;
+        }
+      } catch {
+        // AI unavailable — fall back to base scores silently
+        scored = basedScored;
+      }
+
+      scored = scored.sort((a, b) => b.score - a.score);
 
       const filtered = scored.filter(item => {
         if (isRejected(item, rejectedSites)) return false;
-
         const placeId = normalizePlaceId(item.id);
         return placeId ? !existingPlaceIds.has(placeId) : true;
       });
@@ -224,21 +245,39 @@ export default function DiscoverPage() {
         if (row.analysis) analysisMap.set(row.id, row.analysis);
       });
 
-      const scoreBias = learningMetrics.scoreBias;
-      const sampleCount = learningMetrics.samples;
+      // Re-score with new site signals then re-rank via AI
+      const baseRescored = results.map(item => {
+        const siteAnalysis = analysisMap.get(item.id) || item.siteAnalysis || null;
+        return scoreCandidate({ ...item, siteAnalysis }, profile);
+      });
 
-      const rescored = results
-        .map(item => {
-          const siteAnalysis = analysisMap.get(item.id) || item.siteAnalysis || null;
-          const withSignals = scoreCandidate({ ...item, siteAnalysis }, profile);
-          const calibratedScore = applyScoreCalibration(withSignals.score, scoreBias, sampleCount);
-          return {
-            ...withSignals,
-            score: calibratedScore,
-            siteAnalysis,
-          };
-        })
-        .sort((a, b) => b.score - a.score);
+      let rescored: ScoredCandidate[];
+      try {
+        const rankRes = await fetch('/api/discovery/rank', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            candidates: baseRescored,
+            feedback: feedbackHistory,
+            profile: { topTypes: profile.topTypes },
+          }),
+        });
+        if (rankRes.ok) {
+          const rankData = await rankRes.json() as { results?: Array<{ id: string; score: number; reasoning: string }> };
+          const aiMap = new Map((rankData.results || []).map(r => [r.id, r]));
+          rescored = baseRescored.map(c => {
+            const ai = aiMap.get(c.id);
+            if (ai) return { ...c, score: ai.score, reasons: [ai.reasoning, ...c.reasons] };
+            return c;
+          });
+        } else {
+          rescored = baseRescored;
+        }
+      } catch {
+        rescored = baseRescored;
+      }
+
+      rescored = rescored.sort((a, b) => b.score - a.score);
 
       setResults(rescored);
       const analyzedCount = analysisRows.filter(row => !!row.analysis).length;
@@ -910,8 +949,6 @@ function generateCandidateSummary(item: ScoredCandidate): string {
     parts.push('Their website references campervan or overnight activity, though no specific passage was extracted.');
   } else if (item.siteAnalysis) {
     parts.push('No campervan or overnight mentions found in Google reviews or on their website.');
-  } else {
-    parts.push('Run "Analyse Sites" to check their website for campervan and overnight content.');
   }
 
   if (item.website) {

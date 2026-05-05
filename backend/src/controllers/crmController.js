@@ -1242,6 +1242,24 @@ async function importLeads(req, res, next) {
   }
 }
 
+// Discovery auto-email scheduler hook — checks the kill switch and enabled flag
+// before doing anything, so it is safe to call on a timer even if not fully built out.
+async function processDiscoveryAutoEmails() {
+  try {
+    const db = require('../database');
+    const rows = await db.query(
+      "SELECT value FROM crm_settings WHERE key IN ('discovery_auto_email_enabled', 'server_kill_switch_enabled') ORDER BY key"
+    );
+    const map = {};
+    (rows.rows || []).forEach(r => { map[r.key] = r.value; });
+    if (map['server_kill_switch_enabled'] !== 'true') return;
+    if (map['discovery_auto_email_enabled'] !== 'true') return;
+    // Placeholder: auto-email logic would run here when enabled
+  } catch (err) {
+    logger.error('processDiscoveryAutoEmails error', { error: err.message });
+  }
+}
+
 module.exports = {
   getLeads, getLead, createLead, updateLead, deleteLead, getPipelineSummary,
   getActivities, createActivity,
@@ -1260,4 +1278,6 @@ module.exports = {
   getCustomValues, setCustomValues,
   // Import & Enrich
   importLeads, enrichLead,
+  // Scheduler hooks
+  processDiscoveryAutoEmails,
 };
