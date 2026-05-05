@@ -55,15 +55,6 @@ void goToTab(int index) {
   });
 }
 
-// Screenshot helper: switch to map tab and open a specific place popup
-void openMapPlace(String placeId, double lat, double lng) {
-  HomeScreen.setNextTab(0);
-  HomeScreen.setFocusPlace(placeId, lat, lng);
-  Future.delayed(Duration(milliseconds: 50), () {
-    navigatorKey.currentState!.pushNamedAndRemoveUntil('/home', (r) => false);
-  });
-}
-
 // Screenshot helper: open place detail by fetching place data from API
 Future<void> openPlace(int placeId) async {
   final token = await StorageService.getToken();

@@ -35,6 +35,13 @@ export default function EditPlacePage() {
     serves_food: false, food_menu_description: '', image_urls: [] as string[],
   });
 
+  const [externalCalendars, setExternalCalendars] = useState<any[]>([]);
+  const [calendarsLoading, setCalendarsLoading] = useState(false);
+  const [newCalendarUrl, setNewCalendarUrl] = useState('');
+  const [newCalendarLabel, setNewCalendarLabel] = useState('');
+  const [calendarActionLoading, setCalendarActionLoading] = useState(false);
+  const [calendarError, setCalendarError] = useState('');
+
   useEffect(() => {
     if (!id) return;
     placesApi.get(Number(id))
@@ -54,10 +61,49 @@ export default function EditPlacePage() {
           serves_food: p.serves_food || false, food_menu_description: p.food_menu_description || '',
           image_urls: p.image_urls || [],
         });
+          // Load external calendars for this place
+          loadExternalCalendars(Number(id));
       })
       .catch(() => router.push('/dashboard/places'))
       .finally(() => setLoading(false));
   }, [id, router]);
+
+    async function loadExternalCalendars(placeId: number) {
+      setCalendarsLoading(true);
+      try {
+        const res = await placesApi.listExternalCalendars(placeId);
+        setExternalCalendars(res.calendars || []);
+      } catch (e) {
+        // ignore silently
+      }
+      setCalendarsLoading(false);
+    }
+
+    async function handleAddCalendar() {
+      if (!newCalendarUrl) return setCalendarError('Please enter a calendar URL');
+      setCalendarError('');
+      setCalendarActionLoading(true);
+      try {
+        await placesApi.createExternalCalendar(Number(id), { url: newCalendarUrl, label: newCalendarLabel });
+        setNewCalendarUrl(''); setNewCalendarLabel('');
+        await loadExternalCalendars(Number(id));
+      } catch (err) {
+        setCalendarError(err instanceof ApiError ? err.message : 'Failed to add calendar');
+      }
+      setCalendarActionLoading(false);
+    }
+
+    async function handleDeleteCalendar(calId: number) {
+      if (!confirm('Delete this calendar feed?')) return;
+      setCalendarActionLoading(true);
+      try {
+        await placesApi.deleteExternalCalendar(calId);
+        await loadExternalCalendars(Number(id));
+      } catch (err) {
+        setCalendarError(err instanceof ApiError ? err.message : 'Failed to delete calendar');
+      }
+      setCalendarActionLoading(false);
+    }
 
   const handleImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -208,6 +254,40 @@ export default function EditPlacePage() {
               <div className="text-center"><span className="text-2xl text-gray-400">+</span><p className="text-xs text-gray-400 mt-1">Add</p></div>
               <input type="file" accept="image/*" multiple onChange={handleImageAdd} className="hidden" />
             </label>
+          </div>
+        </div>
+
+        <div className="card bg-white p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Calendar Sync</h2>
+          <p className="text-sm text-gray-600">Add external iCal feed URLs (e.g. Pitchup) to import blocked dates automatically.</p>
+          {calendarError && <div className="text-red-600 text-sm">{calendarError}</div>}
+          <div className="grid grid-cols-1 gap-2">
+            <input value={newCalendarUrl} onChange={e => setNewCalendarUrl(e.target.value)} placeholder="https://example.com/feed.ics" className="bg-white border-gray-300 text-gray-900" />
+            <input value={newCalendarLabel} onChange={e => setNewCalendarLabel(e.target.value)} placeholder="Label (optional)" className="bg-white border-gray-300 text-gray-900" />
+            <div className="flex gap-2">
+              <button type="button" onClick={handleAddCalendar} disabled={calendarActionLoading} className="btn-primary py-2 px-4">{calendarActionLoading ? 'Adding...' : 'Add Calendar'}</button>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-700">Existing feeds</h3>
+            {calendarsLoading ? <div className="text-sm text-gray-500">Loading...</div> : (
+              <ul className="space-y-2 mt-2">
+                {externalCalendars.length === 0 && <li className="text-sm text-gray-500">No external calendars configured.</li>}
+                {externalCalendars.map(c => (
+                  <li key={c.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                    <div className="text-sm">
+                      <div className="font-medium">{c.label || c.url}</div>
+                      <div className="text-xs text-gray-500">{c.url}</div>
+                      <div className="text-xs text-gray-400">Last synced: {c.last_synced || 'never'}</div>
+                    </div>
+                    <div>
+                      <button type="button" onClick={() => handleDeleteCalendar(c.id)} disabled={calendarActionLoading} className="text-sm text-red-600">Delete</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 

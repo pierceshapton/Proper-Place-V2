@@ -24,6 +24,8 @@ export interface CandidatePlace {
     wheelchairAccessibleEntrance?: boolean;
   } | null;
   siteAnalysis?: SiteAnalysisResult | null;
+  reviewsText?: string[];
+  editorialSummary?: string | null;
 }
 
 export interface ScoredCandidate extends CandidatePlace {

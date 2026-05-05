@@ -1,0 +1,13 @@
+proper_place/
+proper_place_backend/
+backend/
+Runner.app.dSYM/
+android-screenshots/
+scripts/
+sd-webui/
+marketing/
+business-cards/
+*.ipa
+*.dSYM
+web/.next/
+web/node_modules/

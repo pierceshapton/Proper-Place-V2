@@ -54,9 +54,6 @@ export default function TermsPage() {
               <li>Complying with all local regulations and laws</li>
               <li>Providing a safe environment for guests</li>
               <li>Maintaining appropriate insurance coverage</li>
-              <li>Completing Stripe Connect onboarding via the app before receiving payouts. Until onboarding is complete,
-              earned funds cannot be disbursed. Proper Place is not liable for delayed payouts resulting from incomplete
-              onboarding.</li>
             </ul>
 
             <h2 className="text-2xl font-bold mt-8 mb-4">5. Guest Responsibilities</h2>
@@ -71,30 +68,22 @@ export default function TermsPage() {
 
             <h2 className="text-2xl font-bold mt-8 mb-4">6. Payments, Authorisation &amp; Fund Holding</h2>
             <p className="text-gray-600 mb-4">
-              All payments are processed securely through Stripe. Hosts set their own prices. Proper Place charges a 
-              <strong> platform service fee of 15%</strong> of the total booking amount, which is deducted from the 
-              Host&apos;s payout. Guests are charged the full advertised price with no additional platform fees.
+              All payments are processed securely through our platform via Stripe. Hosts set their own prices and 
+              Proper Place may charge a service fee to facilitate bookings.
             </p>
             <p className="text-gray-600 mb-4">
-              <strong>6.1 Payment at Booking.</strong> When a Guest confirms a booking, their chosen payment method is 
-              processed immediately via Stripe. Depending on the lead time before checkout:
-            </p>
-            <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
-              <li><strong>Short-lead bookings (checkout within 6 days):</strong> A temporary authorisation hold is placed on the
-              full booking amount. No funds are transferred at this stage; the hold ring-fences the amount on the Guest&apos;s account
-              until checkout is completed.</li>
-              <li><strong>Advance bookings (checkout more than 6 days away):</strong> The full booking amount is charged immediately.
-              This is required because card authorisation holds expire after 7 days. Guests will see a completed charge on
-              their payment method at the time of booking.</li>
-            </ul>
-            <p className="text-gray-600 mb-4">
-              <strong>6.2 Payment Capture &amp; Checkout.</strong> For short-lead bookings where a hold was placed, payment 
-              is captured by Stripe at the point of checkout (when the stay is marked as completed). 
-              Proper Place does not capture or process any payments directly.
+              <strong>6.1 Payment Authorisation.</strong> When a Guest submits a booking request, their chosen payment method is 
+              authorised for the full booking amount. This authorisation places a temporary hold on the funds but does not 
+              constitute a charge. No funds are transferred at this stage.
             </p>
             <p className="text-gray-600 mb-4">
-              <strong>6.3 Fund Holding.</strong> All funds — whether held under authorisation or captured — are held securely 
-              by Stripe, not by Proper Place. Proper Place never holds, controls, or has custody of Guest funds at any stage. 
+              <strong>6.2 Host Approval &amp; Payment Capture.</strong> Payment is captured by Stripe once the Host has 
+              approved the Guest&apos;s stay. If the Host does not approve the booking, the authorisation hold is released by Stripe and 
+              no charge is made to the Guest&apos;s payment method. Proper Place does not capture or process any payments directly.
+            </p>
+            <p className="text-gray-600 mb-4">
+              <strong>6.3 Fund Holding.</strong> All captured funds are held securely by Stripe — not by Proper Place — until the 
+              stay has been completed. Proper Place never holds, controls, or has custody of Guest funds at any stage. 
               Funds are disbursed to the Host by Stripe following the successful completion of the Guest&apos;s stay. 
               This holding period serves as protection for both Hosts and Guests in the event of a dispute, cancellation, or damage claim.
             </p>
@@ -106,8 +95,7 @@ export default function TermsPage() {
             </p>
             <p className="text-gray-600 mb-6">
               <strong>6.5 Refunds.</strong> Where a booking is cancelled in accordance with the applicable cancellation policy, 
-              or where a Host rejects a booking request, the Guest shall receive a full refund. For advance bookings that were 
-              charged immediately, the refund will be credited back to the original payment method. 
+              or where a Host rejects a booking request, the Guest shall receive a full refund of the authorised amount. 
               Refund processing times may vary depending on the Guest&apos;s payment provider.
             </p>
 

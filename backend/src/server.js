@@ -49,6 +49,8 @@ const webhookRoutes = require('./routes/webhooks');
 const crmRoutes = require('./routes/crm');
 const cmsContentController = require('./controllers/cmsContentController');
 const pushService = require('./services/pushNotificationService');
+const icalRoutes = require('./routes/ical');
+const externalCalendarService = require('./services/externalCalendarService');
 
 // User controller for user endpoints
 const userController = require('./controllers/userController');
@@ -148,6 +150,7 @@ app.use('/reviews', reviewsRoutes);
 app.use('/contacts', contactsRoutes);
 app.use('/notifications', notificationsRoutes);
 app.use('/chat', chatRoutes);
+app.use('/ical', icalRoutes);
 app.use('/admin', adminRoutes);
 app.use('/upload', uploadRoutes);
 app.use('/auto-messages', autoMessagesRoutes);
@@ -840,6 +843,36 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 36 error:', err.message);
     }
 
+    // Migration 37: External calendars and imported blocked dates
+    try {
+      console.log('[SERVER] Running migration 37: external_calendars + external_blocked_dates tables...');
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS external_calendars (
+          id SERIAL PRIMARY KEY,
+          place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+          url TEXT NOT NULL,
+          label VARCHAR(255),
+          last_synced TIMESTAMP,
+          enabled BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS external_blocked_dates (
+          id SERIAL PRIMARY KEY,
+          place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+          external_calendar_id INTEGER REFERENCES external_calendars(id) ON DELETE SET NULL,
+          start_date DATE NOT NULL,
+          end_date DATE NOT NULL,
+          source VARCHAR(100),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_external_blocked_place_id ON external_blocked_dates(place_id);
+        CREATE INDEX IF NOT EXISTS idx_external_blocked_dates ON external_blocked_dates(start_date, end_date);
+      `);
+      console.log('[SERVER] ✅ Migration 37 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 37 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
@@ -1034,6 +1067,18 @@ async function start() {
     // Run once on startup after a short delay
     setTimeout(() => bookingCtrl.cancelExpiredAuthorizations(), 60000);
     console.log('[SERVER] Expired authorization checker started (every 1 hour)');
+
+    // Start external calendar sync (runs every 15 minutes)
+    try {
+      setInterval(() => {
+        externalCalendarService.syncAllEnabledCalendars();
+      }, 15 * 60 * 1000);
+      // Run once on startup after a short delay
+      setTimeout(() => externalCalendarService.syncAllEnabledCalendars(), 45000);
+      console.log('[SERVER] External calendar sync started (every 15 min)');
+    } catch (err) {
+      console.error('[SERVER] Failed to start external calendar sync:', err.message);
+    }
 
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);

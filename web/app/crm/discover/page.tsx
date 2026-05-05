@@ -125,7 +125,7 @@ export default function DiscoverPage() {
       .split(/[\n,]/)
       .map(item => item.trim())
       .filter(Boolean)
-      .slice(0, 8);
+      .slice(0, 20);
 
     if (!regionQuery.trim() || keywords.length === 0) {
       setSearchError('Enter a target region and at least one keyword.');
@@ -134,7 +134,11 @@ export default function DiscoverPage() {
 
     setIsSearching(true);
     try {
-      const candidates = await searchGooglePlacesBatch(keywords, regionQuery, GOOGLE_MAPS_API_KEY);
+      const subRegions = regionQuery.split(',').map(r => r.trim()).filter(Boolean);
+      const allCandidates = await Promise.all(
+        subRegions.map(region => searchGooglePlacesBatch(keywords, region, GOOGLE_MAPS_API_KEY))
+      );
+      const candidates = dedupeByPlaceId(allCandidates.flat());
       const scoreBias = learningMetrics.scoreBias;
       const sampleCount = learningMetrics.samples;
       const scored = candidates
@@ -643,6 +647,8 @@ async function searchGooglePlaces(keyword: string, region: string, apiKey: strin
         'places.types',
         'places.parkingOptions',
         'places.accessibilityOptions',
+        'places.reviews',
+        'places.editorialSummary',
       ].join(','),
     },
     body: JSON.stringify({
@@ -672,6 +678,10 @@ async function searchGooglePlaces(keyword: string, region: string, apiKey: strin
     types: Array.isArray(place.types) ? place.types : [],
     parkingOptions: place.parkingOptions || null,
     accessibilityOptions: place.accessibilityOptions || null,
+    reviewsText: Array.isArray(place.reviews)
+      ? place.reviews.map(r => r.text?.text || '').filter(Boolean)
+      : [],
+    editorialSummary: place.editorialSummary?.text || null,
   }));
 }
 
@@ -696,6 +706,8 @@ interface GooglePlaceItem {
     wheelchairAccessibleParking?: boolean;
     wheelchairAccessibleEntrance?: boolean;
   };
+  reviews?: Array<{ text?: { text?: string } }>;
+  editorialSummary?: { text?: string };
 }
 
 interface GooglePlacesResponse {
@@ -774,6 +786,15 @@ function dedupeRejected(rows: RejectedSite[]): RejectedSite[] {
   return Array.from(map.values()).slice(-1000);
 }
 
+function dedupeByPlaceId(candidates: CandidatePlace[]): CandidatePlace[] {
+  const map = new Map<string, CandidatePlace>();
+  candidates.forEach(c => {
+    const key = normalizePlaceId(c.id) || `${c.name}|${c.address}`.toLowerCase();
+    if (!map.has(key)) map.set(key, c);
+  });
+  return Array.from(map.values());
+}
+
 function isRejected(candidate: CandidatePlace, rejectedRows: RejectedSite[]): boolean {
   const candidateKey = candidate.id || normalizeText(`${candidate.name}|${candidate.address}`);
   return rejectedRows.some(row => {
@@ -820,21 +841,82 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
 }
 
 function generateCandidateSummary(item: ScoredCandidate): string {
+  const parts: string[] = [];
+
+  // What is it and where
   const typeLabel = (item.primaryType || item.types?.[0] || 'venue').replace(/_/g, ' ');
-  const ratingPart = item.rating != null
-    ? ` rated ${item.rating}\u2605${item.reviews ? ` by ${item.reviews.toLocaleString()} reviewers` : ''}`
-    : '';
-  const addressShort = item.address ? ` in ${item.address.split(',').slice(-3, -1).join(',').trim()}` : '';
-  const s1 = `${item.name} is a ${typeLabel}${addressShort}${ratingPart}.`;
+  const addressParts = item.address ? item.address.split(',') : [];
+  const locality = addressParts.length >= 2
+    ? addressParts.slice(-3, -1).map(s => s.trim()).filter(Boolean).join(', ')
+    : item.address;
 
-  const highlights = (item.reasons || [])
-    .filter(reason => !/calibrated using/i.test(reason))
-    .slice(0, 2)
-    .join(' and ');
+  if (item.editorialSummary) {
+    parts.push(item.editorialSummary);
+  } else {
+    parts.push(`${item.name} is a ${typeLabel}${locality ? ` in ${locality}` : ''}.`);
+  }
 
-  const s2 = highlights
-    ? `It matches your search because ${highlights.toLowerCase()}.`
-    : 'It appears to match your search area and venue preferences.';
+  // Parking
+  const parking = item.parkingOptions || {};
+  if (parking.freeParkingLot) {
+    parts.push('It has a free on-site car park.');
+  } else if (parking.paidParkingLot) {
+    parts.push('It has a paid on-site car park.');
+  } else if (parking.freeStreetParking) {
+    parts.push('Free street parking is available nearby.');
+  } else if (parking.paidStreetParking) {
+    parts.push('Paid street parking is available nearby.');
+  } else {
+    parts.push('No specific parking information was found on Google.');
+  }
 
-  return `${s1} ${s2}`.trim();
+  if (item.siteAnalysis?.parkingConfidence && item.siteAnalysis.parkingConfidence >= 30) {
+    parts.push('Their website also references parking availability.');
+  }
+
+  // Rating and reviews
+  if (item.rating != null && item.reviews != null) {
+    parts.push(`It holds a ${item.rating}\u2605 Google rating from ${item.reviews.toLocaleString()} reviews.`);
+  } else if (item.rating != null) {
+    parts.push(`It holds a ${item.rating}\u2605 Google rating.`);
+  }
+
+  // Campervan — prefer real review quotes, fall back to website snippets
+  const campervanKeywords = ['campervan', 'motorhome', 'overnight', 'camper', ' rv ', 'night stop',
+    'stopover', 'stay the night', 'park up', 'park overnight', 'van overnight'];
+
+  const campervanReviews = (item.reviewsText || []).filter(r =>
+    campervanKeywords.some(kw => r.toLowerCase().includes(kw))
+  );
+  const campervanWebSnippets = item.siteAnalysis?.campervanSnippets || [];
+
+  if (campervanReviews.length > 0) {
+    const snippet = campervanReviews[0].length > 220
+      ? campervanReviews[0].slice(0, 220) + '\u2026'
+      : campervanReviews[0];
+    parts.push(`A Google reviewer mentioned: "${snippet}"`);
+    if (campervanReviews.length > 1) {
+      parts.push(`${campervanReviews.length - 1} other review${campervanReviews.length > 2 ? 's' : ''} also mention campervan or overnight stays.`);
+    }
+  } else if (campervanWebSnippets.length > 0) {
+    const snippet = campervanWebSnippets[0].length > 220
+      ? campervanWebSnippets[0].slice(0, 220) + '\u2026'
+      : campervanWebSnippets[0];
+    parts.push(`Their website says: "${snippet}"`);
+    if (campervanWebSnippets.length > 1) {
+      parts.push('Their site has additional content referencing campervan or overnight use — worth a look.');
+    }
+  } else if (item.siteAnalysis?.campervanPriority && item.siteAnalysis.campervanPriority >= 15) {
+    parts.push('Their website references campervan or overnight activity, though no specific passage was extracted.');
+  } else if (item.siteAnalysis) {
+    parts.push('No campervan or overnight mentions found in Google reviews or on their website.');
+  } else {
+    parts.push('Run "Analyse Sites" to check their website for campervan and overnight content.');
+  }
+
+  if (item.website) {
+    parts.push('They have a website worth checking for more detail.');
+  }
+
+  return parts.join(' ');
 }

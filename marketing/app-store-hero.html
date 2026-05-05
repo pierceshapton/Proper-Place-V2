@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Proper Place — App Store Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Fraunces is a free serif very close to the bold blocky serif in the original -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,800;9..144,900&display=swap" rel="stylesheet">
+<style>
+  /* ====== EDIT THESE ====== */
+  :root {
+    --bg: #EAE3D2;            /* cream background */
+    --title: #1F3A1F;         /* dark green title */
+    --canvas-w: 1284px;       /* iPhone 6.7" App Store size */
+    --canvas-h: 2778px;
+    --title-size: 128px;
+    --title-leading: 0.95;
+    --title-top: 110px;
+    --phone-top: 610px;
+    --phone-radius: 80px;
+    --phone-w: 1080px;        /* width of inner phone screenshot */
+    --phone-h: 2050px;        /* height of inner phone screenshot */
+  }
+
+  /* The inner screenshot image. Replace the URL with your own phone capture. */
+  .phone {
+    background-image: url('phone-screenshot.png');
+  }
+  /* ======================== */
+
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    width: var(--canvas-w);
+    height: var(--canvas-h);
+    font-family: 'Fraunces', Georgia, serif;
+    overflow: hidden;
+    position: relative;
+  }
+  .title {
+    position: absolute;
+    top: var(--title-top);
+    left: 0; right: 0;
+    text-align: center;
+    color: var(--title);
+    font-weight: 900;
+    font-size: var(--title-size);
+    line-height: var(--title-leading);
+    font-stretch: 80%;
+    letter-spacing: -0.01em;
+    padding: 0 60px;
+  }
+  .phone {
+    position: absolute;
+    top: var(--phone-top);
+    left: 50%;
+    transform: translateX(-50%);
+    width: var(--phone-w);
+    height: var(--phone-h);
+    background-size: cover;
+    background-position: center top;
+    border-radius: var(--phone-radius);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.18);
+    overflow: hidden;
+  }
+</style>
+</head>
+<body>
+  <h1 class="title">Discover Proper<br/>Places to stay<br/>across the UK</h1>
+  <div class="phone"></div>
+</body>
+</html>

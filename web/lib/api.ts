@@ -135,6 +135,10 @@ export const placesApi = {
   setUnavailable: (id: number, data: { startDate: string; endDate?: string; isIndefinite?: boolean }) =>
     api(`/places/${id}/set-unavailable`, { method: 'POST', body: data }),
   setAvailable: (id: number) => api(`/places/${id}/set-available`, { method: 'POST' }),
+  // External calendars (host-managed)
+  listExternalCalendars: (placeId: number) => api<{ calendars: { id: number; url: string; label?: string; last_synced?: string; enabled: boolean }[] }>(`/places/${placeId}/external-calendars`),
+  createExternalCalendar: (placeId: number, data: { url: string; label?: string }) => api<{ calendar: unknown }>(`/places/${placeId}/external-calendars`, { method: 'POST', body: data }),
+  deleteExternalCalendar: (calendarId: number) => api(`/places/external-calendars/${calendarId}`, { method: 'DELETE' }),
 };
 
 // Bookings

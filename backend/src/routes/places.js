@@ -4,6 +4,7 @@ const { validationMiddleware } = require('../middleware/validation');
 const { placesLimiter } = require('../middleware/rateLimit');
 const placeController = require('../controllers/placeController');
 const adminController = require('../controllers/adminController');
+const externalCalendarsController = require('../controllers/externalCalendarsController');
 
 const router = express.Router();
 
@@ -12,6 +13,11 @@ router.get('/', placesLimiter, optionalAuthMiddleware, placeController.getPlaces
 
 // Protected routes - must be before /:id to avoid conflict
 router.get('/host/my-places', authMiddleware, placeController.getHostPlaces);
+
+// External calendars (hosts only) - manage external iCal feed URLs for a place
+router.get('/:id/external-calendars', authMiddleware, externalCalendarsController.listExternalCalendars);
+router.post('/:id/external-calendars', authMiddleware, externalCalendarsController.createExternalCalendar);
+router.delete('/external-calendars/:id', authMiddleware, externalCalendarsController.deleteExternalCalendar);
 
 // Admin routes - must be before /:id to avoid conflict
 router.get('/admin/pending', authMiddleware, adminMiddleware, placeController.getPendingPlaces);

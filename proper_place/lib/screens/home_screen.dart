@@ -26,6 +26,7 @@ import 'admin_contact_messages_screen.dart';
 import 'admin_more_screen.dart';
 import 'host_tutorial_screen.dart';
 import 'host_create_site_screen.dart';
+import 'welcome_screen.dart';
 
 /// Reusable custom bottom navigation bar widget
 class CustomBottomNavBar extends StatelessWidget {
@@ -190,6 +191,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? userRole;
   bool isHostMode = false;
   bool isAdminMode = false;
+  bool _rolesLoaded = false;
+  bool _authLoading = false;
+  bool _authLoadFailed = false;
+  int _authLoadAttempts = 0;
+  static const int _maxAuthLoadAttempts = 3;
   
   // Notification counts
   Map<int, int> _badgeCounts = {};
@@ -214,17 +220,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     
     // Defer ALL data loading to after UI renders to prevent blocking
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(Duration.zero, () async {
-        // Load role and mode first - these are needed for badge count mapping
-        await Future.wait([
-          _loadUserRole(),
-          _loadHostMode(),
-          _loadAdminMode(),
-        ]);
+      // Load auth state (role + modes) FIRST and gate the UI on it.
+      // Previously this used Future.any with 3-second timeouts that could
+      // default the role/modes to wrong values when iOS Keychain was slow,
+      // causing the home UI to render in the wrong mode with empty content.
+      _loadAuthState().then((_) {
+        if (!mounted) return;
         // Now load places and notification counts
         _loadPlaces();
         _loadNotificationCounts();
-        
+
         // Show host tutorial on first host mode access
         if (isHostMode) {
           _checkShowHostTutorial();
@@ -264,10 +269,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Refresh host mode and admin mode when app is resumed
-      _loadHostMode();
-      _loadAdminMode();
-      _loadNotificationCounts(); // Refresh notifications when app is resumed
+      // Refresh host/admin mode flags WITHOUT touching _currentIndex or
+      // resetting the tab the user is on. Calling the original loaders
+      // here previously reset _currentIndex = 0 on every resume, which
+      // could leave the UI in an inconsistent state.
+      _refreshModesQuietly();
+      _loadNotificationCounts();
+    }
+  }
+
+  Future<void> _refreshModesQuietly() async {
+    try {
+      final results = await Future.wait([
+        StorageService.getHostMode(),
+        StorageService.getAdminMode(),
+      ]);
+      if (!mounted) return;
+      final newHost = results[0];
+      final newAdmin = results[1];
+      if (newHost != isHostMode || newAdmin != isAdminMode) {
+        setState(() {
+          isHostMode = newHost;
+          isAdminMode = newAdmin;
+        });
+      }
+    } catch (e) {
+      debugPrint('[App] _refreshModesQuietly error: $e');
     }
   }
 
@@ -533,83 +560,206 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _loadUserRole() async {
-    try {
-      final role = await Future.any([
-        StorageService.getUserRole(),
-        Future.delayed(const Duration(seconds: 3), () => null),
-      ]);
-      if (mounted) {
-        setState(() {
-          userRole = role ?? 'normal_user';
-        });
-      }
-    } catch (e) {
-      debugPrint('[App] Error loading role: $e');
-      if (mounted) {
-        setState(() {
-          userRole = 'normal_user';
-        });
-      }
+  /// Load user role + host/admin mode atomically and reliably.
+  ///
+  /// This replaces three separate loaders that each used Future.any with a
+  /// 3-second timeout. On a slow iOS Keychain access (cold start, low-power
+  /// mode, or first-launch after install), those timeouts could fire BEFORE
+  /// the keychain returned, defaulting role to 'normal_user' and modes to
+  /// false even for admin/host users. That left the UI rendering the user-
+  /// mode shell with empty content and a mismatched tab — the exact symptom
+  /// Apple reported ("content failed to load and all the buttons were
+  /// unresponsive").
+  ///
+  /// We now await each storage read directly, with a single per-call timeout
+  /// fallback that ONLY applies if storage truly hangs. The UI is gated on
+  /// `_rolesLoaded` so it never renders in an indeterminate state.
+  ///
+  /// If any storage read times out, we surface a retry screen instead of
+  /// silently dropping the user into the wrong mode. The retry is bounded
+  /// by `_maxAuthLoadAttempts` to guarantee we never loop forever — after
+  /// the limit, we accept the partial/default values and proceed so the
+  /// app remains usable (with a sign-out fallback offered to the user).
+  Future<void> _loadAuthState() async {
+    if (_authLoading) return;
+    if (mounted) {
+      setState(() {
+        _authLoading = true;
+        _authLoadFailed = false;
+      });
     }
-  }
+    _authLoadAttempts++;
 
-  Future<void> _loadHostMode() async {
+    String role = 'normal_user';
+    bool hostMode = false;
+    bool adminMode = false;
+    bool anyTimeout = false;
+
     try {
-      final hostMode = await Future.any([
-        StorageService.getHostMode(),
-        Future.delayed(const Duration(seconds: 3), () => false),
-      ]);
-      
-      bool modeToSet = hostMode ?? false;
-      if (!(hostMode ?? false) && (userRole == 'admin' || userRole == 'host')) {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final hasHostModeKey = prefs.containsKey('host_mode');
-          if (!hasHostModeKey) {
-            modeToSet = true;
-          }
-        } catch (e) {
-          debugPrint('Error checking SharedPreferences: $e');
+      final r = await StorageService.getUserRole()
+          .timeout(const Duration(seconds: 8), onTimeout: () {
+        anyTimeout = true;
+        return null;
+      });
+      role = r ?? 'normal_user';
+    } catch (e) {
+      anyTimeout = true;
+      debugPrint('[App] _loadAuthState role error: $e');
+    }
+
+    try {
+      hostMode = await StorageService.getHostMode()
+          .timeout(const Duration(seconds: 8), onTimeout: () {
+        anyTimeout = true;
+        return false;
+      });
+    } catch (e) {
+      anyTimeout = true;
+      debugPrint('[App] _loadAuthState hostMode error: $e');
+    }
+
+    try {
+      adminMode = await StorageService.getAdminMode()
+          .timeout(const Duration(seconds: 8), onTimeout: () {
+        anyTimeout = true;
+        return false;
+      });
+    } catch (e) {
+      anyTimeout = true;
+      debugPrint('[App] _loadAuthState adminMode error: $e');
+    }
+
+    // If a read timed out and we still have retries available, surface the
+    // error screen so the user can retry rather than landing in the wrong
+    // mode. After _maxAuthLoadAttempts, accept the defaults and proceed.
+    if (anyTimeout && _authLoadAttempts < _maxAuthLoadAttempts) {
+      if (!mounted) return;
+      setState(() {
+        _authLoading = false;
+        _authLoadFailed = true;
+      });
+      debugPrint('[App] _loadAuthState attempt $_authLoadAttempts timed out; awaiting retry');
+      return;
+    }
+
+    // If host_mode key was never written for an admin/host account, default
+    // them into host mode (preserves prior behaviour).
+    if (!hostMode && (role == 'admin' || role == 'host')) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (!prefs.containsKey('host_mode')) {
+          hostMode = true;
         }
-      }
-      
-      if (mounted) {
-        setState(() {
-          isHostMode = modeToSet;
-          _currentIndex = 0;
-        });
-      }
-    } catch (e) {
-      debugPrint('[App] Error loading host mode: $e');
-      if (mounted) {
-        setState(() {
-          isHostMode = (userRole == 'admin' || userRole == 'host') ? true : false;
-          _currentIndex = 0;
-        });
+      } catch (e) {
+        debugPrint('[App] _loadAuthState prefs error: $e');
       }
     }
+
+    // Admin in admin mode shouldn't also be in host mode.
+    if (role == 'admin' && adminMode) {
+      hostMode = false;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      userRole = role;
+      isHostMode = hostMode;
+      isAdminMode = adminMode;
+      _rolesLoaded = true;
+      _authLoading = false;
+      _authLoadFailed = false;
+    });
+    debugPrint('[App] _loadAuthState complete: role=$role hostMode=$hostMode adminMode=$adminMode (attempts=$_authLoadAttempts, anyTimeout=$anyTimeout)');
   }
 
-  Future<void> _loadAdminMode() async {
+  /// Sign out and return to the welcome screen. Used by the auth-load
+  /// failure recovery UI when storage is genuinely broken.
+  Future<void> _signOutFromAuthFailure() async {
     try {
-      final adminMode = await Future.any([
-        StorageService.getAdminMode(),
-        Future.delayed(const Duration(seconds: 3), () => false),
-      ]);
-      if (mounted) {
-        setState(() {
-          isAdminMode = adminMode ?? false;
-        });
-      }
+      await StorageService.clearUserData()
+          .timeout(const Duration(seconds: 5), onTimeout: () {});
     } catch (e) {
-      debugPrint('[App] Error loading admin mode: $e');
-      if (mounted) {
-        setState(() {
-          isAdminMode = false;
-        });
-      }
+      debugPrint('[App] sign out error: $e');
     }
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      (_) => false,
+    );
+  }
+
+  Widget _buildAuthErrorScreen() {
+    final triesLeft = _maxAuthLoadAttempts - _authLoadAttempts;
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAF9F6),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_outlined,
+                    size: 64, color: Color(0xFF7BA7D8)),
+                const SizedBox(height: 20),
+                const Text(
+                  'Couldn\u2019t load your account',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E)),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  triesLeft > 0
+                      ? 'Something went wrong loading your profile. Please try again.'
+                      : 'We\u2019re having trouble loading your profile. Please sign out and sign back in.',
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                if (triesLeft > 0)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _authLoading ? null : () => _loadAuthState(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4A7EB3),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        'Retry ($triesLeft left)',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _authLoading ? null : _signOutFromAuthFailure,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF4A7EB3),
+                      side: const BorderSide(color: Color(0xFF4A7EB3)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Sign Out',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   /// Load notification counts from API
@@ -1005,8 +1155,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       });
     }
 
-    if (userRole == null) {
+    // Gate the entire UI on auth state being fully loaded. This prevents
+    // rendering the wrong nav shell / empty body when storage is slow.
+    if (_authLoadFailed) {
+      return _buildAuthErrorScreen();
+    }
+    if (!_rolesLoaded || userRole == null) {
       return const Scaffold(
+        backgroundColor: Color(0xFFFAF9F6),
         body: Center(
           child: CircularProgressIndicator(color: Color(0xFF7BA7D8)),
         ),

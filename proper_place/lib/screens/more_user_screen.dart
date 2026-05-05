@@ -43,35 +43,68 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
   }
 
   Future<void> _loadUserData() async {
+    // Read all local storage values first; these are fast and must never
+    // block rendering the UI. Each read is independently guarded so a single
+    // slow/failing read can't prevent the rest from being applied.
+    String? name;
+    String? role;
+    bool hostMode = false;
+    String? hostAppStatus;
+    bool sizeFilter = false;
+
     try {
-      final name = await StorageService.getUserName();
-      final role = await StorageService.getUserRole();
-      final hostMode = await StorageService.getHostMode();
-      var hostAppStatus = await StorageService.getHostApplicationStatus();
-      final sizeFilter = await StorageService.getSizeFilterEnabled();
+      name = await StorageService.getUserName()
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
+    } catch (e) { debugPrint('[More] getUserName error: $e'); }
+    try {
+      role = await StorageService.getUserRole()
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
+    } catch (e) { debugPrint('[More] getUserRole error: $e'); }
+    try {
+      hostMode = await StorageService.getHostMode()
+          .timeout(const Duration(seconds: 5), onTimeout: () => false);
+    } catch (e) { debugPrint('[More] getHostMode error: $e'); }
+    try {
+      hostAppStatus = await StorageService.getHostApplicationStatus()
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
+    } catch (e) { debugPrint('[More] getHostApplicationStatus error: $e'); }
+    try {
+      sizeFilter = await StorageService.getSizeFilterEnabled()
+          .timeout(const Duration(seconds: 5), onTimeout: () => false);
+    } catch (e) { debugPrint('[More] getSizeFilterEnabled error: $e'); }
 
-      // Refresh Connect onboarding status from the backend
-      bool connectOnboarded = false;
-      try {
-        final userId = await StorageService.getUserId();
-        if (userId != null) {
-          final status = await ApiService.getConnectStatus(userId: userId);
-          connectOnboarded = status['onboarded'] == true;
-        }
-      } catch (_) {}
+    // Apply local data immediately so the screen reflects the user even if
+    // the network call below stalls.
+    if (mounted) {
+      setState(() {
+        _userName = name ?? 'User';
+        _userRole = (hostAppStatus == 'approved') ? 'host' : (role ?? 'user');
+        _isHostMode = hostMode;
+        _hostApplicationStatus = hostAppStatus;
+        _sizeFilterEnabled = sizeFilter;
+      });
+    }
 
-      if (mounted) {
-        setState(() {
-          _userName = name ?? 'User';
-          _userRole = (hostAppStatus == 'approved') ? 'host' : (role ?? 'user');
-          _isHostMode = hostMode;
-          _hostApplicationStatus = hostAppStatus;
-          _sizeFilterEnabled = sizeFilter;
-          _stripeConnectOnboarded = connectOnboarded;
-        });
+    // Refresh Connect onboarding status from the backend with a hard timeout
+    // so a hung network request can't leave the screen feeling unresponsive.
+    bool connectOnboarded = false;
+    try {
+      final userId = await StorageService.getUserId()
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
+      if (userId != null) {
+        final status = await ApiService.getConnectStatus(userId: userId)
+            .timeout(const Duration(seconds: 8),
+                onTimeout: () => <String, dynamic>{});
+        connectOnboarded = status['onboarded'] == true;
       }
     } catch (e) {
-      debugPrint('Error loading user data: $e');
+      debugPrint('[More] getConnectStatus error: $e');
+    }
+
+    if (mounted) {
+      setState(() {
+        _stripeConnectOnboarded = connectOnboarded;
+      });
     }
   }
 

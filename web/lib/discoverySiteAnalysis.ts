@@ -21,6 +21,7 @@ export interface SiteAnalysisResult {
   accessScore: number;
   campervanPriority: number;
   websiteMentions: string[];
+  campervanSnippets: string[];
   reasons: string[];
   scoreBoost: number;
 }
@@ -46,6 +47,9 @@ export function analyzeSiteSignals(input: SiteAnalysisInput, websiteText: string
     mentions.push('Website mentions parking');
     reasons.push(`Parking language detected (+${score})`);
   }
+
+  const ALL_CAMPERVAN_TERMS = [...CAMPERVAN_TERMS, ...OVERNIGHT_TERMS];
+  const campervanSnippets = extractSentencesContaining(websiteText, ALL_CAMPERVAN_TERMS);
 
   if (campervanMentions > 0 || overnightMentions > 0) {
     const score = Math.min(30, 12 + campervanMentions * 5 + overnightMentions * 3);
@@ -117,6 +121,7 @@ export function analyzeSiteSignals(input: SiteAnalysisInput, websiteText: string
     accessScore,
     campervanPriority,
     websiteMentions: mentions,
+    campervanSnippets,
     reasons,
     scoreBoost,
   };
@@ -140,6 +145,25 @@ function countKeywordHits(text: string, terms: string[]): number {
     if (text.includes(term)) return count + 1;
     return count;
   }, 0);
+}
+
+function extractSentencesContaining(text: string, terms: string[]): string[] {
+  if (!text) return [];
+  const sentences = text
+    .replace(/([.!?])\s+/g, '$1\n')
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s.length > 20 && s.length < 400);
+
+  const matched: string[] = [];
+  for (const sentence of sentences) {
+    const lower = sentence.toLowerCase();
+    if (terms.some(term => lower.includes(term))) {
+      matched.push(sentence);
+      if (matched.length >= 4) break;
+    }
+  }
+  return matched;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -166,6 +190,10 @@ const CAMPERVAN_TERMS = [
   'camping van',
   'vanlife',
   'touring van',
+  'camper van',
+  'motor home',
+  'touring caravan',
+  'wild camp',
 ];
 
 const OVERNIGHT_TERMS = [
@@ -176,6 +204,13 @@ const OVERNIGHT_TERMS = [
   'stay overnight',
   'one night',
   'nightly stay',
+  'sleep in your van',
+  'van overnight',
+  'park up',
+  'park overnight',
+  'stay the night',
+  'wake up',
+  'morning departure',
 ];
 
 const ACCESS_TERMS = [

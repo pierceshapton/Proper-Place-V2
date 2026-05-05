@@ -468,20 +468,19 @@ async function createBooking(req, res, next) {
         data.contact_phone || null,
         data.special_requests || null,
         bookingRef,
-        data.paymentIntentId || data.payment_intent_id || null,
+        data.payment_intent_id || null,
       ]
     );
 
     logger.info('Booking created', { userId, bookingId: result.rows[0].id });
 
     // Update Stripe payment intent with booking reference and metadata
-    const piId = data.paymentIntentId || data.payment_intent_id;
-    if (piId) {
+    if (data.payment_intent_id) {
       setImmediate(async () => {
         try {
           const userRes = await db.query('SELECT name, email FROM users WHERE id = $1', [userId]);
           const placeRes = await db.query('SELECT name FROM places WHERE id = $1', [data.place_id]);
-          await stripe.paymentIntents.update(piId, {
+          await stripe.paymentIntents.update(data.payment_intent_id, {
             metadata: {
               booking_ref: bookingRef,
               booking_id: String(result.rows[0].id),
@@ -496,9 +495,9 @@ async function createBooking(req, res, next) {
             },
             description: `Booking ${bookingRef} - ${placeRes.rows[0]?.name || 'Proper Place'}`,
           });
-          logger.info('Stripe payment intent updated with booking ref', { bookingRef, paymentIntentId: piId });
+          logger.info('Stripe payment intent updated with booking ref', { bookingRef, paymentIntentId: data.payment_intent_id });
         } catch (e) {
-          logger.error('Failed to update Stripe payment intent metadata', { error: e.message, paymentIntentId: piId });
+          logger.error('Failed to update Stripe payment intent metadata', { error: e.message, paymentIntentId: data.payment_intent_id });
         }
       });
     }

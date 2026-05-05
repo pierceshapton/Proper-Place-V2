@@ -1,54 +1,5 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
-const nodemailer = require('nodemailer');
-const axios = require('axios');
-const OpenAI = require('openai');
-
-// OpenAI client — only active when OPENAI_API_KEY is set
-let _openai = null;
-function getOpenAI() {
-  if (!_openai && process.env.OPENAI_API_KEY) {
-    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
-  return _openai;
-}
-
-// ─── EMAIL SCRAPER ───────────────────────────────────────────────────────────
-const EMAIL_SPAM = ['example.', 'schema', 'sentry', '.png', '.jpg', '.gif', '.svg',
-  'youremail', 'test@', 'user@', 'email@email', 'noreply', 'no-reply', 'donotreply',
-  'wixpress', 'squarespace', 'wordpress', '@2x'];
-const EMAIL_PREFERRED = ['info@', 'contact@', 'hello@', 'bookings@', 'manager@', 'enquiries@', 'admin@'];
-
-async function scrapeEmailFromWebsite(websiteUrl) {
-  if (!websiteUrl) return null;
-  const base = websiteUrl.replace(/\/$/, '');
-  const domain = base.replace(/https?:\/\/(www\.)?/, '').split('/')[0];
-  const found = {};
-  const paths = ['', '/contact', '/contact-us', '/about', '/about-us'];
-  for (const path of paths) {
-    try {
-      const { data: html } = await axios.get(base + path, {
-        timeout: 8000,
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProperPlace/1.0)' },
-        maxRedirects: 5,
-        validateStatus: s => s < 400,
-      });
-      const matches = (typeof html === 'string' ? html : '').match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || [];
-      for (const e of matches) {
-        const el = e.toLowerCase();
-        if (EMAIL_SPAM.some(s => el.includes(s))) continue;
-        const score = domain && el.includes(domain) ? 2 : 1;
-        if (!found[el] || found[el] < score) found[el] = score;
-      }
-    } catch { /* ignore per-path errors */ }
-  }
-  if (!Object.keys(found).length) return null;
-  const sorted = Object.entries(found).sort((a, b) =>
-    b[1] - a[1] || (EMAIL_PREFERRED.some(p => a[0].startsWith(p)) ? -1 : 1)
-  );
-  return sorted[0][0];
-}
-// ─────────────────────────────────────────────────────────────────────────────
 
 // ─── LEADS ──────────────────────────────────────────────────────────
 
@@ -172,7 +123,7 @@ async function createLead(req, res, next) {
         first_name || '', last_name || '', email || '', phone || '',
         business_name || null, location || null, website || null,
         property_type || null, parking_spaces || null, parking_type || null,
-        ownership_type || null, pipeline_stage || 'reviewed', priority || 'medium',
+        ownership_type || null, pipeline_stage || 'new', priority || 'medium',
         notes || null, tags || null, latitude || null, longitude || null,
         google_place_id || null, google_rating || null, google_reviews_count || null,
         'crm_manual', req.user.userId,
@@ -664,28 +615,48 @@ async function deleteEmailTemplate(req, res, next) {
 async function sendEmail(req, res, next) {
   try {
     const { id } = req.params;
-    const { subject, body, template_id, to_email: toEmailOverride } = req.body;
+    const { subject, body, template_id } = req.body;
 
     // Get lead
     const leadResult = await db.query('SELECT * FROM host_leads WHERE id = $1', [id]);
     if (leadResult.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
     const lead = leadResult.rows[0];
 
-    const toEmail = (toEmailOverride && toEmailOverride.trim()) || lead.email;
-    if (!toEmail) return res.status(400).json({ error: 'No email address — add one to the lead or enter it above' });
+    if (!lead.email) return res.status(400).json({ error: 'Lead has no email address' });
     if (!subject || !body) return res.status(400).json({ error: 'subject and body required' });
 
     // Interpolate variables
     const interpolated = interpolateTemplate(body, lead);
     const interpolatedSubject = interpolateTemplate(subject, lead);
 
-    await sendCrmLeadEmail(toEmail, interpolatedSubject, interpolated);
+    // Send via nodemailer
+    const emailUtil = require('../utils/email');
+    const nodemailer = require('nodemailer');
+    const crmReplyTo = process.env.CRM_FROM_EMAIL || 'pierce.shapton@proper-place.co.uk';
+    const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
+    const smtpUser = process.env.SMTP_USER;
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp-relay.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: false,
+      requireTLS: true,
+      auth: { user: smtpUser, pass: process.env.SMTP_PASS },
+    });
+
+    await transporter.sendMail({
+      from: `"${crmFromName}" <${smtpUser}>`,
+      replyTo: crmReplyTo,
+      to: lead.email,
+      subject: interpolatedSubject,
+      html: wrapEmailHtml(interpolated),
+    });
 
     // Log to email log
     await db.query(
       `INSERT INTO crm_email_log (lead_id, template_id, subject, body, to_email, status, created_by)
        VALUES ($1, $2, $3, $4, $5, 'sent', $6)`,
-      [id, template_id || null, interpolatedSubject, interpolated, toEmail, req.user.userId]
+      [id, template_id || null, interpolatedSubject, interpolated, lead.email, req.user.userId]
     );
 
     // Log activity
@@ -782,60 +753,12 @@ async function getEmailLog(req, res, next) {
        FROM crm_email_log el
        LEFT JOIN crm_email_templates et ON el.template_id = et.id
        WHERE el.lead_id = $1
-       ORDER BY el.sent_at ASC`,
+       ORDER BY el.sent_at DESC`,
       [id]
     );
     res.json({ emails: result.rows });
   } catch (error) {
     logger.error('CRM getEmailLog error', { error: error.message });
-    next(error);
-  }
-}
-
-/**
- * POST /crm/leads/:id/emails/inbound
- * Manually log a reply received from a lead
- */
-async function logInboundEmail(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { subject, body, from_name, received_at } = req.body;
-    if (!body) return res.status(400).json({ error: 'body is required' });
-
-    const lead = await db.query('SELECT email FROM host_leads WHERE id = $1', [id]);
-    if (!lead.rows.length) return res.status(404).json({ error: 'Lead not found' });
-
-    const emailResult = await db.query(
-      `INSERT INTO crm_email_log (lead_id, subject, body, to_email, direction, from_name, status, sent_at, created_by)
-       VALUES ($1, $2, $3, $4, 'inbound', $5, 'received', $6, $7)
-       RETURNING *`,
-      [
-        id,
-        subject || '(no subject)',
-        body,
-        lead.rows[0].email || '',
-        from_name || null,
-        received_at || new Date().toISOString(),
-        req.user.userId,
-      ]
-    );
-
-    const emailLogId = emailResult.rows[0].id;
-    const taskTitle = `Reply to: ${subject || '(no subject)'}`;
-    const snippet = body.length > 200 ? body.substring(0, 200) + '…' : body;
-    const taskDescription = from_name ? `From ${from_name}: ${snippet}` : snippet;
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const taskResult = await db.query(
-      `INSERT INTO crm_tasks (lead_id, title, description, due_date, priority, status, source_email_id, assigned_to, created_by)
-       VALUES ($1, $2, $3, $4, 'hot', 'pending', $5, $6, $6) RETURNING *`,
-      [id, taskTitle, taskDescription, tomorrow.toISOString(), emailLogId, req.user.userId]
-    );
-
-    res.status(201).json({ email: emailResult.rows[0], task: taskResult.rows[0] });
-  } catch (error) {
-    logger.error('CRM logInboundEmail error', { error: error.message });
     next(error);
   }
 }
@@ -906,38 +829,6 @@ async function getSettings(req, res, next) {
     res.json({ settings });
   } catch (error) {
     logger.error('CRM getSettings error', { error: error.message });
-    next(error);
-  }
-}
-
-/**
- * GET /crm/automation-status
- * Returns effective automation status including server kill-switch.
- */
-async function getAutomationStatus(req, res, next) {
-  try {
-    const settings = await getSettingsMap();
-
-    const serverEnabled = String(process.env.CRM_DISCOVERY_AUTO_EMAIL_ENABLED || '').toLowerCase() === 'true';
-    const settingEnabled = parseBoolSetting(settings.discovery_auto_email_enabled, false);
-    const gateReady = parseBoolSetting(settings.discovery_auto_mode_ready, false);
-    const threshold = parseIntSetting(settings.auto_mode_threshold, 85);
-    const minFitScore = parseIntSetting(settings.discovery_auto_email_min_fit_score, 85);
-    const dailyLimit = parseIntSetting(settings.discovery_auto_email_daily_limit, 20);
-
-    const effectiveEnabled = serverEnabled && settingEnabled && gateReady;
-
-    res.json({
-      server_kill_switch_enabled: serverEnabled,
-      setting_enabled: settingEnabled,
-      gate_ready: gateReady,
-      effective_enabled: effectiveEnabled,
-      threshold,
-      min_fit_score: minFitScore,
-      daily_limit: dailyLimit,
-    });
-  } catch (error) {
-    logger.error('CRM getAutomationStatus error', { error: error.message });
     next(error);
   }
 }
@@ -1129,25 +1020,16 @@ async function setCustomValues(req, res, next) {
 // ─── HELPERS ────────────────────────────────────────────────────────
 
 function interpolateTemplate(template, lead) {
-  const firstName = lead.first_name || 'there';
-  const businessName = lead.business_name || 'your site';
-  const location = lead.location || 'your area';
-  const email = lead.email || '';
-  const phone = lead.phone || '';
-  const propertyType = lead.property_type || 'site';
-  const googleRating = lead.google_rating || '';
-  const googleReviewsCount = lead.google_reviews_count || '';
-
   return template
-    .replace(/\{\{first_name\}\}/g, firstName)
+    .replace(/\{\{first_name\}\}/g, lead.first_name || '')
     .replace(/\{\{last_name\}\}/g, lead.last_name || '')
-    .replace(/\{\{business_name\}\}/g, businessName)
-    .replace(/\{\{location\}\}/g, location)
-    .replace(/\{\{email\}\}/g, email)
-    .replace(/\{\{phone\}\}/g, phone)
-    .replace(/\{\{property_type\}\}/g, propertyType)
-    .replace(/\{\{google_rating\}\}/g, googleRating)
-    .replace(/\{\{google_reviews_count\}\}/g, googleReviewsCount);
+    .replace(/\{\{business_name\}\}/g, lead.business_name || '')
+    .replace(/\{\{location\}\}/g, lead.location || '')
+    .replace(/\{\{email\}\}/g, lead.email || '')
+    .replace(/\{\{phone\}\}/g, lead.phone || '')
+    .replace(/\{\{property_type\}\}/g, lead.property_type || '')
+    .replace(/\{\{google_rating\}\}/g, lead.google_rating || '')
+    .replace(/\{\{google_reviews_count\}\}/g, lead.google_reviews_count || '');
 }
 
 function wrapEmailHtml(body) {
@@ -1175,6 +1057,8 @@ function wrapEmailHtml(body) {
 }
 
 // ─── Google Places Enrichment ────────────────────────────────────────
+
+const axios = require('axios');
 
 const GMAPS_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
 
@@ -1276,7 +1160,7 @@ async function enrichLead(req, res, next) {
  */
 async function importLeads(req, res, next) {
   try {
-    const { places, enrich = false, pipeline_stage = 'reviewed', priority = 'medium' } = req.body;
+    const { places, enrich = false, pipeline_stage = 'new', priority = 'medium' } = req.body;
     if (!Array.isArray(places) || places.length === 0) {
       return res.status(400).json({ error: 'places array required' });
     }
@@ -1288,17 +1172,7 @@ async function importLeads(req, res, next) {
     let enrichedCount = 0;
 
     for (const place of places) {
-      const {
-        name,
-        description,
-        lat,
-        lng,
-        address,
-        fit_score,
-        parking_confidence,
-        access_score,
-        campervan_priority,
-      } = place;
+      const { name, description, lat, lng, address } = place;
       if (!name) continue;
 
       let data = {
@@ -1309,11 +1183,6 @@ async function importLeads(req, res, next) {
         pipeline_stage,
         priority,
         source: 'kml_import',
-        discovery_fit_score: fit_score || null,
-        discovery_parking_confidence: parking_confidence || null,
-        discovery_access_score: access_score || null,
-        discovery_campervan_priority: campervan_priority || null,
-        discovery_last_analyzed_at: fit_score ? new Date().toISOString() : null,
       };
 
       if (enrich) {
@@ -1339,10 +1208,8 @@ async function importLeads(req, res, next) {
           `INSERT INTO host_leads (
             business_name, location, latitude, longitude, phone, website,
             google_place_id, google_rating, google_reviews_count,
-            pipeline_stage, priority, admin_notes, source, assigned_to,
-            discovery_fit_score, discovery_parking_confidence, discovery_access_score,
-            discovery_campervan_priority, discovery_last_analyzed_at
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+            pipeline_stage, priority, admin_notes, source, assigned_to
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
           ON CONFLICT DO NOTHING
           RETURNING id`,
           [
@@ -1351,26 +1218,14 @@ async function importLeads(req, res, next) {
             data.google_place_id || null, data.google_rating || null, data.google_reviews_count || null,
             data.pipeline_stage, data.priority,
             description || null, data.source, req.user.userId,
-            data.discovery_fit_score, data.discovery_parking_confidence, data.discovery_access_score,
-            data.discovery_campervan_priority, data.discovery_last_analyzed_at,
           ]
         );
         if (r.rows.length > 0) {
-          const newLeadId = r.rows[0].id;
-          results.push({ name, id: newLeadId, status: 'created' });
+          results.push({ name, id: r.rows[0].id, status: 'created' });
           await db.query(
             `INSERT INTO crm_activities (lead_id, activity_type, title, created_by) VALUES ($1, 'lead_created', 'Imported from KML', $2)`,
-            [newLeadId, req.user.userId]
+            [r.rows[0].id, req.user.userId]
           );
-          // Scrape email from website in background
-          if (data.website) {
-            scrapeEmailFromWebsite(data.website).then(email => {
-              if (email) {
-                db.query('UPDATE host_leads SET email = $1 WHERE id = $2 AND (email IS NULL OR email = \'\')', [email, newLeadId])
-                  .catch(err => logger.warn('Email scrape update failed', { leadId: newLeadId, error: err.message }));
-              }
-            }).catch(() => {});
-          }
         } else {
           results.push({ name, status: 'skipped' });
         }
@@ -1387,923 +1242,15 @@ async function importLeads(req, res, next) {
   }
 }
 
-async function processDiscoveryAutoEmails() {
-  try {
-    // Hard kill switch: remains deactivated unless explicitly turned on in server env.
-    if (String(process.env.CRM_DISCOVERY_AUTO_EMAIL_ENABLED || '').toLowerCase() !== 'true') {
-      return;
-    }
-
-    const settings = await getSettingsMap();
-    const autoEnabled = parseBoolSetting(settings.discovery_auto_email_enabled, false);
-    const gateReady = parseBoolSetting(settings.discovery_auto_mode_ready, false);
-    const minFitScore = parseIntSetting(settings.discovery_auto_email_min_fit_score, 85);
-    const dailyLimit = parseIntSetting(settings.discovery_auto_email_daily_limit, 20);
-
-    if (!autoEnabled || !gateReady || dailyLimit <= 0) {
-      return;
-    }
-
-    const sentTodayRes = await db.query(
-      `SELECT COUNT(*) AS count
-       FROM crm_email_log
-       WHERE status = 'sent'
-         AND sent_at >= date_trunc('day', NOW())
-         AND sent_at < date_trunc('day', NOW()) + interval '1 day'
-         AND (subject ILIKE '%proper place%' OR subject ILIKE '%campervan%' OR subject ILIKE '%motorhome%')`
-    );
-    const sentToday = parseInt(sentTodayRes.rows[0].count, 10) || 0;
-    const remaining = Math.max(0, dailyLimit - sentToday);
-    if (remaining <= 0) return;
-
-    const leadsRes = await db.query(
-      `SELECT hl.*
-       FROM host_leads hl
-       WHERE hl.email IS NOT NULL
-         AND hl.email <> ''
-         AND hl.pipeline_stage = 'reviewed'
-         AND COALESCE(hl.discovery_fit_score, 0) >= $1
-         AND COALESCE(hl.discovery_campervan_priority, 0) >= 40
-         AND NOT EXISTS (
-           SELECT 1 FROM crm_email_log cel
-           WHERE cel.lead_id = hl.id
-             AND cel.status = 'sent'
-             AND cel.sent_at >= NOW() - interval '60 days'
-         )
-       ORDER BY COALESCE(hl.discovery_campervan_priority, 0) DESC,
-                COALESCE(hl.discovery_fit_score, 0) DESC,
-                hl.created_at ASC
-       LIMIT $2`,
-      [minFitScore, remaining]
-    );
-
-    if (!leadsRes.rows.length) return;
-
-    const templateRes = await db.query(
-      `SELECT * FROM crm_email_templates
-       WHERE is_active = true
-         AND template_type = 'outreach'
-       ORDER BY created_at DESC
-       LIMIT 1`
-    );
-
-    if (!templateRes.rows.length) {
-      logger.warn('Discovery auto-email skipped: no active outreach template');
-      return;
-    }
-
-    const template = templateRes.rows[0];
-
-    for (const lead of leadsRes.rows) {
-      const subject = interpolateTemplate(template.subject || 'Partnership with {{business_name}}', lead);
-      const body = interpolateTemplate(template.body || defaultOutreachBody(), lead);
-
-      try {
-        await sendCrmLeadEmail(lead.email, subject, body);
-
-        await db.query(
-          `INSERT INTO crm_email_log (lead_id, template_id, subject, body, to_email, status, created_by)
-           VALUES ($1, $2, $3, $4, $5, 'sent', NULL)`,
-          [lead.id, template.id, subject, body, lead.email]
-        );
-
-        await db.query(
-          `INSERT INTO crm_activities (lead_id, activity_type, title, description, created_by)
-           VALUES ($1, 'email', 'Auto outreach sent', $2, NULL)`,
-          [lead.id, `Auto outreach gate approved. Fit: ${lead.discovery_fit_score || 0}, Campervan: ${lead.discovery_campervan_priority || 0}`]
-        );
-
-        await db.query(
-          `UPDATE host_leads
-           SET last_contact_date = NOW(), updated_at = NOW(), pipeline_stage = 'contacted'
-           WHERE id = $1`,
-          [lead.id]
-        );
-      } catch (err) {
-        logger.warn('Discovery auto-email send failed', { leadId: lead.id, error: err.message });
-      }
-    }
-  } catch (error) {
-    logger.error('processDiscoveryAutoEmails error', { error: error.message });
-  }
-}
-
-/**
- * POST /crm/discovery/auto-find/run
- * Manual trigger for AI site finding without email sending.
- */
-async function runDiscoveryAutoFind(req, res, next) {
-  try {
-    const result = await processDiscoveryAutoFind({ manual: true, requestedBy: req.user?.userId || null });
-    res.json(result);
-  } catch (error) {
-    logger.error('runDiscoveryAutoFind error', { error: error.message });
-    next(error);
-  }
-}
-
-async function processDiscoveryAutoFind(options = {}) {
-  const { manual = false, requestedBy = null } = options;
-
-  try {
-    const serverEnabled = String(process.env.CRM_DISCOVERY_AUTO_FIND_ENABLED || 'true').toLowerCase() === 'true';
-    if (!manual && !serverEnabled) {
-      return { success: true, skipped: true, reason: 'server_kill_switch_off' };
-    }
-
-    const settings = await getSettingsMap();
-    const settingEnabled = parseBoolSetting(settings.discovery_auto_find_enabled, false);
-    if (!manual && !settingEnabled) {
-      return { success: true, skipped: true, reason: 'setting_disabled' };
-    }
-
-    const region = String(settings.discovery_auto_find_region || 'South West England').trim();
-    const keywords = String(
-      settings.discovery_auto_find_keywords ||
-      'pub with parking, country inn, farm shop, vineyard, rural hotel, scenic viewpoint, nature reserve, beauty spot, country park, river walk'
-    )
-      .split(',')
-      .map(item => item.trim())
-      .filter(Boolean)
-      .slice(0, 12);
-
-    const minFitScore = parseIntSetting(settings.discovery_auto_find_min_fit_score, 72);
-    const dailyLimit = parseIntSetting(settings.discovery_auto_find_daily_limit, 25);
-
-    if (!region || keywords.length === 0 || dailyLimit <= 0) {
-      return { success: true, skipped: true, reason: 'invalid_configuration' };
-    }
-
-    const createdTodayRes = await db.query(
-      `SELECT COUNT(*) AS count
-       FROM discovery_review_queue
-       WHERE source = 'discovery_auto_find'
-         AND created_at >= date_trunc('day', NOW())
-         AND created_at < date_trunc('day', NOW()) + interval '1 day'`
-    );
-
-    const createdToday = parseInt(createdTodayRes.rows[0].count, 10) || 0;
-    const remaining = Math.max(0, dailyLimit - createdToday);
-    if (remaining <= 0) {
-      return { success: true, skipped: true, reason: 'daily_limit_reached', created_today: createdToday };
-    }
-
-    // Build profile from ALL pipeline leads + recently approved discovery items
-    // This means the scoring learns from every lead you've ever added, not just converted ones
-    const profileRes = await db.query(
-      `SELECT
-         COALESCE(AVG(google_rating), 4.2) AS avg_rating,
-         COALESCE(AVG(NULLIF(google_reviews_count, 0)), 80) AS avg_reviews
-       FROM (
-         SELECT google_rating, google_reviews_count FROM host_leads
-           WHERE google_rating IS NOT NULL
-         UNION ALL
-         SELECT google_rating, google_reviews_count FROM discovery_review_queue
-           WHERE google_rating IS NOT NULL AND status = 'approved'
-       ) AS combined_leads`
-    );
-
-    const targetProfile = {
-      avgRating: Number(profileRes.rows[0].avg_rating) || 4.2,
-      avgReviews: Number(profileRes.rows[0].avg_reviews) || 80,
-    };
-
-    const allCandidates = [];
-    for (const keyword of keywords) {
-      const rows = await searchGooglePlacesText(keyword, region);
-      allCandidates.push(...rows);
-    }
-
-    const deduped = new Map();
-    allCandidates.forEach(item => {
-      const key = item.google_place_id || `${item.business_name}|${item.location}`.toLowerCase();
-      if (!deduped.has(key)) deduped.set(key, item);
-    });
-
-    // Build LLM context from your existing approved/rejected history
-    const llmContext = await buildDiscoveryLLMContext();
-    const openai = getOpenAI();
-
-    // Score all candidates — use LLM if available, deterministic formula as fallback
-    const candidates = Array.from(deduped.values());
-    const scoredRaw = [];
-    for (const item of candidates) {
-      if (openai) {
-        const llmResult = await llmScoreCandidate(openai, item, llmContext);
-        scoredRaw.push({ ...item, ...llmResult });
-      } else {
-        const signals = scoreAutoDiscoveryCandidate(item, targetProfile, item._searchKeyword);
-        scoredRaw.push({ ...item, ...signals });
-      }
-    }
-
-    const scored = scoredRaw
-      .filter(item => item.discovery_fit_score >= minFitScore)
-      .sort((a, b) => b.discovery_fit_score - a.discovery_fit_score)
-      .slice(0, Math.max(remaining * 3, 30));
-
-    // Also filter against stored rejection memory before queuing
-    const rawRejected = settings.discovery_rejected_sites_v1 || '[]';
-    let rejectedMemory = [];
-    try { rejectedMemory = JSON.parse(rawRejected); if (!Array.isArray(rejectedMemory)) rejectedMemory = []; } catch { rejectedMemory = []; }
-    const rejectedKeys = new Set(rejectedMemory.map(r => r.id || ''));
-
-    // Also skip place_ids already in the queue (pending) or recently in host_leads
-    const pendingRes = await db.query(`SELECT google_place_id FROM discovery_review_queue WHERE status = 'pending' AND google_place_id IS NOT NULL`);
-    const pendingPlaceIds = new Set(pendingRes.rows.map(r => r.google_place_id));
-    const existingRes = await db.query(`SELECT google_place_id FROM host_leads WHERE google_place_id IS NOT NULL`);
-    const existingPlaceIds = new Set(existingRes.rows.map(r => r.google_place_id));
-
-    let queued = 0;
-    const queuedItems = [];
-
-    for (const item of scored) {
-      if (queued >= remaining) break;
-
-      const placeKey = item.google_place_id || null;
-      if (placeKey && (pendingPlaceIds.has(placeKey) || existingPlaceIds.has(placeKey))) continue;
-      const rejectionKey = placeKey || `${item.business_name}|${item.location}`.toLowerCase();
-      if (rejectedKeys.has(rejectionKey)) continue;
-
-      const result = await db.query(
-        `INSERT INTO discovery_review_queue (
-          business_name, location, latitude, longitude, website,
-          google_place_id, google_rating, google_reviews_count,
-          admin_notes, source,
-          discovery_fit_score, discovery_parking_confidence, discovery_access_score,
-          discovery_campervan_priority
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-        RETURNING id, business_name`,
-        [
-          item.business_name,
-          item.location || null,
-          item.latitude,
-          item.longitude,
-          item.website || null,
-          item.google_place_id || null,
-          item.google_rating || null,
-          item.google_reviews_count || null,
-          item._llm_reasoning
-            ? `AI: ${item._llm_reasoning}`
-            : `Auto-found from ${region}. Keywords: ${keywords.join(', ')}`,
-          'discovery_auto_find',
-          item.discovery_fit_score,
-          item.discovery_parking_confidence,
-          item.discovery_access_score,
-          item.discovery_campervan_priority,
-        ]
-      );
-
-      if (result.rows.length > 0) {
-        queued += 1;
-        queuedItems.push({ id: result.rows[0].id, name: result.rows[0].business_name });
-      }
-    }
-
-    return {
-      success: true,
-      skipped: false,
-      queued,
-      considered: scored.length,
-      remaining_capacity: Math.max(0, remaining - queued),
-      queued_items: queuedItems,
-      mode: manual ? 'manual' : 'scheduled',
-      email_sent: 0,
-    };
-  } catch (error) {
-    logger.error('processDiscoveryAutoFind error', { error: error.message });
-    if (manual) throw error;
-    return { success: false, skipped: true, reason: 'error', error: error.message };
-  }
-}
-
-// Maps each search keyword pattern to Google Place types that are expected/preferred
-// and types that should be rejected (irrelevant noise)
-const KEYWORD_TYPE_RULES = [
-  { pattern: /pub|inn|tavern|bar/i,          includedTypes: ['bar', 'pub'],                        rejectTypes: ['campsite', 'camping_cabin', 'rv_park', 'campground'] },
-  { pattern: /farm|farmhouse/i,              includedTypes: ['farm'],                              rejectTypes: ['campsite', 'campground'] },
-  { pattern: /vineyard|winery/i,             includedTypes: ['winery', 'vineyard'],                rejectTypes: ['campsite', 'campground', 'rv_park'] },
-  { pattern: /hotel|lodge|guest.*house|b.*b/i, includedTypes: ['hotel', 'lodging', 'guest_house'], rejectTypes: ['campsite', 'rv_park'] },
-  { pattern: /country.*park|nature.*reserve|beauty.*spot|viewpoint|scenic/i, includedTypes: ['park', 'national_park', 'tourist_attraction', 'natural_feature', 'point_of_interest'], rejectTypes: [] },
-  { pattern: /river.*walk|coastal.*walk|walking|hiking/i, includedTypes: ['park', 'natural_feature', 'tourist_attraction'], rejectTypes: [] },
-];
-
-function getKeywordTypeRules(keyword) {
-  for (const rule of KEYWORD_TYPE_RULES) {
-    if (rule.pattern.test(keyword)) return rule;
-  }
-  return { includedTypes: [], rejectTypes: [] };
-}
-
-async function searchGooglePlacesText(keyword, region) {
-  const rules = getKeywordTypeRules(keyword);
-
-  const body = {
-    textQuery: `${keyword} in ${region}`,
-    maxResultCount: 20,
-    languageCode: 'en-GB',
-  };
-
-  // Ask Google to only return relevant types when we have a specific expectation
-  if (rules.includedTypes.length > 0) {
-    body.includedType = rules.includedTypes[0]; // Places API (new) only supports one includedType
-  }
-
-  const response = await axios.post(
-    'https://places.googleapis.com/v1/places:searchText',
-    body,
-    {
-      timeout: 15000,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GMAPS_KEY,
-        'X-Goog-FieldMask': [
-          'places.id',
-          'places.displayName',
-          'places.formattedAddress',
-          'places.location',
-          'places.rating',
-          'places.userRatingCount',
-          'places.websiteUri',
-          'places.primaryType',
-          'places.types',
-          'places.parkingOptions',
-          'places.accessibilityOptions',
-          'places.editorialSummary',
-          'places.photos',
-        ].join(','),
-      },
-    }
-  );
-
-  const places = Array.isArray(response.data?.places) ? response.data.places : [];
-
-  return places
-    // Hard-filter out places whose primaryType is explicitly unwanted for this keyword
-    .filter(place => {
-      if (rules.rejectTypes.length === 0) return true;
-      const pt = (place.primaryType || '').toLowerCase();
-      return !rules.rejectTypes.some(rt => pt.includes(rt));
-    })
-    .map(place => ({
-      business_name: place.displayName?.text || 'Unnamed Site',
-      location: place.formattedAddress || '',
-      latitude: typeof place.location?.latitude === 'number' ? place.location.latitude : null,
-      longitude: typeof place.location?.longitude === 'number' ? place.location.longitude : null,
-      google_place_id: place.id || null,
-      google_rating: typeof place.rating === 'number' ? place.rating : null,
-      google_reviews_count: typeof place.userRatingCount === 'number' ? place.userRatingCount : null,
-      website: place.websiteUri || null,
-      primary_type: place.primaryType || null,
-      types: Array.isArray(place.types) ? place.types : [],
-      parking_options: place.parkingOptions || null,
-      accessibility_options: place.accessibilityOptions || null,
-      editorial_summary: place.editorialSummary?.text || null,
-      _searchKeyword: keyword, // carry through for scoring context
-    }));
-}
-
-// ─── LLM Discovery Scoring ───────────────────────────────────────────────────
-
-async function buildDiscoveryLLMContext() {
-  // Pull your best leads from the pipeline as positive examples
-  const leadsRes = await db.query(
-    `SELECT business_name, location, google_rating, google_reviews_count,
-            property_type, parking_type, pipeline_stage, priority, tags, admin_notes
-     FROM host_leads
-     WHERE business_name IS NOT NULL
-     ORDER BY created_at DESC LIMIT 40`
-  );
-
-  // Pull your approved queue items (stars 4-5) — explicit thumbs up
-  const approvedRes = await db.query(
-    `SELECT business_name, location, google_rating, google_reviews_count,
-            review_notes, discovery_fit_score
-     FROM discovery_review_queue
-     WHERE status = 'approved'
-     ORDER BY reviewed_at DESC LIMIT 20`
-  );
-
-  // Pull your rejected queue items (stars 1-3) — explicit thumbs down + reason
-  const rejectedRes = await db.query(
-    `SELECT business_name, location, google_rating, google_reviews_count,
-            review_notes, discovery_fit_score
-     FROM discovery_review_queue
-     WHERE status = 'rejected'
-     ORDER BY reviewed_at DESC LIMIT 20`
-  );
-
-  // Pull manually-rated discover sessions — these have explicit user notes explaining WHY
-  let manualFeedback = [];
-  try {
-    const settingsRes = await db.query(
-      `SELECT value FROM crm_settings WHERE key = 'discovery_feedback_v1'`
-    );
-    if (settingsRes.rows.length > 0) {
-      const raw = settingsRes.rows[0].value;
-      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if (Array.isArray(parsed)) {
-        manualFeedback = parsed;
-      }
-    }
-  } catch (err) {
-    logger.warn('Could not load discovery_feedback_v1 for LLM context', { error: err.message });
-  }
-
-  return {
-    pipelineLeads: leadsRes.rows,
-    approved: approvedRes.rows,
-    rejected: rejectedRes.rows,
-    manualFeedback,
-  };
-}
-
-async function llmScoreCandidate(openai, candidate, context) {
-  // Build a compact summary of what good looks like from your data
-  const approvedSummary = context.approved.length > 0
-    ? context.approved.slice(0, 10).map(a =>
-        `✓ ${a.business_name}, ${a.location} (${a.google_rating}★, ${a.google_reviews_count} reviews)${a.review_notes ? ` — "${a.review_notes}"` : ''}`
-      ).join('\n')
-    : 'None yet';
-
-  const rejectedSummary = context.rejected.length > 0
-    ? context.rejected.slice(0, 10).map(r =>
-        `✗ ${r.business_name}, ${r.location} (${r.google_rating}★)${r.review_notes ? ` — reason: "${r.review_notes}"` : ''}`
-      ).join('\n')
-    : 'None yet';
-
-  const pipelineSummary = context.pipelineLeads.length > 0
-    ? context.pipelineLeads.slice(0, 15).map(l =>
-        `${l.business_name}, ${l.location} (${l.google_rating || '?'}★, ${l.google_reviews_count || '?'} reviews, type: ${l.property_type || 'unknown'})`
-      ).join('\n')
-    : 'None yet';
-
-  const candidateDesc = [
-    `Name: ${candidate.business_name}`,
-    `Address: ${candidate.location}`,
-    `Google rating: ${candidate.google_rating || 'unknown'}`,
-    `Review count: ${candidate.google_reviews_count || 'unknown'}`,
-    `Primary type: ${candidate.primary_type || 'unknown'}`,
-    `All types: ${(candidate.types || []).join(', ') || 'unknown'}`,
-    candidate.editorial_summary ? `Description: ${candidate.editorial_summary}` : null,
-    candidate.parking_options ? `Parking signals: ${JSON.stringify(candidate.parking_options)}` : null,
-  ].filter(Boolean).join('\n');
-
-  // Manual feedback from discover sessions — includes Pierce's explicit notes about WHY
-  const manualApproved = (context.manualFeedback || [])
-    .filter(f => (f.stars || 0) >= 4 && f.note)
-    .slice(0, 10)
-    .map(f => `✓ ${f.name}${f.address ? `, ${f.address}` : ''} — "${f.note}"`)
-    .join('\n') || 'None yet';
-
-  const manualRejected = (context.manualFeedback || [])
-    .filter(f => (f.stars || 0) <= 2 && f.note)
-    .slice(0, 10)
-    .map(f => `✗ ${f.name}${f.address ? `, ${f.address}` : ''} — "${f.note}"`)
-    .join('\n') || 'None yet';
-
-  const systemPrompt = `You are a site discovery agent for Proper Place — a UK app for simple, respectful overnight motorhome stays at host venues. Your job is to evaluate whether a new Google Places result would make a good host site.
-
-Good host sites have: outdoor space or parking, a rural or semi-rural feel, reasonable Google rating (4.0+), are open to visitors, and suit quiet overnight stays. Examples include country pubs, farm shops, vineyards, rural hotels, scenic viewpoints, nature reserves, country parks.
-
-Poor fits include: pure campsites or caravan parks (too much competition), busy urban bars, fast food outlets, convenience stores, chain restaurants, and anywhere with no outdoor space.
-
-IMPORTANT — Pierce's specific preferences learned from his manual ratings:
-
-Sites Pierce LIKED (4-5 stars, with his notes):
-${manualApproved}
-
-Sites Pierce REJECTED (1-2 stars, with his notes):
-${manualRejected}
-
-Sites Pierce has also APPROVED via the review queue:
-${approvedSummary}
-
-Sites Pierce has REJECTED via the review queue:
-${rejectedSummary}
-
-Pierce's existing pipeline (sites already in CRM):
-${pipelineSummary}
-
-Pay close attention to Pierce's notes — they reveal specific dealbreakers (e.g. height barriers excluding campervans, no car park) and what he values (e.g. near a beauty spot, big car park, rural feel).
-
-Based on this context, score the candidate site. Respond with ONLY valid JSON in this exact format:
-{"score": <0-100>, "reasoning": "<one concise sentence explaining the score>", "campervan_priority": <0-100>, "parking_confidence": <0-100>}`;
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Evaluate this candidate:\n${candidateDesc}` },
-      ],
-      temperature: 0.2,
-      max_tokens: 150,
-      response_format: { type: 'json_object' },
-    });
-
-    const raw = JSON.parse(response.choices[0].message.content);
-    const score = Math.max(0, Math.min(100, Math.round(Number(raw.score) || 0)));
-    const campervan = Math.max(0, Math.min(100, Math.round(Number(raw.campervan_priority) || 50)));
-    const parking = Math.max(0, Math.min(100, Math.round(Number(raw.parking_confidence) || 45)));
-
-    return {
-      discovery_fit_score: score,
-      discovery_campervan_priority: campervan,
-      discovery_parking_confidence: parking,
-      discovery_access_score: 50,
-      _llm_reasoning: raw.reasoning || '',
-    };
-  } catch (err) {
-    logger.warn('LLM scoring failed, falling back to formula', { error: err.message, candidate: candidate.business_name });
-    // Graceful fallback to deterministic scoring
-    const profileFallback = { avgRating: 4.2, avgReviews: 80 };
-    return scoreAutoDiscoveryCandidate(candidate, profileFallback, candidate._searchKeyword);
-  }
-}
-
-function scoreAutoDiscoveryCandidate(candidate, profile, searchKeyword) {
-  const rating = typeof candidate.google_rating === 'number' ? candidate.google_rating : null;
-  const reviews = typeof candidate.google_reviews_count === 'number' ? candidate.google_reviews_count : null;
-  const types = Array.isArray(candidate.types) ? candidate.types.map(t => String(t).toLowerCase()) : [];
-  const primaryType = (candidate.primary_type || '').toLowerCase();
-
-  let score = 45;
-
-  if (rating !== null) {
-    const ratingDelta = Math.abs(rating - profile.avgRating);
-    score += Math.max(0, 25 - ratingDelta * 10);
-  }
-
-  if (reviews !== null) {
-    const target = Math.max(20, profile.avgReviews);
-    const ratio = Math.min(reviews / target, 2);
-    score += Math.round(ratio * 10);
-  }
-
-  // Type relevance — check against the keyword that found this place
-  const keywordRules = searchKeyword ? getKeywordTypeRules(searchKeyword) : { includedTypes: [], rejectTypes: [] };
-
-  // Hard penalty if this place's primaryType is irrelevant to the search keyword
-  const isRejectedType = keywordRules.rejectTypes.some(rt => primaryType.includes(rt) || types.some(t => t.includes(rt)));
-  if (isRejectedType) {
-    score -= 30; // Strong penalty — will nearly always drop below minFitScore
-  }
-
-  // Boost if primaryType is exactly what we searched for
-  const isExpectedType = keywordRules.includedTypes.length > 0 &&
-    keywordRules.includedTypes.some(it => primaryType.includes(it) || types.some(t => t.includes(it)));
-  if (isExpectedType) score += 10;
-
-  // Broad type matching — motorhome-friendly venue categories
-  const goodTypePattern = /pub|bar|inn|hotel|motel|farm|vineyard|winery|lodge|resort|barn|retreat|country_house|guest_house|bed_and_breakfast|tourist_attraction|marina|golf_course|park|natural_feature|point_of_interest/;
-  if (!isExpectedType && types.some(type => goodTypePattern.test(type))) score += 5;
-
-  const parkingOptions = candidate.parking_options || {};
-  const accessibilityOptions = candidate.accessibility_options || {};
-
-  let parkingConfidence = 45;
-  if (parkingOptions.freeParkingLot || parkingOptions.freeStreetParking) parkingConfidence += 30;
-  if (parkingOptions.paidParkingLot || parkingOptions.paidStreetParking) parkingConfidence += 15;
-  if (parkingOptions.valetParking) parkingConfidence -= 10;
-
-  let accessScore = 50;
-  if (accessibilityOptions.wheelchairAccessibleParking) accessScore += 20;
-  if (accessibilityOptions.wheelchairAccessibleEntrance) accessScore += 15;
-
-  const campervanPriority = Math.round((parkingConfidence * 0.55) + (accessScore * 0.45));
-  score += Math.round((campervanPriority - 50) * 0.25);
-
-  return {
-    discovery_fit_score: clampInt(score, 0, 100),
-    discovery_parking_confidence: clampInt(parkingConfidence, 0, 100),
-    discovery_access_score: clampInt(accessScore, 0, 100),
-    discovery_campervan_priority: clampInt(campervanPriority, 0, 100),
-  };
-}
-
-function clampInt(value, min, max) {
-  return Math.max(min, Math.min(max, Math.round(value)));
-}
-
-async function getDiscoveryReviewQueue(req, res, next) {
-  try {
-    const result = await db.query(
-      `SELECT * FROM discovery_review_queue WHERE status = 'pending' ORDER BY discovery_fit_score DESC, created_at DESC LIMIT 100`
-    );
-    res.set('Cache-Control', 'no-store');
-    res.json({ queue: result.rows });
-  } catch (error) {
-    logger.error('getDiscoveryReviewQueue error', { error: error.message });
-    next(error);
-  }
-}
-
-async function replaceDiscoveryQueue(req, res, next) {
-  try {
-    const candidates = req.body.candidates;
-    if (!Array.isArray(candidates)) {
-      return res.status(400).json({ error: 'candidates must be an array' });
-    }
-
-    // Delete only pending items — leave approved/rejected (pipeline & memory) intact
-    await db.query(`DELETE FROM discovery_review_queue WHERE status = 'pending'`);
-
-    const existingRes = await db.query(`SELECT google_place_id FROM host_leads WHERE google_place_id IS NOT NULL`);
-    const existingPlaceIds = new Set(existingRes.rows.map(row => normalizePlaceId(row.google_place_id)).filter(Boolean));
-
-    let queued = 0;
-    for (const item of candidates.slice(0, 100)) {
-      const placeId = normalizePlaceId(item.google_place_id || item.id || null);
-      if (placeId && existingPlaceIds.has(placeId)) continue;
-
-      await db.query(
-        `INSERT INTO discovery_review_queue (
-          business_name, location, latitude, longitude, website,
-          google_place_id, google_rating, google_reviews_count,
-          admin_notes, source,
-          discovery_fit_score, discovery_parking_confidence,
-          discovery_access_score, discovery_campervan_priority
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-        [
-          item.name || 'Unknown',
-          item.address || null,
-          item.latitude ?? null,
-          item.longitude ?? null,
-          item.website || null,
-          placeId,
-          item.rating ?? null,
-          item.reviews ?? null,
-          item.summary || null,
-          'discovery_manual_identify',
-          Math.round(item.score ?? 0),
-          Math.round(item.siteAnalysis?.parkingConfidence ?? 0),
-          Math.round(item.siteAnalysis?.accessScore ?? 0),
-          Math.round(item.siteAnalysis?.campervanPriority ?? 0),
-        ]
-      );
-      queued += 1;
-    }
-
-    res.json({ success: true, queued, replaced: true });
-  } catch (error) {
-    logger.error('replaceDiscoveryQueue error', { error: error.message });
-    next(error);
-  }
-}
-
-function normalizePlaceId(value) {
-  if (!value) return null;
-  const trimmed = String(value).trim();
-  if (!trimmed) return null;
-  return trimmed.startsWith('places/') ? trimmed.slice(7) : trimmed;
-}
-
-async function submitDiscoveryQueueReview(req, res, next) {
-  try {
-    const { id } = req.params;
-    const numStars = parseInt(String(req.body.stars), 10);
-    const reviewNotes = typeof req.body.notes === 'string' ? req.body.notes.trim().slice(0, 2000) : null;
-    if (!Number.isFinite(numStars) || numStars < 1 || numStars > 5) {
-      return res.status(400).json({ error: 'stars must be 1-5' });
-    }
-
-    const itemRes = await db.query(
-      `SELECT * FROM discovery_review_queue WHERE id = $1 AND status = 'pending'`,
-      [id]
-    );
-    if (itemRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Queue item not found or already reviewed' });
-    }
-    const item = itemRes.rows[0];
-
-    let leadId = null;
-
-    if (numStars >= 4) {
-      const stagesRes = await db.query(`SELECT slug FROM crm_stages ORDER BY sort_order, id ASC LIMIT 1`);
-      const firstStageSlug = stagesRes.rows.length > 0 ? stagesRes.rows[0].slug : 'reviewed';
-
-      const leadResult = await db.query(
-        `INSERT INTO host_leads (
-          business_name, location, latitude, longitude, website,
-          google_place_id, google_rating, google_reviews_count,
-          pipeline_stage, priority, admin_notes, source,
-          discovery_fit_score, discovery_parking_confidence, discovery_access_score,
-          discovery_campervan_priority, discovery_last_analyzed_at
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW())
-        ON CONFLICT DO NOTHING
-        RETURNING id`,
-        [
-          item.business_name,
-          item.location,
-          item.latitude,
-          item.longitude,
-          item.website,
-          item.google_place_id,
-          item.google_rating,
-          item.google_reviews_count,
-          firstStageSlug,
-          'medium',
-          item.admin_notes,
-          'discovery_auto_find',
-          item.discovery_fit_score,
-          item.discovery_parking_confidence,
-          item.discovery_access_score,
-          item.discovery_campervan_priority,
-        ]
-      );
-      if (leadResult.rows.length > 0) {
-        leadId = leadResult.rows[0].id;
-        // Scrape email from website in background (non-blocking)
-        if (item.website) {
-          scrapeEmailFromWebsite(item.website).then(email => {
-            if (email) {
-              db.query('UPDATE host_leads SET email = $1 WHERE id = $2 AND (email IS NULL OR email = \'\')', [email, leadId])
-                .catch(err => logger.warn('Email scrape update failed', { leadId, error: err.message }));
-            }
-          }).catch(() => {});
-        }
-      }
-    } else {
-      // Save to rejection memory
-      const settings = await getSettingsMap();
-      const rawRejected = settings.discovery_rejected_sites_v1 || '[]';
-      let rejected = [];
-      try { rejected = JSON.parse(rawRejected); if (!Array.isArray(rejected)) rejected = []; } catch { rejected = []; }
-
-      const key = item.google_place_id || `${item.business_name}|${item.location || ''}`.toLowerCase();
-      rejected = rejected.filter(r => (r.id || '') !== key);
-      rejected.push({ id: key, name: item.business_name, address: item.location || '', stars: numStars, createdAt: new Date().toISOString() });
-      if (rejected.length > 1000) rejected = rejected.slice(-1000);
-
-      await db.query(
-        `INSERT INTO crm_settings (key, value) VALUES ($1, $2)
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-        ['discovery_rejected_sites_v1', JSON.stringify(rejected)]
-      );
-    }
-
-    await db.query(
-      `UPDATE discovery_review_queue SET status = $1, reviewed_at = NOW(), review_notes = $3 WHERE id = $2`,
-      [numStars >= 4 ? 'approved' : 'rejected', id, reviewNotes]
-    );
-
-    res.json({ success: true, action: numStars >= 4 ? 'imported' : 'rejected', lead_id: leadId });
-  } catch (error) {
-    logger.error('submitDiscoveryQueueReview error', { error: error.message });
-    next(error);
-  }
-}
-
-async function sendCrmLeadEmail(to, subject, body) {
-  // Append email signature if one is configured in crm_settings
-  let finalBody = body;
-  try {
-    const settingsMap = await getSettingsMap();
-    const signature = (settingsMap['email_signature'] || '').trim();
-    if (signature) {
-      finalBody = `${body}\n\n${signature}`;
-    }
-  } catch { /* signature is optional — don't let a settings failure block sending */ }
-
-  if (isOutlookConfigured()) {
-    await sendCrmLeadEmailViaOutlook(to, subject, finalBody);
-    return;
-  }
-
-  const crmReplyTo = process.env.CRM_FROM_EMAIL || 'pierce.shapton@proper-place.co.uk';
-  const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
-  const smtpUser = process.env.SMTP_USER;
-
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp-relay.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: false,
-    requireTLS: true,
-    auth: { user: smtpUser, pass: process.env.SMTP_PASS },
-  });
-
-  await transporter.sendMail({
-    from: `"${crmFromName}" <${smtpUser}>`,
-    replyTo: crmReplyTo,
-    to,
-    subject,
-    html: wrapEmailHtml(finalBody),
-  });
-}
-
-function isOutlookConfigured() {
-  return Boolean(
-    process.env.OUTLOOK_TENANT_ID &&
-    process.env.OUTLOOK_CLIENT_ID &&
-    process.env.OUTLOOK_CLIENT_SECRET &&
-    process.env.OUTLOOK_SENDER_EMAIL
-  );
-}
-
-async function sendCrmLeadEmailViaOutlook(to, subject, body) {
-  const tenantId = process.env.OUTLOOK_TENANT_ID;
-  const clientId = process.env.OUTLOOK_CLIENT_ID;
-  const clientSecret = process.env.OUTLOOK_CLIENT_SECRET;
-  const senderEmail = process.env.OUTLOOK_SENDER_EMAIL;
-
-  const token = await getOutlookAccessToken({ tenantId, clientId, clientSecret });
-
-  const cleanedTo = String(to || '').trim();
-  if (!cleanedTo) {
-    throw new Error('Recipient email is required');
-  }
-
-  await axios.post(
-    `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(senderEmail)}/sendMail`,
-    {
-      message: {
-        subject,
-        body: {
-          contentType: 'HTML',
-          content: wrapEmailHtml(body),
-        },
-        toRecipients: [
-          {
-            emailAddress: { address: cleanedTo },
-          },
-        ],
-        replyTo: [
-          {
-            emailAddress: { address: process.env.CRM_FROM_EMAIL || senderEmail },
-          },
-        ],
-      },
-      saveToSentItems: true,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 15000,
-    }
-  );
-}
-
-async function getOutlookAccessToken({ tenantId, clientId, clientSecret }) {
-  const tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
-
-  const form = new URLSearchParams({
-    client_id: clientId,
-    client_secret: clientSecret,
-    scope: 'https://graph.microsoft.com/.default',
-    grant_type: 'client_credentials',
-  });
-
-  const tokenRes = await axios.post(tokenUrl, form.toString(), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    timeout: 15000,
-  });
-
-  if (!tokenRes.data?.access_token) {
-    throw new Error('Unable to obtain Outlook access token');
-  }
-
-  return tokenRes.data.access_token;
-}
-
-async function getSettingsMap() {
-  const response = await db.query('SELECT key, value FROM crm_settings');
-  const map = {};
-  response.rows.forEach(row => {
-    map[row.key] = row.value;
-  });
-  return map;
-}
-
-function parseBoolSetting(value, fallback = false) {
-  if (value === undefined || value === null) return fallback;
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'string') return value.toLowerCase() === 'true';
-  return fallback;
-}
-
-function parseIntSetting(value, fallback) {
-  if (value === undefined || value === null) return fallback;
-  const parsed = parseInt(String(value), 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function defaultOutreachBody() {
-  return 'Hi {{first_name}},<br/><br/>I\'m Pierce, founder of Proper Place, a new app for simple overnight motorhome stays. I\'m 26, based in Bristol, and I\'m personally reaching out as we launch with our first host sites.<br/><br/>I came across {{business_name}} and noticed your reviews are strong ({{google_rating}} from {{google_reviews_count}} reviews), which made me think it could be a great fit. We help hosts earn extra income from existing space by welcoming respectful motorhome guests for easy overnight stays.<br/><br/>If it sounds of interest, I\'d love to show you how it works.<br/><br/>Best regards,<br/>Pierce Shapton<br/>Founder, Proper Place';
-}
-
 module.exports = {
   getLeads, getLead, createLead, updateLead, deleteLead, getPipelineSummary,
   getActivities, createActivity,
   getTasks, createTask, updateTask, deleteTask,
   getSiteVisits, createSiteVisit,
   getEmailTemplates, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate,
-  sendEmail, getEmailLog, logInboundEmail,
+  sendEmail, getEmailLog,
   getSequences, createSequence,
   getStats,
-  getAutomationStatus,
   getSettings, updateSettings,
   // Stages
   getStages, createStage, updateStage, deleteStage, reorderStages,
@@ -2313,10 +1260,4 @@ module.exports = {
   getCustomValues, setCustomValues,
   // Import & Enrich
   importLeads, enrichLead,
-  runDiscoveryAutoFind,
-  processDiscoveryAutoFind,
-  getDiscoveryReviewQueue,
-  replaceDiscoveryQueue,
-  submitDiscoveryQueueReview,
-  processDiscoveryAutoEmails,
 };
