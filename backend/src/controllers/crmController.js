@@ -1235,6 +1235,7 @@ async function importLeads(req, res, next) {
             ...data,
             phone: enriched.phone,
             website: enriched.website,
+            email: enriched.email || null,
             // Prefer the place_id we already know; fall back to what enrichment finds
             google_place_id: data.google_place_id || enriched.google_place_id,
             google_rating: enriched.google_rating,
@@ -1249,14 +1250,14 @@ async function importLeads(req, res, next) {
       try {
         const r = await db.query(
           `INSERT INTO host_leads (
-            business_name, location, latitude, longitude, phone, website,
+            business_name, location, latitude, longitude, phone, website, email,
             google_place_id, google_rating, google_reviews_count,
             pipeline_stage, priority, admin_notes, source, assigned_to
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
           RETURNING id`,
           [
             data.business_name, data.location, data.latitude, data.longitude,
-            data.phone || null, data.website || null,
+            data.phone || null, data.website || null, data.email || null,
             data.google_place_id || null, data.google_rating || null, data.google_reviews_count || null,
             data.pipeline_stage, data.priority,
             description || null, data.source, req.user.userId,
