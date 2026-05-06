@@ -219,7 +219,7 @@ function LeadDetailModal({ leadId, stages, onClose }: {
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: '', due_date: '', priority: 'medium' });
   const [showSendEmail, setShowSendEmail] = useState(false);
-  const [emailForm, setEmailForm] = useState({ subject: '', body: '' });
+  const [emailForm, setEmailForm] = useState({ subject: '', body: '', to: '' });
 
   useEffect(() => { loadData(); }, [leadId]);
 
@@ -269,9 +269,15 @@ function LeadDetailModal({ leadId, stages, onClose }: {
 
   async function handleSendEmail(e: React.FormEvent) {
     e.preventDefault();
-    await crmApi.sendEmail(leadId, emailForm);
+    const to = emailForm.to || lead?.email || '';
+    if (!to) return;
+    if (!lead?.email && emailForm.to) {
+      await crmApi.updateLead(leadId, { email: emailForm.to } as Partial<CRMLead>);
+      setLead(l => l ? { ...l, email: emailForm.to } : l);
+    }
+    await crmApi.sendEmail(leadId, { subject: emailForm.subject, body: emailForm.body });
     setShowSendEmail(false);
-    setEmailForm({ subject: '', body: '' });
+    setEmailForm({ subject: '', body: '', to: '' });
     loadData();
   }
 
@@ -426,7 +432,18 @@ function LeadDetailModal({ leadId, stages, onClose }: {
               <button onClick={() => setShowSendEmail(!showSendEmail)} className="text-xs text-blue-400 hover:text-blue-300">+ Send email</button>
               {showSendEmail && (
                 <form onSubmit={handleSendEmail} className="bg-slate-800/50 border border-blue-500/30 rounded-lg p-3 space-y-2">
-                  <p className="text-xs text-blue-400 font-medium">Send Email to {lead.email || 'no email on file'}</p>
+                  {lead.email ? (
+                    <p className="text-xs text-blue-400 font-medium">To: {lead.email}</p>
+                  ) : (
+                    <input
+                      type="email"
+                      value={emailForm.to}
+                      onChange={e => setEmailForm(f => ({ ...f, to: e.target.value }))}
+                      placeholder="Enter email address..."
+                      required
+                      className="w-full bg-slate-800 border border-blue-500/40 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                    />
+                  )}
                   <input
                     value={emailForm.subject}
                     onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}

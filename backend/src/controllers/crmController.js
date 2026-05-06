@@ -1094,10 +1094,34 @@ async function enrichFromGoogle(name, lat, lng) {
     const p = details.data.result;
     if (!p) return null;
 
+    // Step 3: Try to scrape email from the website
+    let scrapedEmail = null;
+    if (p.website) {
+      try {
+        const page = await axios.get(p.website, {
+          timeout: 5000,
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProperPlaceCRM/1.0)' },
+          maxContentLength: 500000,
+        });
+        const emailMatches = page.data.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g);
+        if (emailMatches) {
+          scrapedEmail = emailMatches.find(e =>
+            !e.match(/\.(png|jpg|gif|svg|css|js|woff|ttf|eot)$/i) &&
+            !e.match(/^noreply|no-reply|donotreply/i) &&
+            !e.includes('sentry') &&
+            !e.includes('example.com')
+          ) || null;
+        }
+      } catch {
+        // Scraping is best-effort; ignore errors
+      }
+    }
+
     return {
       google_place_id: placeId,
       phone: p.formatted_phone_number || null,
       website: p.website || null,
+      email: scrapedEmail,
       google_rating: p.rating || null,
       google_reviews_count: p.user_ratings_total || null,
       location: p.formatted_address || null,
@@ -1137,6 +1161,11 @@ async function enrichLead(req, res, next) {
         updates.push(`${f} = $${values.length}`);
       }
     }
+    // Only set email if it was scraped and the lead doesn't already have one
+    if (enriched.email && !lead.email) {
+      values.push(enriched.email);
+      updates.push(`email = $${values.length}`);
+    }
     if (!updates.length) return res.status(422).json({ error: 'No new data found' });
 
     values.push(id);
@@ -1172,14 +1201,27 @@ async function importLeads(req, res, next) {
     let enrichedCount = 0;
 
     for (const place of places) {
-      const { name, description, lat, lng, address } = place;
+      const { name, description, lat, lng, address, google_place_id: providedPlaceId } = place;
       if (!name) continue;
+
+      // If a google_place_id was provided, skip if a lead with that ID already exists
+      if (providedPlaceId) {
+        const existing = await db.query(
+          'SELECT id FROM host_leads WHERE google_place_id = $1 LIMIT 1',
+          [providedPlaceId]
+        );
+        if (existing.rows.length > 0) {
+          results.push({ name, status: 'skipped' });
+          continue;
+        }
+      }
 
       let data = {
         business_name: name,
         location: address || null,
         latitude: lat || null,
         longitude: lng || null,
+        google_place_id: providedPlaceId || null,
         pipeline_stage,
         priority,
         source: 'kml_import',
@@ -1193,7 +1235,8 @@ async function importLeads(req, res, next) {
             ...data,
             phone: enriched.phone,
             website: enriched.website,
-            google_place_id: enriched.google_place_id,
+            // Prefer the place_id we already know; fall back to what enrichment finds
+            google_place_id: data.google_place_id || enriched.google_place_id,
             google_rating: enriched.google_rating,
             google_reviews_count: enriched.google_reviews_count,
             location: enriched.location || data.location,
@@ -1210,7 +1253,6 @@ async function importLeads(req, res, next) {
             google_place_id, google_rating, google_reviews_count,
             pipeline_stage, priority, admin_notes, source, assigned_to
           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-          ON CONFLICT DO NOTHING
           RETURNING id`,
           [
             data.business_name, data.location, data.latitude, data.longitude,
