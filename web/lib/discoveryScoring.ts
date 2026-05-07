@@ -31,6 +31,7 @@ export interface CandidatePlace {
 export interface ScoredCandidate extends CandidatePlace {
   score: number;
   reasons: string[];
+  criteriaChecks?: Array<{ label: string; met: boolean; detail: string }>;
 }
 
 interface DiscoveryProfile {
