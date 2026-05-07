@@ -391,6 +391,7 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
               TextFormField(
                 controller: priceController,
                 keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
                   hintText: '10',
                   hintStyle: TextStyle(color: Colors.grey[700]),

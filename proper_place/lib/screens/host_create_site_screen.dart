@@ -13,8 +13,9 @@ import 'host_contract_screen.dart';
 
 class HostCreateSiteScreen extends StatefulWidget {
   final Map<String, dynamic>? siteToEdit;
+  final VoidCallback? onSiteSubmitted;
 
-  const HostCreateSiteScreen({super.key, this.siteToEdit});
+  const HostCreateSiteScreen({super.key, this.siteToEdit, this.onSiteSubmitted});
 
   @override
   State<HostCreateSiteScreen> createState() => _HostCreateSiteScreenState();
@@ -60,7 +61,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     if (useMetricUnits) {
       return '${feetToMetres(feet).toStringAsFixed(1)}m';
     }
-    return '${feet.toStringAsFixed(0)}ft';
+    return '${feet.toStringAsFixed(1)}ft';
   }
   bool isSavingDraft = false;
   bool isSubmitting = false;
@@ -716,7 +717,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
-        Navigator.pop(context, true); // Return true to refresh parent screen
+        // Notify home screen to refresh sites tab, then pop back to it
+        widget.onSiteSubmitted?.call();
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (mounted) {
@@ -1216,7 +1219,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                           value: maxVehicleHeight,
                           min: 6,
                           max: 15,
-                          divisions: 18,
+                          divisions: 27,
                           label: formatDimension(maxVehicleHeight),
                           onChanged: (value) => setState(() => maxVehicleHeight = value),
                         ),
@@ -1246,7 +1249,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                           value: maxVehicleWidth,
                           min: 4,
                           max: 8,
-                          divisions: 8,
+                          divisions: 12,
                           label: formatDimension(maxVehicleWidth),
                           onChanged: (value) => setState(() => maxVehicleWidth = value),
                         ),
@@ -1276,7 +1279,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                           value: maxVehicleLength,
                           min: 15,
                           max: 45,
-                          divisions: 30,
+                          divisions: 91,
                           label: formatDimensionWhole(maxVehicleLength),
                           onChanged: (value) => setState(() => maxVehicleLength = value),
                         ),
@@ -1338,6 +1341,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                   controller: priceController,
                   focusNode: _priceFocusNode,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.done,
                   onChanged: (value) {
                     final price = double.tryParse(value) ?? 0;
                     if (price > 20) {
@@ -2297,19 +2301,14 @@ class _AddressSearchBottomSheetState extends State<_AddressSearchBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    final screenHeight = MediaQuery.of(context).size.height;
-    // When keyboard is open, use remaining space; otherwise use 75% of screen
-    final containerHeight = keyboardHeight > 0 
-        ? screenHeight - keyboardHeight 
-        : screenHeight * 0.85;
-    
-    return Container(
-      height: containerHeight,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
       child: Column(
         children: [
             // Handle bar
@@ -2427,6 +2426,6 @@ class _AddressSearchBottomSheetState extends State<_AddressSearchBottomSheet> {
           ),
         ],
       ),
-    );
+    ));
   }
 }

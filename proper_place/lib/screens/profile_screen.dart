@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:proper_place/config/app_config.dart';
@@ -237,6 +238,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 TextField(
                   controller: _nameController,
                   enabled: isEditing,
+                  autofillHints: const [AutofillHints.name],
                   style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
@@ -287,6 +289,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 TextField(
                   controller: _phoneController,
                   enabled: isEditing,
+                  autofillHints: const [AutofillHints.telephoneNumber],
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.done,
                   style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     border: OutlineInputBorder(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/widgets/google_places_address_field.dart';
@@ -150,6 +151,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _contactNameController,
+                  autofillHints: const [AutofillHints.name],
                   decoration: InputDecoration(
                     hintText: 'Your full name',
                     hintStyle: TextStyle(color: Colors.grey[700]),
@@ -175,6 +177,7 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
                   decoration: InputDecoration(
                     hintText: 'your.email@example.com',
                     hintStyle: TextStyle(color: Colors.grey[700]),
@@ -203,6 +206,8 @@ class _HostApplicationFormScreenState extends State<HostApplicationFormScreen> {
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.telephoneNumber],
                   decoration: InputDecoration(
                     hintText: '+44 1234 567890',
                     hintStyle: TextStyle(color: Colors.grey[700]),
