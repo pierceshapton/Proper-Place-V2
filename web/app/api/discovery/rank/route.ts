@@ -32,15 +32,23 @@ interface CandidateInput {
 interface RankRequestBody {
   candidates: CandidateInput[];
   feedback: FeedbackExample[];
+  criteria?: string;
   profile?: {
     topTypes?: string[];
   };
+}
+
+interface CriteriaCheck {
+  label: string;
+  met: boolean;
+  detail: string;
 }
 
 interface RankResult {
   id: string;
   score: number;
   reasoning: string;
+  criteriaChecks?: CriteriaCheck[];
 }
 
 export async function POST(request: Request) {
@@ -56,12 +64,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const { candidates, feedback, profile } = body;
+  const { candidates, feedback, criteria, profile } = body;
   if (!Array.isArray(candidates) || candidates.length === 0) {
     return NextResponse.json({ error: 'No candidates provided' }, { status: 400 });
   }
 
-  const prompt = buildPrompt(candidates, feedback || [], profile);
+  const prompt = buildPrompt(candidates, feedback || [], profile, criteria);
 
   try {
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -116,18 +124,30 @@ function buildPrompt(
   candidates: CandidateInput[],
   feedback: FeedbackExample[],
   profile?: { topTypes?: string[] },
+  criteria?: string,
 ): string {
   const parts: string[] = [];
 
   parts.push(
     'Score each candidate venue 0–100 for how good a fit they are for Proper Place campervan overnight parking partnerships.',
-    'A score of 100 means perfect: they obviously welcome campervans, have parking, good reviews, and suit the profile.',
-    'A score below 40 means unlikely to be interested or a poor fit.',
+    'Proper Place partners with pubs, inns, hotels, country pubs, and similar hospitality venues that have outdoor space and car parks where campervans can stay overnight.',
+    'A score of 80–100: obvious fit — rural/country pub or inn with parking, mentions campervans or camping, good reviews.',
+    'A score of 40–79: possible fit — hospitality venue with parking but no specific campervan signal.',
+    'A score below 40: poor fit — score these 10–20: fast food, retail, supermarkets, petrol stations, gyms, offices, residential, schools, urban venues with no parking, chains unlikely to allow overnight stays.',
+    'If the venue is clearly NOT a pub, inn, hotel or similar hospitality venue, score it 10 or below.',
     '',
   );
 
   if (profile?.topTypes && profile.topTypes.length > 0) {
     parts.push(`Preferred venue types based on existing partnerships: ${profile.topTypes.join(', ')}.`, '');
+  }
+
+  if (criteria?.trim()) {
+    parts.push('== SEARCH CRITERIA ==');
+    parts.push(criteria.trim());
+    parts.push('For EACH candidate, evaluate every distinct requirement stated in the criteria above.');
+    parts.push('Return a criteriaChecks array with one entry per requirement: label (short name), met (true/false), detail (short explanation or value found).');
+    parts.push('');
   }
 
   if (feedback.length > 0) {
@@ -160,12 +180,12 @@ function buildPrompt(
     }
 
     if (c.reviewsText && c.reviewsText.length > 0) {
-      // Only include reviews mentioning relevant terms
+      // Only include reviews that explicitly mention campervan/overnight — whole-word match, no loose "van"
       const relevant = c.reviewsText.filter(r =>
-        /campervan|camper|motorhome|motor home|overnight|park up|van|caravan|sleep/i.test(r),
+        /\b(campervan|camper\s*van|motorhome|motor\s*home|overnight\s*stay|overnight\s*park|park\s*up)\b/i.test(r),
       );
       if (relevant.length > 0) {
-        lines.push(`   Review mentions: "${relevant[0].slice(0, 150)}"`);
+        lines.push(`   Review mentions: "${relevant[0].slice(0, 120)}"`);
       }
     }
 
@@ -175,8 +195,9 @@ function buildPrompt(
   parts.push('');
   parts.push(
     'Respond with JSON in this exact format (no other keys):',
-    '{"results": [{"id": "...", "score": 75, "reasoning": "One sentence why."}, ...]}',
+    '{"results": [{"id": "...", "score": 75, "reasoning": "One sentence why.", "criteriaChecks": [{"label": "Parking", "met": true, "detail": "free lot"}, {"label": "Rural location", "met": false, "detail": "town centre"}]}, ...]}',
     'Include one entry per candidate. Scores must be integers 0–100.',
+    'If no criteria were provided, return criteriaChecks as an empty array [].',
   );
 
   return parts.join('\n');
