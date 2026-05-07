@@ -12,7 +12,7 @@ export default function DiscoverPage() {
   const [leads, setLeads] = useState<CRMLead[]>([]);
 
   const [regionQuery, setRegionQuery] = useState('');
-  const [keywordInput, setKeywordInput] = useState('');
+  const [criteriaInput, setCriteriaInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
@@ -53,6 +53,10 @@ export default function DiscoverPage() {
   const profile = useMemo(() => buildDiscoveryProfile(leads), [leads]);
   const existingPlaceIds = useMemo(
     () => new Set(leads.map(lead => normalizePlaceId(lead.google_place_id)).filter((value): value is string => !!value)),
+    [leads]
+  );
+  const existingLeadKeys = useMemo(
+    () => new Set(leads.map(lead => normalizeText(`${lead.business_name || ''}|${lead.location || ''}`)).filter(k => k !== '|')),
     [leads]
   );
   const [storedMetrics, setStoredMetrics] = useState<{ samples: number; accuracy: number; agreementRate: number } | null>(null);
@@ -96,6 +100,7 @@ export default function DiscoverPage() {
       setRejectedSites(parsedRejected);
 
       setAutoEmailEnabled(settingsMap.discovery_auto_email_enabled === 'true');
+      setCriteriaInput(settingsMap.discovery_criteria_v1 || '');
 
       try {
         const stageRes = await crmApi.getStages();
@@ -121,16 +126,15 @@ export default function DiscoverPage() {
       return;
     }
 
-    const keywords = keywordInput
-      .split(/[\n,]/)
-      .map(item => item.trim())
-      .filter(Boolean)
-      .slice(0, 20);
-
-    if (!regionQuery.trim() || keywords.length === 0) {
-      setSearchError('Enter a target region and at least one keyword.');
+    if (!regionQuery.trim()) {
+      setSearchError('Enter a target region.');
       return;
     }
+
+    const keywords = deriveKeywordsFromCriteria(criteriaInput);
+
+    // Persist criteria so it survives page refresh
+    crmApi.updateSettings({ discovery_criteria_v1: criteriaInput }).catch(() => {});
 
     setIsSearching(true);
     try {
@@ -152,11 +156,12 @@ export default function DiscoverPage() {
           body: JSON.stringify({
             candidates: basedScored,
             feedback: feedbackHistory,
+            criteria: criteriaInput,
             profile: { topTypes: profile.topTypes },
           }),
         });
         if (rankRes.ok) {
-          const rankData = await rankRes.json() as { results?: Array<{ id: string; score: number; reasoning: string }> };
+          const rankData = await rankRes.json() as { results?: Array<{ id: string; score: number; reasoning: string; criteriaChecks?: Array<{ label: string; met: boolean; detail: string }> }> };
           const aiMap = new Map((rankData.results || []).map(r => [r.id, r]));
           scored = basedScored.map(c => {
             const ai = aiMap.get(c.id);
@@ -165,6 +170,7 @@ export default function DiscoverPage() {
                 ...c,
                 score: ai.score,
                 reasons: [ai.reasoning, ...c.reasons],
+                criteriaChecks: ai.criteriaChecks,
               };
             }
             return c;
@@ -179,10 +185,18 @@ export default function DiscoverPage() {
 
       scored = scored.sort((a, b) => b.score - a.score);
 
+      const seenInResults = new Set<string>();
       const filtered = scored.filter(item => {
+        if (item.score < 35) return false;
         if (isRejected(item, rejectedSites)) return false;
         const placeId = normalizePlaceId(item.id);
-        return placeId ? !existingPlaceIds.has(placeId) : true;
+        if (placeId && existingPlaceIds.has(placeId)) return false;
+        const nameKey = normalizeText(`${item.name}|${item.address}`);
+        if (existingLeadKeys.has(nameKey)) return false;
+        const dedupKey = placeId || nameKey;
+        if (seenInResults.has(dedupKey)) return false;
+        seenInResults.add(dedupKey);
+        return true;
       });
 
       setResults(filtered);
@@ -193,8 +207,9 @@ export default function DiscoverPage() {
       } catch {
         // non-fatal — queue refresh failure doesn't block the UI results
       }
-    } catch {
-      setSearchError('Google Places search failed. Check API access and billing.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSearchError(`Google Places search failed: ${msg}. Check API access and billing.`);
     } finally {
       setIsSearching(false);
     }
@@ -259,15 +274,16 @@ export default function DiscoverPage() {
           body: JSON.stringify({
             candidates: baseRescored,
             feedback: feedbackHistory,
+            criteria: criteriaInput,
             profile: { topTypes: profile.topTypes },
           }),
         });
         if (rankRes.ok) {
-          const rankData = await rankRes.json() as { results?: Array<{ id: string; score: number; reasoning: string }> };
+          const rankData = await rankRes.json() as { results?: Array<{ id: string; score: number; reasoning: string; criteriaChecks?: Array<{ label: string; met: boolean; detail: string }> }> };
           const aiMap = new Map((rankData.results || []).map(r => [r.id, r]));
           rescored = baseRescored.map(c => {
             const ai = aiMap.get(c.id);
-            if (ai) return { ...c, score: ai.score, reasons: [ai.reasoning, ...c.reasons] };
+            if (ai) return { ...c, score: ai.score, reasons: [ai.reasoning, ...c.reasons], criteriaChecks: ai.criteriaChecks };
             return c;
           });
         } else {
@@ -277,7 +293,19 @@ export default function DiscoverPage() {
         rescored = baseRescored;
       }
 
-      rescored = rescored.sort((a, b) => b.score - a.score);
+      const seenInRescored = new Set<string>();
+      rescored = rescored.sort((a, b) => b.score - a.score).filter(item => {
+        if (item.score < 35) return false;
+        if (isRejected(item, rejectedSites)) return false;
+        const placeId = normalizePlaceId(item.id);
+        if (placeId && existingPlaceIds.has(placeId)) return false;
+        const nameKey = normalizeText(`${item.name}|${item.address}`);
+        if (existingLeadKeys.has(nameKey)) return false;
+        const dedupKey = placeId || nameKey;
+        if (seenInRescored.has(dedupKey)) return false;
+        seenInRescored.add(dedupKey);
+        return true;
+      });
 
       setResults(rescored);
       const analyzedCount = analysisRows.filter(row => !!row.analysis).length;
@@ -330,7 +358,7 @@ export default function DiscoverPage() {
     };
 
     const nextFeedback = dedupeFeedback([...feedbackHistory, feedbackRow]);
-    const nextRejected = reviewStars <= 3
+    const nextRejected = reviewStars <= 2
       ? dedupeRejected([
           ...rejectedSites,
           {
@@ -346,12 +374,13 @@ export default function DiscoverPage() {
     setSubmittingReview(true);
     setImportMessage('');
     try {
-      if (reviewStars >= 4) {
+      if (reviewStars >= 3) {
         await crmApi.importLeads(
           [
             {
               name: activeCandidate.name,
               address: activeCandidate.address,
+              google_place_id: normalizePlaceId(activeCandidate.id) || undefined,
               lat: activeCandidate.latitude || undefined,
               lng: activeCandidate.longitude || undefined,
               description: activeCandidate.reasons.join(' · '),
@@ -382,7 +411,7 @@ export default function DiscoverPage() {
       setFeedbackHistory(nextFeedback);
       setRejectedSites(nextRejected);
       setResults(current => current.filter(item => item.id !== activeCandidate.id));
-      if (reviewStars >= 4) {
+      if (reviewStars >= 3) {
         setImportMessage(`${activeCandidate.name} added to ${firstStage.name} and learning saved.`);
       }
       setActiveCandidate(null);
@@ -448,7 +477,7 @@ export default function DiscoverPage() {
 
       <div className="grid gap-4">
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-200">Search Region</h2>
+          <h2 className="text-sm font-semibold text-slate-200">Search</h2>
 
           <div>
             <label className="block text-xs text-slate-500 mb-1">Region</label>
@@ -461,13 +490,15 @@ export default function DiscoverPage() {
           </div>
 
           <div>
-            <label className="block text-xs text-slate-500 mb-1">Keywords (comma or line separated)</label>
+            <label className="block text-xs text-slate-500 mb-1">Search Criteria</label>
             <textarea
-              value={keywordInput}
-              onChange={e => setKeywordInput(e.target.value)}
+              value={criteriaInput}
+              onChange={e => setCriteriaInput(e.target.value)}
               rows={4}
+              placeholder={`Describe what you're looking for. E.g:\n• pub with large car park near the coast\n• vineyard with parking\n• farm with plenty of parking near a beauty spot\n\nJust describe it naturally — the type of place and any extras. Parking is always required.`}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
             />
+            <p className="text-[11px] text-slate-600 mt-1">Write naturally — the AI reads this and checks each requirement per site. Notes you leave on rated sites are also learned from.</p>
           </div>
 
           <button
@@ -502,7 +533,7 @@ export default function DiscoverPage() {
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Reviews</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Type</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Satellite</th>
-                  <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Why It Matches</th>
+                  <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Criteria</th>
                   <th className="px-3 py-2 text-left text-[11px] text-slate-500 uppercase tracking-wider">Review</th>
                 </tr>
               </thead>
@@ -531,7 +562,38 @@ export default function DiscoverPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 align-top">
-                        <p className="text-[11px] text-slate-400 max-w-[340px]">{item.reasons.join(' · ')}</p>
+                        <div className="flex flex-col gap-1 min-w-[220px]">
+                          {(() => {
+                            // Use AI-generated criteria checks if available, otherwise fall back to fixed chips
+                            if (item.criteriaChecks && item.criteriaChecks.length > 0) {
+                              return item.criteriaChecks.map(({ label, met, detail }) => (
+                                <span key={label} className={`inline-flex flex-col text-[10px] font-medium px-1.5 py-0.5 rounded w-fit ${met ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                                  <span>{met ? '✓' : '✗'} {label}</span>
+                                  <span className={`font-normal pl-3 ${met ? 'text-emerald-400/70' : 'text-slate-600'}`}>{detail}</span>
+                                </span>
+                              ));
+                            }
+                            // Fallback (no AI criteriaChecks yet): show only basic data chips
+                            const parkingTypes = [
+                              item.parkingOptions?.freeParkingLot && 'free lot',
+                              item.parkingOptions?.paidParkingLot && 'paid lot',
+                              item.parkingOptions?.freeStreetParking && 'free street',
+                              item.parkingOptions?.paidStreetParking && 'paid street',
+                            ].filter(Boolean);
+                            const hasParking = parkingTypes.length > 0;
+                            return [
+                              { label: 'Parking', yes: hasParking, detail: hasParking ? parkingTypes.join(', ') : 'no parking data' },
+                              { label: 'Good rating (4+)', yes: typeof item.rating === 'number' && item.rating >= 4, detail: typeof item.rating === 'number' ? `${item.rating}★` : 'no rating' },
+                              { label: 'Strong reviews (100+)', yes: typeof item.reviews === 'number' && item.reviews >= 100, detail: typeof item.reviews === 'number' ? `${item.reviews} reviews` : 'no count' },
+                              { label: 'Has website', yes: !!item.website, detail: item.website ? (() => { try { return new URL(item.website!).hostname.replace(/^www\./, ''); } catch { return item.website!; } })() : 'none found' },
+                            ].map(({ label, yes, detail }) => (
+                              <span key={label} className={`inline-flex flex-col text-[10px] font-medium px-1.5 py-0.5 rounded w-fit ${yes ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                                <span>{yes ? '✓' : '✗'} {label}</span>
+                                <span className={`font-normal pl-3 ${yes ? 'text-emerald-400/70' : 'text-slate-600'}`}>{detail}</span>
+                              </span>
+                            ));
+                          })()}
+                        </div>
                       </td>
                       <td className="px-3 py-2 align-top">
                         <button
@@ -575,21 +637,31 @@ export default function DiscoverPage() {
             </div>
 
             {activeCandidate.latitude !== null && activeCandidate.longitude !== null && GOOGLE_MAPS_API_KEY && (
-              <div className="rounded-lg overflow-hidden border border-slate-700">
+              <div className="rounded-lg overflow-hidden border border-slate-700 relative">
                 <iframe
-                  title={`Map of ${activeCandidate.name}`}
+                  title={`Satellite map of ${activeCandidate.name}`}
                   width="100%"
                   height="300"
                   style={{ border: 0, display: 'block' }}
                   loading="lazy"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"
-                  src={(() => {
-                    const rawId = activeCandidate.id.startsWith('places/') ? activeCandidate.id.slice(7) : activeCandidate.id;
-                    const q = rawId ? `place_id:${rawId}` : encodeURIComponent(`${activeCandidate.name} ${activeCandidate.address}`);
-                    return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${q}&zoom=16`;
-                  })()}
+                  src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${activeCandidate.latitude},${activeCandidate.longitude}&zoom=18&maptype=satellite`}
                 />
+                <a
+                  href={(() => {
+                    const rawId = activeCandidate.id.startsWith('places/') ? activeCandidate.id.slice(7) : activeCandidate.id;
+                    const name = encodeURIComponent(activeCandidate.name);
+                    return rawId
+                      ? `https://www.google.com/maps/search/?api=1&query=${name}&query_place_id=${rawId}`
+                      : `https://www.google.com/maps/search/?api=1&query=${name}+${activeCandidate.latitude},${activeCandidate.longitude}`;
+                  })()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white text-[11px] px-2 py-1 rounded"
+                >
+                  Open in Maps ↗
+                </a>
               </div>
             )}
 
@@ -611,7 +683,6 @@ export default function DiscoverPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">4-5 stars adds to {firstStage.name}. 1-3 stars removes and remembers this site.</p>
             </div>
 
             <div>
@@ -698,7 +769,9 @@ async function searchGooglePlaces(keyword: string, region: string, apiKey: strin
   });
 
   if (!response.ok) {
-    throw new Error(`Google Places search failed (${response.status})`);
+    let detail = '';
+    try { const e = await response.json(); detail = JSON.stringify(e); } catch { detail = await response.text().catch(() => ''); }
+    throw new Error(`HTTP ${response.status}: ${detail.slice(0, 200)}`);
   }
 
   const data: GooglePlacesResponse = await response.json();
@@ -870,6 +943,79 @@ function getSatellitePreviewUrl(lat: number, lng: number, apiKey: string, size =
   return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
 }
 
+function deriveKeywordsFromCriteria(criteria: string): string[] {
+  if (!criteria.trim()) return ['country pub with parking'];
+
+  const lower = criteria.toLowerCase();
+
+  // ── Extract site types ──────────────────────────────────────────────────────
+  // Each entry: [triggerWords, searchTerm]
+  const siteTypes: [string[], string][] = [
+    [['pub', 'inn', 'country pub', 'public house'], 'pub'],
+    [['farm shop', 'farm'], 'farm'],
+    [['vineyard', 'winery'], 'vineyard'],
+    [['hotel', 'coaching inn', 'lodge'], 'rural hotel'],
+    [['gastropub', 'gastro pub'], 'gastropub'],
+    [['brewery', 'brewpub'], 'brewery'],
+    [['restaurant'], 'restaurant'],
+    [['nature reserve', 'nature park'], 'nature reserve'],
+    [['country park', 'country estate'], 'country park'],
+    [['viewpoint', 'scenic view', 'beauty spot', 'scenic spot'], 'scenic viewpoint'],
+    [['river walk', 'riverside', 'waterfront'], 'riverside pub'],
+    [['campsite', 'camping', 'caravan'], 'campsite with facilities'],
+    [['café', 'cafe', 'coffee'], 'café'],
+  ];
+
+  const foundTypes: string[] = [];
+  for (const [triggers, term] of siteTypes) {
+    if (triggers.some(t => lower.includes(t))) {
+      foundTypes.push(term);
+    }
+  }
+
+  // If nothing was recognised fall back to pub (the core use case)
+  if (foundTypes.length === 0) foundTypes.push('pub');
+
+  // ── Extract qualifiers ──────────────────────────────────────────────────────
+  const qualifiers: [string[], string][] = [
+    [['large car park', 'big car park', 'large parking', 'plenty of parking', 'ample parking'], 'with large car park'],
+    [['car park', 'parking', 'park'], 'with parking'],
+    [['coast', 'coastal', 'sea', 'seaside', 'beach', 'ocean', 'harbour'], 'near the coast'],
+    [['river', 'riverside', 'waterfront', 'canal'], 'by the river'],
+    [['rural', 'countryside', 'country'], 'rural'],
+    [['beauty spot', 'scenic', 'views', 'viewpoint'], 'near beauty spot'],
+    [['garden', 'beer garden', 'outdoor'], 'with garden'],
+    [['dog friendly', 'dog-friendly', 'dogs welcome'], 'dog friendly'],
+    [['campervan', 'motorhome', 'overnight'], 'campervan friendly'],
+  ];
+
+  const foundQualifiers: string[] = [];
+  for (const [triggers, q] of qualifiers) {
+    if (triggers.some(t => lower.includes(t))) {
+      foundQualifiers.push(q);
+      // Only take the most specific parking qualifier (large car park beats generic parking)
+      if (q.includes('large car park')) break;
+      if (q === 'with parking') break;
+    }
+  }
+
+  // ── Build search queries ────────────────────────────────────────────────────
+  // One query per site type, combined with all qualifiers
+  // e.g. "pub with large car park near the coast"
+  const qualifierStr = foundQualifiers.join(' ');
+
+  const queries = foundTypes.map(type =>
+    qualifierStr ? `${type} ${qualifierStr}` : `${type} with parking`
+  );
+
+  // Always ensure parking is in the query (the one continual rule)
+  const finalQueries = queries.map(q =>
+    q.includes('parking') || q.includes('car park') ? q : `${q} with parking`
+  );
+
+  return [...new Set(finalQueries)];
+}
+
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-slate-800/60 border border-slate-700 rounded-md px-2 py-1.5">
@@ -949,10 +1095,6 @@ function generateCandidateSummary(item: ScoredCandidate): string {
     parts.push('Their website references campervan or overnight activity, though no specific passage was extracted.');
   } else if (item.siteAnalysis) {
     parts.push('No campervan or overnight mentions found in Google reviews or on their website.');
-  }
-
-  if (item.website) {
-    parts.push('They have a website worth checking for more detail.');
   }
 
   return parts.join(' ');
