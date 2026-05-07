@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { crmApi, type CRMLead, type CRMStage, type CRMActivity, type CRMTask, type CRMSiteVisit, type CRMEmailLog } from '@/lib/api';
+import { crmApi, type CRMLead, type CRMStage, type CRMActivity, type CRMTask, type CRMSiteVisit, type CRMEmailLog, type CRMEmailTemplate } from '@/lib/api';
+import { mergeTemplate, buildEmailWithSignature } from '@/lib/crmEmailDraft';
+import { getDefaultTemplateId } from '@/lib/defaultTemplate';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
@@ -251,12 +253,13 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
   const [tasks, setTasks] = useState<CRMTask[]>([]);
   const [visits, setVisits] = useState<CRMSiteVisit[]>([]);
   const [emails, setEmails] = useState<CRMEmailLog[]>([]);
+  const [templates, setTemplates] = useState<CRMEmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('activity');
 
   // Send email form
   const [showSendEmail, setShowSendEmail] = useState(false);
-  const [emailForm, setEmailForm] = useState({ subject: '', body: '', to: '' });
+  const [emailForm, setEmailForm] = useState({ subject: '', body: '', to: '', template_id: '' });
 
   // Add note form
   const [showAddNote, setShowAddNote] = useState(false);
@@ -273,18 +276,27 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
   async function loadData() {
     setLoading(true);
     try {
-      const [leadRes, actRes, taskRes, visitRes, emailRes] = await Promise.all([
+      const [leadRes, actRes, taskRes, visitRes, emailRes, templateRes] = await Promise.all([
         crmApi.getLead(leadId),
         crmApi.getActivities(leadId),
         crmApi.getTasks({ lead_id: String(leadId) }),
         crmApi.getSiteVisits(leadId),
         crmApi.getEmailLog(leadId),
+        crmApi.getTemplates(),
       ]);
       setLead(leadRes.lead);
       setActivities(actRes.activities);
       setTasks(taskRes.tasks);
       setVisits(visitRes.visits);
       setEmails(emailRes.emails || []);
+      const tpls: CRMEmailTemplate[] = templateRes.templates || [];
+      setTemplates(tpls);
+      // Auto-load default template
+      const defId = getDefaultTemplateId();
+      const def = defId ? tpls.find(t => t.id === defId) : null;
+      if (def) {
+        setEmailForm(f => ({ ...f, template_id: String(def.id), subject: mergeTemplate(def.subject, leadRes.lead), body: mergeTemplate(def.body, leadRes.lead) }));
+      }
     } catch {
       onClose();
     } finally {
@@ -335,9 +347,9 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
       await crmApi.updateLead(leadId, { email: emailForm.to } as Partial<CRMLead>);
       setLead(l => l ? { ...l, email: emailForm.to } : l);
     }
-    await crmApi.sendEmail(leadId, { subject: emailForm.subject, body: emailForm.body });
+    await crmApi.sendEmail(leadId, { subject: emailForm.subject, body: buildEmailWithSignature(emailForm.body), to_email: to });
     setShowSendEmail(false);
-    setEmailForm({ subject: '', body: '', to: '' });
+    setEmailForm({ subject: '', body: '', to: '', template_id: '' });
     loadData();
   }
 
@@ -559,6 +571,23 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
                       className="w-full bg-slate-800 border border-blue-500/40 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                     />
                   )}
+                  {templates.length > 0 && (
+                    <select
+                      value={emailForm.template_id}
+                      onChange={e => {
+                        const tpl = templates.find(t => String(t.id) === e.target.value);
+                        if (tpl && lead) {
+                          setEmailForm(f => ({ ...f, template_id: e.target.value, subject: mergeTemplate(tpl.subject, lead), body: mergeTemplate(tpl.body, lead) }));
+                        } else {
+                          setEmailForm(f => ({ ...f, template_id: '', subject: '', body: '' }));
+                        }
+                      }}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="">— choose template —</option>
+                      {templates.map(t => <option key={t.id} value={t.id}>{t.name}{getDefaultTemplateId() === t.id ? ' ★' : ''}</option>)}
+                    </select>
+                  )}
                   <input
                     value={emailForm.subject}
                     onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}
@@ -568,9 +597,9 @@ function LeadDetailModal({ leadId, stages, onClose, onStageChange }: {
                   <textarea
                     value={emailForm.body}
                     onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))}
-                    placeholder={"Hi {{first_name}},\n\nI noticed {{business_name}} has a great location..."}
-                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
-                    rows={4}
+                    placeholder={`Hi ${lead.first_name || 'there'},\n\n`}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-mono"
+                    rows={6}
                   />
                   <div className="flex gap-2">
                     <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg">Send</button>
