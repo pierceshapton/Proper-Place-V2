@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { crmApi, type CRMLead, type CRMStage, type CRMEmailTemplate } from '@/lib/api';
 import { mergeTemplate, buildEmailWithSignature } from '@/lib/crmEmailDraft';
+import { getDefaultTemplateId } from '@/lib/defaultTemplate';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
@@ -193,7 +194,16 @@ export default function LeadsPage() {
         <div className="flex items-center gap-2">
           {reviewedLeadsWithEmail.length > 0 && (
             <button
-              onClick={() => { setShowEmailBlast(true); setBlastDone(false); setBlastProgress(null); setBlastPreviewIndex(0); setBlastSubject(''); setBlastBody(''); }}
+              onClick={() => {
+                setShowEmailBlast(true);
+                setBlastDone(false);
+                setBlastProgress(null);
+                setBlastPreviewIndex(0);
+                const defId = getDefaultTemplateId();
+                const def = defId ? templates.find(t => t.id === defId) : null;
+                if (def) { setBlastSubject(def.subject); setBlastBody(def.body); }
+                else { setBlastSubject(''); setBlastBody(''); }
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -257,17 +267,21 @@ export default function LeadsPage() {
               {/* Template selector */}
               {templates.length > 0 && !blastDone && (
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Load from template</label>
+                  <label className="block text-xs text-slate-400 mb-1">Load from template{getDefaultTemplateId() ? ' (default pre-loaded)' : ''}</label>
                   <select
                     className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 w-full"
-                    defaultValue=""
+                    value={(() => {
+                      const m = templates.find(t => t.subject === blastSubject && t.body === blastBody);
+                      return m ? String(m.id) : '';
+                    })()}
                     onChange={e => {
                       const tpl = templates.find(t => String(t.id) === e.target.value);
                       if (tpl) { setBlastSubject(tpl.subject); setBlastBody(tpl.body); }
+                      else { setBlastSubject(''); setBlastBody(''); }
                     }}
                   >
                     <option value="">— choose a template —</option>
-                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}{getDefaultTemplateId() === t.id ? ' ★' : ''}</option>)}
                   </select>
                 </div>
               )}

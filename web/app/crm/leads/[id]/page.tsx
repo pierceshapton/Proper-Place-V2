@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { crmApi, type CRMLead, type CRMActivity, type CRMTask, type CRMEmailLog, type CRMSiteVisit, type CRMStage, type CRMCustomField, type CRMEmailTemplate } from '@/lib/api';
 import { generatePersonalizedDraft, mergeTemplate, buildEmailWithSignature } from '@/lib/crmEmailDraft';
+import { getDefaultTemplateId } from '@/lib/defaultTemplate';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
@@ -82,7 +83,22 @@ export default function LeadDetailPage() {
       setEmails(emailRes.emails);
       setVisits(visitRes.visits);
       setTemplates(templateRes.templates || []);
-      setEmailForm(f => ({ ...f, to_email: leadRes.lead.email || '' }));
+      // Auto-fill compose with default template if user hasn't started writing
+      const defId = getDefaultTemplateId();
+      const def = defId ? (templateRes.templates || []).find((t: CRMEmailTemplate) => t.id === defId) : null;
+      setEmailForm(f => {
+        if (f.subject || f.body) return { ...f, to_email: leadRes.lead.email || '' };
+        if (def) {
+          return {
+            ...f,
+            template_id: String(def.id),
+            subject: mergeTemplate(def.subject || '', leadRes.lead),
+            body: mergeTemplate(def.body || '', leadRes.lead),
+            to_email: leadRes.lead.email || '',
+          };
+        }
+        return { ...f, to_email: leadRes.lead.email || '' };
+      });
       // Load custom values
       try {
         const cv = await crmApi.getCustomValues(leadId);
@@ -416,20 +432,63 @@ export default function LeadDetailPage() {
                 <button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg">Add</button>
               </form>
             )}
-            {activities.length === 0 ? (
+            {activities.length === 0 && emails.length === 0 ? (
               <p className="text-sm text-slate-600 text-center py-8">No activity recorded yet</p>
             ) : (
               <div className="space-y-1">
-                {activities.map(a => (
-                  <div key={a.id} className="flex items-start gap-3 py-2.5 border-b border-slate-800/50">
-                    <ActivityIcon type={a.activity_type} />
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-300">{a.title}</p>
-                      {a.description && <p className="text-xs text-slate-500 mt-0.5">{a.description}</p>}
-                      <p className="text-[11px] text-slate-600 mt-1">{a.created_by_name || 'System'} · {timeAgo(a.created_at)}</p>
-                    </div>
-                  </div>
-                ))}
+                {(() => {
+                  type FeedItem = { kind: 'activity'; data: CRMActivity; date: string } | { kind: 'email'; data: CRMEmailLog; date: string };
+                  const feed: FeedItem[] = [
+                    ...activities.map(a => ({ kind: 'activity' as const, data: a, date: a.created_at })),
+                    ...emails.map(e => ({ kind: 'email' as const, data: e, date: e.sent_at })),
+                  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                  return feed.map(item => {
+                    if (item.kind === 'activity') {
+                      const a = item.data;
+                      return (
+                        <div key={`a-${a.id}`} className="flex items-start gap-3 py-2.5 border-b border-slate-800/50">
+                          <ActivityIcon type={a.activity_type} />
+                          <div className="flex-1">
+                            <p className="text-sm text-slate-300">{a.title}</p>
+                            {a.description && <p className="text-xs text-slate-500 mt-0.5">{a.description}</p>}
+                            <p className="text-[11px] text-slate-600 mt-1">{a.created_by_name || 'System'} · {timeAgo(a.created_at)}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    const e = item.data;
+                    const inbound = e.direction === 'inbound';
+                    const isHtml = e.body?.includes('<');
+                    return (
+                      <div key={`e-${e.id}`} className="flex items-start gap-3 py-2.5 border-b border-slate-800/50">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${inbound ? 'bg-emerald-500/15 text-emerald-400' : 'bg-blue-500/15 text-blue-400'}`}>
+                          {inbound ? '↓' : '↑'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${inbound ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                              {inbound ? 'Reply received' : 'Email sent'}
+                            </span>
+                            <p className="text-sm text-slate-300 truncate">{e.subject || '(no subject)'}</p>
+                          </div>
+                          {e.body && (
+                            isHtml ? (
+                              <div className="text-xs text-slate-500 mt-1 line-clamp-3 [&_a]:text-blue-400 [&_p]:m-0 [&_strong]:text-slate-400" dangerouslySetInnerHTML={{ __html: e.body }} />
+                            ) : (
+                              <p className="text-xs text-slate-500 mt-0.5 line-clamp-3 whitespace-pre-wrap">{e.body}</p>
+                            )
+                          )}
+                          <div className="flex items-center gap-2 text-[11px] text-slate-600 mt-1">
+                            <span>{inbound ? (e.from_name || 'them') : 'you'} → {inbound ? 'you' : (e.to_email || 'them')}</span>
+                            <span>·</span>
+                            <span>{timeAgo(e.sent_at)}</span>
+                            <button onClick={() => setActiveTab('emails')} className="ml-auto text-blue-400 hover:text-blue-300">View thread →</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
@@ -506,7 +565,15 @@ export default function LeadDetailPage() {
                   className="text-xs text-slate-400 hover:text-slate-200 border border-slate-700 hover:border-slate-600 px-2.5 py-1 rounded-lg transition-colors">
                   + Log their reply
                 </button>
-                <button onClick={() => { setShowSendEmail(true); setShowLogReply(false); setEmailForm({ subject: '', body: '', template_id: '', to_email: lead?.email || '' }); }}
+                <button onClick={() => { setShowSendEmail(true); setShowLogReply(false);
+                  const defId = getDefaultTemplateId();
+                  const def = defId ? templates.find(t => t.id === defId) : null;
+                  if (def && lead) {
+                    setEmailForm({ subject: mergeTemplate(def.subject || '', lead), body: mergeTemplate(def.body || '', lead), template_id: String(def.id), to_email: lead.email || '' });
+                  } else {
+                    setEmailForm({ subject: '', body: '', template_id: '', to_email: lead?.email || '' });
+                  }
+                }}
                   className="text-xs text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-500/50 px-2.5 py-1 rounded-lg transition-colors">
                   ✉ Compose
                 </button>
@@ -589,7 +656,7 @@ export default function LeadDetailPage() {
                     <select value={emailForm.template_id} onChange={e => handleTemplateSelect(e.target.value)}
                       className="flex-1 bg-transparent text-sm text-slate-300 focus:outline-none">
                       <option value="">— none —</option>
-                      {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      {templates.map(t => <option key={t.id} value={t.id}>{t.name}{getDefaultTemplateId() === t.id ? ' ★' : ''}</option>)}
                     </select>
                     {emailForm.template_id && (
                       <button type="button" onClick={handlePrewriteDraft} className="text-[11px] text-emerald-400 hover:text-emerald-300 ml-2 flex-shrink-0">Auto-fill</button>

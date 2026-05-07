@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { crmApi, type CRMEmailTemplate } from '@/lib/api';
 import { mergeTemplate } from '@/lib/crmEmailDraft';
+import { getDefaultTemplateId, setDefaultTemplateId } from '@/lib/defaultTemplate';
 import type { CRMLead } from '@/lib/api';
 
 // Sample lead used for template preview
@@ -116,9 +117,11 @@ export default function EmailsPage() {
   const [form, setForm] = useState({ name: '', subject: '', body: '', template_type: 'outreach' });
   const [showPreview, setShowPreview] = useState(false);
   const [signature, setSignature] = useState('');
+  const [defaultId, setDefaultId] = useState<number | null>(null);
 
   useEffect(() => {
     loadTemplates();
+    setDefaultId(getDefaultTemplateId());
     crmApi.getSettings().then(r => {
       const sig = r.settings.find((s: { key: string; value: string }) => s.key === 'email_signature');
       if (sig) setSignature(sig.value);
@@ -259,21 +262,33 @@ export default function EmailsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {templates.map(t => (
-            <div key={t.id} className="bg-slate-900 border border-slate-800 rounded-lg p-4 group">
+          {templates.map(t => {
+            const isDefault = defaultId === t.id;
+            return (
+            <div key={t.id} className={`bg-slate-900 border rounded-lg p-4 group ${isDefault ? 'border-emerald-500/50 ring-1 ring-emerald-500/20' : 'border-slate-800'}`}>
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-semibold text-slate-200">{t.name}</h3>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-500">
                       {(t.template_type || 'outreach').replace(/_/g, ' ')}
                     </span>
+                    {isDefault && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold">★ Default</span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-400 mt-1">Subject: {t.subject}</p>
                 </div>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => startEdit(t)} className="text-xs text-slate-500 hover:text-emerald-400">Edit</button>
-                  <button onClick={() => handleDelete(t.id)} className="text-xs text-slate-500 hover:text-red-400">Delete</button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setDefaultTemplateId(isDefault ? null : t.id); setDefaultId(isDefault ? null : t.id); }}
+                    className={`text-xs px-2 py-0.5 rounded transition-colors ${isDefault ? 'text-emerald-400 hover:text-slate-400' : 'text-slate-500 hover:text-emerald-400'}`}
+                    title={isDefault ? 'Click to unset' : 'Set as default'}
+                  >
+                    {isDefault ? 'Unset default' : 'Set default'}
+                  </button>
+                  <button onClick={() => startEdit(t)} className="text-xs text-slate-500 hover:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">Edit</button>
+                  <button onClick={() => handleDelete(t.id)} className="text-xs text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
                 </div>
               </div>
               <div className="mt-3 bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-40 overflow-y-auto">
@@ -283,7 +298,8 @@ export default function EmailsPage() {
                 <p className="text-[10px] text-slate-600 mt-2">Used {t.usage_count} time{t.usage_count === 1 ? '' : 's'}</p>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
