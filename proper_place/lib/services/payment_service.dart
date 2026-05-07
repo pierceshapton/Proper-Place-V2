@@ -61,6 +61,9 @@ class PaymentService {
           paymentIntentClientSecret: paymentIntentData['clientSecret'],
           merchantDisplayName: 'Proper Place',
           style: ThemeMode.light,
+          applePay: const PaymentSheetApplePay(
+            merchantCountryCode: 'GB',
+          ),
           billingDetails: const BillingDetails(
             address: Address(
               country: 'GB',

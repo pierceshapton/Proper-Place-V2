@@ -8,7 +8,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import BookingCalendar from '@/components/BookingCalendar';
 
-const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PK || 'pk_test_51SVJ2DCGmQVz0gpFBVNEg4Dk4zr6dh58Iq4oQUTmgs5f0rF6xmpU5fgFo1OAz46o6NU1RCoaNqvS7ZrGClApAiEM00WN9AVlMT';
+const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PK || 'pk_live_51SVJ24CIGE5EfNdigyfa7RcU0uRc2tmZF27l34IkQd3TWL9m9dF052YL8ericcNjVHVkdnQLBQmLkySGBFgFs3LQ00t8PDFNS0';
 const stripePromise = loadStripe(STRIPE_PK);
 
 /* ── Payment form (rendered inside Stripe <Elements>) ───────────── */
