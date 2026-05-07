@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { crmApi, type CRMLead, type CRMActivity, type CRMTask, type CRMEmailLog, type CRMSiteVisit, type CRMStage, type CRMCustomField, type CRMEmailTemplate } from '@/lib/api';
-import { generatePersonalizedDraft, mergeTemplate } from '@/lib/crmEmailDraft';
+import { generatePersonalizedDraft, mergeTemplate, buildEmailWithSignature } from '@/lib/crmEmailDraft';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
@@ -143,7 +143,7 @@ export default function LeadDetailPage() {
     e.preventDefault();
     await crmApi.sendEmail(leadId, {
       subject: emailForm.subject,
-      body: emailForm.body,
+      body: buildEmailWithSignature(emailForm.body),
       template_id: emailForm.template_id ? Number(emailForm.template_id) : undefined,
       to_email: emailForm.to_email || undefined,
     });
@@ -606,6 +606,8 @@ export default function LeadDetailPage() {
                   className="w-full bg-slate-950 text-sm text-slate-200 px-4 py-3 focus:outline-none resize-y font-mono placeholder:text-slate-700"
                   rows={8}
                   placeholder={`Hi ${lead.first_name || 'there'},\n\n`} />
+                {/* Signature preview */}
+                <div className="px-4 py-3 bg-slate-900/60 border-t border-slate-800 text-xs [&_a]:text-blue-400 [&_strong]:text-slate-300 pointer-events-none select-none" dangerouslySetInnerHTML={{ __html: buildEmailWithSignature('').replace(/^<div[^>]*>|<\/div>$/g, '').replace(/<p[^>]*><\/p>/g, '') }} />
                 <div className="px-4 py-2.5 border-t border-slate-800 flex items-center gap-3">
                   <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors">Send</button>
                   <div className="flex flex-wrap gap-1 ml-2">

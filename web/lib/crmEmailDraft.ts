@@ -1,5 +1,31 @@
 import type { CRMEmailTemplate, CRMLead } from '@/lib/api';
 
+export const EMAIL_SIGNATURE_HTML = [
+  '<br><br>',
+  '<table cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;font-size:13px;color:#374151;border-top:1px solid #e2e8f0;padding-top:14px;margin-top:4px;">',
+  '<tr>',
+  '<td style="padding-right:14px;vertical-align:middle;">',
+  '<img src="https://www.proper-place.co.uk/logo-512.png" width="44" height="44" alt="Proper Place" style="border-radius:8px;display:block;">',
+  '</td>',
+  '<td style="vertical-align:middle;line-height:1.7;">',
+  '<strong style="font-size:14px;color:#111827;display:block;">Pierce Shapton</strong>',
+  '<span style="color:#6b7280;">Founder, Proper Place</span><br>',
+  '<span>📞 +44 7585 227180</span><br>',
+  '<a href="mailto:pierce.shapton@proper-place.co.uk" style="color:#374151;text-decoration:none;">pierce.shapton@proper-place.co.uk</a><br>',
+  '<a href="https://www.proper-place.co.uk" style="color:#3b82f6;text-decoration:none;">www.proper-place.co.uk</a>',
+  '</td>',
+  '</tr>',
+  '</table>',
+].join('');
+
+export function buildEmailWithSignature(body: string): string {
+  const htmlBody = body
+    .split(/\n\n+/)
+    .map(para => `<p style="margin:0 0 12px 0;">${para.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+  return `<div style="font-family:Arial,sans-serif;font-size:14px;color:#374151;line-height:1.6;">${htmlBody}${EMAIL_SIGNATURE_HTML}</div>`;
+}
+
 export interface EmailDraft {
   subject: string;
   body: string;

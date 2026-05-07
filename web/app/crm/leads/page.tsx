@@ -4,17 +4,8 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { crmApi, type CRMLead, type CRMStage, type CRMEmailTemplate } from '@/lib/api';
-import { mergeTemplate } from '@/lib/crmEmailDraft';
+import { mergeTemplate, buildEmailWithSignature } from '@/lib/crmEmailDraft';
 import { stageColors } from '@/lib/stageColors';
-
-const EMAIL_SIGNATURE = `
-
---
-Pierce Shapton
-Founder, Proper Place
-📞 +44 7585 227180
-✉ pierce.shapton@proper-place.co.uk
-🌐 www.proper-place.co.uk`;
 
 const DEFAULT_STAGES: CRMStage[] = [
   { id: 1, slug: 'reviewed',    name: 'Reviewed',    color: 'blue',    sort_order: 1, is_won: false, is_lost: false },
@@ -92,7 +83,7 @@ export default function LeadsPage() {
     for (const lead of reviewedLeadsWithEmail) {
       try {
         const personalSubject = mergeTemplate(blastSubject, lead);
-        const personalBody = mergeTemplate(blastBody, lead);
+        const personalBody = buildEmailWithSignature(mergeTemplate(blastBody, lead));
         await crmApi.sendEmail(lead.id, { subject: personalSubject, body: personalBody, to_email: lead.email });
         sent++;
       } catch {
@@ -202,7 +193,7 @@ export default function LeadsPage() {
         <div className="flex items-center gap-2">
           {reviewedLeadsWithEmail.length > 0 && (
             <button
-              onClick={() => { setShowEmailBlast(true); setBlastDone(false); setBlastProgress(null); setBlastPreviewIndex(0); setBlastSubject(''); setBlastBody(EMAIL_SIGNATURE); }}
+              onClick={() => { setShowEmailBlast(true); setBlastDone(false); setBlastProgress(null); setBlastPreviewIndex(0); setBlastSubject(''); setBlastBody(''); }}
               className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -272,7 +263,7 @@ export default function LeadsPage() {
                     defaultValue=""
                     onChange={e => {
                       const tpl = templates.find(t => String(t.id) === e.target.value);
-                      if (tpl) { setBlastSubject(tpl.subject); setBlastBody(tpl.body + EMAIL_SIGNATURE); }
+                      if (tpl) { setBlastSubject(tpl.subject); setBlastBody(tpl.body); }
                     }}
                   >
                     <option value="">— choose a template —</option>
@@ -339,7 +330,10 @@ export default function LeadsPage() {
                         <p className="text-xs text-slate-300 mb-2">Subject: <span className="text-slate-100">{mergeTemplate(blastSubject, reviewedLeadsWithEmail[blastPreviewIndex])}</span></p>
                       )}
                       {blastBody && (
-                        <pre className="text-xs text-slate-400 whitespace-pre-wrap font-sans leading-relaxed border-t border-slate-700 pt-2 mt-1">{mergeTemplate(blastBody, reviewedLeadsWithEmail[blastPreviewIndex])}</pre>
+                        <div className="text-xs text-slate-400 border-t border-slate-700 pt-2 mt-1 [&_a]:text-blue-400 [&_strong]:text-slate-200" dangerouslySetInnerHTML={{ __html: buildEmailWithSignature(mergeTemplate(blastBody, reviewedLeadsWithEmail[blastPreviewIndex])) }} />
+                      )}
+                      {!blastBody && (
+                        <div className="text-xs text-slate-600 border-t border-slate-700 pt-2 mt-1 [&_a]:text-blue-400 [&_strong]:text-slate-400" dangerouslySetInnerHTML={{ __html: buildEmailWithSignature('') }} />
                       )}
                     </div>
                   )}
