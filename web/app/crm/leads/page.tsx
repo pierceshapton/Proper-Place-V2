@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { crmApi, type CRMLead, type CRMStage } from '@/lib/api';
+import { crmApi, type CRMLead, type CRMStage, type CRMEmailTemplate } from '@/lib/api';
+import { mergeTemplate } from '@/lib/crmEmailDraft';
 import { stageColors } from '@/lib/stageColors';
 
 const DEFAULT_STAGES: CRMStage[] = [
@@ -43,6 +44,16 @@ export default function LeadsPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkStage, setBulkStage] = useState('');
 
+  // Email blast state
+  const [showEmailBlast, setShowEmailBlast] = useState(false);
+  const [blastSubject, setBlastSubject] = useState('');
+  const [blastBody, setBlastBody] = useState('');
+  const [blastSending, setBlastSending] = useState(false);
+  const [blastProgress, setBlastProgress] = useState<{ sent: number; failed: number; skipped: number; total: number } | null>(null);
+  const [blastDone, setBlastDone] = useState(false);
+  const [blastPreviewIndex, setBlastPreviewIndex] = useState(0);
+  const [templates, setTemplates] = useState<CRMEmailTemplate[]>([]);
+
   const [form, setForm] = useState({
     business_name: '', first_name: '', last_name: '', email: '', phone: '',
     location: '', website: '', property_type: 'pub', pipeline_stage: 'reviewed', priority: 'medium',
@@ -53,7 +64,38 @@ export default function LeadsPage() {
   useEffect(() => {
     crmApi.getStages().then(r => setStages(r.stages.sort((a: CRMStage, b: CRMStage) => a.sort_order - b.sort_order))).catch(() => {});
   }, []);
+  useEffect(() => {
+    crmApi.getTemplates().then(r => setTemplates(r.templates.filter((t: CRMEmailTemplate) => t.is_active))).catch(() => {});
+  }, []);
   useEffect(() => { loadLeads(); }, [stageFilter, priorityFilter]);
+
+  const reviewedLeadsWithEmail = useMemo(
+    () => leads.filter(l => l.pipeline_stage === 'reviewed' && l.email?.trim()),
+    [leads]
+  );
+
+  async function handleEmailBlast() {
+    if (!blastSubject.trim() || !blastBody.trim() || reviewedLeadsWithEmail.length === 0) return;
+    setBlastSending(true);
+    setBlastDone(false);
+    setBlastProgress({ sent: 0, failed: 0, skipped: 0, total: reviewedLeadsWithEmail.length });
+    let sent = 0, failed = 0, skipped = 0;
+    for (const lead of reviewedLeadsWithEmail) {
+      try {
+        const personalSubject = mergeTemplate(blastSubject, lead);
+        const personalBody = mergeTemplate(blastBody, lead);
+        await crmApi.sendEmail(lead.id, { subject: personalSubject, body: personalBody, to_email: lead.email });
+        sent++;
+      } catch {
+        failed++;
+      }
+      setBlastProgress({ sent, failed, skipped, total: reviewedLeadsWithEmail.length });
+      // Small delay to avoid hammering the API
+      await new Promise(r => setTimeout(r, 150));
+    }
+    setBlastSending(false);
+    setBlastDone(true);
+  }
 
   async function loadLeads() {
     setLoading(true);
@@ -149,6 +191,17 @@ export default function LeadsPage() {
           <p className="text-sm text-slate-500 mt-0.5">{total} total{selected.size > 0 && ` · ${selected.size} selected`}</p>
         </div>
         <div className="flex items-center gap-2">
+          {reviewedLeadsWithEmail.length > 0 && (
+            <button
+              onClick={() => { setShowEmailBlast(true); setBlastDone(false); setBlastProgress(null); setBlastPreviewIndex(0); }}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+              </svg>
+              Email Reviewed ({reviewedLeadsWithEmail.length})
+            </button>
+          )}
           <button onClick={() => setShowForm(!showForm)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
             {showForm ? 'Cancel' : '+ Add Lead'}
           </button>
@@ -156,8 +209,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Add Lead Form */}
-      {showForm && (
-        <form onSubmit={handleCreateLead} className="bg-slate-900 border border-emerald-500/20 rounded-xl p-4 space-y-3">
+      {showForm && (        <form onSubmit={handleCreateLead} className="bg-slate-900 border border-emerald-500/20 rounded-xl p-4 space-y-3">
           <h2 className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">New Lead</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             <FInput label="Business Name" value={form.business_name} onChange={v => setForm(f => ({ ...f, business_name: v }))} placeholder="The Fox & Hound" />
@@ -179,6 +231,170 @@ export default function LeadsPage() {
             {saving ? 'Creating...' : 'Create Lead'}
           </button>
         </form>
+      )}
+
+      {/* Email Reviewed Leads Modal */}
+      {showEmailBlast && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-100">Email All Reviewed Leads</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Sending from <span className="text-blue-400">pierce.shapton@proper-place.co.uk</span>
+                  {' · '}{reviewedLeadsWithEmail.length} lead{reviewedLeadsWithEmail.length !== 1 ? 's' : ''} with email addresses
+                </p>
+              </div>
+              <button onClick={() => { setShowEmailBlast(false); setBlastDone(false); setBlastProgress(null); }} className="text-slate-500 hover:text-slate-300 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Template selector */}
+              {templates.length > 0 && !blastDone && (
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Load from template</label>
+                  <select
+                    className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 w-full"
+                    defaultValue=""
+                    onChange={e => {
+                      const tpl = templates.find(t => String(t.id) === e.target.value);
+                      if (tpl) { setBlastSubject(tpl.subject); setBlastBody(tpl.body); }
+                    }}
+                  >
+                    <option value="">— choose a template —</option>
+                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Merge tag hints */}
+              {!blastDone && (
+                <div className="flex flex-wrap gap-1.5">
+                  {['{{first_name}}', '{{business_name}}', '{{location}}', '{{property_type}}', '{{google_rating}}', '{{parking_spaces}}', '{{website}}'].map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => setBlastBody(b => b + tag)}
+                      className="text-[10px] font-mono bg-slate-800 border border-slate-700 hover:border-blue-500 hover:text-blue-400 text-slate-400 px-2 py-0.5 rounded transition-colors"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                  <span className="text-[10px] text-slate-600 self-center ml-1">Click to insert merge tag</span>
+                </div>
+              )}
+
+              {/* Subject & Body */}
+              {!blastDone && (
+                <>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Subject</label>
+                    <input
+                      type="text"
+                      value={blastSubject}
+                      onChange={e => setBlastSubject(e.target.value)}
+                      placeholder="e.g. Quick idea for {{business_name}}"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Body</label>
+                    <textarea
+                      value={blastBody}
+                      onChange={e => setBlastBody(e.target.value)}
+                      rows={10}
+                      placeholder="Hi {{first_name}},&#10;&#10;I wanted to reach out about {{business_name}} in {{location}}…"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-mono resize-y"
+                    />
+                  </div>
+
+                  {/* Live preview for first lead */}
+                  {reviewedLeadsWithEmail.length > 0 && (blastSubject || blastBody) && (
+                    <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Preview — {reviewedLeadsWithEmail[blastPreviewIndex]?.business_name || reviewedLeadsWithEmail[blastPreviewIndex]?.first_name || 'Lead'}</p>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => setBlastPreviewIndex(i => Math.max(0, i - 1))} disabled={blastPreviewIndex === 0} className="text-slate-500 hover:text-slate-300 disabled:opacity-30 text-xs px-1">‹</button>
+                          <span className="text-[10px] text-slate-600">{blastPreviewIndex + 1}/{reviewedLeadsWithEmail.length}</span>
+                          <button onClick={() => setBlastPreviewIndex(i => Math.min(reviewedLeadsWithEmail.length - 1, i + 1))} disabled={blastPreviewIndex === reviewedLeadsWithEmail.length - 1} className="text-slate-500 hover:text-slate-300 disabled:opacity-30 text-xs px-1">›</button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-300 font-medium mb-1">
+                        To: <span className="text-blue-400">{reviewedLeadsWithEmail[blastPreviewIndex]?.email}</span>
+                      </p>
+                      {blastSubject && (
+                        <p className="text-xs text-slate-300 mb-2">Subject: <span className="text-slate-100">{mergeTemplate(blastSubject, reviewedLeadsWithEmail[blastPreviewIndex])}</span></p>
+                      )}
+                      {blastBody && (
+                        <pre className="text-xs text-slate-400 whitespace-pre-wrap font-sans leading-relaxed border-t border-slate-700 pt-2 mt-1">{mergeTemplate(blastBody, reviewedLeadsWithEmail[blastPreviewIndex])}</pre>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Leads without email warning */}
+              {!blastDone && (() => {
+                const noEmail = leads.filter(l => l.pipeline_stage === 'reviewed' && !l.email?.trim());
+                return noEmail.length > 0 ? (
+                  <p className="text-xs text-amber-500/80">
+                    ⚠ {noEmail.length} reviewed lead{noEmail.length !== 1 ? 's' : ''} have no email address and will be skipped.
+                  </p>
+                ) : null;
+              })()}
+
+              {/* Progress */}
+              {blastProgress && (
+                <div className="space-y-2">
+                  <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-2 rounded-full transition-all bg-blue-500"
+                      style={{ width: `${((blastProgress.sent + blastProgress.failed) / blastProgress.total) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {blastSending ? 'Sending…' : 'Done!'} {blastProgress.sent} sent · {blastProgress.failed} failed · {blastProgress.total} total
+                  </p>
+                </div>
+              )}
+
+              {/* Done state */}
+              {blastDone && blastProgress && (
+                <div className="text-center py-6 space-y-2">
+                  <p className="text-2xl">✅</p>
+                  <p className="text-sm font-semibold text-slate-100">Emails sent!</p>
+                  <p className="text-xs text-slate-400">{blastProgress.sent} sent · {blastProgress.failed} failed</p>
+                  <button
+                    onClick={() => { setShowEmailBlast(false); setBlastDone(false); setBlastProgress(null); setBlastSubject(''); setBlastBody(''); }}
+                    className="mt-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-lg"
+                  >Close</button>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {!blastDone && (
+              <div className="px-5 py-4 border-t border-slate-800 flex items-center justify-between gap-3">
+                <p className="text-xs text-slate-600">Each email is personalised with the lead&apos;s data using merge tags.</p>
+                <button
+                  onClick={handleEmailBlast}
+                  disabled={blastSending || !blastSubject.trim() || !blastBody.trim() || reviewedLeadsWithEmail.length === 0}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors flex items-center gap-2 flex-shrink-0"
+                >
+                  {blastSending ? (
+                    <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Sending…</>
+                  ) : (
+                    <>Send to {reviewedLeadsWithEmail.length} lead{reviewedLeadsWithEmail.length !== 1 ? 's' : ''}</>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Toolbar */}
