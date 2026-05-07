@@ -2,7 +2,7 @@ name: proper_place
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.2+58
+version: 1.1.0+62
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -15,6 +15,7 @@ dependencies:
   shared_preferences: ^2.2.0
   flutter_secure_storage: ^9.2.2
   google_maps_flutter: ^2.5.0
+  google_maps_cluster_manager: ">=3.0.0 <3.1.0"
   google_fonts: ^6.0.0
   geolocator: ^9.0.0
   wechat_assets_picker: ^10.1.0
@@ -27,6 +28,10 @@ dependencies:
   path_provider: ^2.1.0
   connectivity_plus: ^6.0.0
   share_plus: ^12.0.1
+
+dependency_overrides:
+  google_maps_cluster_manager:
+    path: packages/google_maps_cluster_manager
 
 dev_dependencies:
   flutter_test:
