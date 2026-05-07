@@ -8,6 +8,14 @@ class GooglePlacesAddressField extends StatefulWidget {
   final Function(String address, double lat, double lng, String city, String country)? onAddressSelected;
   final String? Function(String?)? validator;
   final bool isRequired;
+  /// When false, hides the label, subtitle, and "Powered by Google" footer
+  final bool showHeader;
+  /// Pre-fill the field as already-verified (e.g. My Location)
+  final String? prefillAddress;
+  final double? prefillLat;
+  final double? prefillLng;
+  /// When true, the verified box uses blue styling instead of green
+  final bool isMyLocation;
 
   const GooglePlacesAddressField({
     Key? key,
@@ -17,6 +25,11 @@ class GooglePlacesAddressField extends StatefulWidget {
     this.onAddressSelected,
     this.validator,
     this.isRequired = true,
+    this.showHeader = true,
+    this.prefillAddress,
+    this.prefillLat,
+    this.prefillLng,
+    this.isMyLocation = false,
   }) : super(key: key);
 
   @override
@@ -35,6 +48,12 @@ class _GooglePlacesAddressFieldState extends State<GooglePlacesAddressField> {
   void initState() {
     super.initState();
     _mainController = widget.controller ?? TextEditingController();
+    if (widget.prefillAddress != null) {
+      _mainController.text = widget.prefillAddress!;
+      _addressVerified = true;
+      _latitude = widget.prefillLat;
+      _longitude = widget.prefillLng;
+    }
   }
 
   @override
@@ -77,40 +96,59 @@ class _GooglePlacesAddressFieldState extends State<GooglePlacesAddressField> {
 
   @override
   Widget build(BuildContext context) {
+    final Color verifiedBg = widget.isMyLocation
+        ? const Color(0xFFEFF6FF)
+        : const Color(0xFFECFDF5);
+    final Color verifiedBorder = widget.isMyLocation
+        ? const Color(0xFF3B82F6)
+        : const Color(0xFF22C55E);
+    final Color verifiedIcon = widget.isMyLocation
+        ? const Color(0xFF3B82F6)
+        : const Color(0xFF22C55E);
+    final Color verifiedLabel = widget.isMyLocation
+        ? const Color(0xFF1D4ED8)
+        : const Color(0xFF16A34A);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          widget.label,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Tap to search and select your address',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
-        const SizedBox(height: 8),
+        if (widget.showHeader) ...[  
+          Text(
+            widget.label,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tap to search and select your address',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 8),
+        ],
 
         // Selected Address Display (when verified)
         if (_addressVerified) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFECFDF5),
+              color: verifiedBg,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF22C55E)),
+              border: Border.all(color: verifiedBorder),
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: Color(0xFF22C55E), size: 20),
+                Icon(
+                  widget.isMyLocation ? Icons.my_location : Icons.check_circle,
+                  color: verifiedIcon,
+                  size: 20,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Verified Address',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                      Text(
+                        widget.isMyLocation ? 'My Location' : 'Verified Address',
+                        style: TextStyle(fontSize: 12, color: verifiedLabel, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -152,17 +190,19 @@ class _GooglePlacesAddressFieldState extends State<GooglePlacesAddressField> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.info_outline, size: 14, color: Colors.grey[500]),
-              const SizedBox(width: 6),
-              Text(
-                'Powered by Google Places for accurate location data',
-                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-              ),
-            ],
-          ),
+          if (widget.showHeader) ...[  
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.grey[500]),
+                const SizedBox(width: 6),
+                Text(
+                  'Powered by Google Places for accurate location data',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ],
         ],
       ],
     );
@@ -238,14 +278,21 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-    
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.5,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
+    final screenHeight = MediaQuery.of(context).size.height;
+    // Use most of the available area above the keyboard so the input never
+    // gets covered by the suggestions list when the keyboard is open.
+    final sheetHeight = (screenHeight - bottomPadding - 24)
+        .clamp(280.0, screenHeight * 0.95);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      child: Container(
+        height: sheetHeight,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
         children: [
           // Handle bar
           Container(
@@ -285,6 +332,7 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
             child: TextField(
               controller: _searchController,
               autofocus: true,
+              autofillHints: const [],
               decoration: InputDecoration(
                 hintText: 'Enter postcode or address...',
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
@@ -333,7 +381,7 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
                     ),
                   )
                 : ListView.builder(
-                    padding: EdgeInsets.only(bottom: bottomPadding + 16),
+                    padding: const EdgeInsets.only(bottom: 16),
                     itemCount: _suggestions.length,
                     itemBuilder: (context, index) {
                       final suggestion = _suggestions[index];
@@ -361,6 +409,7 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
           ),
         ],
       ),
+    ),
     );
   }
 }
