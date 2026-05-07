@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.routes.js';
 import placesRoutes from './routes/places.routes.js';
 import bookingsRoutes from './routes/bookings.routes.js';
 import paymentsRoutes from './routes/payments.routes.js';
+import configRoutes from './routes/config.routes.js';
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/auth', authRoutes);
 app.use('/places', placesRoutes);
 app.use('/bookings', bookingsRoutes);
 app.use('/payments', paymentsRoutes);
+app.use('/config', configRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

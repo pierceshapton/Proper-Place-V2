@@ -76,6 +76,14 @@ const alterMigrationsSQL = [
   `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50)`,
   `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS connected_account_id VARCHAR(255)`,
   `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_captured BOOLEAN NOT NULL DEFAULT false`,
+  // app_settings: generic key/value feature flag table
+  `CREATE TABLE IF NOT EXISTS app_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  // Seed default feature flags (INSERT ... ON CONFLICT DO NOTHING so existing values are preserved)
+  `INSERT INTO app_settings (key, value) VALUES ('referral_enabled', 'false') ON CONFLICT (key) DO NOTHING`,
 ];
 
 export async function runMigrations() {
