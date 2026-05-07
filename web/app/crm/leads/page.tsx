@@ -7,6 +7,15 @@ import { crmApi, type CRMLead, type CRMStage, type CRMEmailTemplate } from '@/li
 import { mergeTemplate } from '@/lib/crmEmailDraft';
 import { stageColors } from '@/lib/stageColors';
 
+const EMAIL_SIGNATURE = `
+
+--
+Pierce Shapton
+Founder, Proper Place
+📞 +44 7585 227180
+✉ pierce.shapton@proper-place.co.uk
+🌐 www.proper-place.co.uk`;
+
 const DEFAULT_STAGES: CRMStage[] = [
   { id: 1, slug: 'reviewed',    name: 'Reviewed',    color: 'blue',    sort_order: 1, is_won: false, is_lost: false },
   { id: 2, slug: 'contacted',   name: 'Contacted',   color: 'amber',   sort_order: 2, is_won: false, is_lost: false },
@@ -193,7 +202,7 @@ export default function LeadsPage() {
         <div className="flex items-center gap-2">
           {reviewedLeadsWithEmail.length > 0 && (
             <button
-              onClick={() => { setShowEmailBlast(true); setBlastDone(false); setBlastProgress(null); setBlastPreviewIndex(0); }}
+              onClick={() => { setShowEmailBlast(true); setBlastDone(false); setBlastProgress(null); setBlastPreviewIndex(0); setBlastSubject(''); setBlastBody(EMAIL_SIGNATURE); }}
               className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -263,7 +272,7 @@ export default function LeadsPage() {
                     defaultValue=""
                     onChange={e => {
                       const tpl = templates.find(t => String(t.id) === e.target.value);
-                      if (tpl) { setBlastSubject(tpl.subject); setBlastBody(tpl.body); }
+                      if (tpl) { setBlastSubject(tpl.subject); setBlastBody(tpl.body + EMAIL_SIGNATURE); }
                     }}
                   >
                     <option value="">— choose a template —</option>
