@@ -12,7 +12,6 @@ export default function SignupPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    referralCode: '',
     terms: false,
   });
   const [loading, setLoading] = useState(false);
@@ -42,7 +41,6 @@ export default function SignupPage() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        referral_code: formData.referralCode || undefined,
       });
       router.push('/auth/verify-email');
     } catch (err) {
@@ -77,10 +75,6 @@ export default function SignupPage() {
               <div>
                 <label className="block text-sm font-medium mb-1 text-gray-700">Confirm Password</label>
                 <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="••••••••" required autoComplete="new-password" className="bg-white border-gray-300 text-gray-900 placeholder-gray-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700">Referral Code <span className="text-gray-400">(optional)</span></label>
-                <input type="text" name="referralCode" value={formData.referralCode} onChange={handleChange} placeholder="PP-XXXX1234" className="bg-white border-gray-300 text-gray-900 placeholder-gray-400" />
               </div>
               {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
               <div className="flex items-start gap-2">
