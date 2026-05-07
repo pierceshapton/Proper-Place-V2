@@ -506,7 +506,7 @@ export default function DiscoverPage() {
             disabled={isSearching}
             className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg"
           >
-            {isSearching ? 'Finding matching locations…' : 'Identify Similar Sites'}
+            {isSearching ? 'Finding matching locations…' : 'Search for Sites'}
           </button>
 
           <p className="text-xs text-slate-500">Candidates are matched against your existing pipeline leads ({leads.length} loaded). Nothing is auto-added; review each site first.</p>
