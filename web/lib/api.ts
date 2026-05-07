@@ -834,6 +834,7 @@ export const crmApi = {
       lat?: number;
       lng?: number;
       address?: string;
+      google_place_id?: string;
       fit_score?: number;
       parking_confidence?: number;
       access_score?: number;
