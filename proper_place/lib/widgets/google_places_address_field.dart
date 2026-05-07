@@ -281,7 +281,8 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
     final screenHeight = MediaQuery.of(context).size.height;
     // Use most of the available area above the keyboard so the input never
     // gets covered by the suggestions list when the keyboard is open.
-    final sheetHeight = (screenHeight - bottomPadding - 24)
+    // The extra 50px accounts for the iOS autofill suggestion bar.
+    final sheetHeight = (screenHeight - bottomPadding - 74)
         .clamp(280.0, screenHeight * 0.95);
 
     return Padding(
@@ -332,7 +333,7 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
             child: TextField(
               controller: _searchController,
               autofocus: true,
-              autofillHints: const [],
+              autofillHints: const [AutofillHints.streetAddressLine1],
               decoration: InputDecoration(
                 hintText: 'Enter postcode or address...',
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
