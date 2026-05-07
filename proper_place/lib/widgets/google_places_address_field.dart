@@ -282,7 +282,7 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
     // Use most of the available area above the keyboard so the input never
     // gets covered by the suggestions list when the keyboard is open.
     // The extra 50px accounts for the iOS autofill suggestion bar.
-    final sheetHeight = (screenHeight - bottomPadding - 74)
+    final sheetHeight = (screenHeight - bottomPadding - 24)
         .clamp(280.0, screenHeight * 0.95);
 
     return Padding(
