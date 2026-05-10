@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { placesApi, uploadApi, ApiError } from '@/lib/api';
 
@@ -16,14 +16,13 @@ const PLACE_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
-const AMENITIES = ['WiFi', 'Water', 'Electricity', 'Toilet', 'Shower', 'BBQ', 'Fire Pit', 'Waste Disposal', 'Dog Friendly', 'Shop Nearby', 'Pub Nearby', 'Level Ground', 'Hardstanding', 'Grass Pitch'];
-
 export default function NewPlacePage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState(5);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -36,8 +35,7 @@ export default function NewPlacePage() {
     price_per_night: '',
     capacity: '',
     place_type: 'private_land',
-    amenities: [] as string[],
-    opening_hours: '',
+    opening_hours: '',,
     business_description: '',
     access_route_description: '',
     max_vehicle_height_ft: '',
@@ -46,6 +44,13 @@ export default function NewPlacePage() {
     serves_food: false,
     food_menu_description: '',
   });
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/config/features`)
+      .then(r => r.json())
+      .then(data => { if (data.min_price_per_night) setMinPrice(data.min_price_per_night); })
+      .catch(() => {});
+  }, []);
 
   const handleImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -62,18 +67,15 @@ export default function NewPlacePage() {
     setImagePreview(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const toggleAmenity = (a: string) => {
-    setForm(f => ({
-      ...f,
-      amenities: f.amenities.includes(a) ? f.amenities.filter(x => x !== a) : [...f.amenities, a],
-    }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!form.name || !form.price_per_night) {
       setError('Name and price are required');
+      return;
+    }
+    if (parseFloat(form.price_per_night) < minPrice) {
+      setError(`Price must be at least £${minPrice}`);
       return;
     }
     setSaving(true);
@@ -91,7 +93,7 @@ export default function NewPlacePage() {
         price_per_night: parseFloat(form.price_per_night),
         capacity: form.capacity ? parseInt(form.capacity) : undefined,
         place_type: form.place_type,
-        amenities: form.amenities,
+        amenities: [],
         opening_hours: form.opening_hours || undefined,
         business_description: form.business_description || undefined,
         access_route_description: form.access_route_description || undefined,
@@ -155,7 +157,7 @@ export default function NewPlacePage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Night (£) *</label>
-              <input type="number" step="0.01" min="0" value={form.price_per_night} onChange={e => setForm(f => ({ ...f, price_per_night: e.target.value }))} placeholder="15.00" required className="bg-white border-gray-300 text-gray-900" />
+              <input type="number" step="0.01" min={minPrice} value={form.price_per_night} onChange={e => setForm(f => ({ ...f, price_per_night: e.target.value }))} placeholder={`${minPrice}.00`} required className="bg-white border-gray-300 text-gray-900" />
             </div>
           </div>
           <div>
@@ -217,18 +219,6 @@ export default function NewPlacePage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Max Width (ft)</label>
               <input type="number" step="0.1" value={form.max_vehicle_width_ft} onChange={e => setForm(f => ({ ...f, max_vehicle_width_ft: e.target.value }))} placeholder="8" className="bg-white border-gray-300 text-gray-900" />
             </div>
-          </div>
-        </div>
-
-        {/* Amenities */}
-        <div className="card bg-white p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Amenities</h2>
-          <div className="flex flex-wrap gap-2">
-            {AMENITIES.map(a => (
-              <button key={a} type="button" onClick={() => toggleAmenity(a)} className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.amenities.includes(a) ? 'bg-light-blue text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-                {form.amenities.includes(a) && '✓ '}{a}
-              </button>
-            ))}
           </div>
         </div>
 

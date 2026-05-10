@@ -32,25 +32,34 @@ class ApiService {
   // Flag to prevent infinite refresh loops
   static bool _isRefreshing = false;
 
-  /// Attempt to refresh the access token using the refresh token
-  static Future<bool> _refreshAccessToken() async {
-    if (_isRefreshing) return false;
+  /// Result of a refresh attempt.
+  /// - success: got a new access token, retry the original request.
+  /// - rejected: server explicitly told us the refresh token is invalid; safe to clear auth.
+  /// - failed: transient (network/timeout/5xx) — DO NOT clear auth, just surface the error.
+  static Future<_RefreshResult> _refreshAccessToken() async {
+    if (_isRefreshing) return _RefreshResult.failed;
     _isRefreshing = true;
 
     try {
       final refreshToken = await StorageService.getRefreshToken();
       if (refreshToken == null) {
     debugPrint('[ApiService] No refresh token available');
-        return false;
+        return _RefreshResult.rejected;
       }
 
     debugPrint('[ApiService] Attempting token refresh...');
       final url = Uri.parse('$_baseUrl/auth/refresh');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refresh_token': refreshToken}),
-      ).timeout(const Duration(seconds: 15));
+      final http.Response response;
+      try {
+        response = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'refresh_token': refreshToken}),
+        ).timeout(const Duration(seconds: 15));
+      } catch (e) {
+    debugPrint('[ApiService] Token refresh transient error: $e');
+        return _RefreshResult.failed;
+      }
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -63,15 +72,23 @@ class ApiService {
             await StorageService.saveRefreshToken(newRefreshToken);
           }
     debugPrint('[ApiService] Token refresh successful');
-          return true;
+          return _RefreshResult.success;
         }
+        return _RefreshResult.failed;
       }
 
-    debugPrint('[ApiService] Token refresh failed: ${response.statusCode}');
-      return false;
+      // Only treat 401/403 as a real rejection (refresh token invalid/revoked).
+      // 5xx, 502, 503, 504, 0 etc. are transient — keep the user logged in.
+      if (response.statusCode == 401 || response.statusCode == 403) {
+    debugPrint('[ApiService] Refresh token rejected (${response.statusCode})');
+        return _RefreshResult.rejected;
+      }
+
+    debugPrint('[ApiService] Token refresh failed transiently: ${response.statusCode}');
+      return _RefreshResult.failed;
     } catch (e) {
     debugPrint('[ApiService] Token refresh error: $e');
-      return false;
+      return _RefreshResult.failed;
     } finally {
       _isRefreshing = false;
     }
@@ -171,8 +188,8 @@ class ApiService {
         // Handle 401 - try to refresh token automatically
         if (response.statusCode == 401 && !isRetry) {
     debugPrint('[ApiService] Got 401 - attempting auto-refresh');
-          final refreshed = await _refreshAccessToken();
-          if (refreshed) {
+          final refreshResult = await _refreshAccessToken();
+          if (refreshResult == _RefreshResult.success) {
             // Retry the original request with new token
             return _request(
               method: method,
@@ -182,9 +199,14 @@ class ApiService {
               isRetry: true,
             );
           }
-          // Refresh failed - clear auth
-    debugPrint('[ApiService] Token refresh failed - clearing auth');
-          await StorageService.clearAll();
+          // Only clear auth if refresh was EXPLICITLY rejected by the server.
+          // Transient failures (network, timeout, 5xx) must NOT log the user out.
+          if (refreshResult == _RefreshResult.rejected) {
+    debugPrint('[ApiService] Refresh token rejected by server - clearing auth');
+            await StorageService.clearAll();
+          } else {
+    debugPrint('[ApiService] Refresh transiently failed - keeping auth, surfacing error');
+          }
         }
         throw ApiException(
           statusCode: response.statusCode,
@@ -404,6 +426,36 @@ class ApiService {
     } catch (e) {
     debugPrint('Error fetching facilities: $e');
       rethrow;
+    }
+  }
+
+  /// Get app config (feature flags + numeric settings) from backend app_settings table.
+  /// Edit via SQL: UPDATE app_settings SET value = '10' WHERE key = 'min_price_per_night';
+  static Future<Map<String, dynamic>> getAppConfig() async {
+    try {
+      final response = await _request(
+        method: 'GET',
+        endpoint: '/config/features',
+      );
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching app config: $e');
+      return {'referral_enabled': false, 'min_price_per_night': 5};
+    }
+  }
+
+  /// Get feature flags from backend app_settings table.
+  /// Toggle via SQL: UPDATE app_settings SET value = 'true' WHERE key = 'referral_enabled';
+  static Future<Map<String, bool>> getFeatureFlags() async {
+    try {
+      final response = await _request(
+        method: 'GET',
+        endpoint: '/config/features',
+      );
+      return response.map((k, v) => MapEntry(k, v == true));
+    } catch (e) {
+      debugPrint('Error fetching feature flags: $e');
+      return {'referral_enabled': false};
     }
   }
 
@@ -1113,6 +1165,18 @@ class ApiService {
       endpoint: '/auth/me',
     );
   }
+}
+
+/// Result of attempting to refresh the access token.
+enum _RefreshResult {
+  /// New access token issued; retry the original request.
+  success,
+
+  /// Refresh token explicitly rejected (401/403) or missing. Auth must be cleared.
+  rejected,
+
+  /// Transient failure (network, timeout, 5xx). Keep auth, surface the error.
+  failed,
 }
 
 /// Custom exception for API errors

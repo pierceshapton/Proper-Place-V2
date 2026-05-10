@@ -107,10 +107,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   bool pinConfirmed = false;
   GoogleMapController? _mapController;
 
-  List<String> facilities = [];
-  bool facilitiesLoading = true;
-
-  Map<String, bool> selectedFacilities = {};
+  double _minPrice = 5.0;
 
   @override
   void initState() {
@@ -127,47 +124,19 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     
     _priceFocusNode.addListener(_onPriceFocusChange);
 
-    // Load facilities first, then site data (to avoid race condition)
-    _fetchFacilities().then((_) {
-      if (widget.siteToEdit != null) {
-        _loadExistingSite();
-      } else {
-        _loadDraft();
-      }
-    });
-  }
-
-  Future<void> _fetchFacilities() async {
-    try {
-      final response = await ApiService.getFacilities();
+    // Load app config for min price, then site data
+    ApiService.getAppConfig().then((config) {
       if (mounted) {
         setState(() {
-          facilities = response;
-          selectedFacilities = {
-            for (var facility in facilities) facility: false
-          };
-          facilitiesLoading = false;
+          _minPrice = (config['min_price_per_night'] as num?)?.toDouble() ?? 5.0;
         });
       }
-    } catch (e) {
-    debugPrint('Error fetching facilities: $e');
-      // Fallback to defaults if API fails
-      setState(() {
-        facilities = [
-          'WiFi',
-          'Electricity Hookup',
-          'Drinking water fill up point',
-          'Chemical toilet disposal point',
-          'Grey water disposal point',
-          'Waste recycling point',
-          'Restaurant/Pub',
-          'Dog Friendly',
-        ];
-        selectedFacilities = {
-          for (var facility in facilities) facility: false
-        };
-        facilitiesLoading = false;
-      });
+    });
+
+    if (widget.siteToEdit != null) {
+      _loadExistingSite();
+    } else {
+      _loadDraft();
     }
   }
 
@@ -263,22 +232,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         }
       }
 
-      // Load amenities/facilities
-      if (site['amenities'] != null) {
-        final facilitiesList = List<String>.from(site['amenities']);
-        for (var facility in facilitiesList) {
-          if (selectedFacilities.containsKey(facility)) {
-            selectedFacilities[facility] = true;
-          }
-        }
-      } else if (site['selected_facilities'] != null) {
-        final facilitiesList = List<String>.from(site['selected_facilities']);
-        for (var facility in facilitiesList) {
-          if (selectedFacilities.containsKey(facility)) {
-            selectedFacilities[facility] = true;
-          }
-        }
-      }
+      // Amenities removed — no longer collected
       
       // Set pre-computed image URLs
       existingMainPhotoUrl = mainPhotoUrl;
@@ -334,7 +288,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         priceController.text.isNotEmpty ||
         websiteController.text.isNotEmpty ||
         businessDescriptionController.text.isNotEmpty ||
-        selectedFacilities.values.any((v) => v) ||
         foodMenuController.text.isNotEmpty ||
         mainPhotoFile != null ||
         supportingPhotos.isNotEmpty ||
@@ -453,7 +406,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'max_vehicle_height_ft': maxVehicleHeight,
       'max_vehicle_width_ft': maxVehicleWidth,
       'max_vehicle_length_ft': maxVehicleLength,
-      'amenities': selectedFacilities.entries.where((e) => e.value).map((e) => e.key).toList(),
+      'amenities': [],
       'place_type': selectedLocationType,
     };
 
@@ -492,7 +445,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'max_vehicle_height_ft': maxVehicleHeight,
       'max_vehicle_width_ft': maxVehicleWidth,
       'max_vehicle_length_ft': maxVehicleLength,
-      'amenities': selectedFacilities.entries.where((e) => e.value).map((e) => e.key).toList(),
+      'amenities': [],
       'place_type': selectedLocationType,
     };
 
@@ -629,16 +582,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     }
 
     final price = double.tryParse(priceController.text);
-    if (price == null || price <= 0) {
+    if (price == null || price < _minPrice) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid price')),
-      );
-      return;
-    }
-
-    if (price > 20) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Price cannot exceed £20')),
+        SnackBar(content: Text('Minimum price is £${_minPrice.toStringAsFixed(0)} per night')),
       );
       return;
     }
@@ -1344,12 +1290,12 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                   textInputAction: TextInputAction.done,
                   onChanged: (value) {
                     final price = double.tryParse(value) ?? 0;
-                    if (price > 20) {
-                      priceController.text = '20';
+                    if (price > 0 && price < _minPrice) {
+                      priceController.text = _minPrice.toStringAsFixed(0);
                     }
                   },
                   decoration: InputDecoration(
-                    hintText: 'Max £20',
+                    hintText: 'Min £${_minPrice.toStringAsFixed(0)}',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -1411,10 +1357,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                 ),
               ],
             ),
-
-            // Facilities Selection
-            _buildFacilitiesSection(),
-            const SizedBox(height: 24),
 
             // Business Information Toggle
             Container(
@@ -2194,55 +2136,6 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
               ),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildFacilitiesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Available Facilities',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        if (facilitiesLoading)
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: SizedBox(
-              height: 24,
-              width: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: selectedFacilities.keys.map((facility) {
-              return FilterChip(
-                label: Text(facility),
-                selected: selectedFacilities[facility]!,
-                onSelected: (bool selected) {
-                  setState(() {
-                    selectedFacilities[facility] = selected;
-                  });
-                },
-                backgroundColor: Colors.white,
-                selectedColor: const Color(0xFF3B82F6),
-                side: BorderSide(
-                  color: selectedFacilities[facility]!
-                      ? const Color(0xFF3B82F6)
-                      : const Color(0xFFE2E8F0),
-                ),
-                labelStyle: TextStyle(
-                  color: selectedFacilities[facility]! ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.w500,
-                ),
-              );
-            }).toList(),
-          ),
       ],
     );
   }

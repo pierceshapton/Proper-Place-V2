@@ -1353,41 +1353,6 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                       ],
                     ),
 
-                  // Facilities
-                  if (facilities.isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Facilities',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 10,
-                          children: [
-                            for (var facility in facilities)
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(_getFacilityIcon(facility.toString()), size: 20, color: const Color(0xFF7BA7D8)),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    facility.toString(),
-                                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-
                   // Vehicle Size Limits
                   if (widget.place['max_vehicle_height_ft'] != null ||
                       widget.place['max_vehicle_width_ft'] != null ||

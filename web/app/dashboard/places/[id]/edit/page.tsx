@@ -16,8 +16,6 @@ const PLACE_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
-const AMENITIES = ['WiFi', 'Water', 'Electricity', 'Toilet', 'Shower', 'BBQ', 'Fire Pit', 'Waste Disposal', 'Dog Friendly', 'Shop Nearby', 'Pub Nearby', 'Level Ground', 'Hardstanding', 'Grass Pitch'];
-
 export default function EditPlacePage() {
   const { id } = useParams();
   const router = useRouter();
@@ -27,10 +25,11 @@ export default function EditPlacePage() {
   const [success, setSuccess] = useState('');
   const [newImages, setNewImages] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState(5);
   const [form, setForm] = useState({
     name: '', description: '', address: '', city: '', postal_code: '', country: 'UK',
     latitude: '', longitude: '', price_per_night: '', capacity: '', place_type: 'private_land',
-    amenities: [] as string[], opening_hours: '', business_description: '', access_route_description: '',
+    opening_hours: '', business_description: '', access_route_description: '',,
     max_vehicle_height_ft: '', max_vehicle_width_ft: '', max_vehicle_length_ft: '',
     serves_food: false, food_menu_description: '', image_urls: [] as string[],
   });
@@ -52,8 +51,8 @@ export default function EditPlacePage() {
           city: p.city || '', postal_code: p.postal_code || '', country: p.country || 'UK',
           latitude: p.latitude?.toString() || '', longitude: p.longitude?.toString() || '',
           price_per_night: p.price_per_night?.toString() || '', capacity: p.capacity?.toString() || '',
-          place_type: p.place_type || 'private_land', amenities: p.amenities || [],
-          opening_hours: p.opening_hours || '', business_description: p.business_description || '',
+          place_type: p.place_type || 'private_land',
+          opening_hours: p.opening_hours || '',, business_description: p.business_description || '',
           access_route_description: p.access_route_description || '',
           max_vehicle_height_ft: p.max_vehicle_height_ft?.toString() || '',
           max_vehicle_width_ft: p.max_vehicle_width_ft?.toString() || '',
@@ -66,6 +65,10 @@ export default function EditPlacePage() {
       })
       .catch(() => router.push('/dashboard/places'))
       .finally(() => setLoading(false));
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/config/features`)
+      .then(r => r.json())
+      .then(data => { if (data.min_price_per_night) setMinPrice(data.min_price_per_night); })
+      .catch(() => {});
   }, [id, router]);
 
     async function loadExternalCalendars(placeId: number) {
@@ -119,13 +122,13 @@ export default function EditPlacePage() {
     setForm(f => ({ ...f, image_urls: f.image_urls.filter((_, i) => i !== idx) }));
   };
 
-  const toggleAmenity = (a: string) => {
-    setForm(f => ({ ...f, amenities: f.amenities.includes(a) ? f.amenities.filter(x => x !== a) : [...f.amenities, a] }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setSuccess('');
+    if (form.price_per_night && parseFloat(form.price_per_night) < minPrice) {
+      setError(`Price must be at least £${minPrice}`);
+      return;
+    }
     setSaving(true);
     try {
       const updateData: Partial<Place> = {
@@ -135,7 +138,7 @@ export default function EditPlacePage() {
         longitude: form.longitude ? parseFloat(form.longitude) : undefined,
         price_per_night: parseFloat(form.price_per_night),
         capacity: form.capacity ? parseInt(form.capacity) : undefined,
-        place_type: form.place_type, amenities: form.amenities,
+        place_type: form.place_type, amenities: [],
         opening_hours: form.opening_hours || undefined,
         business_description: form.business_description || undefined,
         access_route_description: form.access_route_description || undefined,
@@ -221,17 +224,6 @@ export default function EditPlacePage() {
             <div><label className="block text-xs text-gray-500 mb-1">Max Length (ft)</label><input type="number" step="0.1" value={form.max_vehicle_length_ft} onChange={e => setForm(f => ({ ...f, max_vehicle_length_ft: e.target.value }))} className="bg-white border-gray-300 text-gray-900" /></div>
             <div><label className="block text-xs text-gray-500 mb-1">Max Height (ft)</label><input type="number" step="0.1" value={form.max_vehicle_height_ft} onChange={e => setForm(f => ({ ...f, max_vehicle_height_ft: e.target.value }))} className="bg-white border-gray-300 text-gray-900" /></div>
             <div><label className="block text-xs text-gray-500 mb-1">Max Width (ft)</label><input type="number" step="0.1" value={form.max_vehicle_width_ft} onChange={e => setForm(f => ({ ...f, max_vehicle_width_ft: e.target.value }))} className="bg-white border-gray-300 text-gray-900" /></div>
-          </div>
-        </div>
-
-        <div className="card bg-white p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Amenities</h2>
-          <div className="flex flex-wrap gap-2">
-            {AMENITIES.map(a => (
-              <button key={a} type="button" onClick={() => toggleAmenity(a)} className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.amenities.includes(a) ? 'bg-light-blue text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-                {form.amenities.includes(a) && '✓ '}{a}
-              </button>
-            ))}
           </div>
         </div>
 
