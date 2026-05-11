@@ -542,6 +542,8 @@ export interface CRMLead {
   google_rating: number | null;
   google_reviews_count: number | null;
   opening_hours_text: string | null;
+  is_chain: boolean | null;
+  chain_name: string | null;
   latitude: number | null;
   longitude: number | null;
   satellite_image_url: string | null;

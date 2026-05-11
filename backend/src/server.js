@@ -892,6 +892,16 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 39 error:', err.message);
     }
 
+    // Migration 40: Chain detection fields on host_leads
+    try {
+      console.log('[SERVER] Running migration 40: is_chain and chain_name on host_leads...');
+      await db.query(`ALTER TABLE host_leads ADD COLUMN IF NOT EXISTS is_chain BOOLEAN DEFAULT false`);
+      await db.query(`ALTER TABLE host_leads ADD COLUMN IF NOT EXISTS chain_name TEXT`);
+      console.log('[SERVER] ✅ Migration 40 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 40 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

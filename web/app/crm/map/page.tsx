@@ -302,7 +302,14 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
         <div className="p-5 border-b border-slate-800">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold text-slate-100 truncate">{displayName}</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold text-slate-100 truncate">{displayName}</h2>
+                {lead.is_chain && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 whitespace-nowrap flex-shrink-0" title={lead.chain_name || 'Chain venue'}>
+                    🔗 {lead.chain_name || 'Chain'}
+                  </span>
+                )}
+              </div>
               <div className="flex flex-wrap items-center gap-3 mt-1">
                 {lead.location && <span className="text-xs text-slate-400">📍 {lead.location}</span>}
                 {lead.google_rating && <span className="text-xs text-slate-400">⭐ {lead.google_rating} ({lead.google_reviews_count} reviews)</span>}

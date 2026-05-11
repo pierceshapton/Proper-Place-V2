@@ -857,6 +857,15 @@ export default function LeadDetailPage() {
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                 <Field label="Source" value={lead.source || '—'} />
                 <Field label="Property Type" value={lead.property_type || '—'} />
+                {lead.is_chain != null && (
+                  <div>
+                    <p className="text-xs text-slate-500 mb-0.5">Chain Venue</p>
+                    {lead.is_chain
+                      ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">🔗 {lead.chain_name || 'Yes — chain unknown'}</span>
+                      : <span className="text-[11px] text-slate-500">Independent</span>
+                    }
+                  </div>
+                )}
                 <Field label="Website" value={lead.website ? lead.website : '—'} isLink={!!lead.website} />
                 <Field label="Parking Type" value={lead.parking_type || '—'} />                <Field label="Parking Spaces" value={lead.parking_spaces?.toString() || '—'} />
                 <Field label="Ownership" value={lead.ownership_type || '—'} />

@@ -203,6 +203,7 @@ async function updateLead(req, res, next) {
       'ownership_type', 'pipeline_stage', 'priority', 'admin_notes', 'tags',
       'latitude', 'longitude', 'estimated_value', 'next_follow_up',
       'last_contact_date', 'satellite_image_url', 'place_id', 'contract_url',
+      'is_chain', 'chain_name',
     ];
 
     const updates = [];
@@ -1099,6 +1100,84 @@ const axios = require('axios');
 
 const GMAPS_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
 
+// Chain detection: domain fragments and name patterns for known UK pub/hospitality chains
+const CHAIN_DOMAINS = [
+  { fragments: ['jdwetherspoon.com'], name: 'JD Wetherspoon' },
+  { fragments: ['greeneking.co.uk', 'greeneking-pubs.co.uk', 'greene-king.co.uk'], name: 'Greene King' },
+  { fragments: ['harvester.co.uk'], name: 'Mitchells & Butlers (Harvester)' },
+  { fragments: ['tobycarvery.co.uk'], name: 'Mitchells & Butlers (Toby Carvery)' },
+  { fragments: ['allbarone.co.uk'], name: 'Mitchells & Butlers (All Bar One)' },
+  { fragments: ['nicholsonspubs.co.uk'], name: 'Mitchells & Butlers (Nicholson\'s)' },
+  { fragments: ['ember-inns.co.uk'], name: 'Mitchells & Butlers (Ember Inns)' },
+  { fragments: ['sizzling.co.uk'], name: 'Mitchells & Butlers (Sizzling Pubs)' },
+  { fragments: ['vintage-inns.co.uk'], name: 'Mitchells & Butlers (Vintage Inns)' },
+  { fragments: ['stonehouse.co.uk'], name: 'Mitchells & Butlers (Stonehouse)' },
+  { fragments: ['browns-restaurants.co.uk'], name: 'Mitchells & Butlers (Browns)' },
+  { fragments: ['mitchellsbutlers.com'], name: 'Mitchells & Butlers' },
+  { fragments: ['marstons.co.uk', 'marston.co.uk'], name: "Marston's" },
+  { fragments: ['punchtaverns.com', 'punchpubs.com', 'punch.co.uk'], name: 'Punch Pubs' },
+  { fragments: ['admiraltaverns.co.uk'], name: 'Admiral Taverns' },
+  { fragments: ['starpubs.co.uk'], name: 'Star Pubs & Bars' },
+  { fragments: ['youngs.co.uk', 'geronimo-inns.co.uk'], name: "Young's Pubs" },
+  { fragments: ['fullers.co.uk'], name: "Fuller's" },
+  { fragments: ['shepherdneame.co.uk'], name: 'Shepherd Neame' },
+  { fragments: ['stonegatepubco.com', 'stonegatepubs.com'], name: 'Stonegate Group' },
+  { fragments: ['revolution-bars.co.uk'], name: 'Revolution Bars' },
+  { fragments: ['brewdog.com'], name: 'BrewDog' },
+  { fragments: ['oakmanpubs.co.uk', 'oakmaninns.co.uk'], name: 'Oakman Pubs' },
+  { fragments: ['coachinginn.co.uk', 'thecoachinginngroup.co.uk'], name: 'Coaching Inn Group' },
+  { fragments: ['ei.pub', 'eigroup.co.uk', 'eipubcompany.co.uk'], name: 'EI Group' },
+  { fragments: ['timothytaylor.co.uk'], name: 'Timothy Taylor' },
+  { fragments: ['robinsonsbrewery.com'], name: "Robinson's Brewery" },
+  { fragments: ['hookinstonfood.co.uk', 'hooknortonbrewery.co.uk'], name: 'Hook Norton Brewery' },
+  { fragments: ['nandos.co.uk', 'nandos.com'], name: "Nando's" },
+];
+
+const CHAIN_NAME_PATTERNS = [
+  { pattern: /wetherspoon/i, name: 'JD Wetherspoon' },
+  { pattern: /greene\s*king/i, name: 'Greene King' },
+  { pattern: /toby\s*carvery/i, name: 'Mitchells & Butlers (Toby Carvery)' },
+  { pattern: /all\s*bar\s*one/i, name: 'Mitchells & Butlers (All Bar One)' },
+  { pattern: /nicholson'?s\s*(pub|inn|bar)/i, name: "Mitchells & Butlers (Nicholson's)" },
+  { pattern: /ember\s*inn/i, name: 'Mitchells & Butlers (Ember Inns)' },
+  { pattern: /sizzling\s*(pub|inn)/i, name: 'Mitchells & Butlers (Sizzling Pubs)' },
+  { pattern: /vintage\s*inn/i, name: 'Mitchells & Butlers (Vintage Inns)' },
+  { pattern: /harvester/i, name: 'Mitchells & Butlers (Harvester)' },
+  { pattern: /marston'?s/i, name: "Marston's" },
+  { pattern: /punch\s*(tavern|pub)/i, name: 'Punch Pubs' },
+  { pattern: /brewdog/i, name: 'BrewDog' },
+  { pattern: /young'?s\s*(pub|inn|tavern|bar)/i, name: "Young's Pubs" },
+  { pattern: /fuller'?s/i, name: "Fuller's" },
+  { pattern: /shepherd\s*neame/i, name: 'Shepherd Neame' },
+  { pattern: /stonegate/i, name: 'Stonegate Group' },
+  { pattern: /revolution\s*bar/i, name: 'Revolution Bars' },
+  { pattern: /oakman\s*(pub|inn)/i, name: 'Oakman Pubs' },
+  { pattern: /coaching\s*inn\s*group/i, name: 'Coaching Inn Group' },
+];
+
+function detectChain(businessName, website) {
+  // Check website domain first (more reliable)
+  if (website) {
+    try {
+      const hostname = new URL(website).hostname.toLowerCase().replace(/^www\./, '');
+      for (const chain of CHAIN_DOMAINS) {
+        if (chain.fragments.some(f => hostname === f || hostname.endsWith('.' + f))) {
+          return { is_chain: true, chain_name: chain.name };
+        }
+      }
+    } catch { /* invalid URL, fall through */ }
+  }
+  // Check business name patterns
+  if (businessName) {
+    for (const { pattern, name } of CHAIN_NAME_PATTERNS) {
+      if (pattern.test(businessName)) {
+        return { is_chain: true, chain_name: name };
+      }
+    }
+  }
+  return { is_chain: false, chain_name: null };
+}
+
 async function enrichFromGoogle(name, lat, lng) {
   try {
     // Step 1: Text search (prefer nearby if we have coords)
@@ -1165,6 +1244,7 @@ async function enrichFromGoogle(name, lat, lng) {
       latitude: p.geometry?.location?.lat || null,
       longitude: p.geometry?.location?.lng || null,
       opening_hours_text: p.opening_hours?.weekday_text?.join('\n') || null,
+      ...detectChain(name, p.website),
     };
   } catch (err) {
     logger.warn('Google Places enrichment failed', { name, error: err.message });
@@ -1192,10 +1272,12 @@ async function enrichLead(req, res, next) {
 
     const updates = [];
     const values = [];
-    const fields = ['phone', 'website', 'google_place_id', 'google_rating', 'google_reviews_count', 'location', 'latitude', 'longitude', 'opening_hours_text'];
+    const fields = ['phone', 'website', 'google_place_id', 'google_rating', 'google_reviews_count', 'location', 'latitude', 'longitude', 'opening_hours_text', 'is_chain', 'chain_name'];
+    // Always-write fields (write even when false/null so re-enriching clears stale data)
+    const alwaysWrite = new Set(['is_chain', 'chain_name']);
     for (const f of fields) {
-      if (enriched[f] !== null && enriched[f] !== undefined) {
-        values.push(enriched[f]);
+      if (alwaysWrite.has(f) || (enriched[f] !== null && enriched[f] !== undefined)) {
+        values.push(enriched[f] ?? null);
         updates.push(`${f} = $${values.length}`);
       }
     }
@@ -1211,7 +1293,7 @@ async function enrichLead(req, res, next) {
 
     await db.query(
       `INSERT INTO crm_activities (lead_id, activity_type, title, description, created_by) VALUES ($1, 'note', 'Enriched from Google Places', $2, $3)`,
-      [id, `Rating: ${enriched.google_rating || '–'} (${enriched.google_reviews_count || 0} reviews). Website: ${enriched.website || 'none'}`, req.user.userId]
+      [id, `Rating: ${enriched.google_rating || '–'} (${enriched.google_reviews_count || 0} reviews). Website: ${enriched.website || 'none'}${enriched.is_chain ? `. Chain: ${enriched.chain_name}` : ''}`, req.user.userId]
     );
 
     res.json({ lead: updated.rows[0], enriched });
