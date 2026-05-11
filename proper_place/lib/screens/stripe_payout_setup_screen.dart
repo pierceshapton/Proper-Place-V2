@@ -315,7 +315,7 @@ class _StripePayoutSetupScreenState extends State<StripePayoutSetupScreen> with 
           _infoCard(
             Icons.schedule_outlined,
             'When You Get Paid',
-            'Funds are held securely by Stripe until the guest\u2019s stay is complete. Your payout (minus 15% platform fee and Stripe processing fees) is then transferred.',
+            'Funds are held securely by Stripe until the guest\u2019s stay is complete. Your payout (minus 18% platform fee and Stripe processing fees) is then transferred.',
           ),
           const SizedBox(height: 10),
           _infoCard(

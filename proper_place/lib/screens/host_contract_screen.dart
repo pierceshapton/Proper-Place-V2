@@ -235,7 +235,7 @@ class _HostContractScreenState extends State<HostContractScreen> {
                     'a) All bookings are processed via Stripe, a PCI-DSS compliant third-party payment processor. Proper Place does not process, hold, or have custody of any Guest funds.\n\n'
                     'b) A payment authorisation hold is placed on the Guest\'s card at the time of booking via Stripe. The charge is only captured once you approve the booking.\n\n'
                     'c) All funds from captured payments are held by Stripe until the booking is completed.\n\n'
-                    'd) Proper Place charges a platform commission of 15% on each completed booking, deducted by Stripe before your payout.\n\n'
+                    'd) Proper Place charges a platform commission of 18% on each completed booking, deducted by Stripe before your payout.\n\n'
                     'e) Payouts are processed via Stripe Connect. You must set up a valid Stripe Connect account to receive payouts.\n\n'
                     'f) You are solely responsible for declaring all income received through the platform to the relevant tax authority.',
                   ),
@@ -549,7 +549,7 @@ As a Host, you agree that you are the legal owner of or have the right to offer 
 It is your sole responsibility to ensure compliance with all applicable planning regulations, bylaws, and land use restrictions. Proper Place does not verify planning status.
 
 4. PAYMENT TERMS
-All payments are processed via Stripe. Proper Place charges 15% commission on completed bookings.
+All payments are processed via Stripe. Proper Place charges 18% commission on completed bookings.
 
 5. LIMITATION OF LIABILITY & INDEMNITY
 Proper Place acts solely as a technology platform. You agree to indemnify Proper Place from claims arising from your listing or site.

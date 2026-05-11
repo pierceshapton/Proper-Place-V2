@@ -6,7 +6,7 @@ const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Platform fee percentage kept by Proper Place
-const PLATFORM_FEE_PERCENT = 0.15;
+const PLATFORM_FEE_PERCENT = 0.18;
 
 // ─── Stripe Connect onboarding ────────────────────────────────────────────────
 
@@ -113,7 +113,7 @@ router.post('/connect/status', async (req, res) => {
 
 // Create a direct charge on the host's connected account.
 // Stripe's processing fee is charged to the connected account (host's 85%).
-// Proper Place collects a clean 15% application_fee with no Stripe fee deducted.
+// Proper Place collects a clean 18% application_fee with no Stripe fee deducted.
 router.post('/create-intent', async (req, res) => {
   try {
     const { amount, currency, place_id, check_out_date } = req.body;

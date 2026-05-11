@@ -67,7 +67,7 @@ export default function PrivacyPage() {
               <li>Payment authorisation and capture status (pending, confirmed, refunded)</li>
               <li>Fund holding records associated with completed stays</li>
               <li>Stripe Connect account identifiers (for Hosts who have completed payout onboarding)</li>
-              <li>Platform service fee records (15% of each booking, deducted from Host payouts)</li>
+              <li>Platform service fee records (18% of each booking, deducted from Host payouts)</li>
               <li>Reviews and ratings</li>
             </ul>
 

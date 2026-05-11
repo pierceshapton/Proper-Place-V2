@@ -121,7 +121,7 @@ class _StripeConnectScreenState extends State<StripeConnectScreen> {
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    'Connect your bank account through Stripe so earnings from guest bookings are paid directly to you. Proper Place takes a 15% platform fee — the remainder goes straight to your account.',
+                    'Connect your bank account through Stripe so earnings from guest bookings are paid directly to you. Proper Place takes a 18% platform fee — the remainder goes straight to your account.',
                     style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), height: 1.5),
                     textAlign: TextAlign.center,
                   ),
@@ -153,7 +153,7 @@ class _StripeConnectScreenState extends State<StripeConnectScreen> {
                   const SizedBox(height: 16),
                   _infoRow(Icons.credit_card, 'Guest pays in full', "The guest's card is charged securely through Stripe."),
                   const SizedBox(height: 14),
-                  _infoRow(Icons.percent, 'Proper Place fee', '15% platform fee is retained automatically — no extra Stripe charges on our cut.'),
+                  _infoRow(Icons.percent, 'Proper Place fee', '18% platform fee is retained automatically — no extra Stripe charges on our cut.'),
                   const SizedBox(height: 14),
                   _infoRow(Icons.account_balance_wallet, 'You receive 85%', 'The remaining 85% (minus Stripe\'s standard processing fee) is paid to your bank account.'),
                   const SizedBox(height: 14),
