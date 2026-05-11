@@ -16,7 +16,7 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push('/auth/login'); return; }
-    if (user.verified) { router.push('/dashboard'); return; }
+    if (user.verified) { router.push(user.role === 'host' ? '/dashboard/host' : '/dashboard'); return; }
   }, [user, authLoading, router]);
 
   // Poll every 5 seconds to check if user verified via the email link
@@ -38,7 +38,7 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     if (user?.verified) {
       if (pollRef.current) clearInterval(pollRef.current);
-      router.push('/dashboard');
+      router.push(user.role === 'host' ? '/dashboard/host' : '/dashboard');
     }
   }, [user?.verified, router]);
 

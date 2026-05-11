@@ -28,7 +28,8 @@ function LoginForm() {
         router.push('/auth/verify-email');
       } else {
         const redirect = searchParams.get('redirect');
-        router.push(redirect && redirect.startsWith('/') ? redirect : '/dashboard');
+        const defaultDest = userData?.role === 'host' ? '/dashboard/host' : '/dashboard';
+        router.push(redirect && redirect.startsWith('/') ? redirect : defaultDest);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed. Please check your credentials.');
