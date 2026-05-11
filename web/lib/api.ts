@@ -551,6 +551,20 @@ export interface CRMLead {
   next_follow_up: string | null;
   source: string | null;
   assigned_to: number | null;
+  place_id: number | null;
+  contract_url: string | null;
+  linked_place?: {
+    id: number;
+    name: string;
+    address: string;
+    city: string;
+    approval_status: string;
+    price_per_night: number | null;
+    place_type: string | null;
+    owner_name: string | null;
+    owner_email: string | null;
+    owner_phone: string | null;
+  } | null;
   created_at: string;
   updated_at: string;
   activity_count?: number;
@@ -848,4 +862,11 @@ export const crmApi = {
     api<{ created: number; enriched: number; total: number; results: { name: string; id?: number; status: string; error?: string }[] }>('/crm/leads/import', { method: 'POST', body: { places, enrich, pipeline_stage, priority } }),
   enrichLead: (leadId: number) =>
     api<{ lead: CRMLead; enriched: Record<string, unknown> }>(`/crm/leads/${leadId}/enrich`, { method: 'POST', body: {} }),
+  uploadContract: (leadId: number, file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api<{ success: boolean; contract_url: string }>(`/crm/leads/${leadId}/upload-contract`, { method: 'POST', body: fd });
+  },
+  searchPlaces: (q: string) =>
+    api<{ places: Array<{ id: number; name: string; address: string; city: string; approval_status: string; place_type: string | null; price_per_night: number | null; owner_name: string; owner_email: string; owner_phone: string | null }> }>(`/crm/places/search?q=${encodeURIComponent(q)}`),
 };

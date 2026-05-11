@@ -1,5 +1,33 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
+const multer = require('multer');
+const path = require('path');
+const crypto = require('crypto');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+
+// ─── S3/Spaces client (reused for contract uploads) ─────────────────────────
+const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT || 'https://lon1.digitaloceanspaces.com';
+const SPACES_BUCKET = process.env.DO_SPACES_BUCKET || 'proper-place-images';
+const SPACES_REGION = process.env.DO_SPACES_REGION || 'lon1';
+const SPACES_CDN_URL = process.env.DO_SPACES_CDN_URL || `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`;
+const crmS3Client = new S3Client({
+  endpoint: SPACES_ENDPOINT,
+  region: SPACES_REGION,
+  credentials: {
+    accessKeyId: process.env.DO_SPACES_KEY || '',
+    secretAccessKey: process.env.DO_SPACES_SECRET || '',
+  },
+  forcePathStyle: false,
+});
+const contractUploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (['.pdf', '.doc', '.docx'].includes(ext)) cb(null, true);
+    else cb(new Error('Only PDF or Word documents are accepted'));
+  },
+});
 
 // ─── LEADS ──────────────────────────────────────────────────────────
 
@@ -82,7 +110,25 @@ async function getLeads(req, res, next) {
 async function getLead(req, res, next) {
   try {
     const { id } = req.params;
-    const result = await db.query('SELECT * FROM host_leads WHERE id = $1', [id]);
+    const result = await db.query(`
+      SELECT hl.*,
+        CASE WHEN hl.place_id IS NOT NULL THEN json_build_object(
+          'id', p.id,
+          'name', p.name,
+          'address', p.address,
+          'city', p.city,
+          'approval_status', p.approval_status,
+          'price_per_night', p.price_per_night,
+          'place_type', p.place_type,
+          'owner_name', u.name,
+          'owner_email', u.email,
+          'owner_phone', u.phone_number
+        ) ELSE NULL END AS linked_place
+      FROM host_leads hl
+      LEFT JOIN places p ON p.id = hl.place_id
+      LEFT JOIN users u ON u.id = p.owner_id
+      WHERE hl.id = $1
+    `, [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Lead not found' });
     }
@@ -156,7 +202,7 @@ async function updateLead(req, res, next) {
       'website', 'property_type', 'parking_spaces', 'parking_type',
       'ownership_type', 'pipeline_stage', 'priority', 'admin_notes', 'tags',
       'latitude', 'longitude', 'estimated_value', 'next_follow_up',
-      'last_contact_date', 'satellite_image_url',
+      'last_contact_date', 'satellite_image_url', 'place_id', 'contract_url',
     ];
 
     const updates = [];
@@ -1307,6 +1353,64 @@ async function processDiscoveryAutoEmails() {
   }
 }
 
+
+/**
+ * POST /crm/leads/:id/upload-contract
+ * Upload a contract PDF/doc to DO Spaces and save the URL on the lead
+ */
+async function uploadContract(req, res, next) {
+  try {
+    const { id } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+    const ext = path.extname(req.file.originalname).toLowerCase() || '.pdf';
+    const rand = crypto.randomBytes(8).toString('hex');
+    const key = `contracts/${id}-${Date.now()}-${rand}${ext}`;
+    await crmS3Client.send(new PutObjectCommand({
+      Bucket: SPACES_BUCKET,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype || 'application/octet-stream',
+      ACL: 'public-read',
+    }));
+    const url = `${SPACES_CDN_URL}/${key}`;
+    await db.query('UPDATE host_leads SET contract_url = $1, updated_at = NOW() WHERE id = $2', [url, id]);
+    logger.info('Contract uploaded', { leadId: id, url });
+    res.json({ success: true, contract_url: url });
+  } catch (error) {
+    logger.error('CRM uploadContract error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * GET /crm/places/search?q=...
+ * Search host places for linking to a lead
+ */
+async function searchPlaces(req, res, next) {
+  try {
+    const { q } = req.query;
+    if (!q || String(q).length < 2) {
+      return res.json({ places: [] });
+    }
+    const result = await db.query(`
+      SELECT p.id, p.name, p.address, p.city, p.approval_status, p.place_type, p.price_per_night,
+             u.name AS owner_name, u.email AS owner_email, u.phone_number AS owner_phone
+      FROM places p
+      JOIN users u ON u.id = p.owner_id
+      WHERE p.deleted_at IS NULL
+        AND (p.name ILIKE $1 OR p.address ILIKE $1 OR p.city ILIKE $1 OR u.name ILIKE $1)
+      ORDER BY p.created_at DESC
+      LIMIT 20
+    `, [`%${q}%`]);
+    res.json({ places: result.rows });
+  } catch (error) {
+    logger.error('CRM searchPlaces error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getLeads, getLead, createLead, updateLead, deleteLead, getPipelineSummary,
   getActivities, createActivity,
@@ -1325,6 +1429,10 @@ module.exports = {
   getCustomValues, setCustomValues,
   // Import & Enrich
   importLeads, enrichLead,
+  // Contract upload
+  uploadContract, contractUploadMiddleware,
+  // Place search
+  searchPlaces,
   // Scheduler hooks
   processDiscoveryAutoEmails,
 };

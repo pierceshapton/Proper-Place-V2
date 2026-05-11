@@ -66,6 +66,14 @@ export default function LeadDetailPage() {
     follow_up_date: '', verdict: 'promising', verdict_reason: '', notes: '',
   });
 
+  // Linked place / contract
+  const [contractUploading, setContractUploading] = useState(false);
+  const [placeSearchQuery, setPlaceSearchQuery] = useState('');
+  const [placeSearchResults, setPlaceSearchResults] = useState<Array<{ id: number; name: string; address: string; city: string; approval_status: string; place_type: string | null; price_per_night: number | null; owner_name: string; owner_email: string; owner_phone: string | null }>>([]);
+  const [placeSearchOpen, setPlaceSearchOpen] = useState(false);
+  const [placeSearchLoading, setPlaceSearchLoading] = useState(false);
+  const [syncingPhone, setSyncingPhone] = useState(false);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -137,6 +145,55 @@ export default function LeadDetailPage() {
     await crmApi.updateLead(leadId, editForm);
     setEditing(false);
     loadAll();
+  }
+
+  async function handleContractUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !lead) return;
+    setContractUploading(true);
+    try {
+      const res = await crmApi.uploadContract(leadId, file);
+      setLead({ ...lead, contract_url: res.contract_url });
+    } catch { /* error handled silently */ } finally {
+      setContractUploading(false);
+      e.target.value = '';
+    }
+  }
+
+  async function handlePlaceSearch(q: string) {
+    setPlaceSearchQuery(q);
+    if (q.length < 2) { setPlaceSearchResults([]); return; }
+    setPlaceSearchLoading(true);
+    try {
+      const res = await crmApi.searchPlaces(q);
+      setPlaceSearchResults(res.places);
+    } catch { setPlaceSearchResults([]); } finally {
+      setPlaceSearchLoading(false);
+    }
+  }
+
+  async function handleLinkPlace(placeId: number) {
+    if (!lead) return;
+    await crmApi.updateLead(leadId, { place_id: placeId } as Partial<CRMLead>);
+    setPlaceSearchOpen(false);
+    setPlaceSearchQuery('');
+    setPlaceSearchResults([]);
+    loadAll();
+  }
+
+  async function handleUnlinkPlace() {
+    if (!lead) return;
+    await crmApi.updateLead(leadId, { place_id: null } as Partial<CRMLead>);
+    loadAll();
+  }
+
+  async function handleSyncPhone() {
+    if (!lead?.linked_place?.owner_phone) return;
+    setSyncingPhone(true);
+    try {
+      await crmApi.updateLead(leadId, { phone: lead.linked_place.owner_phone } as Partial<CRMLead>);
+      loadAll();
+    } finally { setSyncingPhone(false); }
   }
 
   async function handleAddActivity(e: React.FormEvent) {
@@ -777,6 +834,118 @@ export default function LeadDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Linked Place */}
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Linked Place</p>
+                {lead.linked_place
+                  ? <button onClick={handleUnlinkPlace} className="text-xs text-red-400 hover:text-red-300">Unlink</button>
+                  : <button onClick={() => setPlaceSearchOpen(o => !o)} className="text-xs text-emerald-400 hover:text-emerald-300">+ Link a place</button>
+                }
+              </div>
+
+              {/* Place search overlay */}
+              {placeSearchOpen && !lead.linked_place && (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={placeSearchQuery}
+                    onChange={e => handlePlaceSearch(e.target.value)}
+                    placeholder="Search by name, address or host name…"
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  />
+                  {placeSearchLoading && <p className="text-xs text-slate-500">Searching…</p>}
+                  {placeSearchResults.length > 0 && (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {placeSearchResults.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => handleLinkPlace(p.id)}
+                          className="w-full text-left px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 space-y-0.5"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-200 font-medium">{p.name}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${p.approval_status === 'approved' ? 'bg-emerald-900/60 text-emerald-400' : p.approval_status === 'pending' ? 'bg-amber-900/60 text-amber-400' : 'bg-red-900/60 text-red-400'}`}>{p.approval_status}</span>
+                          </div>
+                          <p className="text-xs text-slate-500">{p.address}, {p.city} · Host: {p.owner_name}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!placeSearchLoading && placeSearchQuery.length >= 2 && placeSearchResults.length === 0 && (
+                    <p className="text-xs text-slate-500">No places found</p>
+                  )}
+                </div>
+              )}
+
+              {lead.linked_place ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-slate-200">{lead.linked_place.name}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${lead.linked_place.approval_status === 'approved' ? 'bg-emerald-900/60 text-emerald-400' : lead.linked_place.approval_status === 'pending' ? 'bg-amber-900/60 text-amber-400' : 'bg-red-900/60 text-red-400'}`}>
+                      {lead.linked_place.approval_status}
+                    </span>
+                    {lead.linked_place.place_type && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">{lead.linked_place.place_type.replace('_', ' ')}</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div><span className="text-slate-500">Address</span><p className="text-slate-300">{lead.linked_place.address}, {lead.linked_place.city}</p></div>
+                    {lead.linked_place.price_per_night && <div><span className="text-slate-500">Price/night</span><p className="text-slate-300">£{lead.linked_place.price_per_night}</p></div>}
+                    <div><span className="text-slate-500">Host</span><p className="text-slate-300">{lead.linked_place.owner_name}</p></div>
+                    {lead.linked_place.owner_phone && (
+                      <div>
+                        <span className="text-slate-500">Host phone</span>
+                        <div className="flex items-center gap-2">
+                          <p className="text-slate-300">{lead.linked_place.owner_phone}</p>
+                          {lead.linked_place.owner_phone !== lead.phone && (
+                            <button
+                              onClick={handleSyncPhone}
+                              disabled={syncingPhone}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-400 hover:bg-emerald-900 disabled:opacity-50"
+                            >
+                              {syncingPhone ? '…' : 'Sync to lead'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <a
+                    href={`/admin/places/${lead.linked_place.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block text-xs text-blue-400 hover:text-blue-300 mt-1"
+                  >
+                    View place in admin →
+                  </a>
+                </div>
+              ) : (
+                !placeSearchOpen && <p className="text-xs text-slate-500">No place linked yet. This lead has not been converted to an active listing.</p>
+              )}
+            </div>
+
+            {/* Contract */}
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Contract</p>
+              {lead.contract_url ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <a href={lead.contract_url} target="_blank" rel="noreferrer" className="text-sm text-blue-400 hover:text-blue-300 underline">
+                    View contract ↗
+                  </a>
+                  <label className={`text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 cursor-pointer ${contractUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    {contractUploading ? 'Uploading…' : 'Replace'}
+                    <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleContractUpload} />
+                  </label>
+                </div>
+              ) : (
+                <label className={`inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-slate-200 cursor-pointer ${contractUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  {contractUploading ? 'Uploading…' : '↑ Upload contract (PDF or Word)'}
+                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleContractUpload} />
+                </label>
+              )}
+            </div>
 
             {/* Custom Fields */}
             {customFields.length > 0 && (

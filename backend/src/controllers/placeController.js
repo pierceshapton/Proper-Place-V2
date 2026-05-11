@@ -198,6 +198,33 @@ async function createPlace(req, res, next) {
 
     logger.info('Place created', { userId, placeId: result.rows[0].id });
 
+    // Auto-link to any CRM lead that was converted from this host user
+    try {
+      const linkCheck = await db.query(
+        'SELECT id FROM host_leads WHERE converted_to_user_id = $1 AND place_id IS NULL LIMIT 1',
+        [userId]
+      );
+      if (linkCheck.rows.length > 0) {
+        const leadId = linkCheck.rows[0].id;
+        const userRow = await db.query('SELECT phone_number FROM users WHERE id = $1', [userId]);
+        const phone = userRow.rows[0]?.phone_number;
+        if (phone) {
+          await db.query(
+            'UPDATE host_leads SET place_id = $1, phone = $2, updated_at = NOW() WHERE id = $3',
+            [result.rows[0].id, phone, leadId]
+          );
+        } else {
+          await db.query(
+            'UPDATE host_leads SET place_id = $1, updated_at = NOW() WHERE id = $2',
+            [result.rows[0].id, leadId]
+          );
+        }
+        logger.info('Auto-linked place to CRM lead', { placeId: result.rows[0].id, leadId });
+      }
+    } catch (linkErr) {
+      logger.error('Auto-link place to lead error (non-fatal)', { error: linkErr.message });
+    }
+
     res.status(201).json({
       place: result.rows[0],
     });

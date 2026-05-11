@@ -882,6 +882,16 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 38 error:', err.message);
     }
 
+    // Migration 39: Link host places to CRM leads + contract storage
+    try {
+      console.log('[SERVER] Running migration 39: place_id and contract_url on host_leads...');
+      await db.query(`ALTER TABLE host_leads ADD COLUMN IF NOT EXISTS place_id INTEGER REFERENCES places(id) ON DELETE SET NULL`);
+      await db.query(`ALTER TABLE host_leads ADD COLUMN IF NOT EXISTS contract_url TEXT`);
+      console.log('[SERVER] ✅ Migration 39 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 39 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

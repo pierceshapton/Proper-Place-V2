@@ -43,6 +43,10 @@ router.put('/content', cmsContent.updateContent);
 // ─── Import & Enrich ────────────────
 router.post('/leads/import', crm.importLeads);
 router.post('/leads/:id/enrich', crm.enrichLead);
+router.post('/leads/:id/upload-contract', crm.contractUploadMiddleware.single('file'), crm.uploadContract);
+
+// ─── Places search (for linking to leads) ───
+router.get('/places/search', crm.searchPlaces);
 
 // ─── Pipeline ───────────────────────
 router.get('/leads/pipeline/summary', crm.getPipelineSummary);
