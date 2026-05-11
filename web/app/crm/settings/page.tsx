@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { crmApi, type CRMStage, type CRMCustomField } from '@/lib/api';
-import { AVAILABLE_COLORS, COLOR_MAP, FIELD_TYPE_BADGES } from '@/lib/stageColors';
+import { AVAILABLE_COLORS, COLOR_MAP, COLOR_GROUPS, FIELD_TYPE_BADGES } from '@/lib/stageColors';
 
 type Tab = 'stages' | 'fields' | 'general';
 type FieldType = 'text' | 'number' | 'select' | 'date' | 'checkbox' | 'url';
@@ -17,13 +17,36 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
     return () => document.removeEventListener('mousedown', handler);
   }, []);
   return (
-    <div ref={ref} className="relative">
-      <button onClick={() => setOpen(o => !o)} className={`w-5 h-5 rounded-full border-2 border-slate-700 hover:border-slate-500 transition-colors ${COLOR_MAP[value]?.dot || 'bg-slate-500'}`} title="Change color" />
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`w-5 h-5 rounded-full border-2 border-slate-700 hover:border-slate-400 transition-colors flex-shrink-0 ${COLOR_MAP[value]?.dot || 'bg-slate-500'}`}
+        title="Change color"
+      />
       {open && (
-        <div className="absolute left-0 top-7 z-20 bg-slate-800 border border-slate-700 rounded-xl p-2.5 shadow-xl grid grid-cols-8 gap-1.5">
-          {AVAILABLE_COLORS.map(c => (
-            <button key={c} onClick={() => { onChange(c); setOpen(false); }} className={`w-5 h-5 rounded-full transition-transform hover:scale-110 ${COLOR_MAP[c].dot} ${value === c ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-800' : ''}`} title={c} />
-          ))}
+        <div className="absolute left-0 top-7 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3" style={{ width: 188 }}>
+          {/* Column headers */}
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-1.5 mb-1.5 pr-0.5">
+            <span className="text-[9px] text-slate-600 uppercase tracking-wider leading-none" />
+            <span className="text-[9px] text-slate-600 uppercase tracking-wider leading-none w-5 text-center">L</span>
+            <span className="text-[9px] text-slate-600 uppercase tracking-wider leading-none w-5 text-center">M</span>
+            <span className="text-[9px] text-slate-600 uppercase tracking-wider leading-none w-5 text-center">D</span>
+          </div>
+          <div className="space-y-1">
+            {COLOR_GROUPS.map(group => (
+              <div key={group.label} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-1.5">
+                <span className="text-[10px] text-slate-500 truncate leading-none">{group.label}</span>
+                {group.shades.map(shade => (
+                  <button
+                    key={shade}
+                    onClick={() => { onChange(shade); setOpen(false); }}
+                    className={`w-5 h-5 rounded-full transition-transform hover:scale-110 flex-shrink-0 ${COLOR_MAP[shade]?.dot || 'bg-slate-500'} ${value === shade ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900' : ''}`}
+                    title={shade}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
