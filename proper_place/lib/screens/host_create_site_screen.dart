@@ -588,6 +588,12 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       );
       return;
     }
+    if (price > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Maximum price is £100 per night')),
+      );
+      return;
+    }
 
     if (!vehicleDimensionsConfirmed) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1292,6 +1298,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                     final price = double.tryParse(value) ?? 0;
                     if (price > 0 && price < _minPrice) {
                       priceController.text = _minPrice.toStringAsFixed(0);
+                    } else if (price > 100) {
+                      priceController.text = '100';
                     }
                   },
                   decoration: InputDecoration(

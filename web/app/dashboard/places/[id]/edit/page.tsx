@@ -129,6 +129,10 @@ export default function EditPlacePage() {
       setError(`Price must be at least £${minPrice}`);
       return;
     }
+    if (form.price_per_night && parseFloat(form.price_per_night) > 100) {
+      setError('Price cannot exceed £100');
+      return;
+    }
     setSaving(true);
     try {
       const updateData: Partial<Place> = {
