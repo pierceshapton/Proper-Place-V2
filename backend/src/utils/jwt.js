@@ -17,9 +17,11 @@ if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
 const SECURE_JWT_SECRET = JWT_SECRET || 'dev-only-secret-change-in-production';
 const SECURE_JWT_REFRESH_SECRET = JWT_REFRESH_SECRET || 'dev-only-refresh-secret-change-in-production';
 
-// Shorter token expiry for better security
-const JWT_EXPIRY = process.env.JWT_EXPIRY || '1h'; // 1 hour access token
-const JWT_REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRY || '7d'; // 7 day refresh token
+// Mobile-friendly token expiry: long-lived access token, very long refresh token.
+// This matches industry-standard mobile auth (Twitter/X, Instagram, etc.) where
+// users stay signed in for months unless they explicitly log out.
+const JWT_EXPIRY = process.env.JWT_EXPIRY || '30d'; // 30 day access token
+const JWT_REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRY || '365d'; // 1 year refresh token
 
 /**
  * Generate JWT access token
