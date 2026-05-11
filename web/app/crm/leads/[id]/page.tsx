@@ -32,6 +32,7 @@ export default function LeadDetailPage() {
   const [activeTab, setActiveTab] = useState('activity');
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CRMLead>>({});
+  const [editSaving, setEditSaving] = useState(false);
   const [stages, setStages] = useState<CRMStage[]>(DEFAULT_STAGES);
   const [customFields, setCustomFields] = useState<CRMCustomField[]>([]);
   const [customValues, setCustomValues] = useState<Record<number, string>>({});
@@ -73,6 +74,8 @@ export default function LeadDetailPage() {
   const [placeSearchOpen, setPlaceSearchOpen] = useState(false);
   const [placeSearchLoading, setPlaceSearchLoading] = useState(false);
   const [syncingPhone, setSyncingPhone] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -142,9 +145,14 @@ export default function LeadDetailPage() {
   }
 
   async function handleSaveEdit() {
-    await crmApi.updateLead(leadId, editForm);
-    setEditing(false);
-    loadAll();
+    setEditSaving(true);
+    try {
+      await crmApi.updateLead(leadId, editForm);
+      setEditing(false);
+      loadAll();
+    } finally {
+      setEditSaving(false);
+    }
   }
 
   async function handleContractUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -214,15 +222,24 @@ export default function LeadDetailPage() {
 
   async function handleSendEmail(e: React.FormEvent) {
     e.preventDefault();
-    await crmApi.sendEmail(leadId, {
-      subject: emailForm.subject,
-      body: buildEmailWithSignature(emailForm.body),
-      template_id: emailForm.template_id ? Number(emailForm.template_id) : undefined,
-      to_email: emailForm.to_email || undefined,
-    });
-    setShowSendEmail(false);
-    setEmailForm({ subject: '', body: '', template_id: '', to_email: lead?.email || '' });
-    loadAll();
+    setEmailSending(true);
+    setEmailError(null);
+    try {
+      await crmApi.sendEmail(leadId, {
+        subject: emailForm.subject,
+        body: buildEmailWithSignature(emailForm.body),
+        template_id: emailForm.template_id ? Number(emailForm.template_id) : undefined,
+        to_email: emailForm.to_email || undefined,
+      });
+      setShowSendEmail(false);
+      setEmailForm({ subject: '', body: '', template_id: '', to_email: lead?.email || '' });
+      loadAll();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to send — check SMTP settings';
+      setEmailError(msg);
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   async function handleLogReply(e: React.FormEvent) {
@@ -369,18 +386,60 @@ export default function LeadDetailPage() {
 
       {/* Edit Form Modal */}
       {editing && (
-        <div className="bg-slate-900 border border-emerald-500/30 rounded-xl p-4 space-y-3">
+        <div className="bg-slate-900 border border-emerald-500/30 rounded-xl p-4 space-y-4">
           <h3 className="text-sm font-semibold text-emerald-400">Edit Lead</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <CRMInput label="Business Name" value={editForm.business_name || ''} onChange={v => setEditForm(f => ({ ...f, business_name: v }))} />
-            <CRMInput label="First Name" value={editForm.first_name || ''} onChange={v => setEditForm(f => ({ ...f, first_name: v }))} />
-            <CRMInput label="Last Name" value={editForm.last_name || ''} onChange={v => setEditForm(f => ({ ...f, last_name: v }))} />
-            <CRMInput label="Email" value={editForm.email || ''} onChange={v => setEditForm(f => ({ ...f, email: v }))} />
-            <CRMInput label="Phone" value={editForm.phone || ''} onChange={v => setEditForm(f => ({ ...f, phone: v }))} />
-            <CRMInput label="Location" value={editForm.location || ''} onChange={v => setEditForm(f => ({ ...f, location: v }))} />
-            <CRMInput label="Website" value={editForm.website || ''} onChange={v => setEditForm(f => ({ ...f, website: v }))} />
-            <CRMInput label="Next Follow-up" value={editForm.next_follow_up ? editForm.next_follow_up.split('T')[0] : ''} onChange={v => setEditForm(f => ({ ...f, next_follow_up: v }))} type="date" />
+
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Contact</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <CRMInput label="Business Name" value={editForm.business_name || ''} onChange={v => setEditForm(f => ({ ...f, business_name: v }))} />
+              <CRMInput label="First Name" value={editForm.first_name || ''} onChange={v => setEditForm(f => ({ ...f, first_name: v }))} />
+              <CRMInput label="Last Name" value={editForm.last_name || ''} onChange={v => setEditForm(f => ({ ...f, last_name: v }))} />
+              <CRMInput label="Email" value={editForm.email || ''} onChange={v => setEditForm(f => ({ ...f, email: v }))} />
+              <CRMInput label="Phone" value={editForm.phone || ''} onChange={v => setEditForm(f => ({ ...f, phone: v }))} />
+              <CRMInput label="Website" value={editForm.website || ''} onChange={v => setEditForm(f => ({ ...f, website: v }))} />
+            </div>
           </div>
+
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Location</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <CRMInput label="Location / Address" value={editForm.location || ''} onChange={v => setEditForm(f => ({ ...f, location: v }))} />
+              <CRMInput label="Latitude" value={editForm.latitude?.toString() || ''} onChange={v => setEditForm(f => ({ ...f, latitude: v ? parseFloat(v) : null }))} placeholder="51.5074" />
+              <CRMInput label="Longitude" value={editForm.longitude?.toString() || ''} onChange={v => setEditForm(f => ({ ...f, longitude: v ? parseFloat(v) : null }))} placeholder="-0.1278" />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Site Details</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <CRMSelect label="Property Type" value={editForm.property_type || ''} onChange={v => setEditForm(f => ({ ...f, property_type: v }))} options={['', 'pub', 'farm', 'car_park', 'business', 'private_land', 'other']} />
+              <CRMSelect label="Parking Type" value={editForm.parking_type || ''} onChange={v => setEditForm(f => ({ ...f, parking_type: v }))} options={['', 'surface', 'multi_storey', 'underground', 'field', 'roadside', 'other']} />
+              <CRMInput label="Parking Spaces" value={editForm.parking_spaces?.toString() || ''} onChange={v => setEditForm(f => ({ ...f, parking_spaces: v ? parseInt(v) : null }))} placeholder="20" />
+              <CRMSelect label="Ownership" value={editForm.ownership_type || ''} onChange={v => setEditForm(f => ({ ...f, ownership_type: v }))} options={['', 'freehold', 'leasehold', 'council', 'private', 'unknown']} />
+              <CRMInput label="Estimated Value (£)" value={editForm.estimated_value?.toString() || ''} onChange={v => setEditForm(f => ({ ...f, estimated_value: v ? parseFloat(v) : null }))} placeholder="5000" />
+              <CRMSelect label="Source" value={editForm.source || ''} onChange={v => setEditForm(f => ({ ...f, source: v }))} options={['', 'qr_code', 'crm_manual', 'discovery', 'referral', 'inbound', 'other']} />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Pipeline</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <CRMInput label="Next Follow-up" value={editForm.next_follow_up ? editForm.next_follow_up.split('T')[0] : ''} onChange={v => setEditForm(f => ({ ...f, next_follow_up: v }))} type="date" />
+              <CRMInput label="Last Contact Date" value={editForm.last_contact_date ? editForm.last_contact_date.split('T')[0] : ''} onChange={v => setEditForm(f => ({ ...f, last_contact_date: v }))} type="date" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Tags (comma-separated)</label>
+            <input
+              value={Array.isArray(editForm.tags) ? editForm.tags.join(', ') : ''}
+              onChange={e => setEditForm(f => ({ ...f, tags: e.target.value ? e.target.value.split(',').map(t => t.trim()).filter(Boolean) : [] }))}
+              placeholder="priority, riverside, car-park"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
           <div>
             <label className="block text-xs text-slate-400 mb-1">Notes</label>
             <textarea
@@ -390,8 +449,11 @@ export default function LeadDetailPage() {
               rows={3}
             />
           </div>
+
           <div className="flex gap-2">
-            <button onClick={handleSaveEdit} className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium px-4 py-2 rounded-lg">Save</button>
+            <button onClick={handleSaveEdit} disabled={editSaving} className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg">
+              {editSaving ? 'Saving…' : 'Save'}
+            </button>
             <button onClick={() => setEditing(false)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-4 py-2 rounded-lg">Cancel</button>
           </div>
         </div>
@@ -732,8 +794,11 @@ export default function LeadDetailPage() {
                   placeholder={`Hi ${lead.first_name || 'there'},\n\n`} />
                 {/* Signature preview */}
                 <div className="px-4 py-3 bg-slate-900/60 border-t border-slate-800 text-xs [&_a]:text-blue-400 [&_strong]:text-slate-300 pointer-events-none select-none" dangerouslySetInnerHTML={{ __html: buildEmailWithSignature('').replace(/^<div[^>]*>|<\/div>$/g, '').replace(/<p[^>]*><\/p>/g, '') }} />
-                <div className="px-4 py-2.5 border-t border-slate-800 flex items-center gap-3">
-                  <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors">Send</button>
+                <div className="px-4 py-2.5 border-t border-slate-800 flex items-center gap-3 flex-wrap">
+                  <button type="submit" disabled={emailSending} className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors">
+                    {emailSending ? 'Sending…' : 'Send'}
+                  </button>
+                  {emailError && <p className="text-xs text-red-400">{emailError}</p>}
                   <div className="flex flex-wrap gap-1 ml-2">
                     {['{{first_name}}', '{{business_name}}', '{{location}}'].map(token => (
                       <button key={token} type="button"
@@ -1094,7 +1159,7 @@ function CRMSelect({ label, value, onChange, options }: {
       <label className="block text-xs text-slate-400 mb-1">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)}
         className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-        {options.map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1).replace(/_/g, ' ')}</option>)}
+        {options.map(o => <option key={o} value={o}>{o === '' ? '—' : o.charAt(0).toUpperCase() + o.slice(1).replace(/_/g, ' ')}</option>)}
       </select>
     </div>
   );

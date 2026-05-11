@@ -131,7 +131,7 @@ async function sendSupportReplyEmail(to, subject, originalMessage, replyBody) {
   return info;
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendSupportReplyEmail };
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendSupportReplyEmail, transporter };
 
 function escapeHtml(str) {
   return String(str)

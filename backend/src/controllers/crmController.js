@@ -661,39 +661,30 @@ async function deleteEmailTemplate(req, res, next) {
 async function sendEmail(req, res, next) {
   try {
     const { id } = req.params;
-    const { subject, body, template_id } = req.body;
+    const { subject, body, template_id, to_email } = req.body;
 
     // Get lead
     const leadResult = await db.query('SELECT * FROM host_leads WHERE id = $1', [id]);
     if (leadResult.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
     const lead = leadResult.rows[0];
 
-    if (!lead.email) return res.status(400).json({ error: 'Lead has no email address' });
+    const recipient = to_email || lead.email;
+    if (!recipient) return res.status(400).json({ error: 'No recipient email address — add one in the To field or on the lead' });
     if (!subject || !body) return res.status(400).json({ error: 'subject and body required' });
 
     // Interpolate variables
     const interpolated = interpolateTemplate(body, lead);
     const interpolatedSubject = interpolateTemplate(subject, lead);
 
-    // Send via nodemailer
+    // Send via shared transporter
     const emailUtil = require('../utils/email');
-    const nodemailer = require('nodemailer');
-    const crmReplyTo = process.env.CRM_FROM_EMAIL || 'pierce.shapton@proper-place.co.uk';
     const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
-    const smtpUser = process.env.SMTP_USER;
+    const crmReplyTo = process.env.CRM_FROM_EMAIL || process.env.SMTP_USER;
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp-relay.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: false,
-      requireTLS: true,
-      auth: { user: smtpUser, pass: process.env.SMTP_PASS },
-    });
-
-    await transporter.sendMail({
-      from: `"${crmFromName}" <${smtpUser}>`,
+    await emailUtil.transporter.sendMail({
+      from: `"${crmFromName}" <${process.env.SMTP_USER}>`,
       replyTo: crmReplyTo,
-      to: lead.email,
+      to: recipient,
       subject: interpolatedSubject,
       html: wrapEmailHtml(interpolated),
     });
@@ -702,7 +693,7 @@ async function sendEmail(req, res, next) {
     await db.query(
       `INSERT INTO crm_email_log (lead_id, template_id, subject, body, to_email, status, created_by)
        VALUES ($1, $2, $3, $4, $5, 'sent', $6)`,
-      [id, template_id || null, interpolatedSubject, interpolated, lead.email, req.user.userId]
+      [id, template_id || null, interpolatedSubject, interpolated, recipient, req.user.userId]
     );
 
     // Log activity
