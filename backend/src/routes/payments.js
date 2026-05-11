@@ -48,10 +48,9 @@ router.post('/create-intent', async (req, res) => {
     }
 
     // Destination charges with application fee:
-    // - 15% application fee goes to Proper Place platform balance
-    // - 85% is transferred to the host's connected account
-    // - on_behalf_of means Stripe processing fees (1.5% + 20p) come from the host's share
-    const applicationFee = Math.round(Math.round(amount) * 0.15);
+    // - 18% application fee goes to Proper Place platform balance
+    // - 82% is transferred to the host's connected account
+    const applicationFee = Math.round(Math.round(amount) * 0.18);
 
     const paymentIntentParams = {
       amount: Math.round(amount), // Amount in smallest currency unit (pence)
@@ -60,7 +59,6 @@ router.post('/create-intent', async (req, res) => {
       automatic_payment_methods: { enabled: true },
       application_fee_amount: applicationFee,
       transfer_data: { destination: hostAccountId },
-      on_behalf_of: hostAccountId,
       metadata: {
         platform: 'proper_place',
         place_id: String(place_id),
@@ -222,9 +220,9 @@ router.post('/transfer-to-host', async (req, res) => {
       });
     }
 
-    // Calculate host payout: total price minus 15% platform commission
+    // Calculate host payout: total price minus 18% platform commission
     const totalPence = Math.round(parseFloat(booking.total_price) * 100);
-    const platformFee = Math.round(totalPence * 0.15);
+    const platformFee = Math.round(totalPence * 0.18);
     const hostPayout = totalPence - platformFee;
 
     const transfer = await stripe.transfers.create({
