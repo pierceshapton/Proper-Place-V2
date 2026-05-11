@@ -245,7 +245,7 @@ export default function CRMMapPage() {
           >
             {leadsWithCoords.map(lead => (
               <Marker
-                key={lead.id}
+                key={`${lead.id}-${getStageColor(lead.pipeline_stage)}`}
                 position={{ lat: Number(lead.latitude), lng: Number(lead.longitude) }}
                 icon={{
                   url: buildPinSvg(getStageColor(lead.pipeline_stage)),
