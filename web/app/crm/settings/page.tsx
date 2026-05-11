@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { crmApi, type CRMStage, type CRMCustomField } from '@/lib/api';
-import { AVAILABLE_COLORS, COLOR_MAP, COLOR_GROUPS, FIELD_TYPE_BADGES } from '@/lib/stageColors';
+import { AVAILABLE_COLORS, COLOR_MAP, COLOR_GROUPS, COLOR_HEX, FIELD_TYPE_BADGES } from '@/lib/stageColors';
 
 type Tab = 'stages' | 'fields' | 'general';
 type FieldType = 'text' | 'number' | 'select' | 'date' | 'checkbox' | 'url';
@@ -16,37 +16,42 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+  const triggerHex = COLOR_HEX[value] ?? '#64748b';
   return (
     <div ref={ref} className="relative flex-shrink-0">
       <button
         onClick={() => setOpen(o => !o)}
-        className={`w-5 h-5 rounded-full border-2 border-slate-700 hover:border-slate-400 transition-colors flex-shrink-0 ${COLOR_MAP[value]?.dot || 'bg-slate-500'}`}
-        title="Change color"
+        style={{ backgroundColor: triggerHex }}
+        className="w-5 h-5 rounded-full border-2 border-slate-700 hover:border-slate-400 transition-colors flex-shrink-0"
+        title="Change colour"
       />
       {open && (
-        <div className="absolute left-0 top-7 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3" style={{ width: 188 }}>
-          {/* Column headers */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-1.5 mb-1.5 pr-0.5">
-            <span className="text-[9px] text-slate-600 uppercase tracking-wider leading-none" />
-            <span className="text-[9px] text-slate-600 uppercase tracking-wider leading-none w-5 text-center">L</span>
-            <span className="text-[9px] text-slate-600 uppercase tracking-wider leading-none w-5 text-center">M</span>
-            <span className="text-[9px] text-slate-600 uppercase tracking-wider leading-none w-5 text-center">D</span>
-          </div>
-          <div className="space-y-1">
-            {COLOR_GROUPS.map(group => (
-              <div key={group.label} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-1.5">
-                <span className="text-[10px] text-slate-500 truncate leading-none">{group.label}</span>
-                {group.shades.map(shade => (
+        <div className="absolute left-0 top-7 z-50 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-2">
+          {/* 3 rows: light (300) / medium (500) / dark (700) — 19 cols, one per hue */}
+          {[0, 1, 2].map(row => (
+            <div key={row} className="flex gap-1" style={{ marginBottom: row < 2 ? 4 : 0 }}>
+              {COLOR_GROUPS.map(group => {
+                const key = group.shades[row];
+                const hex = COLOR_HEX[key] ?? '#64748b';
+                const selected = value === key;
+                return (
                   <button
-                    key={shade}
-                    onClick={() => { onChange(shade); setOpen(false); }}
-                    className={`w-5 h-5 rounded-full transition-transform hover:scale-110 flex-shrink-0 ${COLOR_MAP[shade]?.dot || 'bg-slate-500'} ${value === shade ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900' : ''}`}
-                    title={shade}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
+                    key={key}
+                    title={key}
+                    onClick={() => { onChange(key); setOpen(false); }}
+                    style={{ backgroundColor: hex }}
+                    className={`w-5 h-5 rounded-sm transition-transform hover:scale-110 flex-shrink-0 relative${selected ? ' ring-2 ring-white ring-offset-1 ring-offset-slate-900' : ''}`}
+                  >
+                    {selected && (
+                      <svg className="absolute inset-0 m-auto w-3 h-3" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       )}
     </div>

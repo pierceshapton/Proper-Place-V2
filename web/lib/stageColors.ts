@@ -26,7 +26,7 @@ export const COLOR_GROUPS: Array<{ label: string; shades: [string, string, strin
   { label: 'Blue',    shades: ['blue-300',    'blue',    'blue-700']    },
   { label: 'Sky',     shades: ['sky-300',     'sky',     'sky-700']     },
   { label: 'Cyan',    shades: ['cyan-300',    'cyan',    'cyan-700']    },
-  { label: 'Teal',    shades: ['teal-300',    'teal',    'teal-700']    },
+  { label: 'Teal',   shades: ['teal-300',    'teal',    'teal-700']    },
   { label: 'Emerald', shades: ['emerald-300', 'emerald', 'emerald-700'] },
   { label: 'Green',   shades: ['green-300',   'green',   'green-700']   },
   { label: 'Lime',    shades: ['lime-300',    'lime',    'lime-700']    },
@@ -43,6 +43,33 @@ export const COLOR_GROUPS: Array<{ label: string; shades: [string, string, strin
   { label: 'Slate',   shades: ['slate-300',   'slate',   'slate-700']   },
   { label: 'Zinc',    shades: ['zinc-300',    'zinc',    'zinc-700']    },
 ];
+
+// Hex values for every color key — used for inline styles to avoid Tailwind JIT purging
+export const COLOR_HEX: Record<string, string> = {
+  // 500 (medium)
+  blue:       '#3b82f6', sky:     '#0ea5e9', cyan:    '#06b6d4', teal:    '#14b8a6',
+  emerald:    '#10b981', green:   '#22c55e', lime:    '#84cc16', yellow:  '#eab308',
+  amber:      '#f59e0b', orange:  '#f97316', red:     '#ef4444', rose:    '#f43f5e',
+  pink:       '#ec4899', fuchsia: '#d946ef', purple:  '#a855f7', violet:  '#8b5cf6',
+  indigo:     '#6366f1', slate:   '#64748b', zinc:    '#71717a',
+  // 300 (light)
+  'blue-300':    '#93c5fd', 'sky-300':     '#7dd3fc', 'cyan-300':    '#67e8f9',
+  'teal-300':    '#5eead4', 'emerald-300': '#6ee7b7', 'green-300':   '#86efac',
+  'lime-300':    '#bef264', 'yellow-300':  '#fde047', 'amber-300':   '#fcd34d',
+  'orange-300':  '#fdba74', 'red-300':     '#fca5a5', 'rose-300':    '#fda4af',
+  'pink-300':    '#f9a8d4', 'fuchsia-300': '#f0abfc', 'purple-300':  '#d8b4fe',
+  'violet-300':  '#c4b5fd', 'indigo-300':  '#a5b4fc', 'slate-300':   '#cbd5e1',
+  'zinc-300':    '#d4d4d8',
+  // 700 (dark)
+  'blue-700':    '#1d4ed8', 'sky-700':     '#0369a1', 'cyan-700':    '#0e7490',
+  'teal-700':    '#0f766e', 'emerald-700': '#047857', 'green-700':   '#15803d',
+  'lime-700':    '#4d7c0f', 'yellow-700':  '#a16207', 'amber-700':   '#b45309',
+  'orange-700':  '#c2410c', 'red-700':     '#b91c1c', 'rose-700':    '#be123c',
+  'pink-700':    '#be185d', 'fuchsia-700': '#a21caf', 'purple-700':  '#7e22ce',
+  'violet-700':  '#6d28d9', 'indigo-700':  '#4338ca', 'slate-700':   '#334155',
+  'zinc-700':    '#3f3f46',
+};
+
 
 export const COLOR_MAP: Record<string, {
   border: string; bg: string; activeBg: string;
