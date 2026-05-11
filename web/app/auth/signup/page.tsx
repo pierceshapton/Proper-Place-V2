@@ -80,7 +80,7 @@ export default function SignupPage() {
                     🚐
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800">I'm a traveller</p>
+                    <p className="font-semibold text-gray-800">I'm travelling</p>
                     <p className="text-sm text-gray-500">I want to find and book places to stay</p>
                   </div>
                   {role === 'user' && (
@@ -105,7 +105,7 @@ export default function SignupPage() {
                     🏡
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800">I'm a host</p>
+                    <p className="font-semibold text-gray-800">I'm hosting</p>
                     <p className="text-sm text-gray-500">I have a property or land I want to list</p>
                   </div>
                   {role === 'host' && (
@@ -145,7 +145,7 @@ export default function SignupPage() {
               <div className="flex items-center gap-2 mb-5 p-3 rounded-lg bg-blue-50 border border-blue-100">
                 <span className="text-lg">{role === 'host' ? '🏡' : '🚐'}</span>
                 <span className="text-sm font-medium text-gray-700">
-                  Signing up as a <strong>{role === 'host' ? 'Host' : 'Traveller'}</strong>
+                  Signing up to <strong>{role === 'host' ? 'host a property' : 'travel'}</strong>
                 </span>
               </div>
               <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
