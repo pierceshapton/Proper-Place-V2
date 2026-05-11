@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const logger = require('../utils/logger');
+const { sendHostDeletionRequestEmail } = require('../utils/email');
 
 /**
  * GET /users/:id
@@ -123,17 +124,35 @@ async function deleteAccount(req, res, next) {
       });
     }
 
-    const result = await db.query(
-      'DELETE FROM users WHERE id = $1 RETURNING id',
+    // Fetch user details before doing anything
+    const userResult = await db.query(
+      'SELECT id, name, email, role FROM users WHERE id = $1',
       [id]
     );
 
-    if (result.rows.length === 0) {
+    if (userResult.rows.length === 0) {
       return res.status(404).json({
         error: 'user_not_found',
         message: 'User not found',
       });
     }
+
+    const user = userResult.rows[0];
+
+    // Hosts: send admin notification and defer deletion — don't delete immediately
+    if (user.role === 'host') {
+      sendHostDeletionRequestEmail(user).catch((err) => {
+        logger.error('Failed to send host deletion request email', { userId: user.id, error: err.message });
+      });
+      logger.info('Host account deletion requested', { userId: id });
+      return res.json({
+        message: 'deletion_requested',
+        detail: 'Your deletion request has been submitted. We will review your account and process it within 5 business days.',
+      });
+    }
+
+    // Regular users: delete immediately
+    await db.query('DELETE FROM users WHERE id = $1', [id]);
 
     logger.info('User account deleted', { userId: id });
 

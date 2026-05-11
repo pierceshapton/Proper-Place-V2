@@ -3,13 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { usersApi, authApi, uploadApi, ApiError, type User } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+  const router = useRouter();
   const [tab, setTab] = useState<'profile' | 'vehicle' | 'security'>('profile');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const [profile, setProfile] = useState({
     name: user?.name || '',
@@ -99,6 +104,26 @@ export default function ProfilePage() {
       setSuccess('Verification email sent!');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to send verification email');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setDeleting(true); setError(''); setSuccess('');
+    try {
+      const res = await usersApi.delete(user.id) as any;
+      if (res?.message === 'deletion_requested') {
+        setDeleteConfirm(false);
+        setDeletePassword('');
+        setSuccess('Your deletion request has been submitted. We\'ll review your account and contact you within 5 business days.');
+      } else {
+        await logout();
+        router.push('/');
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to delete account. Please try again.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -246,6 +271,52 @@ export default function ProfilePage() {
               <p><span className="font-medium text-gray-700">Member since:</span> {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-GB') : 'Unknown'}</p>
               <p><span className="font-medium text-gray-700">Email verified:</span> {user?.verified ? '✅ Yes' : '❌ No'}</p>
             </div>
+          </div>
+
+          <hr />
+
+          {/* Delete account */}
+          <div>
+            <h2 className="text-lg font-semibold text-red-600 mb-1">Delete Account</h2>
+            {user?.role === 'host' ? (
+              <p className="text-sm text-gray-500 mb-4">As a host, your deletion request will be reviewed by our team to ensure any active listings and bookings are wound down properly. We'll be in touch within 5 business days.</p>
+            ) : (
+              <p className="text-sm text-gray-500 mb-4">Permanently deletes your account and all associated data. This cannot be undone.</p>
+            )}
+            {!deleteConfirm ? (
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(true)}
+                className="px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                {user?.role === 'host' ? 'Request Account Deletion' : 'Delete My Account'}
+              </button>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-medium text-red-800">
+                  {user?.role === 'host'
+                    ? 'Are you sure you want to request deletion? We\'ll email you to confirm next steps.'
+                    : 'Are you sure? This will permanently delete your account.'}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    disabled={deleting}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  >
+                    {deleting ? 'Processing...' : user?.role === 'host' ? 'Yes, submit request' : 'Yes, delete my account'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDeleteConfirm(false); setDeletePassword(''); }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

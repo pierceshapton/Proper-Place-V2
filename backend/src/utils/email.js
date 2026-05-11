@@ -131,7 +131,40 @@ async function sendSupportReplyEmail(to, subject, originalMessage, replyBody) {
   return info;
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendSupportReplyEmail, transporter };
+/**
+ * Send an admin notification when a host requests account deletion.
+ */
+async function sendHostDeletionRequestEmail(user) {
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 0;">
+      <div style="background: #b91c1c; color: white; padding: 18px 24px; border-radius: 8px 8px 0 0;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 600;">⚠️ Host Account Deletion Request</h2>
+      </div>
+      <div style="background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; padding: 28px 24px;">
+        <p style="color: #374151; margin: 0 0 20px;">A host has requested their account be deleted. Please review and process manually.</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 120px;">Name</td><td style="padding: 8px 0; color: #111827; font-weight: 600;">${escapeHtml(user.name)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Email</td><td style="padding: 8px 0; color: #111827; font-weight: 600;">${escapeHtml(user.email)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px;">User ID</td><td style="padding: 8px 0; color: #111827;">${user.id}</td></tr>
+          <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Requested at</td><td style="padding: 8px 0; color: #111827;">${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}</td></tr>
+        </table>
+        <p style="color: #6b7280; font-size: 13px; margin: 0;">Check their listings, active bookings, and payout balance before deleting the account from the admin panel.</p>
+      </div>
+    </div>
+  `;
+
+  const info = await transporter.sendMail({
+    from: `"Proper Place" <${process.env.SMTP_USER}>`,
+    to: 'pierce.shapton@gmail.com',
+    subject: `Host deletion request – ${user.name} (${user.email})`,
+    html,
+  });
+
+  logger.info('Host deletion request email sent', { userId: user.id, email: user.email, messageId: info.messageId });
+  return info;
+}
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendSupportReplyEmail, sendHostDeletionRequestEmail, transporter };
 
 function escapeHtml(str) {
   return String(str)
