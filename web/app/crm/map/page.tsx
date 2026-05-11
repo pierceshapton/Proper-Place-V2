@@ -310,6 +310,17 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
                 {lead.website && <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:underline truncate max-w-[200px] block">🌐 {lead.website}</a>}
                 {lead.email && <span className="text-xs text-slate-400">✉ {lead.email}</span>}
               </div>
+              {lead.opening_hours_text && (
+                <details className="mt-2 group">
+                  <summary className="text-xs text-slate-400 cursor-pointer select-none list-none flex items-center gap-1 hover:text-slate-300">
+                    <span>🕐</span>
+                    <span className="underline underline-offset-2 decoration-dotted">Opening hours</span>
+                    <span className="text-slate-600 group-open:hidden"> ▸</span>
+                    <span className="text-slate-600 hidden group-open:inline"> ▾</span>
+                  </summary>
+                  <p className="mt-1 text-[11px] text-slate-400 whitespace-pre-line leading-relaxed pl-4">{lead.opening_hours_text}</p>
+                </details>
+              )}
             </div>
             <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none flex-shrink-0 mt-1">✕</button>
           </div>
