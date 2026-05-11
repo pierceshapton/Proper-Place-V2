@@ -11,7 +11,7 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emai
  */
 async function signup(req, res, next) {
   try {
-    const { email, password, name, referral_code, vehicle_registration } = req.validatedBody;
+    const { email, password, name, role = 'user', referral_code, vehicle_registration } = req.validatedBody;
 
     // Check if user exists (case-insensitive)
     const existingUser = await db.query(
@@ -35,10 +35,10 @@ async function signup(req, res, next) {
 
     // Create user
     const result = await db.query(
-      `INSERT INTO users (email, password_hash, name, verified, referred_by, email_verification_token, email_verification_expires, vehicle_registration)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO users (email, password_hash, name, role, verified, referred_by, email_verification_token, email_verification_expires, vehicle_registration)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id, email, name, role, created_at`,
-      [email, passwordHash, name, false, referral_code || null, verificationToken, verificationExpires, vehicle_registration || null]
+      [email, passwordHash, name, role, false, referral_code || null, verificationToken, verificationExpires, vehicle_registration || null]
     );
 
     const user = result.rows[0];

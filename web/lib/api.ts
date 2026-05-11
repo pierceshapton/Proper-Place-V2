@@ -110,7 +110,7 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
 export const authApi = {
   login: (email: string, password: string) =>
     api<{ access_token: string; refresh_token: string; user: User }>('/auth/login', { method: 'POST', body: { email, password }, auth: false }),
-  signup: (data: { name: string; email: string; password: string; referral_code?: string }) =>
+  signup: (data: { name: string; email: string; password: string; role?: string; referral_code?: string }) =>
     api<{ access_token: string; refresh_token: string; user: User }>('/auth/signup', { method: 'POST', body: data, auth: false }),
   me: () => api<{ user: User }>('/auth/me'),
   logout: () => api('/auth/logout', { method: 'POST' }),
