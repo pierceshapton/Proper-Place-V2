@@ -340,6 +340,8 @@ export interface Place {
   max_vehicle_length_ft?: number;
   serves_food?: boolean;
   food_menu_description?: string;
+  max_nights_per_stay?: number | null;
+  available_days?: number[] | null;
   created_at?: string;
   owner_name?: string;
   host?: { id: number; name: string; avatar_url?: string };

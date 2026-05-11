@@ -32,7 +32,9 @@ export default function EditPlacePage() {
     opening_hours: '', business_description: '', access_route_description: '',
     max_vehicle_height_ft: '', max_vehicle_width_ft: '', max_vehicle_length_ft: '',
     serves_food: false, food_menu_description: '', image_urls: [] as string[],
+    max_nights_per_stay: '',
   });
+  const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
 
   const [externalCalendars, setExternalCalendars] = useState<any[]>([]);
   const [calendarsLoading, setCalendarsLoading] = useState(false);
@@ -59,7 +61,11 @@ export default function EditPlacePage() {
           max_vehicle_length_ft: p.max_vehicle_length_ft?.toString() || '',
           serves_food: p.serves_food || false, food_menu_description: p.food_menu_description || '',
           image_urls: p.image_urls || [],
+          max_nights_per_stay: p.max_nights_per_stay?.toString() || '',
         });
+        if (p.available_days && Array.isArray(p.available_days) && p.available_days.length > 0) {
+          setAvailableDays(p.available_days);
+        }
           // Load external calendars for this place
           loadExternalCalendars(Number(id));
       })
@@ -152,6 +158,8 @@ export default function EditPlacePage() {
         serves_food: form.serves_food,
         food_menu_description: form.food_menu_description || undefined,
         image_urls: form.image_urls,
+        max_nights_per_stay: form.max_nights_per_stay ? parseInt(form.max_nights_per_stay) : null,
+        available_days: availableDays.length < 7 ? availableDays : null,
       };
 
       await placesApi.update(Number(id), updateData);
@@ -228,6 +236,29 @@ export default function EditPlacePage() {
             <div><label className="block text-xs text-gray-500 mb-1">Max Length (ft)</label><input type="number" step="0.1" value={form.max_vehicle_length_ft} onChange={e => setForm(f => ({ ...f, max_vehicle_length_ft: e.target.value }))} className="bg-white border-gray-300 text-gray-900" /></div>
             <div><label className="block text-xs text-gray-500 mb-1">Max Height (ft)</label><input type="number" step="0.1" value={form.max_vehicle_height_ft} onChange={e => setForm(f => ({ ...f, max_vehicle_height_ft: e.target.value }))} className="bg-white border-gray-300 text-gray-900" /></div>
             <div><label className="block text-xs text-gray-500 mb-1">Max Width (ft)</label><input type="number" step="0.1" value={form.max_vehicle_width_ft} onChange={e => setForm(f => ({ ...f, max_vehicle_width_ft: e.target.value }))} className="bg-white border-gray-300 text-gray-900" /></div>
+          </div>
+        </div>
+
+        {/* Booking Rules */}
+        <div className="card bg-white p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Booking Rules</h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Max Nights Per Stay</label>
+            <p className="text-xs text-gray-500 mb-2">Leave blank for no limit.</p>
+            <input type="number" min="1" max="30" value={form.max_nights_per_stay} onChange={e => setForm(f => ({ ...f, max_nights_per_stay: e.target.value }))} placeholder="e.g. 7" className="bg-white border-gray-300 text-gray-900 w-32" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Available Check-in Days</label>
+            <p className="text-xs text-gray-500 mb-3">Deselect days guests cannot check in.</p>
+            <div className="flex flex-wrap gap-2">
+              {[{ label: 'Mon', value: 1 }, { label: 'Tue', value: 2 }, { label: 'Wed', value: 3 }, { label: 'Thu', value: 4 }, { label: 'Fri', value: 5 }, { label: 'Sat', value: 6 }, { label: 'Sun', value: 7 }].map(({ label, value }) => (
+                <button key={value} type="button"
+                  onClick={() => setAvailableDays(prev => prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value].sort())}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold border transition-colors ${availableDays.includes(value) ? 'bg-green-800 text-white border-green-800' : 'bg-gray-100 text-gray-500 border-gray-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

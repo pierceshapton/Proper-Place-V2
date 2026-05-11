@@ -32,6 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   List<Map<String, dynamic>> _conversations = [];
   List<Map<String, dynamic>> _bookings = [];
   bool _payoutsEnabled = false;
+  bool _referralEnabled = false;
 
   // Onboarding state
   bool _contractSigned = false;
@@ -48,6 +49,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _loadDataAndCalculateMetrics();
     _checkPayoutStatus();
     _loadOnboardingStatus();
+    _loadFeatureFlags();
   }
 
   Future<void> _loadOnboardingStatus() async {
@@ -67,6 +69,19 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
       if (mounted) {
         setState(() => _onboardingLoaded = true);
       }
+    }
+  }
+
+  Future<void> _loadFeatureFlags() async {
+    try {
+      final flags = await ApiService.getFeatureFlags();
+      if (mounted) {
+        setState(() {
+          _referralEnabled = flags['referral_enabled'] ?? false;
+        });
+      }
+    } catch (_) {
+      // Default to false (hidden) on error
     }
   }
 
@@ -788,7 +803,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           ),
           const SizedBox(height: 12),
 
-          // Refer a Host Card
+          // Refer a Host Card — shown only when referral_enabled flag is true
+          if (_referralEnabled)
           Opacity(
             opacity: _needsOnboarding ? 0.4 : 1.0,
             child: IgnorePointer(

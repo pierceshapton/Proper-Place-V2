@@ -343,6 +343,61 @@ async function createBooking(req, res, next) {
       });
     }
 
+    // Place-level booking constraints (max nights, available days, re-booking gap)
+    if (data.place_id) {
+      const constraintsResult = await db.query(
+        'SELECT max_nights_per_stay, available_days FROM places WHERE id = $1',
+        [data.place_id]
+      );
+      if (constraintsResult.rows.length > 0) {
+        const place = constraintsResult.rows[0];
+
+        // Max nights per stay
+        if (place.max_nights_per_stay != null && nights > place.max_nights_per_stay) {
+          return res.status(400).json({
+            error: 'max_nights_exceeded',
+            message: `This site allows a maximum of ${place.max_nights_per_stay} night${place.max_nights_per_stay === 1 ? '' : 's'} per stay.`,
+          });
+        }
+
+        // Available check-in days (1=Mon … 7=Sun, matching Dart DateTime.weekday)
+        if (place.available_days != null && place.available_days.length > 0) {
+          const jsDayOfWeek = checkIn.getDay(); // 0=Sun … 6=Sat
+          const dartWeekday = jsDayOfWeek === 0 ? 7 : jsDayOfWeek; // 1=Mon … 7=Sun
+          if (!place.available_days.includes(dartWeekday)) {
+            const dayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const allowedNames = place.available_days.map(d => dayNames[d]).join(', ');
+            return res.status(400).json({
+              error: 'day_not_available',
+              message: `Check-in is only available on: ${allowedNames}.`,
+            });
+          }
+        }
+
+        // 1-night gap between bookings at the same place for the same guest
+        const gapResult = await db.query(
+          `SELECT MAX(check_out_date) as last_checkout
+           FROM bookings
+           WHERE place_id = $1
+             AND user_id = $2
+             AND status NOT IN ('cancelled', 'Cancelled', 'rejected', 'Rejected')`,
+          [data.place_id, userId]
+        );
+        if (gapResult.rows[0]?.last_checkout) {
+          const lastCheckout = new Date(gapResult.rows[0].last_checkout);
+          lastCheckout.setHours(0, 0, 0, 0);
+          const checkInDay = new Date(checkIn);
+          checkInDay.setHours(0, 0, 0, 0);
+          if (checkInDay <= lastCheckout) {
+            return res.status(400).json({
+              error: 'insufficient_gap',
+              message: 'You must leave at least one night before re-booking this site.',
+            });
+          }
+        }
+      }
+    }
+
     // Default times to 12:00 (midday)
     const checkInTime = data.check_in_time || '12:00';
     const checkOutTime = data.check_out_time || '12:00';

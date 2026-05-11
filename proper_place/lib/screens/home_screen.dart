@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:proper_place/config/app_config.dart';
 import 'package:proper_place/services/storage_service.dart';
+import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/notification_service.dart';
 import 'package:proper_place/widgets/notification_badge.dart';
 import 'map_places_screen_new.dart';
@@ -26,6 +27,7 @@ import 'admin_contact_messages_screen.dart';
 import 'admin_more_screen.dart';
 import 'host_tutorial_screen.dart';
 import 'host_create_site_screen.dart';
+import 'onboarding_popup.dart';
 import 'welcome_screen.dart';
 
 /// Reusable custom bottom navigation bar widget
@@ -172,6 +174,11 @@ class HomeScreen extends StatefulWidget {
   static void setFocusPlace(String placeId, double lat, double lng) {
     _HomeScreenState._pendingFocusPlace = {'id': placeId, 'lat': lat, 'lng': lng};
   }
+
+  /// Static method to open the Plan Route bottom sheet on the map tab
+  static void showPlanRoute() {
+    _HomeScreenState._instance?._mapKey.currentState?.showRouteForm();
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
@@ -179,9 +186,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static int? _nextTabIndex;
   // Static field to focus on a specific place after switching to map tab
   static Map<String, dynamic>? _pendingFocusPlace;
+  // Static reference to current instance for screenshot helpers
+  static _HomeScreenState? _instance;
   
   // Global key for map screen to allow refreshing markers
   final GlobalKey<dynamic> _mapKey = GlobalKey();
+  // Incremented to force MyPlacesHostScreen to rebuild after site submission
+  int _placesRebuildKey = 0;
   
   List<Map<String, dynamic>> places = [];
   bool isLoading = true;
@@ -191,6 +202,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? userRole;
   bool isHostMode = false;
   bool isAdminMode = false;
+  bool _hostBaseBannerEnabled = false;
   bool _rolesLoaded = false;
   bool _authLoading = false;
   bool _authLoadFailed = false;
@@ -210,6 +222,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _instance = this;
     WidgetsBinding.instance.addObserver(this);
     
     // Setup notification timer immediately (non-blocking)
@@ -229,11 +242,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // Now load places and notification counts
         _loadPlaces();
         _loadNotificationCounts();
+        _loadAppFeatureFlags();
 
         // Show host tutorial on first host mode access
         if (isHostMode) {
           _checkShowHostTutorial();
         }
+
+        // Show first-login onboarding popup for new users
+        _checkShowOnboarding();
       });
       
       // Handle navigation with selectedTab argument or static variable
@@ -259,8 +276,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  Future<void> _loadAppFeatureFlags() async {
+    try {
+      final flags = await ApiService.getFeatureFlags();
+      if (mounted) {
+        setState(() {
+          _hostBaseBannerEnabled = flags['host_base_banner_enabled'] ?? true;
+        });
+      }
+    } catch (_) {
+      // Default to showing the banner if the endpoint is unreachable
+      if (mounted) setState(() => _hostBaseBannerEnabled = true);
+    }
+  }
+
   @override
   void dispose() {
+    if (_instance == this) _instance = null;
     _notificationRefreshTimer?.cancel(); // Cancel the notification refresh timer
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -350,7 +382,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             if (mounted) {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const HostCreateSiteScreen(),
+                  builder: (_) => HostCreateSiteScreen(
+                    onSiteSubmitted: () {
+                      setState(() {
+                        _currentIndex = 1;
+                        _placesRebuildKey++;
+                      });
+                    },
+                  ),
                 ),
               );
             }
@@ -359,6 +398,69 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('[HostTutorial] Error: $e');
+    }
+  }
+
+  /// Check whether first-login onboarding should be shown and, if so, show it.
+  /// The popup shows exactly once per user (per userId) and never again after
+  /// the user submits their details.
+  Future<void> _checkShowOnboarding() async {
+    try {
+      String? userId = await StorageService.getUserId();
+      debugPrint('[Onboarding] _checkShowOnboarding userId=$userId');
+
+      // Best-effort recovery: if token is present but user_id wasn't saved
+      // by the auth flow, fetch it from /auth/me. Don't block on this.
+      if (userId == null) {
+        try {
+          final me = await ApiService.getCurrentUser()
+              .timeout(const Duration(seconds: 4));
+          final id = me['id'] ?? me['user_id'];
+          if (id != null) {
+            userId = id.toString();
+            await StorageService.saveUserId(userId);
+            debugPrint('[Onboarding] Recovered userId from /auth/me: $userId');
+          }
+        } catch (e) {
+          debugPrint('[Onboarding] /auth/me lookup failed: $e');
+        }
+      }
+
+      // Use a device-wide fallback when userId is still unknown so the
+      // popup still shows on a fresh install.
+      final done = await StorageService.hasCompletedOnboarding(userId);
+      debugPrint(
+          '[Onboarding] hasCompletedOnboarding=$done userId=$userId mounted=$mounted');
+      if (done || !mounted) return;
+
+      // Small delay so the home UI is fully rendered before the dialog appears
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+
+      debugPrint('[Onboarding] Showing onboarding popup');
+      final result = await showOnboardingPopup(context);
+      if (!mounted) return;
+
+      // Onboarding done — now safe to request location permission
+      try {
+        (_mapKey.currentState as dynamic).requestLocation();
+      } catch (_) {}
+
+      if (result == null) return;
+
+      if (result.becameHost) {
+        // Update local state so the home screen rebuilds in host mode
+        setState(() {
+          userRole = 'host';
+          isHostMode = true;
+          isAdminMode = false;
+          _currentIndex = 0;
+        });
+        // Then launch the host-side tutorial
+        _checkShowHostTutorial();
+      }
+    } catch (e) {
+      debugPrint('[Onboarding] Error: $e');
     }
   }
 
@@ -942,7 +1044,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Get the appropriate screen for the current tab based on role and host mode
   Widget _getScreenForTab(int index) {
-    debugPrint('[HomeScreen] _getScreenForTab($index) role=$userRole adminMode=$isAdminMode hostMode=$isHostMode');
     // Admin in admin mode
     if (userRole == 'admin' && isAdminMode) {
       return index == 0
@@ -971,7 +1072,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               },
             )
           : index == 1
-              ? const MyPlacesHostScreen()
+              ? MyPlacesHostScreen(key: ValueKey(_placesRebuildKey))
               : index == 2
                   ? BookingsHostScreen(onRefresh: _loadNotificationCounts)
                   : index == 3
@@ -1178,7 +1279,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ? const Center(
                 child: CircularProgressIndicator(color: Color(0xFF7BA7D8)),
               )
-            : _getScreenForTab(_currentIndex),
+            : Column(
+                children: [
+                  Expanded(child: _getScreenForTab(_currentIndex)),
+                  // Host base banner — shown only on map tab for normal users, controlled by DB flag
+                  if (_hostBaseBannerEnabled && !isHostMode && !isAdminMode && _currentIndex == 0)
+                    Container(
+                      width: double.infinity,
+                      color: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      child: const Text(
+                        'Please wait for sites while we build our host base. Check back soon!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
         bottomNavigationBar: CustomBottomNavBar(
           currentIndex: _currentIndex,
           onTap: (index) {

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Proper Place — App Store Screenshots</title>
+<style>
+  @font-face {
+    font-family: 'Fraunces';
+    src: url('fraunces-700.ttf') format('truetype');
+    font-weight: 700;
+  }
+  @font-face {
+    font-family: 'Fraunces';
+    src: url('fraunces-800.ttf') format('truetype');
+    font-weight: 800;
+  }
+  @font-face {
+    font-family: 'Fraunces';
+    src: url('fraunces-900.ttf') format('truetype');
+    font-weight: 900;
+  }
+</style>
+
+<script>
+/* ============================================================
+   SCREENSHOT CONFIG — edit this block only
+   ============================================================
+   Each entry produces one App Store screenshot.
+   - title:    Bold headline. Use \n for line breaks.
+   - subtitle: Smaller line below the title. Use \n for line breaks.
+   - phone:    Filename of the phone screenshot image (in this folder).
+               All slides can share the same image, or each can use a
+               different one. Drop images alongside this file.
+   - framed:   Set to true if the image already has a phone bezel/shadow
+               baked in. Removes the template's container frame so there
+               is no double-border effect.
+   ============================================================ */
+const SCREENSHOTS = [
+  {
+    title:    "Discover Proper\nPlaces to Stay\nAcross the UK",
+    subtitle: "Interactive map of unique\novernight spots",
+    phone:    "iphone-map.png",
+    framed:   false,
+  },
+  {
+    title:    "Plan Your Route,\nFind Places\nAlong the Way",
+    subtitle: "Set your journey and we'll\nfind spots nearby",
+    phone:    "iphone-plan-route.png",
+    framed:   false,
+  },
+  {
+    title:    "Simple,\nInstant\nBooking",
+    subtitle: "No hidden fees,\nno surprises",
+    phone:    "iphone-booking-detail.png",
+    framed:   false,
+  },
+];
+/* ============================================================ */
+</script>
+
+<style>
+  /* ── Design tokens ─────────────────────────────────────────── */
+  :root {
+    --bg:            #E8E2D3;   /* warm cream background          */
+    --title-color:   #1D3A1F;   /* dark forest green title        */
+    --subtitle-color:#2F64C5;   /* stronger Proper Place blue     */
+    --brand-blue:    #4C79C9;   /* Proper Place blue accent       */
+    --brand-blue-deep:#2F64C5;  /* deeper blue for emphasis       */
+
+    /* Canvas size is set by profile via JS */
+    --w: 1242px;
+    --h: 2688px;
+
+    /* Typography */
+    --title-size:      168px;
+    --title-leading:   0.93;
+    --subtitle-size:   66px;
+    --subtitle-leading:1.2;
+
+    /* Layout */
+    --title-top:       90px;
+    --subtitle-top:    420px;
+    --phone-top:       660px;
+    --phone-w:         1084px;
+    --phone-h:         2060px;
+    --phone-radius:    86px;
+
+    /* Pre-framed phone image placement */
+    --framed-top:      560px;
+    --framed-w:        1180px;
+    --framed-h:        2200px;
+  }
+
+  html, body { margin: 0; padding: 0; }
+
+  /* One full-size canvas per screenshot */
+  .slide {
+    position: relative;
+    width: var(--w);
+    height: var(--h);
+    background: var(--bg);
+    overflow: hidden;
+    font-family: 'Fraunces', Georgia, serif;
+  }
+
+  .slide::before {
+    content: '';
+    position: absolute;
+    top: -240px;
+    right: -140px;
+    width: 760px;
+    height: 760px;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, rgba(76, 121, 201, 0.22) 0%, rgba(76, 121, 201, 0) 68%);
+    pointer-events: none;
+  }
+
+  .slide::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: linear-gradient(90deg, rgba(47,100,197,0.0) 0%, rgba(47,100,197,0.75) 48%, rgba(47,100,197,0.0) 100%);
+    pointer-events: none;
+  }
+
+  .brand-pill {
+    position: absolute;
+    top: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 800;
+    font-size: 34px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-blue-deep) 100%);
+    border-radius: 999px;
+    padding: 12px 30px 14px;
+    letter-spacing: 0.01em;
+    box-shadow: 0 12px 26px rgba(47,100,197,0.35);
+  }
+
+  .title {
+    position: absolute;
+    top: var(--title-top);
+    left: 0; right: 0;
+    text-align: center;
+    color: var(--title-color);
+    font-weight: 900;
+    font-size: var(--title-size);
+    line-height: var(--title-leading);
+    letter-spacing: -0.015em;
+    padding: 0 70px;
+    white-space: pre-line;
+    text-shadow: 0 2px 0 rgba(76,121,201,0.20);
+  }
+
+  .subtitle {
+    position: absolute;
+    left: 0; right: 0;
+    text-align: center;
+    color: var(--subtitle-color);
+    font-weight: 800;
+    font-size: var(--subtitle-size);
+    line-height: var(--subtitle-leading);
+    padding: 0 80px;
+    white-space: pre-line;
+    top: var(--subtitle-top);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.16), 0 10px 24px rgba(47,100,197,0.20);
+  }
+
+  .subtitle-divider {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: calc(var(--subtitle-top) + 190px);
+    width: 320px;
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(47,100,197,0.0) 0%, rgba(47,100,197,0.95) 50%, rgba(47,100,197,0.0) 100%);
+  }
+
+  /* Raw screenshot: template adds frame */
+  .phone {
+    position: absolute;
+    top: var(--phone-top);
+    left: 50%;
+    transform: translateX(-50%);
+    width: var(--phone-w);
+    height: var(--phone-h);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center top;
+    border-radius: var(--phone-radius);
+    box-shadow:
+      0 40px 100px rgba(45,76,130,0.20),
+      0 10px 30px  rgba(0,0,0,0.10);
+  }
+
+  /* Pre-framed screenshot: image already has bezel + shadow */
+  .phone-framed {
+    position: absolute;
+    top: var(--framed-top);
+    left: 50%;
+    transform: translateX(-50%);
+    width: var(--framed-w);
+    height: var(--framed-h);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center top;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* ── Gallery mode (no ?slide= param): show all slides stacked ── */
+  body.gallery {
+    background: #c8c0b0;
+    padding: 60px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    height: auto;
+    width: var(--w);
+  }
+  body.gallery .slide {
+    flex-shrink: 0;
+    outline: 1px solid rgba(0,0,0,0.08);
+  }
+</style>
+</head>
+<body>
+
+<script>
+  const PROFILES = {
+    iphone65: {
+      w: '1242px',
+      h: '2688px',
+      titleSize: '110px',
+      subtitleSize: '52px',
+      titleTop: '90px',
+      subtitleTop: '460px',
+      phoneTop: '620px',
+      phoneW: '1084px',
+      phoneH: '2000px',
+      phoneRadius: '86px',
+      framedTop: '590px',
+      framedW: '1180px',
+      framedH: '2040px',
+    },
+    ipad13: {
+      w: '2064px',
+      h: '2752px',
+      titleSize: '158px',
+      subtitleSize: '72px',
+      titleTop: '110px',
+      subtitleTop: '620px',
+      phoneTop: '810px',
+      phoneW: '1380px',
+      phoneH: '1850px',
+      phoneRadius: '92px',
+      framedTop: '610px',
+      framedW: '1480px',
+      framedH: '2040px',
+    },
+  };
+
+  /* Read ?slide=N URL param (0-indexed). If absent, show gallery. */
+  const params   = new URLSearchParams(location.search);
+  const slideIdx = params.has('slide') ? parseInt(params.get('slide'), 10) : null;
+  const profileName = params.get('profile') || 'iphone65';
+  const profile = PROFILES[profileName] || PROFILES.iphone65;
+
+  const root = document.documentElement.style;
+  root.setProperty('--w', profile.w);
+  root.setProperty('--h', profile.h);
+  root.setProperty('--title-size', profile.titleSize);
+  root.setProperty('--subtitle-size', profile.subtitleSize);
+  root.setProperty('--title-top', profile.titleTop);
+  root.setProperty('--subtitle-top', profile.subtitleTop);
+  root.setProperty('--phone-top', profile.phoneTop);
+  root.setProperty('--phone-w', profile.phoneW);
+  root.setProperty('--phone-h', profile.phoneH);
+  root.setProperty('--phone-radius', profile.phoneRadius);
+  root.setProperty('--framed-top', profile.framedTop);
+  root.setProperty('--framed-w', profile.framedW);
+  root.setProperty('--framed-h', profile.framedH);
+
+  const toRender = (slideIdx !== null)
+    ? [SCREENSHOTS[slideIdx]]
+    : SCREENSHOTS;
+
+  if (slideIdx === null) {
+    document.body.classList.add('gallery');
+  }
+
+  toRender.forEach(cfg => {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+
+    const brandPill = document.createElement('div');
+    brandPill.className = 'brand-pill';
+    brandPill.textContent = 'Proper Place';
+
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = cfg.title;
+
+    const subtitle = document.createElement('div');
+    subtitle.className = 'subtitle';
+    subtitle.textContent = cfg.subtitle;
+
+    const subtitleDivider = document.createElement('div');
+    subtitleDivider.className = 'subtitle-divider';
+
+    const phone = document.createElement('div');
+    phone.className = cfg.framed ? 'phone-framed' : 'phone';
+    phone.style.backgroundImage = `url('${cfg.phone}')`;
+
+    slide.appendChild(brandPill);
+    slide.appendChild(title);
+    slide.appendChild(subtitle);
+    slide.appendChild(subtitleDivider);
+    slide.appendChild(phone);
+    document.body.appendChild(slide);
+  });
+</script>
+
+</body>
+</html>

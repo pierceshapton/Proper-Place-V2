@@ -17,26 +17,10 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _vanRegController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-
-  // Vehicle dimensions (stored in feet internally)
-  double _vehicleHeight = 12.0;
-  double _vehicleWidth = 8.0;
-  double _vehicleLength = 25.0;
-  String _unit = 'ft';
-
-  double _feetToMetres(double feet) => feet * 0.3048;
-
-  String _formatValue(double valueFt) {
-    if (_unit == 'm') {
-      return '${_feetToMetres(valueFt).toStringAsFixed(2)}m';
-    }
-    return '${valueFt.toStringAsFixed(1)}ft';
-  }
 
   @override
   void dispose() {
@@ -44,7 +28,6 @@ class _SignupScreenState extends State<SignupScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _vanRegController.dispose();
     super.dispose();
   }
 
@@ -86,7 +69,6 @@ class _SignupScreenState extends State<SignupScreen> {
         name: name,
         password: password,
         confirmPassword: confirmPassword,
-        vehicleRegistration: _vanRegController.text.trim().toUpperCase(),
       );
 
       if (!mounted) return;
@@ -101,29 +83,26 @@ class _SignupScreenState extends State<SignupScreen> {
       }
       await StorageService.saveUserName(name);
       
-      // Extract user data from nested 'user' object
-      final user = response['user'];
-      if (user != null) {
-        if (user['id'] != null) {
-          await StorageService.saveUserId(user['id'].toString());
-        }
-        if (user['email'] != null) {
-          await StorageService.saveUserEmail(user['email']);
-        }
-        if (user['role'] != null) {
-          await StorageService.saveUserRole(user['role']);
-        }
+      // Save user data — response may be nested under 'user' or flat
+      final Map<String, dynamic> user =
+          (response['user'] is Map<String, dynamic>)
+              ? Map<String, dynamic>.from(response['user'] as Map)
+              : response;
+      final rawId = user['id'] ?? user['user_id'] ?? response['user_id'];
+      if (rawId != null) {
+        await StorageService.saveUserId(rawId.toString());
+      }
+      final savedEmail = user['email'] ?? response['email'];
+      if (savedEmail != null) {
+        await StorageService.saveUserEmail(savedEmail);
+      }
+      final savedRole = user['role'] ?? response['role'];
+      if (savedRole != null) {
+        await StorageService.saveUserRole(savedRole);
       }
 
-      // Save vehicle dimensions
-      await StorageService.saveVehicleDimensions(
-        height: _vehicleHeight,
-        width: _vehicleWidth,
-        length: _vehicleLength,
-        unit: _unit,
-      );
-      
       if (!mounted) return;
+      TextInput.finishAutofillContext();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => EmailVerificationScreen(email: email),
@@ -210,7 +189,11 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Name Field
+                      AutofillGroup(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -225,6 +208,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 8),
                           TextField(
                             controller: _nameController,
+                            autofillHints: const [AutofillHints.name],
                             decoration: InputDecoration(
                               hintText: 'Enter your full name',
                               hintStyle: TextStyle(color: Colors.grey[700]),
@@ -272,6 +256,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 8),
                           TextField(
                             controller: _emailController,
+                            autofillHints: const [AutofillHints.email],
                             decoration: InputDecoration(
                               hintText: 'Enter your email',
                               hintStyle: TextStyle(color: Colors.grey[700]),
@@ -321,6 +306,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           TextField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
+                            autofillHints: const [AutofillHints.newPassword],
                             decoration: InputDecoration(
                               hintText: 'At least 8 characters',
                               hintStyle: TextStyle(color: Colors.grey[700]),
@@ -377,6 +363,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           TextField(
                             controller: _confirmPasswordController,
                             obscureText: _obscureConfirmPassword,
+                            autofillHints: const [AutofillHints.newPassword],
                             onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
                               hintText: 'Confirm your password',
@@ -428,178 +415,10 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 20),
-
-                      // Van Registration Field
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Van Registration',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Required for booking — can be changed later in your profile',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _vanRegController,
-                            textCapitalization: TextCapitalization.characters,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 \-]')),
-                              LengthLimitingTextInputFormatter(15),
-                            ],
-                            decoration: InputDecoration(
-                              hintText: 'e.g. AB12CDE',
-                              hintStyle: TextStyle(color: Colors.grey[700]),
-                              prefixIcon: const Icon(Icons.directions_car, color: Color(0xFF7BA7D8)),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: Colors.grey[300]!,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: Colors.grey[300]!,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF7BA7D8),
-                                  width: 2,
-                                ),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Vehicle Dimensions Section
-                      Text(
-                        'Vehicle Dimensions',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Helps us show places that fit your vehicle',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Unit Toggle
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() => _unit = 'ft'),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: _unit == 'ft' ? const Color(0xFF7BA7D8) : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      'Feet',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: _unit == 'ft' ? Colors.white : Colors.grey[600],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() => _unit = 'm'),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: _unit == 'm' ? const Color(0xFF7BA7D8) : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      'Metres',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: _unit == 'm' ? Colors.white : Colors.grey[600],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
-
-                      // Height Slider
-                      _buildDimensionRow(
-                        icon: Icons.height,
-                        label: 'Height',
-                        value: _vehicleHeight,
-                        min: 3.3,
-                        max: 16.4,
-                        onChanged: (v) => setState(() => _vehicleHeight = v),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Width Slider
-                      _buildDimensionRow(
-                        icon: Icons.swap_horiz,
-                        label: 'Width',
-                        value: _vehicleWidth,
-                        min: 4.0,
-                        max: 8.0,
-                        onChanged: (v) => setState(() => _vehicleWidth = v),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Length Slider
-                      _buildDimensionRow(
-                        icon: Icons.straighten,
-                        label: 'Length',
-                        value: _vehicleLength,
-                        min: 6.6,
-                        max: 49.2,
-                        onChanged: (v) => setState(() => _vehicleLength = v),
-                      ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
                       // Error Message
                       if (_errorMessage != null)
@@ -707,68 +526,6 @@ class _SignupScreenState extends State<SignupScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildDimensionRow({
-    required IconData icon,
-    required String label,
-    required double value,
-    required double min,
-    required double max,
-    required ValueChanged<double> onChanged,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, color: const Color(0xFF7BA7D8), size: 20),
-        const SizedBox(width: 6),
-        SizedBox(
-          width: 48,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
-            ),
-          ),
-        ),
-        Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            ),
-            child: Slider(
-              value: value,
-              min: min,
-              max: max,
-              divisions: ((max - min) * 2).toInt(),
-              activeColor: const Color(0xFF7BA7D8),
-              inactiveColor: const Color(0xFF7BA7D8).withOpacity(0.2),
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-        Container(
-          width: 58,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            _formatValue(value),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[800],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -312,6 +312,15 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         userCheckoutDates: _userCheckoutDates,
         userCheckinHours: _userCheckinHours,
         userCheckoutHours: _userCheckoutHours,
+        maxNightsPerStay: widget.place['max_nights_per_stay'] != null
+            ? int.tryParse(widget.place['max_nights_per_stay'].toString())
+            : null,
+        availableDays: widget.place['available_days'] is List
+            ? List<int>.from(
+                (widget.place['available_days'] as List)
+                    .map((d) => int.tryParse(d.toString()) ?? 0)
+                    .where((d) => d > 0))
+            : const [],
         onRangeSelected: (checkIn, checkOut) {
           setState(() {
             _checkInDate = checkIn;
@@ -888,6 +897,64 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                     widget.place['description'] ?? 'No description',
                     style: TextStyle(color: Colors.grey[700]),
                   ),
+
+                  // Booking policy (max nights / available days)
+                  Builder(builder: (context) {
+                    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    final maxNights = widget.place['max_nights_per_stay'] != null
+                        ? int.tryParse(widget.place['max_nights_per_stay'].toString())
+                        : null;
+                    final availDays = widget.place['available_days'] is List
+                        ? List<int>.from(
+                            (widget.place['available_days'] as List)
+                                .map((d) => int.tryParse(d.toString()) ?? 0)
+                                .where((d) => d > 0))
+                        : <int>[];
+                    final hasPolicies = maxNights != null || availDays.isNotEmpty;
+                    if (!hasPolicies) return const SizedBox.shrink();
+                    return Container(
+                      margin: const EdgeInsets.only(top: 16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F4F8),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Booking Rules',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 6),
+                          if (maxNights != null)
+                            Row(children: [
+                              const Icon(Icons.nights_stay, size: 16, color: Color(0xFF7BA7D8)),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Max stay: $maxNights night${maxNights == 1 ? '' : 's'}',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ]),
+                          if (availDays.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(children: [
+                              const Icon(Icons.event_available, size: 16, color: Color(0xFF7BA7D8)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Check-in on: ${availDays.map((d) => dayNames[d - 1]).join(', ')}',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            ]),
+                          ],
+                        ],
+                      ),
+                    );
+                  }),
+
                   const SizedBox(height: 24),
 
                   // Booking Section (Calendar)

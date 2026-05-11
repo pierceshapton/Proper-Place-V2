@@ -80,14 +80,21 @@ Future<void> openBooking(int bookingId) async {
     headers: {'Authorization': 'Bearer $token'},
   );
   if (resp.statusCode == 200) {
-    final booking = jsonDecode(resp.body);
+    final respJson = jsonDecode(resp.body);
+    final rawBooking = respJson is Map && respJson.containsKey('booking') ? respJson['booking'] as Map<String, dynamic> : respJson as Map<String, dynamic>;
+    // Normalize field names to match BookingDetailScreen expectations
+    final booking = Map<String, dynamic>.from(rawBooking);
+    booking['booking_id'] ??= rawBooking['id'];
+    booking['check_in'] ??= rawBooking['check_in_date'];
+    booking['check_out'] ??= rawBooking['check_out_date'];
     final placeResp = await http.get(
       Uri.parse('${AppConfig.properPlaceBackendUrl}/places/${booking['place_id']}'),
       headers: {'Authorization': 'Bearer $token'},
     );
     if (placeResp.statusCode == 200) {
-      final placeJson = jsonDecode(placeResp.body);
-      final place = Place.fromJson(placeJson is Map<String, dynamic> ? placeJson : placeJson['place']);
+      final placeJson = jsonDecode(placeResp.body) as Map<String, dynamic>;
+      final placeData = placeJson.containsKey('place') ? placeJson['place'] as Map<String, dynamic> : placeJson;
+      final place = Place.fromJson(placeData);
       Future.delayed(Duration(milliseconds: 50), () {
         navigatorKey.currentState!.push(
           MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking, place: place)),
@@ -101,6 +108,14 @@ Future<void> openBooking(int bookingId) async {
 void goBack() {
   Future.delayed(Duration(milliseconds: 50), () {
     navigatorKey.currentState!.pop();
+  });
+}
+
+// Screenshot helper: go to map tab and open Plan Route sheet
+void openPlanRouteSheet() {
+  goToTab(0);
+  Future.delayed(Duration(milliseconds: 1000), () {
+    HomeScreen.showPlanRoute();
   });
 }
 

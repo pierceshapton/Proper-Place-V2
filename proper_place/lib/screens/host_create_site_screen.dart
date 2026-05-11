@@ -108,6 +108,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   GoogleMapController? _mapController;
 
   double _minPrice = 5.0;
+  int _maxNightsPerStay = 0; // 0 = no limit
+  // Indexed 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun  (all true = all days allowed)
+  List<bool> _availableDays = List.filled(7, true);
 
   @override
   void initState() {
@@ -233,6 +236,17 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       }
 
       // Amenities removed — no longer collected
+      
+      // Load max nights and available days
+      _maxNightsPerStay = int.tryParse(site['max_nights_per_stay']?.toString() ?? '') ?? 0;
+      if (site['available_days'] is List) {
+        final days = site['available_days'] as List;
+        _availableDays = List.filled(7, false);
+        for (final d in days) {
+          final idx = (int.tryParse(d.toString()) ?? 0) - 1; // 1=Mon->0 … 7=Sun->6
+          if (idx >= 0 && idx < 7) _availableDays[idx] = true;
+        }
+      }
       
       // Set pre-computed image URLs
       existingMainPhotoUrl = mainPhotoUrl;
@@ -427,11 +441,24 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         ? accessRouteController.text 
         : 'Access route pending';
 
+    // Max nights per stay
+    if (_maxNightsPerStay > 0) {
+      data['max_nights_per_stay'] = _maxNightsPerStay;
+    }
+    // Available days (only include if not all 7 days selected)
+    final selectedDaysDraft = <int>[];
+    for (int i = 0; i < 7; i++) {
+      if (_availableDays[i]) selectedDaysDraft.add(i + 1); // 1=Mon…7=Sun
+    }
+    if (selectedDaysDraft.length < 7) {
+      data['available_days'] = selectedDaysDraft;
+    }
+
     return data;
   }
 
   Map<String, dynamic> _buildSiteData() {
-    final data = {
+    final Map<String, dynamic> data = {
       'name': siteNameController.text,
       'address': addressController.text,
       'description': descriptionController.text,
@@ -460,6 +487,19 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     if (showBusinessInfo && businessDescriptionController.text.isNotEmpty) {
       data['business_description'] = businessDescriptionController.text;
     }
+
+    // Max nights per stay
+    if (_maxNightsPerStay > 0) {
+      data['max_nights_per_stay'] = _maxNightsPerStay;
+    } else {
+      data['max_nights_per_stay'] = null as Object?;
+    }
+    // Available days
+    final selectedDaysSite = <int>[];
+    for (int i = 0; i < 7; i++) {
+      if (_availableDays[i]) selectedDaysSite.add(i + 1); // 1=Mon…7=Sun
+    }
+    data['available_days'] = (selectedDaysSite.length < 7 ? selectedDaysSite : null) as Object?;
 
     return data;
   }
@@ -1362,6 +1402,105 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Max Nights Per Stay
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Max Nights Per Stay',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Limit how many consecutive nights a guest can book (0 = no limit)',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _maxNightsPerStay > 0 ? () => setState(() => _maxNightsPerStay--) : null,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: _maxNightsPerStay > 0 ? const Color(0xFF1B4332) : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.remove, color: _maxNightsPerStay > 0 ? Colors.white : Colors.grey[500]),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Text(
+                      _maxNightsPerStay == 0 ? 'No limit' : '$_maxNightsPerStay',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 20),
+                    GestureDetector(
+                      onTap: _maxNightsPerStay < 30 ? () => setState(() => _maxNightsPerStay++) : null,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: _maxNightsPerStay < 30 ? const Color(0xFF1B4332) : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.add, color: _maxNightsPerStay < 30 ? Colors.white : Colors.grey[500]),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Available Check-in Days
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Available Check-in Days',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Select which days guests can check in (all selected = any day)',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  children: List.generate(7, (i) {
+                    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    return GestureDetector(
+                      onTap: () => setState(() => _availableDays[i] = !_availableDays[i]),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _availableDays[i] ? const Color(0xFF1B4332) : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _availableDays[i] ? const Color(0xFF1B4332) : Colors.grey[400]!,
+                          ),
+                        ),
+                        child: Text(
+                          labels[i],
+                          style: TextStyle(
+                            color: _availableDays[i] ? Colors.white : Colors.grey[700],
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),

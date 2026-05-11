@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/screens/signup_screen.dart';
@@ -96,40 +97,48 @@ class _LoginScreenState extends State<LoginScreen> {
       // Save remember me preference
       await StorageService.setRememberMe(_rememberMe, email: _emailController.text);
       
-      // Extract user data from nested 'user' object
-      final user = response['user'];
-      if (user != null) {
-    debugPrint('[Login] User object: $user');
-        if (user['id'] != null) {
-          await StorageService.saveUserId(user['id'].toString());
-        }
-        if (user['email'] != null) {
-          await StorageService.saveUserEmail(user['email']);
-        }
-        if (user['name'] != null) {
-          await StorageService.saveUserName(user['name']);
-        }
-        if (user['role'] != null) {
-          await StorageService.saveUserRole(user['role']);
-    debugPrint('[Login] Saved role: ${user['role']}');
-          // Set default mode based on account type
-          if (user['role'] == 'admin') {
-            await StorageService.setAdminMode(true);
-            await StorageService.setHostMode(false);
-          } else if (user['role'] == 'host') {
-            await StorageService.setHostMode(true);
-            await StorageService.setAdminMode(false);
-          } else {
-            await StorageService.setHostMode(false);
-            await StorageService.setAdminMode(false);
-          }
+      // The login API may return user data either nested under 'user' or as
+      // flat top-level fields ({user_id, email, name, role}). Support both.
+      final Map<String, dynamic> user =
+          (response['user'] is Map<String, dynamic>)
+              ? Map<String, dynamic>.from(response['user'] as Map)
+              : <String, dynamic>{
+                  'id': response['user_id'] ?? response['id'],
+                  'email': response['email'],
+                  'name': response['name'],
+                  'role': response['role'],
+                  'verified': response['verified'],
+                };
+      debugPrint('[Login] User object: $user');
+      if (user['id'] != null) {
+        await StorageService.saveUserId(user['id'].toString());
+      }
+      if (user['email'] != null) {
+        await StorageService.saveUserEmail(user['email']);
+      }
+      if (user['name'] != null) {
+        await StorageService.saveUserName(user['name']);
+      }
+      if (user['role'] != null) {
+        await StorageService.saveUserRole(user['role']);
+        debugPrint('[Login] Saved role: ${user['role']}');
+        // Set default mode based on account type
+        if (user['role'] == 'admin') {
+          await StorageService.setAdminMode(true);
+          await StorageService.setHostMode(false);
+        } else if (user['role'] == 'host') {
+          await StorageService.setHostMode(true);
+          await StorageService.setAdminMode(false);
+        } else {
+          await StorageService.setHostMode(false);
+          await StorageService.setAdminMode(false);
         }
       }
       
       if (!mounted) return;
       
-      // Check if email is verified
-      if (user != null && user['verified'] != true) {
+      // Check if email is verified (only when the API tells us explicitly)
+      if (user['verified'] == false) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => EmailVerificationScreen(
@@ -140,6 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       
       Navigator.of(context).pushReplacementNamed('/home');
+      TextInput.finishAutofillContext();
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {
@@ -246,6 +256,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 12),
 
+                      AutofillGroup(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                       // Email Field
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,6 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 4),
                           TextField(
                             controller: _emailController,
+                            autofillHints: const [AutofillHints.email],
                             decoration: InputDecoration(
                               hintText: 'Email',
                               hintStyle: TextStyle(color: Colors.grey[600]),
@@ -310,8 +325,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            autofillHints: const [],
-                            enableSuggestions: false,
+                            autofillHints: const [AutofillHints.password],
                             decoration: InputDecoration(
                               hintText: 'Password',
                               hintStyle: TextStyle(color: Colors.grey[600]),
@@ -416,6 +430,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ],
+                      ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 10),
 

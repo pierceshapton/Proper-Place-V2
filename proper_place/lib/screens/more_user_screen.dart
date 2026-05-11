@@ -269,40 +269,6 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Quick Actions
-                  _buildSectionTitle('Quick Actions'),
-                  const SizedBox(height: 12),
-                  _buildActionCard(
-                    icon: Icons.map_outlined,
-                    title: 'Find a Proper Place',
-                    subtitle: 'Browse all available locations',
-                    onTap: () {
-                      HomeScreen.setNextTab(0);
-                      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildActionCard(
-                    icon: Icons.favorite_outline,
-                    title: 'My Favourites',
-                    subtitle: 'View your saved Proper Places',
-                    onTap: () {
-                      HomeScreen.setNextTab(2);
-                      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildActionCard(
-                    icon: Icons.calendar_today_outlined,
-                    title: 'My Bookings',
-                    subtitle: 'View your booking history',
-                    onTap: () {
-                      HomeScreen.setNextTab(1);
-                      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
                   // Settings
                   _buildSectionTitle('Settings'),
                   const SizedBox(height: 12),
@@ -1149,6 +1115,7 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
   Future<void> _deleteAccount() async {
     final confirmed = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Account'),
         content: const Text(
@@ -1168,80 +1135,55 @@ class _MoreUserScreenState extends State<MoreUserScreen> {
     );
     if (confirmed != true || !mounted) return;
 
-    final userId = await StorageService.getUserId();
-    if (userId == null) return;
-
-    try {
-      await ApiService.deleteAccount(userId: userId);
-      await StorageService.clearUserData();
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-        (_) => false,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete account: $e'), backgroundColor: Colors.red),
-      );
+    // Resolve userId: try storage first, then GET /auth/me from token
+    String? userId = await StorageService.getUserId();
+    if (userId == null || userId.isEmpty) {
+      try {
+        final me = await ApiService.getCurrentUser().timeout(const Duration(seconds: 5));
+        final raw = me['id'] ?? me['user_id'] ?? me['user']?['id'] ?? me['user']?['user_id'];
+        if (raw != null) userId = raw.toString();
+      } catch (_) {}
     }
+
+    if (userId != null && userId.isNotEmpty) {
+      try {
+        await ApiService.deleteAccount(userId: userId);
+      } catch (e) {
+        debugPrint('[DeleteAccount] API error (proceeding anyway): $e');
+      }
+    } else {
+      debugPrint('[DeleteAccount] No userId found — skipping API call');
+    }
+    await StorageService.clearUserData();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      (_) => false,
+    );
   }
 
   Widget _buildSignOutCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.red[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.logout, color: Colors.red, size: 24),
-              SizedBox(width: 12),
-              Text(
-                'Sign Out',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Log out of your Proper Place account',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _showLogoutConfirmation,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[600],
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Logout',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+    return GestureDetector(
+      onTap: _showLogoutConfirmation,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFD1D5DB)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.logout, color: Color(0xFF9CA3AF), size: 18),
+            SizedBox(width: 10),
+            Text(
+              'Log Out',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 13,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

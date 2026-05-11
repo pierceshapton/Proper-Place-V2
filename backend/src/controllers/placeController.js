@@ -163,11 +163,12 @@ async function createPlace(req, res, next) {
     const result = await db.query(
       `INSERT INTO places (owner_id, name, description, address, city, country,
                            postal_code, latitude, longitude, price_per_night,
-                           capacity, amenities, place_type, opening_hours, 
-                           kitchen_hours, food_menu_description, serves_food, 
+                           capacity, amenities, place_type, opening_hours,
+                           kitchen_hours, food_menu_description, serves_food,
                            business_description, access_route_description, approval_status,
-                           max_vehicle_height_ft, max_vehicle_width_ft, max_vehicle_length_ft)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                           max_vehicle_height_ft, max_vehicle_width_ft, max_vehicle_length_ft,
+                           max_nights_per_stay, available_days)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
        RETURNING *`,
       [
         userId,
@@ -193,6 +194,8 @@ async function createPlace(req, res, next) {
         data.max_vehicle_height_ft || null,
         data.max_vehicle_width_ft || null,
         data.max_vehicle_length_ft || null,
+        data.max_nights_per_stay || null,
+        data.available_days || null,
       ]
     );
 
@@ -273,9 +276,9 @@ async function updatePlace(req, res, next) {
     const allowedFields = [
       'name', 'description', 'address', 'city', 'country', 'postal_code',
       'latitude', 'longitude', 'price_per_night', 'capacity', 'amenities',
-      'place_type', 'opening_hours', 'kitchen_hours', 'food_menu_description', 
-      'serves_food', 'business_description', 'access_route_description', 'max_vehicle_height_ft', 
-      'max_vehicle_width_ft', 'max_vehicle_length_ft',
+      'place_type', 'opening_hours', 'kitchen_hours', 'food_menu_description',
+      'serves_food', 'business_description', 'access_route_description', 'max_vehicle_height_ft',
+      'max_vehicle_width_ft', 'max_vehicle_length_ft', 'max_nights_per_stay', 'available_days',
     ];
 
     // Admin can also reassign ownership and approval status

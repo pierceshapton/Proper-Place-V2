@@ -35,7 +35,15 @@ class StorageService {
   
   // Welcome popup key
   static const String _hasSeenWelcomeKey = 'has_seen_welcome';
-  
+
+  // Onboarding keys
+  static const String _userBioKey = 'user_bio';
+  static const String _vanPhotoPathKey = 'van_photo_path';
+  static const String _hostPhoneKey = 'host_phone';
+  static const String _hostAddressKey = 'host_address';
+  static const String _hostLatKey = 'host_address_lat';
+  static const String _hostLngKey = 'host_address_lng';
+
   // Remember Me keys
   static const String _rememberMeKey = 'remember_me';
   static const String _rememberedEmailKey = 'remembered_email';
@@ -240,6 +248,15 @@ class StorageService {
     await prefs.remove(_mapLatKey);
     await prefs.remove(_mapLngKey);
     await prefs.remove(_mapZoomKey);
+    // Clear onboarding flags so fresh signup shows the popup again
+    await prefs.remove('onboarding_done_global');
+    // Also clear per-user flag if userId was stored
+    final keys = prefs.getKeys();
+    for (final key in keys) {
+      if (key.startsWith('onboarding_done_')) {
+        await prefs.remove(key);
+      }
+    }
     _cachedToken = null; // Clear in-memory cache
   }
 
@@ -468,6 +485,85 @@ class StorageService {
   static Future<void> setHasSeenWelcome(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_hasSeenWelcomeKey, value);
+  }
+
+  // ===== First-login onboarding =====
+
+  /// Returns true if onboarding has already been completed.
+  /// Pass [userId] to use a per-user flag; pass null to use a device-wide
+  /// fallback flag (used when the user_id isn't available locally yet).
+  static Future<bool> hasCompletedOnboarding([String? userId]) async {
+    final prefs = await SharedPreferences.getInstance();
+    final perUserDone = userId == null
+        ? false
+        : (prefs.getBool('onboarding_done_$userId') ?? false);
+    final globalDone = prefs.getBool('onboarding_done_global') ?? false;
+    return perUserDone || globalDone;
+  }
+
+  /// Mark onboarding as done so it never shows again.
+  /// Sets both the per-user flag (when [userId] is provided) and a
+  /// device-wide flag so we never show the popup twice on the same device.
+  static Future<void> setOnboardingCompleted([String? userId]) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (userId != null) {
+      await prefs.setBool('onboarding_done_$userId', true);
+    }
+    await prefs.setBool('onboarding_done_global', true);
+  }
+
+  /// Save user bio text.
+  static Future<void> saveUserBio(String bio) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userBioKey, bio);
+  }
+
+  static Future<String?> getUserBio() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userBioKey);
+  }
+
+  /// Save van profile photo local path.
+  static Future<void> saveVanPhotoPath(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_vanPhotoPathKey, path);
+  }
+
+  static Future<String?> getVanPhotoPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_vanPhotoPathKey);
+  }
+
+  /// Save host phone number.
+  static Future<void> saveHostPhone(String phone) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_hostPhoneKey, phone);
+  }
+
+  static Future<String?> getHostPhone() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_hostPhoneKey);
+  }
+
+  /// Save host address with coordinates.
+  static Future<void> saveHostAddress({
+    required String address,
+    double? lat,
+    double? lng,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_hostAddressKey, address);
+    if (lat != null) await prefs.setDouble(_hostLatKey, lat);
+    if (lng != null) await prefs.setDouble(_hostLngKey, lng);
+  }
+
+  static Future<Map<String, dynamic>> getHostAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'address': prefs.getString(_hostAddressKey),
+      'lat': prefs.getDouble(_hostLatKey),
+      'lng': prefs.getDouble(_hostLngKey),
+    };
   }
 
   /// Generic method to save a string value

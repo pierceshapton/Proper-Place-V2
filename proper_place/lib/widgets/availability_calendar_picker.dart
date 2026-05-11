@@ -17,6 +17,8 @@ class AvailabilityCalendarPicker extends StatefulWidget {
   final Set<DateTime>? userCheckoutDates;
   final Map<DateTime, double>? userCheckinHours;  // hour (0-24) of check-in per date
   final Map<DateTime, double>? userCheckoutHours; // hour (0-24) of check-out per date
+  final int? maxNightsPerStay;   // null = no limit
+  final List<int> availableDays; // 1=Mon…7=Sun; empty = all days allowed
 
   const AvailabilityCalendarPicker({
     super.key,
@@ -29,6 +31,8 @@ class AvailabilityCalendarPicker extends StatefulWidget {
     this.userCheckoutDates,
     this.userCheckinHours,
     this.userCheckoutHours,
+    this.maxNightsPerStay,
+    this.availableDays = const [],
   });
 
   @override
@@ -110,35 +114,67 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
   void _onDateTapped(DateTime date) {
     setState(() {
       if (_selectedCheckIn == null || (_selectedCheckIn != null && _selectedCheckOut != null)) {
-        // Start new selection
+        // Start new selection — only allow days that are permitted for check-in
+        if (widget.availableDays.isNotEmpty && !widget.availableDays.contains(date.weekday)) {
+          return; // Day not allowed for check-in
+        }
         _selectedCheckIn = date;
         _selectedCheckOut = null;
       } else {
         // Second tap — set checkout
         if (date.isAfter(_selectedCheckIn!)) {
+          // Enforce max nights cap
+          DateTime cappedDate = date;
+          if (widget.maxNightsPerStay != null) {
+            final maxCheckOut = _selectedCheckIn!.add(Duration(days: widget.maxNightsPerStay!));
+            if (date.isAfter(maxCheckOut)) {
+              cappedDate = maxCheckOut;
+            }
+          }
           // Validate range: no existing booking nights between check-in and check-out
-          if (_rangeHasUserBookedNights(_selectedCheckIn!, date)) {
+          if (_rangeHasUserBookedNights(_selectedCheckIn!, cappedDate)) {
             // Range overlaps existing bookings — restart with this date
+            if (widget.availableDays.isNotEmpty && !widget.availableDays.contains(date.weekday)) {
+              return;
+            }
             _selectedCheckIn = date;
             _selectedCheckOut = null;
           } else {
-            _selectedCheckOut = date;
+            _selectedCheckOut = cappedDate;
           }
         } else if (date.isBefore(_selectedCheckIn!)) {
           // Tapped before check-in — restart
+          if (widget.availableDays.isNotEmpty && !widget.availableDays.contains(date.weekday)) {
+            return;
+          }
           _selectedCheckIn = date;
           _selectedCheckOut = null;
         } else {
-          // Same day — set checkout to next day
-          _selectedCheckOut = date.add(const Duration(days: 1));
+          // Same day — set checkout to next day (if within max nights)
+          final nextDay = date.add(const Duration(days: 1));
+          if (widget.maxNightsPerStay == null || 1 <= widget.maxNightsPerStay!) {
+            _selectedCheckOut = nextDay;
+          }
         }
       }
     });
   }
 
   String get _headerText {
-    if (_selectedCheckIn == null) return 'Select check-in date';
-    if (_selectedCheckOut == null) return 'Select check-out date';
+    if (_selectedCheckIn == null) {
+      if (widget.availableDays.isNotEmpty) {
+        const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        final allowed = widget.availableDays.map((d) => dayNames[d - 1]).join(', ');
+        return 'Check-in on: $allowed';
+      }
+      return 'Select check-in date';
+    }
+    if (_selectedCheckOut == null) {
+      if (widget.maxNightsPerStay != null) {
+        return 'Select check-out (max ${widget.maxNightsPerStay} nights)';
+      }
+      return 'Select check-out date';
+    }
     final nights = _selectedCheckOut!.difference(_selectedCheckIn!).inDays;
     return '$nights night${nights == 1 ? '' : 's'} selected';
   }
@@ -253,6 +289,10 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
                     _legendDot(const Color(0xFF7BA7D8), 'Booked'),
                     const SizedBox(width: 12),
                     _legendDot(const Color(0xFFFFCDD2), 'Fully booked'),
+                    if (widget.availableDays.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      _legendDot(const Color(0xFFE0E0E0), 'Not available'),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -354,15 +394,31 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
     // check-in day of existing booking (can be new check-out)
     final canSelect = !isPast && !isFull && (!isUserBooked || isUserCheckout || isUserCheckinDay);
 
+    // Restricted day: not in host's available_days (only applies when selecting check-in)
+    final isRestrictedDay = widget.availableDays.isNotEmpty &&
+        _selectedCheckIn == null &&
+        !widget.availableDays.contains(dateOnly.weekday);
+
+    // Beyond max nights: greys out dates that would exceed max stay
+    final isBeyondMaxNights = widget.maxNightsPerStay != null &&
+        _selectedCheckIn != null &&
+        _selectedCheckOut == null &&
+        dateOnly.isAfter(_selectedCheckIn!.add(Duration(days: widget.maxNightsPerStay!)));
+
+    final effectivelyDisabled = isRestrictedDay || isBeyondMaxNights;
+
     // --- Colours ---
     const greenBooked = Color(0xFF7BA7D8); // App blue for booked dates
     const redFull = Color(0xFFFFCDD2); // fully booked
     const cream = Color(0xFFECE8DB); // App standard off-white
+    const greyRestricted = Color(0xFFE0E0E0); // greyed-out restricted days
 
     Color backgroundColor;
     Gradient? gradient;
 
-    if (isUserBooked && isUserCheckout) {
+    if (effectivelyDisabled && !isCheckIn && !isCheckOut && !isBetween) {
+      backgroundColor = greyRestricted;
+    } else if (isUserBooked && isUserCheckout) {
       // Leaving day: green on left, cream on right. Split at checkout hour.
       final checkoutHour = widget.userCheckoutHours?[dateOnly] ?? 12.0;
       final stop = (checkoutHour / 24.0).clamp(0.05, 0.95);
@@ -435,6 +491,12 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
     Color labelColor = Colors.black;
     if (isPast) {
       label = 'Past';
+    } else if (isRestrictedDay) {
+      label = 'N/A';
+      labelColor = Colors.grey[500]!;
+    } else if (isBeyondMaxNights) {
+      label = 'Max';
+      labelColor = Colors.grey[500]!;
     } else if (isUserBooked && isUserCheckout) {
       label = 'Leaving';
     } else if (isUserBooked) {
@@ -448,7 +510,7 @@ class _AvailabilityCalendarPickerState extends State<AvailabilityCalendarPicker>
     }
 
     return GestureDetector(
-      onTap: canSelect ? () => _onDateTapped(dateOnly) : null,
+      onTap: (canSelect && !effectivelyDisabled) ? () => _onDateTapped(dateOnly) : null,
       child: Container(
         decoration: BoxDecoration(
           border: border,

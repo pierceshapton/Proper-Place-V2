@@ -37,6 +37,8 @@ const schemas = {
     max_vehicle_height_ft: Joi.number().min(0).max(20).optional().allow(null),
     max_vehicle_width_ft: Joi.number().min(0).max(15).optional().allow(null),
     max_vehicle_length_ft: Joi.number().min(0).max(50).optional().allow(null),
+    max_nights_per_stay: Joi.number().integer().min(1).max(365).optional().allow(null),
+    available_days: Joi.array().items(Joi.number().integer().min(1).max(7)).optional().allow(null),
     owner_id: Joi.number().integer().optional(),
   }).unknown(true),
 

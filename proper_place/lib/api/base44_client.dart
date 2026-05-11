@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:proper_place/config/app_config.dart';
 
 /// Base44 API client wrapper (mirrors React's base44Client.js)
@@ -10,6 +11,8 @@ class Base44Client {
   static final Base44Client _instance = Base44Client._internal();
   late String _accessToken;
   late http.Client _httpClient;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  static const String _tokenKey = 'access_token';
 
   Base44Client._internal() {
     _httpClient = http.Client();
@@ -20,9 +23,18 @@ class Base44Client {
     return _instance;
   }
 
-  /// Set access token (from login response)
-  void setAccessToken(String token) {
+  /// Set access token (from login response) and persist to secure storage
+  Future<void> setAccessToken(String token) async {
     _accessToken = token;
+    await _secureStorage.write(key: _tokenKey, value: token);
+  }
+
+  /// Load token from secure storage on app start
+  Future<void> loadStoredToken() async {
+    final stored = await _secureStorage.read(key: _tokenKey);
+    if (stored != null && stored.isNotEmpty) {
+      _accessToken = stored;
+    }
   }
 
   /// Get current access token
@@ -31,8 +43,9 @@ class Base44Client {
   }
 
   /// Clear token on logout
-  void clearAccessToken() {
+  Future<void> clearAccessToken() async {
     _accessToken = '';
+    await _secureStorage.delete(key: _tokenKey);
   }
 
   /// Build headers with authentication
@@ -118,7 +131,7 @@ class Base44Client {
 
       // Store the access token from response
       if (response['access_token'] != null) {
-        setAccessToken(response['access_token']);
+        await setAccessToken(response['access_token']);
       }
 
       return response;
@@ -143,7 +156,7 @@ class Base44Client {
 
       // Store the access token from response
       if (response['access_token'] != null) {
-        setAccessToken(response['access_token']);
+        await setAccessToken(response['access_token']);
       }
 
       return response;
@@ -172,7 +185,7 @@ class Base44Client {
     } catch (e) {
     debugPrint('Logout request failed: $e');
     } finally {
-      clearAccessToken();
+      await clearAccessToken();
     }
   }
 
@@ -184,14 +197,14 @@ class Base44Client {
       });
 
       if (response['access_token'] != null) {
-        setAccessToken(response['access_token']);
+        await setAccessToken(response['access_token']);
         return response['access_token'];
       }
 
       return null;
     } catch (e) {
     debugPrint('Token refresh failed: $e');
-      clearAccessToken();
+      await clearAccessToken();
       return null;
     }
   }

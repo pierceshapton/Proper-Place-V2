@@ -42,6 +42,8 @@ class Place {
   final String? foodMenuDescription;
   final String? hostContractAcceptedAt;
   final String? hostContractVersion;
+  final int? maxNightsPerStay;
+  final List<int> availableDays; // 1=Mon … 7=Sun; empty means all days allowed
 
   Place({
     required this.placeId,
@@ -73,6 +75,8 @@ class Place {
     this.foodMenuDescription,
     this.hostContractAcceptedAt,
     this.hostContractVersion,
+    this.maxNightsPerStay,
+    this.availableDays = const [],
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -128,6 +132,13 @@ class Place {
       foodMenuDescription: toStringOrNull(json['food_menu_description']),
       hostContractAcceptedAt: toStringOrNull(json['host_contract_accepted_at']),
       hostContractVersion: toStringOrNull(json['host_contract_version']),
+      maxNightsPerStay: json['max_nights_per_stay'] != null
+          ? int.tryParse(json['max_nights_per_stay'].toString())
+          : null,
+      availableDays: json['available_days'] is List
+          ? List<int>.from(
+              (json['available_days'] as List).map((d) => int.tryParse(d.toString()) ?? 0).where((d) => d > 0))
+          : const [],
     );
   }
 

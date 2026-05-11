@@ -204,17 +204,15 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: GestureDetector(
-                onTap: () async {
-                  final result = await Navigator.push(
+                onTap: () {
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const HostCreateSiteScreen(),
+                      builder: (context) => HostCreateSiteScreen(
+                        onSiteSubmitted: _loadPlaces,
+                      ),
                     ),
                   );
-                  // Refresh list if a place was saved
-                  if (result == true) {
-                    _loadPlaces();
-                  }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -667,19 +665,17 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () async {
+                        onPressed: () {
                           // Use full create/edit form for all statuses
-                          final result = await Navigator.push(
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => HostCreateSiteScreen(
                                 siteToEdit: place['rawData'],
+                                onSiteSubmitted: _loadPlaces,
                               ),
                             ),
                           );
-                          if (result == true) {
-                            _loadPlaces();
-                          }
                         },
                         icon: const Icon(Icons.edit, size: 18),
                         label: const Text('Edit'),
@@ -1243,7 +1239,9 @@ class _MyPlacesHostScreenState extends State<MyPlacesHostScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const HostCreateSiteScreen(),
+                  builder: (context) => HostCreateSiteScreen(
+                    onSiteSubmitted: _loadPlaces,
+                  ),
                 ),
               );
             },

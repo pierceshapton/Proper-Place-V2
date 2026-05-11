@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:proper_place/services/api_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -203,6 +204,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             const SizedBox(height: 4),
             TextField(
               controller: _emailController,
+              autofillHints: const [AutofillHints.email],
               decoration: InputDecoration(
                 hintText: 'Email',
                 hintStyle: TextStyle(color: Colors.grey[600]),

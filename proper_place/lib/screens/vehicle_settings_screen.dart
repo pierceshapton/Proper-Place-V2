@@ -28,8 +28,8 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
     if (mounted) {
       setState(() {
         _vehicleHeight = ((dimensions['height'] as double?) ?? 3.3).clamp(3.3, 16.4);
-        _vehicleWidth = ((dimensions['width'] as double?) ?? 4.0).clamp(4.0, 8.0);
-        _vehicleLength = ((dimensions['length'] as double?) ?? 6.6).clamp(6.6, 49.2);
+        _vehicleWidth = ((dimensions['width'] as double?) ?? 4.0).clamp(4.0, 10.0);
+        _vehicleLength = ((dimensions['length'] as double?) ?? 6.6).clamp(6.6, 65.6);
         _unit = dimensions['unit'] as String;
         _isLoading = false;
       });
@@ -211,7 +211,7 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
                       icon: Icons.swap_horiz,
                       value: _vehicleWidth,
                       min: 4.0,
-                      max: 8.0,
+                      max: 10.0,
                       onChanged: (value) {
                         setState(() {
                           _vehicleWidth = value;
@@ -228,7 +228,7 @@ class _VehicleSettingsScreenState extends State<VehicleSettingsScreen> {
                       icon: Icons.straighten,
                       value: _vehicleLength,
                       min: 6.6,
-                      max: 49.2,
+                      max: 65.6,
                       onChanged: (value) {
                         setState(() {
                           _vehicleLength = value;

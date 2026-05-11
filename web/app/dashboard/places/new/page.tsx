@@ -43,7 +43,9 @@ export default function NewPlacePage() {
     max_vehicle_length_ft: '',
     serves_food: false,
     food_menu_description: '',
+    max_nights_per_stay: '',
   });
+  const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/config/features`)
@@ -106,6 +108,8 @@ export default function NewPlacePage() {
         max_vehicle_length_ft: form.max_vehicle_length_ft ? parseFloat(form.max_vehicle_length_ft) : undefined,
         serves_food: form.serves_food,
         food_menu_description: form.food_menu_description || undefined,
+        max_nights_per_stay: form.max_nights_per_stay ? parseInt(form.max_nights_per_stay) : undefined,
+        available_days: availableDays.length < 7 ? availableDays : undefined,
       };
 
       const result = await placesApi.create(placeData);
@@ -222,6 +226,29 @@ export default function NewPlacePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Max Width (ft)</label>
               <input type="number" step="0.1" value={form.max_vehicle_width_ft} onChange={e => setForm(f => ({ ...f, max_vehicle_width_ft: e.target.value }))} placeholder="8" className="bg-white border-gray-300 text-gray-900" />
+            </div>
+          </div>
+        </div>
+
+        {/* Booking Rules */}
+        <div className="card bg-white p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Booking Rules</h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Max Nights Per Stay</label>
+            <p className="text-xs text-gray-500 mb-2">Leave blank for no limit.</p>
+            <input type="number" min="1" max="30" value={form.max_nights_per_stay} onChange={e => setForm(f => ({ ...f, max_nights_per_stay: e.target.value }))} placeholder="e.g. 7" className="bg-white border-gray-300 text-gray-900 w-32" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Available Check-in Days</label>
+            <p className="text-xs text-gray-500 mb-3">Deselect days guests cannot check in.</p>
+            <div className="flex flex-wrap gap-2">
+              {[{ label: 'Mon', value: 1 }, { label: 'Tue', value: 2 }, { label: 'Wed', value: 3 }, { label: 'Thu', value: 4 }, { label: 'Fri', value: 5 }, { label: 'Sat', value: 6 }, { label: 'Sun', value: 7 }].map(({ label, value }) => (
+                <button key={value} type="button"
+                  onClick={() => setAvailableDays(prev => prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value].sort())}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold border transition-colors ${availableDays.includes(value) ? 'bg-green-800 text-white border-green-800' : 'bg-gray-100 text-gray-500 border-gray-300'}`}>
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
