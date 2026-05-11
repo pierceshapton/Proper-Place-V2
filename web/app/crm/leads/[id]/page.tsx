@@ -736,8 +736,7 @@ export default function LeadDetailPage() {
                 <Field label="Source" value={lead.source || '—'} />
                 <Field label="Property Type" value={lead.property_type || '—'} />
                 <Field label="Website" value={lead.website ? lead.website : '—'} isLink={!!lead.website} />
-                <Field label="Parking Type" value={lead.parking_type || '—'} />
-                <Field label="Parking Spaces" value={lead.parking_spaces?.toString() || '—'} />
+                <Field label="Parking Type" value={lead.parking_type || '—'} />                <Field label="Parking Spaces" value={lead.parking_spaces?.toString() || '—'} />
                 <Field label="Ownership" value={lead.ownership_type || '—'} />
                 <Field label="Created" value={new Date(lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} />
                 <Field label="Last Updated" value={new Date(lead.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} />
@@ -760,6 +759,24 @@ export default function LeadDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* Opening Hours */}
+            {lead.opening_hours_text && (
+              <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-2">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Opening Hours</p>
+                <div className="space-y-0.5">
+                  {lead.opening_hours_text.split('\n').map((line, i) => {
+                    const [day, ...rest] = line.split(': ');
+                    return (
+                      <div key={i} className="flex justify-between text-sm gap-3">
+                        <span className="text-slate-400 font-medium w-28 shrink-0">{day}</span>
+                        <span className="text-slate-300 text-right">{rest.join(': ')}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Custom Fields */}
             {customFields.length > 0 && (

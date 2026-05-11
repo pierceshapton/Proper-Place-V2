@@ -26,6 +26,7 @@ export interface CandidatePlace {
   siteAnalysis?: SiteAnalysisResult | null;
   reviewsText?: string[];
   editorialSummary?: string | null;
+  openingHours?: string[] | null;
 }
 
 export interface ScoredCandidate extends CandidatePlace {

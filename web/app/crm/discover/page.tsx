@@ -636,6 +636,23 @@ export default function DiscoverPage() {
               <SummaryStat label="Type" value={activeCandidate.primaryType || activeCandidate.types[0] || '—'} />
             </div>
 
+            {activeCandidate.openingHours && activeCandidate.openingHours.length > 0 && (
+              <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg px-3 py-2">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Opening Hours</p>
+                <div className="space-y-0.5">
+                  {activeCandidate.openingHours.map((line, i) => {
+                    const [day, ...rest] = line.split(': ');
+                    return (
+                      <div key={i} className="flex justify-between text-xs gap-3">
+                        <span className="text-slate-400 font-medium w-24 shrink-0">{day}</span>
+                        <span className="text-slate-300 text-right">{rest.join(': ')}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {activeCandidate.latitude !== null && activeCandidate.longitude !== null && GOOGLE_MAPS_API_KEY && (
               <div className="rounded-lg overflow-hidden border border-slate-700 relative">
                 <iframe
@@ -759,6 +776,7 @@ async function searchGooglePlaces(keyword: string, region: string, apiKey: strin
         'places.accessibilityOptions',
         'places.reviews',
         'places.editorialSummary',
+        'places.regularOpeningHours',
       ].join(','),
     },
     body: JSON.stringify({
@@ -794,6 +812,7 @@ async function searchGooglePlaces(keyword: string, region: string, apiKey: strin
       ? place.reviews.map(r => r.text?.text || '').filter(Boolean)
       : [],
     editorialSummary: place.editorialSummary?.text || null,
+    openingHours: place.regularOpeningHours?.weekdayDescriptions || null,
   }));
 }
 
@@ -820,6 +839,7 @@ interface GooglePlaceItem {
   };
   reviews?: Array<{ text?: { text?: string } }>;
   editorialSummary?: { text?: string };
+  regularOpeningHours?: { weekdayDescriptions?: string[] };
 }
 
 interface GooglePlacesResponse {

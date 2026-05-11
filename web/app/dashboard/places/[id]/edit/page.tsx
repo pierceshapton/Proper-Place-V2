@@ -29,7 +29,7 @@ export default function EditPlacePage() {
   const [form, setForm] = useState({
     name: '', description: '', address: '', city: '', postal_code: '', country: 'UK',
     latitude: '', longitude: '', price_per_night: '', capacity: '', place_type: 'private_land',
-    opening_hours: '', business_description: '', access_route_description: '',,
+    opening_hours: '', business_description: '', access_route_description: '',
     max_vehicle_height_ft: '', max_vehicle_width_ft: '', max_vehicle_length_ft: '',
     serves_food: false, food_menu_description: '', image_urls: [] as string[],
   });
@@ -52,7 +52,7 @@ export default function EditPlacePage() {
           latitude: p.latitude?.toString() || '', longitude: p.longitude?.toString() || '',
           price_per_night: p.price_per_night?.toString() || '', capacity: p.capacity?.toString() || '',
           place_type: p.place_type || 'private_land',
-          opening_hours: p.opening_hours || '',, business_description: p.business_description || '',
+          opening_hours: p.opening_hours || '', business_description: p.business_description || '',
           access_route_description: p.access_route_description || '',
           max_vehicle_height_ft: p.max_vehicle_height_ft?.toString() || '',
           max_vehicle_width_ft: p.max_vehicle_width_ft?.toString() || '',

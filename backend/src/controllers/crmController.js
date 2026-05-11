@@ -1086,7 +1086,7 @@ async function enrichFromGoogle(name, lat, lng) {
     const details = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
       params: {
         place_id: placeId,
-        fields: 'name,formatted_phone_number,website,rating,user_ratings_total,formatted_address,geometry',
+        fields: 'name,formatted_phone_number,website,rating,user_ratings_total,formatted_address,geometry,opening_hours',
         key: GMAPS_KEY,
       },
       timeout: 5000,
@@ -1127,6 +1127,7 @@ async function enrichFromGoogle(name, lat, lng) {
       location: p.formatted_address || null,
       latitude: p.geometry?.location?.lat || null,
       longitude: p.geometry?.location?.lng || null,
+      opening_hours_text: p.opening_hours?.weekday_text?.join('\n') || null,
     };
   } catch (err) {
     logger.warn('Google Places enrichment failed', { name, error: err.message });
@@ -1154,7 +1155,7 @@ async function enrichLead(req, res, next) {
 
     const updates = [];
     const values = [];
-    const fields = ['phone', 'website', 'google_place_id', 'google_rating', 'google_reviews_count', 'location', 'latitude', 'longitude'];
+    const fields = ['phone', 'website', 'google_place_id', 'google_rating', 'google_reviews_count', 'location', 'latitude', 'longitude', 'opening_hours_text'];
     for (const f of fields) {
       if (enriched[f] !== null && enriched[f] !== undefined) {
         values.push(enriched[f]);
@@ -1243,6 +1244,7 @@ async function importLeads(req, res, next) {
             location: enriched.location || data.location,
             latitude: enriched.latitude || data.latitude,
             longitude: enriched.longitude || data.longitude,
+            opening_hours_text: enriched.opening_hours_text || null,
           };
         }
       }
@@ -1252,13 +1254,15 @@ async function importLeads(req, res, next) {
           `INSERT INTO host_leads (
             business_name, location, latitude, longitude, phone, website, email,
             google_place_id, google_rating, google_reviews_count,
+            opening_hours_text,
             pipeline_stage, priority, admin_notes, source, assigned_to
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
           RETURNING id`,
           [
             data.business_name, data.location, data.latitude, data.longitude,
             data.phone || null, data.website || null, data.email || null,
             data.google_place_id || null, data.google_rating || null, data.google_reviews_count || null,
+            data.opening_hours_text || null,
             data.pipeline_stage, data.priority,
             description || null, data.source, req.user.userId,
           ]
