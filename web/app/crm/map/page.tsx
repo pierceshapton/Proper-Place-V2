@@ -196,6 +196,7 @@ export default function CRMMapPage() {
           leadId={selectedLeadId}
           stages={stages}
           onClose={() => setSelectedLeadId(null)}
+          onLeadUpdate={(id, patch) => setLeads(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l))}
         />
       )}
     </div>
@@ -204,8 +205,9 @@ export default function CRMMapPage() {
 
 /* ── Lead Detail Modal ─────────────────────────────────────── */
 
-function LeadDetailModal({ leadId, stages, onClose }: {
+function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
   leadId: number; stages: CRMStage[]; onClose: () => void;
+  onLeadUpdate?: (id: number, patch: Partial<CRMLead>) => void;
 }) {
   const [lead, setLead] = useState<CRMLead | null>(null);
   const [activities, setActivities] = useState<CRMActivity[]>([]);
@@ -241,12 +243,14 @@ function LeadDetailModal({ leadId, stages, onClose }: {
     if (!lead) return;
     await crmApi.updateLead(leadId, { pipeline_stage: stage } as Partial<CRMLead>);
     setLead({ ...lead, pipeline_stage: stage });
+    onLeadUpdate?.(leadId, { pipeline_stage: stage });
   }
 
   async function handlePriorityChange(priority: string) {
     if (!lead) return;
     await crmApi.updateLead(leadId, { priority } as Partial<CRMLead>);
     setLead({ ...lead, priority });
+    onLeadUpdate?.(leadId, { priority });
   }
 
   async function handleAddNote(e: React.FormEvent) {
