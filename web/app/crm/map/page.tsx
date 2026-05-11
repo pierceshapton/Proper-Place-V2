@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { crmApi, type CRMLead, type CRMStage, type CRMActivity, type CRMTask, type CRMSiteVisit, type CRMEmailLog } from '@/lib/api';
-import { stageColors } from '@/lib/stageColors';
+import { stageColors, COLOR_HEX } from '@/lib/stageColors';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
 
@@ -16,13 +16,6 @@ const DEFAULT_STAGES: CRMStage[] = [
   { id: 5, slug: 'converted',   name: 'Converted',   color: 'emerald', sort_order: 5, is_won: true,  is_lost: false },
   { id: 6, slug: 'lost',        name: 'Lost',        color: 'red',     sort_order: 6, is_won: false, is_lost: true  },
 ];
-
-const STAGE_PIN_COLORS: Record<string, string> = {
-  blue: '#3b82f6', amber: '#f59e0b', violet: '#8b5cf6', orange: '#f97316',
-  emerald: '#10b981', red: '#ef4444', pink: '#ec4899', cyan: '#06b6d4',
-  teal: '#14b8a6', indigo: '#6366f1', lime: '#84cc16', rose: '#f43f5e',
-  sky: '#0ea5e9', fuchsia: '#d946ef', yellow: '#eab308', slate: '#64748b',
-};
 
 const MAP_STYLES = [
   { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
@@ -120,7 +113,7 @@ export default function CRMMapPage() {
 
   function getStageColor(slug: string): string {
     const stage = stages.find(s => s.slug === slug);
-    return stage ? (STAGE_PIN_COLORS[stage.color] || '#64748b') : '#64748b';
+    return stage ? (COLOR_HEX[stage.color] || '#64748b') : '#64748b';
   }
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
@@ -175,7 +168,7 @@ export default function CRMMapPage() {
                     onClick={() => handleSearchSelect(lead)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800 transition-colors text-left"
                   >
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: STAGE_PIN_COLORS[stage?.color || ''] || '#64748b' }} />
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLOR_HEX[stage?.color || ''] || '#64748b' }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-slate-200 truncate">{displayName}</p>
                       {lead.location && <p className="text-[11px] text-slate-500 truncate">{lead.location}</p>}
@@ -220,7 +213,7 @@ export default function CRMMapPage() {
                 active ? `${c.bg} text-white` : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
               }`}
             >
-              <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: STAGE_PIN_COLORS[stage.color] || '#64748b' }}></span>
+              <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: COLOR_HEX[stage.color] || '#64748b' }}></span>
               {stage.name} ({count})
             </button>
           );
