@@ -80,6 +80,36 @@ export default function CRMMapPage() {
     ? mappableLeads
     : mappableLeads.filter(l => activeStages.has(l.pipeline_stage));
 
+  // Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const searchResults = searchQuery.trim().length < 1 ? [] : mappableLeads.filter(l => {
+    const q = searchQuery.toLowerCase();
+    const name = (l.business_name || `${l.first_name || ''} ${l.last_name || ''}`).toLowerCase();
+    const loc = (l.location || '').toLowerCase();
+    return name.includes(q) || loc.includes(q);
+  }).slice(0, 12);
+
+  function handleSearchSelect(lead: CRMLead) {
+    setSearchQuery('');
+    setSearchOpen(false);
+    if (mapRef.current && lead.latitude && lead.longitude) {
+      mapRef.current.panTo({ lat: Number(lead.latitude), lng: Number(lead.longitude) });
+      mapRef.current.setZoom(15);
+    }
+    // Small delay so the map pans before the modal opens
+    setTimeout(() => setSelectedLeadId(lead.id), 100);
+  }
+
   function toggleStage(slug: string) {
     setActiveStages(prev => {
       const next = new Set(prev);
@@ -109,13 +139,60 @@ export default function CRMMapPage() {
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-100">Lead Map</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {leadsWithCoords.length} lead{leadsWithCoords.length !== 1 ? 's' : ''} shown
             {leadsNoCoords > 0 && <span className="text-slate-600"> · {leadsNoCoords} without coordinates</span>}
           </p>
+        </div>
+        {/* Search */}
+        <div ref={searchRef} className="relative w-72 flex-shrink-0">
+          <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 focus-within:border-emerald-500/60 transition-colors">
+            <svg className="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="Search sites…"
+              className="bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none flex-1 min-w-0"
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }} className="text-slate-500 hover:text-slate-300 text-xs leading-none">✕</button>
+            )}
+          </div>
+          {searchOpen && searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+              {searchResults.map(lead => {
+                const displayName = lead.business_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unnamed';
+                const stage = stages.find(s => s.slug === lead.pipeline_stage);
+                const c = stage ? stageColors(stage.color) : null;
+                return (
+                  <button
+                    key={lead.id}
+                    onClick={() => handleSearchSelect(lead)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800 transition-colors text-left"
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: STAGE_PIN_COLORS[stage?.color || ''] || '#64748b' }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-200 truncate">{displayName}</p>
+                      {lead.location && <p className="text-[11px] text-slate-500 truncate">{lead.location}</p>}
+                    </div>
+                    {stage && c && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${c.badgeBg} ${c.badgeText}`}>{stage.name}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {searchOpen && searchQuery.trim().length >= 1 && searchResults.length === 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl px-3 py-3">
+              <p className="text-sm text-slate-500 text-center">No sites found</p>
+            </div>
+          )}
         </div>
       </div>
 
