@@ -2,20 +2,12 @@ import type { CRMEmailTemplate, CRMLead } from '@/lib/api';
 
 export const EMAIL_SIGNATURE_HTML = [
   '<br><br>',
-  '<table cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;font-size:13px;color:#374151;border-top:2px solid #e2e8f0;padding-top:14px;margin-top:4px;">',
-  '<tr>',
-  '<td style="padding-right:14px;vertical-align:middle;">',
-  '<img src="https://www.proper-place.co.uk/logo-512.png" width="40" height="40" alt="Proper Place" style="border-radius:8px;display:block;">',
-  '</td>',
-  '<td style="vertical-align:middle;line-height:1.8;color:#374151;">',
-  '<strong style="font-size:14px;color:#374151;display:block;">Pierce Shapton</strong>',
-  '<span>Founder, Proper Place</span><br>',
-  '<span>+44 7585 227180</span><br>',
-  '<span>pierce.shapton@proper-place.co.uk</span><br>',
-  '<a href="https://www.proper-place.co.uk" style="color:#374151;text-decoration:none;">www.proper-place.co.uk</a>',
-  '</td>',
-  '</tr>',
-  '</table>',
+  '<p style="margin:0;font-family:Arial,sans-serif;font-size:13px;color:#374151;line-height:1.8;border-top:1px solid #e2e8f0;padding-top:12px;">',
+  'Pierce Shapton<br>',
+  'Proper Place<br>',
+  '+44 7585 227180<br>',
+  'pierce.shapton@proper-place.co.uk',
+  '</p>',
 ].join('');
 
 export function buildEmailWithSignature(body: string): string {

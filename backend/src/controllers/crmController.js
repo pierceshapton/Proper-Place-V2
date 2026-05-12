@@ -1079,15 +1079,7 @@ function interpolateTemplate(template, lead) {
 }
 
 function wrapEmailHtml(body) {
-  return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #333; font-size: 15px; line-height: 1.6;">
-      ${body}
-      <br/>
-      <p style="margin: 24px 0 4px; color: #333;">Pierce Shapton<br/>
-      <span style="color: #666; font-size: 13px;">Proper Place · <a href="https://www.proper-place.co.uk" style="color: #10b981; text-decoration: none;">proper-place.co.uk</a></span>
-      </p>
-    </div>
-  `;
+  return body;
 }
 
 function stripHtml(html) {
