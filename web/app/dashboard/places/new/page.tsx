@@ -32,6 +32,7 @@ export default function NewPlacePage() {
   const [mapZoom, setMapZoom] = useState(6);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const pinActiveRef = useRef(false);
+  const [pinVisible, setPinVisible] = useState(false);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState(5);
@@ -172,6 +173,7 @@ export default function NewPlacePage() {
       setMapCenter({ lat, lng });
       setMapZoom(16);
       pinActiveRef.current = true;
+      setPinVisible(true);
       setForm(f => ({
         ...f,
         address: [streetNumber, route].filter(Boolean).join(' ') || place.formatted_address || f.address,
@@ -215,6 +217,7 @@ export default function NewPlacePage() {
         setMapCenter({ lat, lng });
         setMapZoom(16);
         pinActiveRef.current = true;
+        setPinVisible(true);
         if (isLoaded) reverseGeocode(lat, lng);
         else setForm(f => ({ ...f, latitude: lat.toString(), longitude: lng.toString() }));
       },
@@ -295,6 +298,18 @@ export default function NewPlacePage() {
                   </button>
                 </div>
               </div>
+
+              {/* Pin fixed at map centre, visible once user has searched/located */}
+              {pinVisible && (
+                <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
+                  <div style={{ transform: 'translateY(-50%)' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48" fill="none">
+                      <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#E53935"/>
+                      <circle cx="18" cy="18" r="7" fill="white"/>
+                    </svg>
+                  </div>
+                </div>
+              )}
 
               <GoogleMap
                 mapContainerStyle={{ width: '100%', height: '100%' }}
