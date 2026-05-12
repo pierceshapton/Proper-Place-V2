@@ -677,16 +677,24 @@ async function sendEmail(req, res, next) {
     const interpolated = interpolateTemplate(body, lead);
     const interpolatedSubject = interpolateTemplate(subject, lead);
 
-    // Send via shared transporter
-    const emailUtil = require('../utils/email');
-    const crmFromName = process.env.CRM_FROM_NAME || 'Pierce at Proper Place';
-    const crmReplyTo = process.env.CRM_FROM_EMAIL || process.env.SMTP_USER;
+    // Send via CRM transporter (dedicated pierce.shapton sender)
+    const nodemailer = require('nodemailer');
+    const crmUser = process.env.CRM_SMTP_USER || process.env.SMTP_USER;
+    const crmPass = process.env.CRM_SMTP_PASS || process.env.SMTP_PASS;
+    const crmFromName = process.env.CRM_FROM_NAME || 'Pierce Shapton';
+    const crmTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: false,
+      requireTLS: true,
+      auth: { user: crmUser, pass: crmPass },
+    });
 
-    await emailUtil.transporter.sendMail({
-      from: `"${crmFromName}" <${process.env.SMTP_USER}>`,
-      replyTo: crmReplyTo,
+    await crmTransporter.sendMail({
+      from: `"${crmFromName}" <${crmUser}>`,
       to: recipient,
       subject: interpolatedSubject,
+      text: stripHtml(interpolated),
       html: wrapEmailHtml(interpolated),
     });
 
@@ -1072,26 +1080,28 @@ function interpolateTemplate(template, lead) {
 
 function wrapEmailHtml(body) {
   return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #333;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #333; font-size: 15px; line-height: 1.6;">
       ${body}
-      <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0 16px;" />
-      <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 12px; color: #888; line-height: 1.6;">
-        <tr>
-          <td>
-            <p style="margin: 0 0 8px;"><strong style="color: #555;">Pierce Shapton</strong><br/>A Proper Place Limited</p>
-            <p style="margin: 0 0 8px;">
-              <a href="https://www.proper-place.co.uk" style="color: #10b981; text-decoration: none;">proper-place.co.uk</a> · 
-              <a href="mailto:pierce.shapton@proper-place.co.uk" style="color: #10b981; text-decoration: none;">pierce.shapton@proper-place.co.uk</a>
-            </p>
-            <p style="margin: 0; font-size: 11px; color: #aaa;">
-              London, England · Registered in England &amp; Wales<br/>
-              If you no longer wish to receive these emails, please <a href="mailto:pierce.shapton@proper-place.co.uk?subject=Unsubscribe" style="color: #aaa;">let us know</a>.
-            </p>
-          </td>
-        </tr>
-      </table>
+      <br/>
+      <p style="margin: 24px 0 4px; color: #333;">Pierce Shapton<br/>
+      <span style="color: #666; font-size: 13px;">Proper Place · <a href="https://www.proper-place.co.uk" style="color: #10b981; text-decoration: none;">proper-place.co.uk</a></span>
+      </p>
     </div>
   `;
+}
+
+function stripHtml(html) {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<p[^>]*>/gi, '')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 // ─── Google Places Enrichment ────────────────────────────────────────
