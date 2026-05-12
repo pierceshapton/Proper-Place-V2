@@ -98,7 +98,7 @@ export default function BookingDetailPage() {
           <span className={`text-sm px-3 py-1 rounded-full font-medium ${
             booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
             booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-            booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+            booking.status?.toLowerCase() === 'completed' ? 'bg-blue-100 text-blue-700' :
             'bg-red-100 text-red-700'
           }`}>{booking.status}</span>
         </div>
@@ -146,7 +146,7 @@ export default function BookingDetailPage() {
             const hostId = booking.place_user_id || booking.user_id;
             router.push(`/dashboard/messages/${hostId}?booking=${booking.id}`);
           }} className="btn-secondary py-2 px-4 text-sm">Message Host</button>
-          {isPast && booking.status === 'completed' && (
+          {isPast && booking.status?.toLowerCase() === 'completed' && (
             <button onClick={() => setShowReview(true)} className="btn-primary py-2 px-4 text-sm">Leave Review</button>
           )}
           {(booking.status === 'pending' || booking.status === 'confirmed') && !isWithin24h() && (

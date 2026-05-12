@@ -95,7 +95,7 @@ async function createPlaceReview(req, res, next) {
     // Check if user has booked this place with completed status and checkout date in the past
     const bookingResult = await db.query(
       `SELECT id, check_out_date FROM bookings 
-       WHERE user_id = $1 AND place_id = $2 AND status = $3
+       WHERE user_id = $1 AND place_id = $2 AND LOWER(status) = $3
        AND check_out_date < NOW()`,
       [userId, id, 'completed']
     );
@@ -153,7 +153,7 @@ async function createPubReview(req, res, next) {
     // Check if user has booked this pub with completed status and checkout date in the past
     const bookingResult = await db.query(
       `SELECT id, check_out_date FROM bookings 
-       WHERE user_id = $1 AND pub_id = $2 AND status = $3
+       WHERE user_id = $1 AND pub_id = $2 AND LOWER(status) = $3
        AND check_out_date < NOW()`,
       [userId, id, 'completed']
     );

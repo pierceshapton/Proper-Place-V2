@@ -38,8 +38,8 @@ async function autoCompleteBookings() {
     // Find bookings past their checkout date at 12:00 PM (noon)
     const result = await db.query(
       `UPDATE bookings 
-       SET status = 'Completed', updated_at = NOW()
-       WHERE status NOT IN ('cancelled', 'Cancelled', 'Completed')
+       SET status = 'completed', updated_at = NOW()
+       WHERE status NOT IN ('cancelled', 'Cancelled', 'completed', 'Completed')
          AND check_out_date < $1
        RETURNING id, status, charge_id, transfer_id, host_payout_status, place_id, total_price, booking_ref`,
       [now]
@@ -1408,7 +1408,7 @@ async function cancelBooking(req, res, next) {
       return res.status(403).json({ error: 'forbidden', message: 'Cannot cancel this booking' });
     }
 
-    if (booking.status === 'cancelled' || booking.status === 'Completed') {
+    if (booking.status === 'cancelled' || booking.status === 'completed' || booking.status === 'Completed') {
       return res.status(400).json({ error: 'invalid_status', message: `Cannot cancel a booking with status '${booking.status}'` });
     }
 
