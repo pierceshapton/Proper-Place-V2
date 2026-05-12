@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useJsApiLoader } from '@react-google-maps/api';
+import { useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
 import { placesApi, uploadApi, ApiError } from '@/lib/api';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
@@ -25,7 +25,11 @@ export default function NewPlacePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const addressInputRef = useRef<HTMLInputElement>(null);
+  const mapSearchRef = useRef<HTMLInputElement>(null);
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
+  const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 54.5, lng: -2.5 });
+  const [mapZoom, setMapZoom] = useState(6);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState(5);
@@ -147,46 +151,69 @@ export default function NewPlacePage() {
     setSaving(false);
   };
 
-  // Attach Google Places Autocomplete to the address input once the API is loaded
+  // Attach Google Places Autocomplete to the map search bar once API is loaded
   useEffect(() => {
-    if (!isLoaded || !addressInputRef.current) return;
-    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-      types: ['geocode'],
+    if (!isLoaded || !mapSearchRef.current) return;
+    const autocomplete = new window.google.maps.places.Autocomplete(mapSearchRef.current, {
       componentRestrictions: { country: 'gb' },
     });
     autocomplete.addListener('place_changed', () => {
       const place = autocomplete.getPlace();
       if (!place.geometry?.location) return;
-
       const get = (type: string, short = false) =>
         place.address_components?.find(c => c.types.includes(type))?.[short ? 'short_name' : 'long_name'] ?? '';
-
       const streetNumber = get('street_number');
       const route = get('route');
-      const address = [streetNumber, route].filter(Boolean).join(' ');
-      const city = get('postal_town') || get('locality') || get('administrative_area_level_2');
-      const postalCode = get('postal_code');
-      const country = get('country', true);
-      const lat = place.geometry.location.lat().toString();
-      const lng = place.geometry.location.lng().toString();
-
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setMarkerPos({ lat, lng });
+      setMapCenter({ lat, lng });
+      setMapZoom(16);
       setForm(f => ({
         ...f,
-        address: address || place.formatted_address || f.address,
-        city,
-        postal_code: postalCode,
-        country: country || 'GB',
-        latitude: lat,
-        longitude: lng,
+        address: [streetNumber, route].filter(Boolean).join(' ') || place.formatted_address || f.address,
+        city: get('postal_town') || get('locality') || get('administrative_area_level_2'),
+        postal_code: get('postal_code'),
+        country: get('country', true) || 'GB',
+        latitude: lat.toString(),
+        longitude: lng.toString(),
       }));
     });
     return () => window.google.maps.event.clearInstanceListeners(autocomplete);
   }, [isLoaded]);
 
+  const reverseGeocode = (lat: number, lng: number) => {
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === 'OK' && results?.[0]) {
+        const get = (type: string, short = false) =>
+          results[0].address_components?.find(c => c.types.includes(type))?.[short ? 'short_name' : 'long_name'] ?? '';
+        setForm(f => ({
+          ...f,
+          address: [get('street_number'), get('route')].filter(Boolean).join(' ') || results[0].formatted_address,
+          city: get('postal_town') || get('locality') || get('administrative_area_level_2'),
+          postal_code: get('postal_code'),
+          country: get('country', true) || 'GB',
+          latitude: lat.toString(),
+          longitude: lng.toString(),
+        }));
+        if (mapSearchRef.current) mapSearchRef.current.value = results[0].formatted_address;
+      }
+    });
+  };
+
   const handleGetLocation = () => {
     if (!navigator.geolocation) { setError('Geolocation not supported'); return; }
     navigator.geolocation.getCurrentPosition(
-      pos => setForm(f => ({ ...f, latitude: pos.coords.latitude.toString(), longitude: pos.coords.longitude.toString() })),
+      pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setMarkerPos({ lat, lng });
+        setMapCenter({ lat, lng });
+        setMapZoom(16);
+        if (isLoaded) reverseGeocode(lat, lng);
+        else setForm(f => ({ ...f, latitude: lat.toString(), longitude: lng.toString() }));
+      },
       () => setError('Unable to get your location')
     );
   };
@@ -232,43 +259,78 @@ export default function NewPlacePage() {
 
         {/* Location */}
         <div className="card bg-white p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Location</h2>
-            <button type="button" onClick={handleGetLocation} className="text-sm text-light-blue hover:text-accent-blue">📍 Use My Location</button>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <input
-              ref={addressInputRef}
-              type="text"
-              value={form.address}
-              onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-              placeholder="Start typing to search, or enter manually"
-              className="bg-white border-gray-300 text-gray-900"
-              autoComplete="off"
-            />
-            <p className="text-xs text-gray-400 mt-1">Selecting a suggestion will auto-fill city, postcode and coordinates.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-              <input type="text" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Devon" className="bg-white border-gray-300 text-gray-900" />
+          <h2 className="text-lg font-semibold text-gray-900">Location</h2>
+          <p className="text-sm text-gray-500">Search for your site, then drag the pin to the exact spot.</p>
+
+          {/* Map with search overlay */}
+          {isLoaded ? (
+            <div className="relative rounded-xl overflow-hidden" style={{ height: 420 }}>
+              {/* Full-width search bar floating at top */}
+              <div className="absolute top-0 left-0 right-0 z-10 p-2">
+                <div className="flex gap-2">
+                  <input
+                    ref={mapSearchRef}
+                    type="text"
+                    placeholder="Search for your address or place name..."
+                    className="flex-1 bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-2.5 text-sm shadow-md focus:outline-none focus:ring-2 focus:ring-light-blue"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGetLocation}
+                    title="Use my current location"
+                    className="bg-white border border-gray-300 rounded-lg px-3 py-2.5 shadow-md hover:bg-gray-50 text-lg"
+                  >📍</button>
+                </div>
+              </div>
+
+              <GoogleMap
+                mapContainerStyle={{ width: '100%', height: '100%' }}
+                center={mapCenter}
+                zoom={mapZoom}
+                options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
+                onClick={e => {
+                  const lat = e.latLng?.lat();
+                  const lng = e.latLng?.lng();
+                  if (lat == null || lng == null) return;
+                  setMarkerPos({ lat, lng });
+                  reverseGeocode(lat, lng);
+                }}
+              >
+                {markerPos && (
+                  <Marker
+                    position={markerPos}
+                    draggable
+                    onDragEnd={e => {
+                      const lat = e.latLng?.lat();
+                      const lng = e.latLng?.lng();
+                      if (lat == null || lng == null) return;
+                      setMarkerPos({ lat, lng });
+                      reverseGeocode(lat, lng);
+                    }}
+                  />
+                )}
+              </GoogleMap>
+
+              {/* Location summary pill */}
+              {markerPos && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs text-gray-700 shadow-md whitespace-nowrap">
+                  📌 {form.address || `${markerPos.lat.toFixed(5)}, ${markerPos.lng.toFixed(5)}`}{form.city ? `, ${form.city}` : ''}
+                </div>
+              )}
+
+              {!markerPos && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs text-gray-500 shadow-md whitespace-nowrap">
+                  Search above or click the map to place your pin
+                </div>
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
-              <input type="text" value={form.postal_code} onChange={e => setForm(f => ({ ...f, postal_code: e.target.value }))} placeholder="EX1 1AA" className="bg-white border-gray-300 text-gray-900" />
+          ) : (
+            <div className="flex items-center justify-center h-48 bg-gray-100 rounded-xl">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-light-blue"></div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
-              <input type="number" step="any" value={form.latitude} onChange={e => setForm(f => ({ ...f, latitude: e.target.value }))} placeholder="51.5074" className="bg-white border-gray-300 text-gray-900" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
-              <input type="number" step="any" value={form.longitude} onChange={e => setForm(f => ({ ...f, longitude: e.target.value }))} placeholder="-0.1278" className="bg-white border-gray-300 text-gray-900" />
-            </div>
-          </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Access Route Description</label>
             <textarea value={form.access_route_description} onChange={e => setForm(f => ({ ...f, access_route_description: e.target.value }))} rows={2} placeholder="How to reach your place (directions, landmarks, narrow lanes...)" className="bg-white border-gray-300 text-gray-900" />

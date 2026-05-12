@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useJsApiLoader } from '@react-google-maps/api';
+import { useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
 import { placesApi, uploadApi, ApiError, type Place } from '@/lib/api';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
@@ -28,7 +28,11 @@ export default function EditPlacePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const addressInputRef = useRef<HTMLInputElement>(null);
+  const mapSearchRef = useRef<HTMLInputElement>(null);
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
+  const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 54.5, lng: -2.5 });
+  const [mapZoom, setMapZoom] = useState(6);
   const [newImages, setNewImages] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState(5);
@@ -50,11 +54,10 @@ export default function EditPlacePage() {
   const [calendarActionLoading, setCalendarActionLoading] = useState(false);
   const [calendarError, setCalendarError] = useState('');
 
-  // Attach Google Places Autocomplete once API is loaded
+  // Attach map search autocomplete
   useEffect(() => {
-    if (!isLoaded || !addressInputRef.current) return;
-    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-      types: ['geocode'],
+    if (!isLoaded || !mapSearchRef.current) return;
+    const autocomplete = new window.google.maps.places.Autocomplete(mapSearchRef.current, {
       componentRestrictions: { country: 'gb' },
     });
     autocomplete.addListener('place_changed', () => {
@@ -62,20 +65,61 @@ export default function EditPlacePage() {
       if (!place.geometry?.location) return;
       const get = (type: string, short = false) =>
         place.address_components?.find(c => c.types.includes(type))?.[short ? 'short_name' : 'long_name'] ?? '';
-      const address = [get('street_number'), get('route')].filter(Boolean).join(' ');
-      const city = get('postal_town') || get('locality') || get('administrative_area_level_2');
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setMarkerPos({ lat, lng });
+      setMapCenter({ lat, lng });
+      setMapZoom(16);
       setForm(f => ({
         ...f,
-        address: address || place.formatted_address || f.address,
-        city,
+        address: [get('street_number'), get('route')].filter(Boolean).join(' ') || place.formatted_address || f.address,
+        city: get('postal_town') || get('locality') || get('administrative_area_level_2'),
         postal_code: get('postal_code'),
         country: get('country', true) || 'GB',
-        latitude: place.geometry!.location!.lat().toString(),
-        longitude: place.geometry!.location!.lng().toString(),
+        latitude: lat.toString(),
+        longitude: lng.toString(),
       }));
     });
     return () => window.google.maps.event.clearInstanceListeners(autocomplete);
   }, [isLoaded]);
+
+  const reverseGeocode = (lat: number, lng: number) => {
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === 'OK' && results?.[0]) {
+        const get = (type: string, short = false) =>
+          results[0].address_components?.find(c => c.types.includes(type))?.[short ? 'short_name' : 'long_name'] ?? '';
+        const address = [get('street_number'), get('route')].filter(Boolean).join(' ') || results[0].formatted_address;
+        setForm(f => ({
+          ...f,
+          address,
+          city: get('postal_town') || get('locality') || get('administrative_area_level_2'),
+          postal_code: get('postal_code'),
+          country: get('country', true) || 'GB',
+          latitude: lat.toString(),
+          longitude: lng.toString(),
+        }));
+        if (mapSearchRef.current) mapSearchRef.current.value = results[0].formatted_address;
+      }
+    });
+  };
+
+  // When form loads with existing lat/lng, position the marker
+  useEffect(() => {
+    if (form.latitude && form.longitude) {
+      const lat = parseFloat(form.latitude);
+      const lng = parseFloat(form.longitude);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setMarkerPos({ lat, lng });
+        setMapCenter({ lat, lng });
+        setMapZoom(15);
+        if (mapSearchRef.current && !mapSearchRef.current.value && form.address) {
+          mapSearchRef.current.value = [form.address, form.city, form.postal_code].filter(Boolean).join(', ');
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.latitude, form.longitude, loading]);
 
   useEffect(() => {
     if (!id) return;
@@ -262,27 +306,72 @@ export default function EditPlacePage() {
 
         <div className="card bg-white p-6 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900">Location</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <input
-              ref={addressInputRef}
-              type="text"
-              value={form.address}
-              onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-              placeholder="Start typing to search, or enter manually"
-              className="bg-white border-gray-300 text-gray-900"
-              autoComplete="off"
-            />
-            <p className="text-xs text-gray-400 mt-1">Selecting a suggestion will auto-fill city, postcode and coordinates.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><input type="text" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="City" className="bg-white border-gray-300 text-gray-900" /></div>
-            <div><input type="text" value={form.postal_code} onChange={e => setForm(f => ({ ...f, postal_code: e.target.value }))} placeholder="Postal Code" className="bg-white border-gray-300 text-gray-900" /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><input type="number" step="any" value={form.latitude} onChange={e => setForm(f => ({ ...f, latitude: e.target.value }))} placeholder="Latitude" className="bg-white border-gray-300 text-gray-900" /></div>
-            <div><input type="number" step="any" value={form.longitude} onChange={e => setForm(f => ({ ...f, longitude: e.target.value }))} placeholder="Longitude" className="bg-white border-gray-300 text-gray-900" /></div>
-          </div>
+          <p className="text-sm text-gray-500">Search for your site, then drag the pin to the exact spot.</p>
+
+          {/* Map with search overlay */}
+          {isLoaded ? (
+            <div className="relative rounded-xl overflow-hidden" style={{ height: 420 }}>
+              {/* Full-width search bar floating at top */}
+              <div className="absolute top-0 left-0 right-0 z-10 p-2">
+                <div className="flex gap-2">
+                  <input
+                    ref={mapSearchRef}
+                    type="text"
+                    defaultValue={[form.address, form.city, form.postal_code].filter(Boolean).join(', ')}
+                    placeholder="Search for your address or place name..."
+                    className="flex-1 bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-2.5 text-sm shadow-md focus:outline-none focus:ring-2 focus:ring-light-blue"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              <GoogleMap
+                mapContainerStyle={{ width: '100%', height: '100%' }}
+                center={mapCenter}
+                zoom={mapZoom}
+                options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
+                onClick={e => {
+                  const lat = e.latLng?.lat();
+                  const lng = e.latLng?.lng();
+                  if (lat == null || lng == null) return;
+                  setMarkerPos({ lat, lng });
+                  reverseGeocode(lat, lng);
+                }}
+              >
+                {markerPos && (
+                  <Marker
+                    position={markerPos}
+                    draggable
+                    onDragEnd={e => {
+                      const lat = e.latLng?.lat();
+                      const lng = e.latLng?.lng();
+                      if (lat == null || lng == null) return;
+                      setMarkerPos({ lat, lng });
+                      reverseGeocode(lat, lng);
+                    }}
+                  />
+                )}
+              </GoogleMap>
+
+              {/* Location summary pill */}
+              {markerPos && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs text-gray-700 shadow-md whitespace-nowrap">
+                  📌 {form.address || `${markerPos.lat.toFixed(5)}, ${markerPos.lng.toFixed(5)}`}{form.city ? `, ${form.city}` : ''}
+                </div>
+              )}
+
+              {!markerPos && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs text-gray-500 shadow-md whitespace-nowrap">
+                  Search above or click the map to place your pin
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-48 bg-gray-100 rounded-xl">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-light-blue"></div>
+            </div>
+          )}
+
           <div><textarea value={form.access_route_description} onChange={e => setForm(f => ({ ...f, access_route_description: e.target.value }))} rows={2} placeholder="Access route description..." className="bg-white border-gray-300 text-gray-900" /></div>
         </div>
 
