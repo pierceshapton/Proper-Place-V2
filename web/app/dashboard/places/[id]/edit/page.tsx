@@ -43,6 +43,7 @@ export default function EditPlacePage() {
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
 
   const [externalCalendars, setExternalCalendars] = useState<any[]>([]);
+  const [dragOver, setDragOver] = useState(false);
   const [calendarsLoading, setCalendarsLoading] = useState(false);
   const [newCalendarUrl, setNewCalendarUrl] = useState('');
   const [newCalendarLabel, setNewCalendarLabel] = useState('');
@@ -147,14 +148,24 @@ export default function EditPlacePage() {
       setCalendarActionLoading(false);
     }
 
-  const handleImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  const addFiles = (files: File[]) => {
     setNewImages(prev => [...prev, ...files].slice(0, 10));
     files.forEach(f => {
       const reader = new FileReader();
       reader.onload = ev => setNewPreviews(prev => [...prev, ev.target?.result as string].slice(0, 10));
       reader.readAsDataURL(f);
     });
+  };
+
+  const handleImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(e.target.files || []));
+    e.target.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')));
   };
 
   const removeExistingImage = (idx: number) => {
@@ -309,24 +320,41 @@ export default function EditPlacePage() {
 
         <div className="card bg-white p-6 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900">Photos</h2>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-            {form.image_urls.map((url, i) => (
-              <div key={i} className="relative aspect-square rounded-lg overflow-hidden group">
-                <img src={url} alt="" className="w-full h-full object-cover" />
-                <button type="button" onClick={() => removeExistingImage(i)} className="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
-              </div>
-            ))}
-            {newPreviews.map((src, i) => (
-              <div key={`new-${i}`} className="relative aspect-square rounded-lg overflow-hidden border-2 border-green-300">
-                <img src={src} alt="" className="w-full h-full object-cover" />
-                <span className="absolute bottom-1 left-1 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded">New</span>
-              </div>
-            ))}
-            <label className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-light-blue hover:bg-blue-50 transition-colors">
-              <div className="text-center"><span className="text-2xl text-gray-400">+</span><p className="text-xs text-gray-400 mt-1">Add</p></div>
-              <input type="file" accept="image/*" multiple onChange={handleImageAdd} className="hidden" />
-            </label>
-          </div>
+
+          {/* Drop zone */}
+          <label
+            className={`flex flex-col items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed py-8 px-4 cursor-pointer transition-colors ${
+              dragOver ? 'border-light-blue bg-blue-50' : 'border-gray-300 hover:border-light-blue hover:bg-blue-50'
+            }`}
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+            </svg>
+            <p className="text-sm font-medium text-gray-700">Drag & drop photos here, or <span className="text-light-blue">browse</span></p>
+            <p className="text-xs text-gray-400">{form.image_urls.length + newPreviews.length}/10 photos · JPG, PNG, WEBP</p>
+            <input type="file" accept="image/*" multiple onChange={handleImageAdd} className="hidden" disabled={form.image_urls.length + newPreviews.length >= 10} />
+          </label>
+
+          {/* Existing + new thumbnails */}
+          {(form.image_urls.length > 0 || newPreviews.length > 0) && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              {form.image_urls.map((url, i) => (
+                <div key={i} className="relative aspect-square rounded-lg overflow-hidden group">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => removeExistingImage(i)} className="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">✕</button>
+                </div>
+              ))}
+              {newPreviews.map((src, i) => (
+                <div key={`new-${i}`} className="relative aspect-square rounded-lg overflow-hidden border-2 border-green-300">
+                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  <span className="absolute bottom-1 left-1 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded">New</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="card bg-white p-6 space-y-4">
