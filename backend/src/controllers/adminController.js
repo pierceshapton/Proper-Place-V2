@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const logger = require('../utils/logger');
 const pushService = require('../services/pushNotificationService');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 /**
  * GET /admin/dashboard
@@ -217,17 +218,30 @@ async function getUsers(req, res, next) {
     const { page = 1, limit = 20, role } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = 'SELECT id, email, name, role, verified, created_at FROM users';
+    let query = `
+      SELECT
+        u.id,
+        u.email,
+        u.name,
+        u.role,
+        u.verified,
+        u.phone_number AS phone,
+        u.created_at,
+        COUNT(b.id)::int AS bookings_count,
+        MAX(b.created_at) AS last_booking_created_at
+      FROM users u
+      LEFT JOIN bookings b ON b.user_id = u.id
+    `;
     const params = [];
     let paramCount = 1;
 
     if (role) {
-      query += ` WHERE role = $${paramCount}`;
+      query += ` WHERE u.role = $${paramCount}`;
       params.push(role);
       paramCount++;
     }
 
-    query += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    query += ` GROUP BY u.id ORDER BY u.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(limit, offset);
 
     const result = await db.query(query, params);
@@ -246,6 +260,162 @@ async function getUsers(req, res, next) {
     });
   } catch (error) {
     logger.error('Get users error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * GET /admin/users/:id
+ */
+async function getUserDetails(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const userResult = await db.query(
+      `SELECT id, email, name, role, verified, phone_number AS phone, created_at
+       FROM users
+       WHERE id = $1`,
+      [id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'user_not_found',
+        message: 'User not found',
+      });
+    }
+
+    const bookingsResult = await db.query(
+      `SELECT
+         b.id,
+         b.booking_ref,
+         b.place_id,
+         p.name AS place_name,
+         p.city AS place_city,
+         b.check_in_date,
+         b.check_out_date,
+         b.total_price,
+         b.status,
+         b.created_at
+       FROM bookings b
+       LEFT JOIN places p ON p.id = b.place_id
+       WHERE b.user_id = $1
+       ORDER BY b.created_at DESC
+       LIMIT 30`,
+      [id]
+    );
+
+    res.json({
+      user: userResult.rows[0],
+      bookings: bookingsResult.rows,
+    });
+  } catch (error) {
+    logger.error('Get admin user details error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * DELETE /admin/users/:id
+ * Permanently delete a user account. If deleting a host, cancel/refund future bookings.
+ */
+async function deleteUser(req, res, next) {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.userId;
+
+    if (parseInt(id, 10) === adminId) {
+      return res.status(400).json({
+        error: 'invalid_target',
+        message: 'Admins cannot delete their own account from this endpoint',
+      });
+    }
+
+    const userResult = await db.query(
+      'SELECT id, name, email, role FROM users WHERE id = $1',
+      [id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'user_not_found',
+        message: 'User not found',
+      });
+    }
+
+    const targetUser = userResult.rows[0];
+    const bookingActions = { cancelled: 0, refundsAttempted: 0 };
+
+    if (targetUser.role === 'host') {
+      const bookingsToCancel = await db.query(
+        `SELECT
+           b.id,
+           b.payment_intent_id,
+           b.status
+         FROM bookings b
+         JOIN places p ON p.id = b.place_id
+         WHERE p.owner_id = $1
+           AND b.status NOT IN ('cancelled', 'Cancelled', 'completed', 'Completed', 'rejected', 'Rejected')
+           AND b.check_in_date > CURRENT_DATE`,
+        [id]
+      );
+
+      for (const booking of bookingsToCancel.rows) {
+        if (booking.payment_intent_id) {
+          try {
+            const pi = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
+            if (pi.status === 'requires_capture') {
+              await stripe.paymentIntents.cancel(booking.payment_intent_id);
+              bookingActions.refundsAttempted++;
+            } else if (pi.status === 'succeeded') {
+              await stripe.refunds.create({ payment_intent: booking.payment_intent_id });
+              bookingActions.refundsAttempted++;
+            }
+          } catch (stripeErr) {
+            logger.error('Host deletion booking refund/cancel failed', {
+              bookingId: booking.id,
+              hostId: id,
+              error: stripeErr.message,
+            });
+          }
+        }
+
+        await db.query(
+          `UPDATE bookings
+           SET status = 'cancelled', updated_at = NOW()
+           WHERE id = $1`,
+          [booking.id]
+        );
+        bookingActions.cancelled++;
+      }
+    }
+
+    await db.query('DELETE FROM users WHERE id = $1', [id]);
+
+    await db.query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        adminId,
+        'user_deleted',
+        'user',
+        id,
+        JSON.stringify({
+          deletedUserEmail: targetUser.email,
+          deletedUserRole: targetUser.role,
+          bookingActions,
+        }),
+      ]
+    );
+
+    logger.info('Admin deleted user', { adminId, deletedUserId: id, bookingActions });
+
+    res.json({
+      message: 'User account deleted successfully',
+      booking_actions: bookingActions,
+    });
+  } catch (error) {
+    logger.error('Admin delete user error', { error: error.message });
     next(error);
   }
 }
@@ -759,6 +929,8 @@ module.exports = {
   rejectPlace,
   reopenPlace,
   getUsers,
+  getUserDetails,
+  deleteUser,
   updateUserRole,
   updatePlace,
   seedTestMessages,

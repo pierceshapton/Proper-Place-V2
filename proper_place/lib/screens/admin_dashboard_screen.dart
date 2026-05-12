@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'admin_booking_search_screen.dart';
 import 'admin_host_applications_screen.dart';
+import 'admin_user_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final Function(int)? onTabChanged;
@@ -118,6 +119,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const AdminBookingSearchScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Users management card
+                _buildActionCard(
+                  title: 'Users',
+                  description: 'View user profiles, booking history, contact details, and delete accounts',
+                  image: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=200&fit=crop',
+                  buttonLabel: 'Manage Users',
+                  buttonColor: const Color(0xFF2563EB),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AdminUserManagementScreen()),
                     );
                   },
                 ),

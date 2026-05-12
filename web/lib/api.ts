@@ -239,7 +239,9 @@ export const adminApi = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return api<{ users: User[] }>(`/admin/users${qs}`);
   },
+  userDetails: (id: number) => api<{ user: User; bookings: AdminUserBooking[] }>(`/admin/users/${id}`),
   updateUserRole: (id: number, role: string) => api(`/admin/users/${id}/role`, { method: 'PATCH', body: { role } }),
+  deleteUser: (id: number) => api<{ message: string; booking_actions?: { cancelled: number; refundsAttempted: number } }>(`/admin/users/${id}`, { method: 'DELETE' }),
   hostApplications: (status?: string) => api<{ applications: HostApplication[] }>(`/admin/host-applications${status ? `?status=${status}` : ''}`),
   approveHostApplication: (id: number, adminNotes?: string) => api(`/admin/host-applications/${id}/approve`, { method: 'PATCH', body: { admin_notes: adminNotes || '' } }),
   rejectHostApplication: (id: number, adminNotes?: string) => api(`/admin/host-applications/${id}/reject`, { method: 'PATCH', body: { admin_notes: adminNotes || '' } }),
@@ -306,6 +308,21 @@ export interface User {
   host_contract_version?: string;
   stripe_account_id?: string;
   referral_code?: string;
+  bookings_count?: number;
+  last_booking_created_at?: string;
+}
+
+export interface AdminUserBooking {
+  id: number;
+  booking_ref?: string;
+  place_id?: number;
+  place_name?: string;
+  place_city?: string;
+  check_in_date?: string;
+  check_out_date?: string;
+  total_price?: number;
+  status?: string;
+  created_at?: string;
 }
 
 export interface Place {

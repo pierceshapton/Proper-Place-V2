@@ -17,7 +17,9 @@ router.patch('/places/:id/reject', adminController.rejectPlace);
 
 // User management
 router.get('/users', adminController.getUsers);
+router.get('/users/:id', adminController.getUserDetails);
 router.patch('/users/:id/role', adminController.updateUserRole);
+router.delete('/users/:id', adminController.deleteUser);
 router.post('/users/:id/reset-password', adminController.resetUserPassword);
 router.post('/users/:id/verify', adminController.verifyUser);
 router.post('/users/:id/unverify', adminController.unverifyUser);

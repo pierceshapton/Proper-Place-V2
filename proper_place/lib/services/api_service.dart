@@ -890,6 +890,47 @@ class ApiService {
 
   // ==================== ADMIN HOST APPLICATION METHODS ====================
 
+  /// Get users for admin management
+  static Future<List<dynamic>> getAdminUsers() async {
+    final response = await _request(
+      method: 'GET',
+      endpoint: '/admin/users?limit=200',
+    );
+    return response['users'] ?? [];
+  }
+
+  /// Get detailed user data (including booking history)
+  static Future<Map<String, dynamic>> getAdminUserDetails({
+    required int userId,
+  }) async {
+    return _request(
+      method: 'GET',
+      endpoint: '/admin/users/$userId',
+    );
+  }
+
+  /// Update user role
+  static Future<Map<String, dynamic>> updateAdminUserRole({
+    required int userId,
+    required String role,
+  }) async {
+    return _request(
+      method: 'PATCH',
+      endpoint: '/admin/users/$userId/role',
+      body: {'role': role},
+    );
+  }
+
+  /// Permanently delete a user account
+  static Future<Map<String, dynamic>> deleteAdminUser({
+    required int userId,
+  }) async {
+    return _request(
+      method: 'DELETE',
+      endpoint: '/admin/users/$userId',
+    );
+  }
+
   /// Get all host applications (admin only)
   static Future<List<dynamic>> getHostApplications({String status = 'all'}) async {
     final response = await _request(
