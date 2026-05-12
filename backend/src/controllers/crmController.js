@@ -1342,9 +1342,16 @@ async function importLeads(req, res, next) {
         latitude: lat || null,
         longitude: lng || null,
         google_place_id: providedPlaceId || null,
+        website: place.website || null,
+        google_rating: place.google_rating != null ? Number(place.google_rating) : null,
+        google_reviews_count: place.google_reviews_count != null ? Number(place.google_reviews_count) : null,
+        discovery_fit_score: place.fit_score != null ? Math.round(Number(place.fit_score)) : null,
+        discovery_parking_confidence: place.parking_confidence != null ? Math.round(Number(place.parking_confidence)) : null,
+        discovery_access_score: place.access_score != null ? Math.round(Number(place.access_score)) : null,
+        discovery_campervan_priority: place.campervan_priority != null ? Math.round(Number(place.campervan_priority)) : null,
         pipeline_stage,
         priority,
-        source: 'kml_import',
+        source: 'discovery',
       };
 
       if (enrich) {
@@ -1374,16 +1381,19 @@ async function importLeads(req, res, next) {
             business_name, location, latitude, longitude, phone, website, email,
             google_place_id, google_rating, google_reviews_count,
             opening_hours_text,
-            pipeline_stage, priority, admin_notes, source, assigned_to
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+            pipeline_stage, priority, admin_notes, source, assigned_to,
+            discovery_fit_score, discovery_parking_confidence, discovery_access_score, discovery_campervan_priority
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
           RETURNING id`,
           [
             data.business_name, data.location, data.latitude, data.longitude,
             data.phone || null, data.website || null, data.email || null,
-            data.google_place_id || null, data.google_rating || null, data.google_reviews_count || null,
+            data.google_place_id || null, data.google_rating ?? null, data.google_reviews_count ?? null,
             data.opening_hours_text || null,
             data.pipeline_stage, data.priority,
             description || null, data.source, req.user.userId,
+            data.discovery_fit_score ?? null, data.discovery_parking_confidence ?? null,
+            data.discovery_access_score ?? null, data.discovery_campervan_priority ?? null,
           ]
         );
         if (r.rows.length > 0) {

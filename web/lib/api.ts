@@ -854,6 +854,9 @@ export const crmApi = {
       lng?: number;
       address?: string;
       google_place_id?: string;
+      website?: string;
+      google_rating?: number;
+      google_reviews_count?: number;
       fit_score?: number;
       parking_confidence?: number;
       access_score?: number;

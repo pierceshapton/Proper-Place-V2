@@ -383,6 +383,9 @@ export default function DiscoverPage() {
               google_place_id: normalizePlaceId(activeCandidate.id) || undefined,
               lat: activeCandidate.latitude || undefined,
               lng: activeCandidate.longitude || undefined,
+              website: activeCandidate.website || undefined,
+              google_rating: activeCandidate.rating ?? undefined,
+              google_reviews_count: activeCandidate.reviews ?? undefined,
               description: activeCandidate.reasons.join(' · '),
               fit_score: activeCandidate.score,
               parking_confidence: activeCandidate.siteAnalysis?.parkingConfidence,
@@ -390,7 +393,7 @@ export default function DiscoverPage() {
               campervan_priority: activeCandidate.siteAnalysis?.campervanPriority,
             },
           ],
-          true,
+          false,
           firstStage.slug,
           'medium'
         );
