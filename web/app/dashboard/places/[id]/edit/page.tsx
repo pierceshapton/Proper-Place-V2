@@ -1,8 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useJsApiLoader } from '@react-google-maps/api';
 import { placesApi, uploadApi, ApiError, type Place } from '@/lib/api';
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
+const MAPS_LIBRARIES: ('places')[] = ['places'];
 
 const PLACE_TYPES = [
   { value: 'private_land', label: 'Private Land' },
@@ -23,6 +27,8 @@ export default function EditPlacePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
   const [newImages, setNewImages] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState(5);
@@ -42,6 +48,33 @@ export default function EditPlacePage() {
   const [newCalendarLabel, setNewCalendarLabel] = useState('');
   const [calendarActionLoading, setCalendarActionLoading] = useState(false);
   const [calendarError, setCalendarError] = useState('');
+
+  // Attach Google Places Autocomplete once API is loaded
+  useEffect(() => {
+    if (!isLoaded || !addressInputRef.current) return;
+    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+      types: ['geocode'],
+      componentRestrictions: { country: 'gb' },
+    });
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry?.location) return;
+      const get = (type: string, short = false) =>
+        place.address_components?.find(c => c.types.includes(type))?.[short ? 'short_name' : 'long_name'] ?? '';
+      const address = [get('street_number'), get('route')].filter(Boolean).join(' ');
+      const city = get('postal_town') || get('locality') || get('administrative_area_level_2');
+      setForm(f => ({
+        ...f,
+        address: address || place.formatted_address || f.address,
+        city,
+        postal_code: get('postal_code'),
+        country: get('country', true) || 'GB',
+        latitude: place.geometry!.location!.lat().toString(),
+        longitude: place.geometry!.location!.lng().toString(),
+      }));
+    });
+    return () => window.google.maps.event.clearInstanceListeners(autocomplete);
+  }, [isLoaded]);
 
   useEffect(() => {
     if (!id) return;
@@ -218,7 +251,19 @@ export default function EditPlacePage() {
 
         <div className="card bg-white p-6 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900">Location</h2>
-          <div><input type="text" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Address" className="bg-white border-gray-300 text-gray-900" /></div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <input
+              ref={addressInputRef}
+              type="text"
+              value={form.address}
+              onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+              placeholder="Start typing to search, or enter manually"
+              className="bg-white border-gray-300 text-gray-900"
+              autoComplete="off"
+            />
+            <p className="text-xs text-gray-400 mt-1">Selecting a suggestion will auto-fill city, postcode and coordinates.</p>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div><input type="text" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="City" className="bg-white border-gray-300 text-gray-900" /></div>
             <div><input type="text" value={form.postal_code} onChange={e => setForm(f => ({ ...f, postal_code: e.target.value }))} placeholder="Postal Code" className="bg-white border-gray-300 text-gray-900" /></div>

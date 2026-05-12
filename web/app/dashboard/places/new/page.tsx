@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useJsApiLoader } from '@react-google-maps/api';
 import { placesApi, uploadApi, ApiError } from '@/lib/api';
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
+const MAPS_LIBRARIES: ('places')[] = ['places'];
 
 const PLACE_TYPES = [
   { value: 'private_land', label: 'Private Land' },
@@ -20,6 +24,8 @@ export default function NewPlacePage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState(5);
@@ -127,6 +133,42 @@ export default function NewPlacePage() {
     setSaving(false);
   };
 
+  // Attach Google Places Autocomplete to the address input once the API is loaded
+  useEffect(() => {
+    if (!isLoaded || !addressInputRef.current) return;
+    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+      types: ['geocode'],
+      componentRestrictions: { country: 'gb' },
+    });
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry?.location) return;
+
+      const get = (type: string, short = false) =>
+        place.address_components?.find(c => c.types.includes(type))?.[short ? 'short_name' : 'long_name'] ?? '';
+
+      const streetNumber = get('street_number');
+      const route = get('route');
+      const address = [streetNumber, route].filter(Boolean).join(' ');
+      const city = get('postal_town') || get('locality') || get('administrative_area_level_2');
+      const postalCode = get('postal_code');
+      const country = get('country', true);
+      const lat = place.geometry.location.lat().toString();
+      const lng = place.geometry.location.lng().toString();
+
+      setForm(f => ({
+        ...f,
+        address: address || place.formatted_address || f.address,
+        city,
+        postal_code: postalCode,
+        country: country || 'GB',
+        latitude: lat,
+        longitude: lng,
+      }));
+    });
+    return () => window.google.maps.event.clearInstanceListeners(autocomplete);
+  }, [isLoaded]);
+
   const handleGetLocation = () => {
     if (!navigator.geolocation) { setError('Geolocation not supported'); return; }
     navigator.geolocation.getCurrentPosition(
@@ -182,7 +224,16 @@ export default function NewPlacePage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <input type="text" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="123 Country Lane" className="bg-white border-gray-300 text-gray-900" />
+            <input
+              ref={addressInputRef}
+              type="text"
+              value={form.address}
+              onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+              placeholder="Start typing to search, or enter manually"
+              className="bg-white border-gray-300 text-gray-900"
+              autoComplete="off"
+            />
+            <p className="text-xs text-gray-400 mt-1">Selecting a suggestion will auto-fill city, postcode and coordinates.</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
