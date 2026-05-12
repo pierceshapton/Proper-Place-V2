@@ -26,6 +26,7 @@ export default function DiscoverPage() {
   const [firstStage, setFirstStage] = useState<{ slug: string; name: string }>({ slug: 'reviewed', name: 'Reviewed' });
 
   const [threshold, setThreshold] = useState(85);
+  const [minScore, setMinScore] = useState(35);
   const [feedbackHistory, setFeedbackHistory] = useState<DiscoveryFeedbackItem[]>([]);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState('');
@@ -83,6 +84,11 @@ export default function DiscoverPage() {
         setThreshold(parsedThreshold);
       }
 
+      const parsedMinScore = Number(settingsMap.discovery_min_score || '35');
+      if (Number.isFinite(parsedMinScore) && parsedMinScore >= 0) {
+        setMinScore(parsedMinScore);
+      }
+
       const rawFeedback = settingsMap.discovery_feedback_v1 || '[]';
       const parsedFeedback = safeParseFeedback(rawFeedback);
       setFeedbackHistory(parsedFeedback);
@@ -133,8 +139,8 @@ export default function DiscoverPage() {
 
     const keywords = deriveKeywordsFromCriteria(criteriaInput);
 
-    // Persist criteria so it survives page refresh
-    crmApi.updateSettings({ discovery_criteria_v1: criteriaInput }).catch(() => {});
+    // Persist criteria and min score so they survive page refresh
+    crmApi.updateSettings({ discovery_criteria_v1: criteriaInput, discovery_min_score: String(minScore) }).catch(() => {});
 
     setIsSearching(true);
     try {
@@ -187,7 +193,7 @@ export default function DiscoverPage() {
 
       const seenInResults = new Set<string>();
       const filtered = scored.filter(item => {
-        if (item.score < 35) return false;
+        if (item.score < minScore) return false;
         if (isRejected(item, rejectedSites)) return false;
         const placeId = normalizePlaceId(item.id);
         if (placeId && existingPlaceIds.has(placeId)) return false;
@@ -295,7 +301,7 @@ export default function DiscoverPage() {
 
       const seenInRescored = new Set<string>();
       rescored = rescored.sort((a, b) => b.score - a.score).filter(item => {
-        if (item.score < 35) return false;
+        if (item.score < minScore) return false;
         if (isRejected(item, rejectedSites)) return false;
         const placeId = normalizePlaceId(item.id);
         if (placeId && existingPlaceIds.has(placeId)) return false;
@@ -502,6 +508,23 @@ export default function DiscoverPage() {
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
             />
             <p className="text-[11px] text-slate-600 mt-1">Write naturally — the AI reads this and checks each requirement per site. Notes you leave on rated sites are also learned from.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Min AI Score (0–100)</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={0}
+                max={80}
+                step={5}
+                value={minScore}
+                onChange={e => setMinScore(Number(e.target.value))}
+                className="flex-1 accent-emerald-500"
+              />
+              <span className="text-sm font-semibold text-slate-200 w-8 text-right">{minScore}</span>
+            </div>
+            <p className="text-[11px] text-slate-600 mt-1">Sites scoring below this are hidden. Lower to see more results; raise to filter aggressively.</p>
           </div>
 
           <button
