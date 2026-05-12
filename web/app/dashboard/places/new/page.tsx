@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
+import { useJsApiLoader, GoogleMap } from '@react-google-maps/api';
 import { placesApi, uploadApi, ApiError } from '@/lib/api';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
@@ -30,6 +30,7 @@ export default function NewPlacePage() {
   const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 54.5, lng: -2.5 });
   const [mapZoom, setMapZoom] = useState(6);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState(5);
@@ -260,7 +261,7 @@ export default function NewPlacePage() {
         {/* Location */}
         <div className="card bg-white p-6 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900">Location</h2>
-          <p className="text-sm text-gray-500">Search for your site, then drag the pin to the exact spot.</p>
+          <p className="text-sm text-gray-500">Search your address, and move the pin to the car park entrance.</p>
 
           {/* Map with search overlay */}
           {isLoaded ? (
@@ -279,8 +280,26 @@ export default function NewPlacePage() {
                     type="button"
                     onClick={handleGetLocation}
                     title="Use my current location"
-                    className="bg-white border border-gray-300 rounded-lg px-3 py-2.5 shadow-md hover:bg-gray-50 text-lg"
-                  >📍</button>
+                    className="bg-white border border-gray-300 rounded-lg px-3 py-2.5 shadow-md hover:bg-gray-50 flex items-center justify-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
+                      <circle cx="12" cy="12" r="3"/>
+                      <line x1="12" y1="2" x2="12" y2="6"/>
+                      <line x1="12" y1="18" x2="12" y2="22"/>
+                      <line x1="2" y1="12" x2="6" y2="12"/>
+                      <line x1="18" y1="12" x2="22" y2="12"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Fixed centre pin — the map pans beneath it */}
+              <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
+                <div style={{ transform: 'translateY(-50%)' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48" fill="none">
+                    <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#E53935"/>
+                    <circle cx="18" cy="18" r="7" fill="white"/>
+                  </svg>
                 </div>
               </div>
 
@@ -288,42 +307,28 @@ export default function NewPlacePage() {
                 mapContainerStyle={{ width: '100%', height: '100%' }}
                 center={mapCenter}
                 zoom={mapZoom}
-                options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
-                onClick={e => {
-                  const lat = e.latLng?.lat();
-                  const lng = e.latLng?.lng();
-                  if (lat == null || lng == null) return;
+                options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, gestureHandling: 'greedy' }}
+                onLoad={map => { mapInstanceRef.current = map; }}
+                onIdle={() => {
+                  const map = mapInstanceRef.current;
+                  if (!map) return;
+                  const centre = map.getCenter();
+                  if (!centre) return;
+                  const lat = centre.lat();
+                  const lng = centre.lng();
                   setMarkerPos({ lat, lng });
+                  setForm(f => ({ ...f, latitude: lat.toString(), longitude: lng.toString() }));
                   reverseGeocode(lat, lng);
                 }}
-              >
-                {markerPos && (
-                  <Marker
-                    position={markerPos}
-                    draggable
-                    onDragEnd={e => {
-                      const lat = e.latLng?.lat();
-                      const lng = e.latLng?.lng();
-                      if (lat == null || lng == null) return;
-                      setMarkerPos({ lat, lng });
-                      reverseGeocode(lat, lng);
-                    }}
-                  />
-                )}
-              </GoogleMap>
+              />
 
               {/* Location summary pill */}
-              {markerPos && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs text-gray-700 shadow-md whitespace-nowrap">
-                  📌 {form.address || `${markerPos.lat.toFixed(5)}, ${markerPos.lng.toFixed(5)}`}{form.city ? `, ${form.city}` : ''}
-                </div>
-              )}
-
-              {!markerPos && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs text-gray-500 shadow-md whitespace-nowrap">
-                  Search above or click the map to place your pin
-                </div>
-              )}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs text-gray-700 shadow-md whitespace-nowrap z-10">
+                {markerPos
+                  ? <>📌 {form.address || `${markerPos.lat.toFixed(5)}, ${markerPos.lng.toFixed(5)}`}{form.city ? `, ${form.city}` : ''}</>
+                  : <span className="text-gray-400">Search above or pan the map to place your pin</span>
+                }
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-center h-48 bg-gray-100 rounded-xl">
