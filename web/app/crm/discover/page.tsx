@@ -27,6 +27,7 @@ export default function DiscoverPage() {
 
   const [threshold, setThreshold] = useState(85);
   const [minScore, setMinScore] = useState(35);
+  const [minRating, setMinRating] = useState(0);
   const [feedbackHistory, setFeedbackHistory] = useState<DiscoveryFeedbackItem[]>([]);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState('');
@@ -89,6 +90,11 @@ export default function DiscoverPage() {
         setMinScore(parsedMinScore);
       }
 
+      const parsedMinRating = Number(settingsMap.discovery_min_rating || '0');
+      if (Number.isFinite(parsedMinRating) && parsedMinRating >= 0) {
+        setMinRating(parsedMinRating);
+      }
+
       const rawFeedback = settingsMap.discovery_feedback_v1 || '[]';
       const parsedFeedback = safeParseFeedback(rawFeedback);
       setFeedbackHistory(parsedFeedback);
@@ -140,7 +146,7 @@ export default function DiscoverPage() {
     const keywords = deriveKeywordsFromCriteria(criteriaInput);
 
     // Persist criteria and min score so they survive page refresh
-    crmApi.updateSettings({ discovery_criteria_v1: criteriaInput, discovery_min_score: String(minScore) }).catch(() => {});
+    crmApi.updateSettings({ discovery_criteria_v1: criteriaInput, discovery_min_score: String(minScore), discovery_min_rating: String(minRating) }).catch(() => {});
 
     setIsSearching(true);
     try {
@@ -194,6 +200,7 @@ export default function DiscoverPage() {
       const seenInResults = new Set<string>();
       const filtered = scored.filter(item => {
         if (item.score < minScore) return false;
+        if (minRating > 0 && (typeof item.rating !== 'number' || item.rating < minRating)) return false;
         if (isRejected(item, rejectedSites)) return false;
         const placeId = normalizePlaceId(item.id);
         if (placeId && existingPlaceIds.has(placeId)) return false;
@@ -302,6 +309,7 @@ export default function DiscoverPage() {
       const seenInRescored = new Set<string>();
       rescored = rescored.sort((a, b) => b.score - a.score).filter(item => {
         if (item.score < minScore) return false;
+        if (minRating > 0 && (typeof item.rating !== 'number' || item.rating < minRating)) return false;
         if (isRejected(item, rejectedSites)) return false;
         const placeId = normalizePlaceId(item.id);
         if (placeId && existingPlaceIds.has(placeId)) return false;
@@ -525,6 +533,22 @@ export default function DiscoverPage() {
               <span className="text-sm font-semibold text-slate-200 w-8 text-right">{minScore}</span>
             </div>
             <p className="text-[11px] text-slate-600 mt-1">Sites scoring below this are hidden. Lower to see more results; raise to filter aggressively.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Min Google Rating</label>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[0, 3, 3.5, 4, 4.2, 4.5].map(r => (
+                <button
+                  key={r}
+                  onClick={() => setMinRating(r)}
+                  className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${minRating === r ? 'bg-emerald-500 border-emerald-500 text-white font-semibold' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                >
+                  {r === 0 ? 'Any' : `${r}★+`}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-600 mt-1">Sites without a Google rating are hidden when a minimum is set.</p>
           </div>
 
           <button
