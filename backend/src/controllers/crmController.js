@@ -695,7 +695,6 @@ async function sendEmail(req, res, next) {
       to: recipient,
       subject: interpolatedSubject,
       text: stripHtml(interpolated),
-      html: wrapEmailHtml(interpolated),
     });
 
     // Log to email log
