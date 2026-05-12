@@ -31,6 +31,7 @@ export default function NewPlacePage() {
   const [mapCenter, setMapCenter] = useState({ lat: 54.5, lng: -2.5 });
   const [mapZoom, setMapZoom] = useState(6);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const pinActiveRef = useRef(false);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState(5);
@@ -170,6 +171,7 @@ export default function NewPlacePage() {
       setMarkerPos({ lat, lng });
       setMapCenter({ lat, lng });
       setMapZoom(16);
+      pinActiveRef.current = true;
       setForm(f => ({
         ...f,
         address: [streetNumber, route].filter(Boolean).join(' ') || place.formatted_address || f.address,
@@ -212,6 +214,7 @@ export default function NewPlacePage() {
         setMarkerPos({ lat, lng });
         setMapCenter({ lat, lng });
         setMapZoom(16);
+        pinActiveRef.current = true;
         if (isLoaded) reverseGeocode(lat, lng);
         else setForm(f => ({ ...f, latitude: lat.toString(), longitude: lng.toString() }));
       },
@@ -310,6 +313,7 @@ export default function NewPlacePage() {
                 options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, gestureHandling: 'greedy' }}
                 onLoad={map => { mapInstanceRef.current = map; }}
                 onIdle={() => {
+                  if (!pinActiveRef.current) return;
                   const map = mapInstanceRef.current;
                   if (!map) return;
                   const centre = map.getCenter();
