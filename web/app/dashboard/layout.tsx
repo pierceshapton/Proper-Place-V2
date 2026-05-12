@@ -72,7 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-24 left-0 h-[calc(100vh-6rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto transition-transform z-30 shadow-lg lg:shadow-none`}>
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed top-24 left-0 h-[calc(100vh-6rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto transition-transform z-30 shadow-lg lg:shadow-none`}>
           <div className="p-4 space-y-1">
             <div className="px-4 py-3 mb-2">
               <p className="font-semibold text-gray-900">{user.name}</p>
@@ -117,7 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {sidebarOpen && <div className="lg:hidden fixed inset-0 bg-black/50 z-20" onClick={() => setSidebarOpen(false)} />}
 
         {/* Main content */}
-        <main className="flex-1 min-h-[calc(100vh-6rem)] p-4 lg:p-8">
+        <main className="flex-1 min-h-[calc(100vh-6rem)] p-4 lg:p-8 lg:ml-64">
           {children}
         </main>
       </div>
