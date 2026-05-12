@@ -330,8 +330,8 @@ export default function NewPlacePage() {
 
               {/* Location summary pill */}
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs text-gray-700 shadow-md whitespace-nowrap z-10">
-                {markerPos
-                  ? <>📌 {form.address || `${markerPos.lat.toFixed(5)}, ${markerPos.lng.toFixed(5)}`}{form.city ? `, ${form.city}` : ''}</>
+                {form.latitude && form.longitude
+                  ? <>📌 {form.address || `${parseFloat(form.latitude).toFixed(7)}, ${parseFloat(form.longitude).toFixed(7)}`}{form.city ? `, ${form.city}` : ''}</>
                   : <span className="text-gray-400">Search above or pan the map to place your pin</span>
                 }
               </div>
