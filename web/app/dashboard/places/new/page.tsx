@@ -299,14 +299,11 @@ export default function NewPlacePage() {
                 </div>
               </div>
 
-              {/* Pin fixed at map centre, visible once user has searched/located */}
+              {/* Logo fixed at map centre, visible once user has searched/located */}
               {pinVisible && (
                 <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
                   <div style={{ transform: 'translateY(-50%)' }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48" fill="none">
-                      <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#E53935"/>
-                      <circle cx="18" cy="18" r="7" fill="white"/>
-                    </svg>
+                    <img src="/logo-192.png" alt="Proper Place logo" className="w-12 h-12 drop-shadow-lg" />
                   </div>
                 </div>
               )}
