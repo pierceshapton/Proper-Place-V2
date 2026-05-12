@@ -70,7 +70,7 @@ export default function CRMMapPage() {
   const mappableLeads = leads.filter(l => l.latitude && l.longitude);
 
   const filteredLeads = activeStages.size === 0
-    ? mappableLeads
+    ? mappableLeads.filter(l => l.pipeline_stage !== 'lost')
     : mappableLeads.filter(l => activeStages.has(l.pipeline_stage));
 
   // Search
