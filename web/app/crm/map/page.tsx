@@ -435,7 +435,18 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
               center={{ lat: Number(lead.latitude), lng: Number(lead.longitude) }}
               zoom={17}
               options={{ mapTypeId: 'satellite', disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy' }}
-            />
+            >
+              <Marker
+                position={{ lat: Number(lead.latitude), lng: Number(lead.longitude) }}
+                title={displayName}
+                onClick={() => {
+                  const mapsUrl = lead.google_place_id
+                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayName)}&query_place_id=${lead.google_place_id}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayName)}+${lead.latitude},${lead.longitude}`;
+                  window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                }}
+              />
+            </GoogleMap>
             <a
               href={lead.google_place_id
                 ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayName)}&query_place_id=${lead.google_place_id}`
