@@ -683,12 +683,14 @@ async function sendEmail(req, res, next) {
     const emailUtil = require('../utils/email');
     const crmFromName = process.env.CRM_FROM_NAME || 'Pierce Shapton';
 
+    const CRM_SIGNATURE = `\n\n--\nPierce Shapton\nProper Place\n+44 7585 227180\npierce.shapton@proper-place.co.uk\nwww.proper-place.co.uk`;
+
     await emailUtil.transporter.sendMail({
       from: `"${crmFromName}" <${process.env.SMTP_USER}>`,
       replyTo: 'pierce.shapton@proper-place.co.uk',
       to: recipient,
       subject: interpolatedSubject,
-      text: stripHtml(interpolated),
+      text: stripHtml(interpolated) + CRM_SIGNATURE,
     });
 
     // Log to email log
