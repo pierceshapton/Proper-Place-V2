@@ -428,7 +428,7 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
         </div>
 
         {/* Satellite map */}
-        {lead.latitude && lead.longitude && isLoaded && (
+        {lead.latitude && lead.longitude && (
           <div className="mx-5 mt-3 rounded-lg overflow-hidden border border-slate-700 relative h-36">
             <GoogleMap
               mapContainerStyle={{ width: '100%', height: '100%' }}
