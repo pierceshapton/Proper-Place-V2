@@ -679,21 +679,13 @@ async function sendEmail(req, res, next) {
     const interpolated = interpolateTemplate(body, lead);
     const interpolatedSubject = interpolateTemplate(subject, lead);
 
-    // Send via CRM transporter (dedicated pierce.shapton sender)
-    const nodemailer = require('nodemailer');
-    const crmUser = process.env.CRM_SMTP_USER || process.env.SMTP_USER;
-    const crmPass = process.env.CRM_SMTP_PASS || process.env.SMTP_PASS;
+    // Send via existing working SMTP (no-reply), with Pierce as display name and reply-to
+    const emailUtil = require('../utils/email');
     const crmFromName = process.env.CRM_FROM_NAME || 'Pierce Shapton';
-    const crmTransporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: false,
-      requireTLS: true,
-      auth: { user: crmUser, pass: crmPass },
-    });
 
-    await crmTransporter.sendMail({
-      from: `"${crmFromName}" <${crmUser}>`,
+    await emailUtil.transporter.sendMail({
+      from: `"${crmFromName}" <${process.env.SMTP_USER}>`,
+      replyTo: 'pierce.shapton@proper-place.co.uk',
       to: recipient,
       subject: interpolatedSubject,
       text: stripHtml(interpolated),
