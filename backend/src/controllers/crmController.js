@@ -683,14 +683,31 @@ async function sendEmail(req, res, next) {
     const emailUtil = require('../utils/email');
     const crmFromName = process.env.CRM_FROM_NAME || 'Pierce Shapton';
 
-    const CRM_SIGNATURE = `\n\n--\nPierce Shapton\nProper Place\n+44 7585 227180\npierce.shapton@proper-place.co.uk\nwww.proper-place.co.uk`;
+    const CRM_SIGNATURE_TEXT = `\n\n--\nPierce Shapton\nProper Place\n+44 7585 227180\npierce.shapton@proper-place.co.uk\nwww.proper-place.co.uk`;
+
+    const bodyText = stripHtml(interpolated);
+    const bodyHtml = bodyText
+      .split(/\n\n+/)
+      .map(p => `<p style="margin:0 0 14px 0;">${p.replace(/\n/g, '<br>')}</p>`)
+      .join('');
+
+    const htmlEmail = `<div style="font-family:Arial,sans-serif;font-size:15px;color:#1a1a1a;line-height:1.6;max-width:600px;">`
+      + bodyHtml
+      + `<p style="margin:24px 0 0 0;padding-top:12px;border-top:1px solid #e0e0e0;font-size:13px;color:#555;line-height:1.8;">`
+      + `<strong style="color:#1a1a1a;">Pierce Shapton</strong><br>`
+      + `Proper Place<br>`
+      + `+44 7585 227180<br>`
+      + `<a href="mailto:pierce.shapton@proper-place.co.uk" style="color:#10b981;text-decoration:none;">pierce.shapton@proper-place.co.uk</a><br>`
+      + `<a href="https://www.proper-place.co.uk" style="color:#10b981;text-decoration:none;">www.proper-place.co.uk</a>`
+      + `</p></div>`;
 
     await emailUtil.transporter.sendMail({
       from: `"${crmFromName}" <${process.env.SMTP_USER}>`,
       replyTo: 'pierce.shapton@proper-place.co.uk',
       to: recipient,
       subject: interpolatedSubject,
-      text: stripHtml(interpolated) + CRM_SIGNATURE,
+      text: bodyText + CRM_SIGNATURE_TEXT,
+      html: htmlEmail,
     });
 
     // Log to email log
