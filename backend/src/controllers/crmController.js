@@ -697,8 +697,8 @@ async function sendEmail(req, res, next) {
       + `<strong style="color:#1a1a1a;">Pierce Shapton</strong><br>`
       + `Proper Place<br>`
       + `+44 7585 227180<br>`
-      + `<a href="mailto:pierce.shapton@proper-place.co.uk" style="color:#10b981;text-decoration:none;">pierce.shapton@proper-place.co.uk</a><br>`
-      + `<a href="https://www.proper-place.co.uk" style="color:#10b981;text-decoration:none;">www.proper-place.co.uk</a>`
+      + `<a href="mailto:pierce.shapton@proper-place.co.uk" style="color:#1976D2;text-decoration:none;">pierce.shapton@proper-place.co.uk</a><br>`
+      + `<a href="https://www.proper-place.co.uk" style="color:#1976D2;text-decoration:none;">www.proper-place.co.uk</a>`
       + `</p></div>`;
 
     await emailUtil.transporter.sendMail({
