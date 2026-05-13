@@ -333,14 +333,16 @@ async function createActivity(req, res, next) {
     const { id } = req.params;
     const { activity_type, title, description, metadata } = req.body;
 
-    if (!activity_type || !title) {
-      return res.status(400).json({ error: 'activity_type and title required' });
+    if (!activity_type) {
+      return res.status(400).json({ error: 'activity_type required' });
     }
+
+    const resolvedTitle = title || activity_type.charAt(0).toUpperCase() + activity_type.slice(1).replace('_', ' ');
 
     const result = await db.query(
       `INSERT INTO crm_activities (lead_id, activity_type, title, description, metadata, created_by)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [id, activity_type, title, description || null, metadata || '{}', req.user.userId]
+      [id, activity_type, resolvedTitle, description || null, metadata || '{}', req.user.userId]
     );
 
     // Update last_contact_date if it's a contact-type activity
