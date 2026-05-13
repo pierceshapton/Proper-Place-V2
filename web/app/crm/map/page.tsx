@@ -455,9 +455,7 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
                     className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
                     {['note','call','email','meeting','site_visit'].map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase()+o.slice(1).replace('_',' ')}</option>)}
                   </select>
-                  <input value={noteForm.title} onChange={e => setNoteForm(f => ({ ...f, title: e.target.value }))} placeholder="Title..."
-                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500" />
-                  <textarea value={noteForm.description} onChange={e => setNoteForm(f => ({ ...f, description: e.target.value }))} placeholder="Details..." rows={2}
+                  <textarea value={noteForm.description} onChange={e => setNoteForm(f => ({ ...f, description: e.target.value }))} placeholder="Notes..." rows={2}
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500" />
                   <button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg">Add</button>
                 </form>
@@ -468,8 +466,8 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
                     <div key={a.id} className="flex items-start gap-3 py-2.5 border-b border-slate-800/50">
                       <ActivityIcon type={a.activity_type} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-300">{a.title}</p>
-                        {a.description && <p className="text-xs text-slate-500 mt-0.5">{a.description}</p>}
+                        <p className="text-xs font-medium text-slate-400 capitalize">{a.activity_type.replace('_', ' ')}</p>
+                        {a.description && <p className="text-sm text-slate-300 mt-0.5">{a.description}</p>}
                         <p className="text-[11px] text-slate-600 mt-1">{a.created_by_name || 'System'} · {timeAgo(a.created_at)}</p>
                       </div>
                     </div>
