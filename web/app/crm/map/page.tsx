@@ -427,6 +427,32 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
           </div>
         </div>
 
+        {/* Satellite map */}
+        {lead.latitude && lead.longitude && (
+          <div className="mx-5 mt-3 rounded-lg overflow-hidden border border-slate-700 relative h-36">
+            <iframe
+              title={`Satellite map of ${displayName}`}
+              width="100%"
+              height="100%"
+              style={{ border: 0, display: 'block' }}
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+              src={`https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${lead.latitude},${lead.longitude}&zoom=18&maptype=satellite`}
+            />
+            <a
+              href={lead.google_place_id
+                ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayName)}&query_place_id=${lead.google_place_id}`
+                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayName)}+${lead.latitude},${lead.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white text-[11px] px-2 py-1 rounded"
+            >
+              Open in Maps ↗
+            </a>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-1 border-b border-slate-800 px-5">
           {[
