@@ -5,7 +5,9 @@ import { query } from '../db/database.js';
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Platform fee percentage kept by Proper Place
+// Proper Place adds 18% on top of the host's rate so the host always receives
+// exactly what they set. The application_fee extracted from the charge must
+// therefore be:  gross_amount × (0.18 / 1.18)
 const PLATFORM_FEE_PERCENT = 0.18;
 
 // ─── Stripe Connect onboarding ────────────────────────────────────────────────
@@ -140,7 +142,7 @@ router.post('/create-intent', async (req, res) => {
       }
     }
 
-    const applicationFeeAmount = Math.round(amount * PLATFORM_FEE_PERCENT);
+    const applicationFeeAmount = Math.round(amount * (PLATFORM_FEE_PERCENT / (1 + PLATFORM_FEE_PERCENT)));
 
     // Use manual capture (hold) only when checkout is within 6 days — Stripe
     // card authorisations expire after 7 days on most UK cards.  For longer
