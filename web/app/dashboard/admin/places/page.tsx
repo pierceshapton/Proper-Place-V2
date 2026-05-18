@@ -16,7 +16,7 @@ export default function AdminPlacesPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
 
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: MAPS_KEY });
+  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: MAPS_KEY, libraries: ['places'] });
 
   const load = async () => {
     try {

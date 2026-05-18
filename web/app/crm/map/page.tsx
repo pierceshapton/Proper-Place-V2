@@ -53,7 +53,7 @@ export default function CRMMapPage() {
   const [initialCenter] = useState({ lat: 52.5, lng: -1.5 });
   const [initialZoom] = useState(6);
 
-  const { isLoaded } = useJsApiLoader({ id: 'crm-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY });
+  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: ['places'] });
 
   useEffect(() => {
     crmApi.getStages().then(r => setStages(r.stages.sort((a: CRMStage, b: CRMStage) => a.sort_order - b.sort_order))).catch(() => {});

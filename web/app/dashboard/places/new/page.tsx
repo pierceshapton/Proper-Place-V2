@@ -26,7 +26,7 @@ export default function NewPlacePage() {
   const [error, setError] = useState('');
   const addressInputRef = useRef<HTMLInputElement>(null);
   const mapSearchRef = useRef<HTMLInputElement>(null);
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
+  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
   const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 54.5, lng: -2.5 });
   const [mapZoom, setMapZoom] = useState(6);
