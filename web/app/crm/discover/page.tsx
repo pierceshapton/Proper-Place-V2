@@ -35,6 +35,11 @@ export default function DiscoverPage() {
   const [autoEmailEnabled, setAutoEmailEnabled] = useState(false);
   const [automationStatus, setAutomationStatus] = useState<CRMAutomationStatus | null>(null);
 
+  const [nameQuery, setNameQuery] = useState('');
+  const [nameResults, setNameResults] = useState<ScoredCandidate[]>([]);
+  const [isNameSearching, setIsNameSearching] = useState(false);
+  const [nameSearchError, setNameSearchError] = useState('');
+
   const loadLeads = useCallback(async () => {
     try {
       const response = await crmApi.getLeads({ limit: '500' });
@@ -225,6 +230,32 @@ export default function DiscoverPage() {
       setSearchError(`Google Places search failed: ${msg}. Check API access and billing.`);
     } finally {
       setIsSearching(false);
+    }
+  }
+
+  async function runNameSearch() {
+    setNameSearchError('');
+    if (!nameQuery.trim()) return;
+    if (!GOOGLE_MAPS_API_KEY) {
+      setNameSearchError('Missing Google Maps API key.');
+      return;
+    }
+    setIsNameSearching(true);
+    try {
+      const raw = await searchByExactName(nameQuery.trim(), GOOGLE_MAPS_API_KEY);
+      const scored = raw
+        .map(c => scoreCandidate(c, profile))
+        .filter(c => {
+          const placeId = normalizePlaceId(c.id);
+          if (placeId && existingPlaceIds.has(placeId)) return false;
+          return true;
+        });
+      setNameResults(scored);
+      if (scored.length === 0) setNameSearchError('No results found. Try a more specific name or include a town.');
+    } catch (err) {
+      setNameSearchError(err instanceof Error ? err.message : 'Search failed.');
+    } finally {
+      setIsNameSearching(false);
     }
   }
 
@@ -490,6 +521,57 @@ export default function DiscoverPage() {
             {autoEmailEnabled ? 'Disable Auto Email' : 'Enable Auto Email'}
           </button>
         </div>
+      </section>
+
+      {/* ── Find a specific place ── */}
+      <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-slate-200">Find a Specific Place</h2>
+        <p className="text-xs text-slate-500">Search by business name to find and add any place you&apos;ve come across outside of the area search.</p>
+        <div className="flex gap-2">
+          <input
+            value={nameQuery}
+            onChange={e => setNameQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && runNameSearch()}
+            placeholder="e.g. The Crown Inn, Bristol"
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+          />
+          <button
+            onClick={runNameSearch}
+            disabled={isNameSearching || !nameQuery.trim()}
+            className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg whitespace-nowrap"
+          >
+            {isNameSearching ? 'Searching…' : 'Search'}
+          </button>
+        </div>
+        {nameSearchError && <p className="text-xs text-red-400">{nameSearchError}</p>}
+        {nameResults.length > 0 && (
+          <div className="space-y-2">
+            {nameResults.map(item => {
+              const alreadyInCrm = existingPlaceIds.has(normalizePlaceId(item.id) ?? '') || existingLeadKeys.has(normalizeText(`${item.name}|${item.address}`));
+              return (
+                <div key={item.id} className="flex items-center justify-between gap-3 bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm text-slate-200 font-medium truncate">{item.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{item.address || '—'}</p>
+                    {item.rating != null && (
+                      <p className="text-xs text-slate-400 mt-0.5">{item.rating}★ · {item.reviews ?? 0} reviews</p>
+                    )}
+                  </div>
+                  {alreadyInCrm ? (
+                    <span className="text-xs text-slate-500 whitespace-nowrap">Already in CRM</span>
+                  ) : (
+                    <button
+                      onClick={() => { setActiveCandidate(item); setReviewStars(0); setReviewNote(''); }}
+                      className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs px-3 py-1.5 rounded-lg border border-emerald-500/30 whitespace-nowrap"
+                    >
+                      Review & Add
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <div className="grid gap-4">
@@ -1011,6 +1093,64 @@ function getSatellitePreviewUrl(lat: number, lng: number, apiKey: string, size =
   });
   params.append('markers', `color:red|${lat},${lng}`);
   return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
+}
+
+async function searchByExactName(query: string, apiKey: string): Promise<CandidatePlace[]> {
+  const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': [
+        'places.id',
+        'places.displayName',
+        'places.formattedAddress',
+        'places.location',
+        'places.rating',
+        'places.userRatingCount',
+        'places.websiteUri',
+        'places.primaryType',
+        'places.types',
+        'places.parkingOptions',
+        'places.accessibilityOptions',
+        'places.reviews',
+        'places.editorialSummary',
+        'places.regularOpeningHours',
+      ].join(','),
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      maxResultCount: 5,
+      languageCode: 'en-GB',
+    }),
+  });
+
+  if (!response.ok) {
+    let detail = '';
+    try { const e = await response.json(); detail = JSON.stringify(e); } catch { detail = await response.text().catch(() => ''); }
+    throw new Error(`Google Places: HTTP ${response.status} — ${detail.slice(0, 200)}`);
+  }
+
+  const data: GooglePlacesResponse = await response.json();
+  const places = Array.isArray(data.places) ? data.places : [];
+
+  return places.map((place, idx) => ({
+    id: place.id || `name-${idx}`,
+    name: place.displayName?.text || 'Unnamed',
+    address: place.formattedAddress || '',
+    latitude: typeof place.location?.latitude === 'number' ? place.location.latitude : null,
+    longitude: typeof place.location?.longitude === 'number' ? place.location.longitude : null,
+    rating: typeof place.rating === 'number' ? place.rating : null,
+    reviews: typeof place.userRatingCount === 'number' ? place.userRatingCount : null,
+    website: place.websiteUri || null,
+    primaryType: place.primaryType || null,
+    types: Array.isArray(place.types) ? place.types : [],
+    parkingOptions: place.parkingOptions || null,
+    accessibilityOptions: place.accessibilityOptions || null,
+    reviewsText: Array.isArray(place.reviews) ? place.reviews.map(r => r.text?.text || '').filter(Boolean) : [],
+    editorialSummary: place.editorialSummary?.text || null,
+    openingHours: place.regularOpeningHours?.weekdayDescriptions || null,
+  }));
 }
 
 function deriveKeywordsFromCriteria(criteria: string): string[] {
