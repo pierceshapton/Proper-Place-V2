@@ -240,12 +240,12 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* FAQ */}
+            {/* FAQ */}
       <section className="py-24 bg-gray-50">
         <div className="container-md max-w-3xl mx-auto">
           <p className="text-xs tracking-[0.22em] uppercase text-light-blue mb-4">Questions, sensibly answered</p>
           <h2 className="text-4xl font-bold text-gray-900 mb-12 tracking-tight">Common questions</h2>
-          <div className="divide-y divide-gray-200">
+          <div className="space-y-8">
             {[
               { q: 'What is Proper Place?', a: "The UK's answer to Europe's Aires. We connect campers with pubs, farms and small businesses who host them overnight on land they already own." },
               { q: 'Where is Proper Place live?', a: "Cornwall, Devon, Somerset and Dorset to start — growing region by region. Hosts outside the South West can list now and we'll bring campers as we expand." },
@@ -254,13 +254,10 @@ export default async function Home() {
               { q: "Can I see who's booking?", a: "Yes. Every camper creates a verified Proper Place account before they can book. You see their profile and request details, and you can accept or decline any booking." },
               { q: 'Is there an app?', a: "Yes — the Proper Place app is live on the iOS App Store now. Android is coming soon." },
             ].map((faq, i) => (
-              <details key={i} className="group py-5">
-                <summary className="flex justify-between items-center cursor-pointer list-none text-gray-900 font-semibold text-base hover:text-light-blue transition-colors">
-                  {faq.q}
-                  <svg className="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </summary>
-                <p className="mt-3 text-gray-600 leading-relaxed text-sm">{faq.a}</p>
-              </details>
+              <div key={i} className="border-b border-gray-200 pb-6">
+                <h3 className="text-gray-900 font-semibold text-lg mb-2">{faq.q}</h3>
+                <p className="text-gray-600 leading-relaxed">{faq.a}</p>
+              </div>
             ))}
           </div>
         </div>
