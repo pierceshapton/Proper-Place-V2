@@ -290,8 +290,9 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
       const result = await adminApi.createPlaceForUser(placeData);
       const placeId = result.place?.id;
 
+      // Fire-and-forget — don't block success on image upload
       if (images.length > 0 && placeId) {
-        await uploadApi.placeImages(placeId, images).catch(() => {});
+        uploadApi.placeImages(placeId, images).catch(() => {});
       }
 
       setSuccess(`Site "${form.name}" created for ${ownerName}! It will appear in their app immediately.`);

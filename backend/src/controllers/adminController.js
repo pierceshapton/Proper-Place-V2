@@ -1021,6 +1021,11 @@ async function createPlaceForUser(req, res, next) {
       return res.status(404).json({ error: 'user_not_found', message: 'Target user not found' });
     }
 
+    // Auto-upgrade user to host role if they aren't already
+    if (userCheck.rows[0].role !== 'host' && userCheck.rows[0].role !== 'admin') {
+      await db.query("UPDATE users SET role = 'host' WHERE id = $1", [owner_id]);
+    }
+
     const result = await db.query(
       `INSERT INTO places (owner_id, name, description, address, city, country,
                            postal_code, latitude, longitude, price_per_night,
@@ -1072,7 +1077,7 @@ async function createPlaceForUser(req, res, next) {
       `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
        VALUES ($1, $2, $3, $4, $5)`,
       [adminId, 'place_created_for_user', 'place', place.id, `Admin created place for user ${owner_id}`]
-    );
+    ).catch(() => {});
 
     logger.info('Admin created place for user', { adminId, ownerId: owner_id, placeId: place.id });
 
