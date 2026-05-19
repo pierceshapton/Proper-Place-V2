@@ -18,10 +18,39 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _usernameFocusNode = FocusNode();
   bool _isLoading = false;
   String? _errorMessage;
+  String? _usernameError;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _usernameFocusNode.addListener(() {
+      if (!_usernameFocusNode.hasFocus) {
+        _checkUsername();
+      }
+    });
+  }
+
+  Future<void> _checkUsername() async {
+    final username = _usernameController.text.trim();
+    if (username.isEmpty) return;
+    if (!RegExp(r'^[a-zA-Z0-9_]{3,30}$').hasMatch(username)) {
+      setState(() => _usernameError = 'Username must be 3–30 characters (letters, numbers, underscores only)');
+      return;
+    }
+    try {
+      final available = await ApiService.checkUsernameAvailable(username);
+      if (mounted) {
+        setState(() => _usernameError = available ? null : 'Username already taken — please choose another');
+      }
+    } catch (_) {
+      // Silently ignore network errors here; server will validate on submit
+    }
+  }
 
   @override
   void dispose() {
@@ -30,6 +59,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _usernameFocusNode.dispose();
     super.dispose();
   }
 
@@ -190,14 +220,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           color: Colors.grey[800],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Join Proper Place today',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
                       const SizedBox(height: 24),
 
                       AutofillGroup(
@@ -220,11 +242,11 @@ class _SignupScreenState extends State<SignupScreen> {
                           const SizedBox(height: 8),
                           TextField(
                             controller: _usernameController,
+                            focusNode: _usernameFocusNode,
                             decoration: InputDecoration(
                               hintText: 'e.g. john_travels',
                               hintStyle: TextStyle(color: Colors.grey[700]),
-                              helperText: 'Shown on reviews · letters, numbers, underscores',
-                              helperStyle: TextStyle(color: Colors.grey[500], fontSize: 11),
+                              errorText: _usernameError,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(

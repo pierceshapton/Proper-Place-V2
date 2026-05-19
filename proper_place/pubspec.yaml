@@ -2,7 +2,7 @@ name: proper_place
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.1.2+66
+version: 1.1.3+67
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

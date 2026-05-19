@@ -411,8 +411,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => ForgotPasswordScreen(
-                                    initialEmail: _emailController.text.trim().isNotEmpty
-                                        ? _emailController.text.trim()
+                                    initialEmail: _identifierController.text.trim().isNotEmpty
+                                        ? _identifierController.text.trim()
                                         : null,
                                   ),
                                 ),

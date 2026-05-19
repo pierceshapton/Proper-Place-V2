@@ -275,6 +275,15 @@ class ApiService {
     );
   }
 
+  /// Check if a username is available (returns true if available)
+  static Future<bool> checkUsernameAvailable(String username) async {
+    final result = await _request(
+      method: 'GET',
+      endpoint: '/auth/check-username?username=${Uri.encodeComponent(username)}',
+    );
+    return result['available'] == true;
+  }
+
   /// Sign up new user
   /// Returns: { access_token, user_id, email, name, role, message }
   static Future<Map<String, dynamic>> signup({
