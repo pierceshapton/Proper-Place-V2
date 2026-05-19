@@ -229,8 +229,14 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     return price * nightsCount;
   }
 
+  // 18% service fee added on top of the overnight cost so the host always
+  // receives the exact rate they set.
+  double get serviceFee {
+    return basePrice * 0.18;
+  }
+
   double get totalPrice {
-    return basePrice + earlyCheckinFee + lateCheckoutFee;
+    return basePrice + serviceFee + earlyCheckinFee + lateCheckoutFee;
   }
   
   // Check if a date is fully booked (all spaces taken)
@@ -1207,10 +1213,21 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('£$pricePerNight x $nightsCount nights'),
+                                  Text('Overnight fee x $nightsCount night${nightsCount == 1 ? '' : 's'}'),
                                   Text('£${basePrice.toStringAsFixed(2)}'),
                                 ],
                               ),
+                              if (nightsCount > 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Service fee + VAT'),
+                                      Text('£${serviceFee.toStringAsFixed(2)}'),
+                                    ],
+                                  ),
+                                ),
                               if (earlyCheckinFee > 0)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),

@@ -235,6 +235,10 @@ export const adminApi = {
   },
   approvePlace: (id: number) => api(`/admin/places/${id}/approve`, { method: 'PATCH' }),
   rejectPlace: (id: number, reason: string) => api(`/admin/places/${id}/reject`, { method: 'PATCH', body: { reason } }),
+  createPlaceForUser: (data: Partial<Place> & { owner_id: number }) =>
+    api<{ place: Place }>('/admin/places', { method: 'POST', body: data }),
+  createUser: (data: { name: string; email: string; password: string; role?: string; phone?: string }) =>
+    api<{ user: User }>('/admin/users', { method: 'POST', body: data }),
   users: (params?: Record<string, string>) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return api<{ users: User[] }>(`/admin/users${qs}`);

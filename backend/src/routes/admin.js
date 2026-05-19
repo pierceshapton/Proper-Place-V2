@@ -11,12 +11,14 @@ router.get('/dashboard', adminController.getDashboard);
 
 // Place moderation
 router.get('/places', adminController.getPlacesForModeration);
+router.post('/places', adminController.createPlaceForUser);
 router.patch('/places/:id', adminController.updatePlace);
 router.patch('/places/:id/approve', adminController.approvePlace);
 router.patch('/places/:id/reject', adminController.rejectPlace);
 
 // User management
 router.get('/users', adminController.getUsers);
+router.post('/users', adminController.createUserAsAdmin);
 router.get('/users/:id', adminController.getUserDetails);
 router.patch('/users/:id/role', adminController.updateUserRole);
 router.delete('/users/:id', adminController.deleteUser);

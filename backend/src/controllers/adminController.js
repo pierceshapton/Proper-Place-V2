@@ -215,7 +215,7 @@ async function rejectPlace(req, res, next) {
  */
 async function getUsers(req, res, next) {
   try {
-    const { page = 1, limit = 20, role } = req.query;
+    const { page = 1, limit = 20, role, search } = req.query;
     const offset = (page - 1) * limit;
 
     let query = `
@@ -234,12 +234,21 @@ async function getUsers(req, res, next) {
     `;
     const params = [];
     let paramCount = 1;
+    const conditions = [];
 
     if (role) {
-      query += ` WHERE u.role = $${paramCount}`;
+      conditions.push(`u.role = $${paramCount}`);
       params.push(role);
       paramCount++;
     }
+
+    if (search) {
+      conditions.push(`(u.name ILIKE $${paramCount} OR u.email ILIKE $${paramCount})`);
+      params.push(`%${search}%`);
+      paramCount++;
+    }
+
+    if (conditions.length) query += ` WHERE ${conditions.join(' AND ')}`;
 
     query += ` GROUP BY u.id ORDER BY u.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(limit, offset);
@@ -922,6 +931,165 @@ async function rejectHostApplication(req, res, next) {
   }
 }
 
+/**
+ * POST /admin/users
+ * Create a user account on behalf of an admin (pre-verified, no email confirmation needed).
+ */
+const { hashPassword } = require('../utils/hash');
+async function createUserAsAdmin(req, res, next) {
+  try {
+    const adminId = req.user.userId;
+    const { name, email, password, role = 'host', phone } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'validation_error', message: 'name, email and password are required' });
+    }
+
+    const existing = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'email_exists', message: 'An account with this email already exists' });
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const result = await db.query(
+      `INSERT INTO users (email, password_hash, name, role, verified, phone_number)
+       VALUES ($1, $2, $3, $4, true, $5)
+       RETURNING id, email, name, role, verified, created_at`,
+      [email.trim().toLowerCase(), passwordHash, name.trim(), role, phone || null]
+    );
+
+    const user = result.rows[0];
+
+    await db.query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'user_created_by_admin', 'user', user.id, `Admin created account for ${email}`]
+    ).catch(() => {});
+
+    logger.info('Admin created user', { adminId, userId: user.id, email });
+    res.status(201).json({ user });
+  } catch (error) {
+    logger.error('Admin create user error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * POST /admin/places
+ * Create a place on behalf of an existing user (owner_id required in body).
+ * Admin bypasses the contract check and can set approval_status directly.
+ */
+async function createPlaceForUser(req, res, next) {
+  try {
+    const adminId = req.user.userId;
+    const {
+      owner_id,
+      name,
+      description,
+      address,
+      city,
+      country,
+      postal_code,
+      latitude,
+      longitude,
+      price_per_night,
+      capacity,
+      amenities,
+      place_type,
+      opening_hours,
+      kitchen_hours,
+      food_menu_description,
+      serves_food,
+      business_description,
+      access_route_description,
+      approval_status,
+      max_vehicle_height_ft,
+      max_vehicle_width_ft,
+      max_vehicle_length_ft,
+      max_nights_per_stay,
+      available_days,
+    } = req.body;
+
+    if (!owner_id) {
+      return res.status(400).json({ error: 'validation_error', message: 'owner_id is required' });
+    }
+
+    // Verify the target user exists
+    const userCheck = await db.query('SELECT id, name, email, role FROM users WHERE id = $1', [owner_id]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'user_not_found', message: 'Target user not found' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO places (owner_id, name, description, address, city, country,
+                           postal_code, latitude, longitude, price_per_night,
+                           capacity, amenities, place_type, opening_hours,
+                           kitchen_hours, food_menu_description, serves_food,
+                           business_description, access_route_description, approval_status,
+                           max_vehicle_height_ft, max_vehicle_width_ft, max_vehicle_length_ft,
+                           max_nights_per_stay, available_days)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+       RETURNING *`,
+      [
+        owner_id,
+        name || null,
+        description || null,
+        address || null,
+        city || null,
+        country || null,
+        postal_code || null,
+        latitude || null,
+        longitude || null,
+        price_per_night || null,
+        capacity || null,
+        amenities || null,
+        place_type || 'private_land',
+        opening_hours || null,
+        kitchen_hours || null,
+        food_menu_description || null,
+        serves_food || false,
+        business_description || null,
+        access_route_description || null,
+        approval_status || 'draft',
+        max_vehicle_height_ft || null,
+        max_vehicle_width_ft || null,
+        max_vehicle_length_ft || null,
+        max_nights_per_stay || null,
+        available_days || null,
+      ]
+    );
+
+    const place = result.rows[0];
+
+    // If approved, set status to available as well
+    if (approval_status === 'approved') {
+      await db.query('UPDATE places SET status = $1 WHERE id = $2', ['available', place.id]);
+      place.status = 'available';
+    }
+
+    await db.query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'place_created_for_user', 'place', place.id, `Admin created place for user ${owner_id}`]
+    );
+
+    logger.info('Admin created place for user', { adminId, ownerId: owner_id, placeId: place.id });
+
+    // Notify the host (fire-and-forget)
+    if (approval_status === 'approved') {
+      setImmediate(() => {
+        pushService.notifyPlaceReview(owner_id, place.name, true, null).catch(() => {});
+      });
+    }
+
+    res.status(201).json({ place });
+  } catch (error) {
+    logger.error('Admin create place for user error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getDashboard,
   getPlacesForModeration,
@@ -933,6 +1101,8 @@ module.exports = {
   deleteUser,
   updateUserRole,
   updatePlace,
+  createPlaceForUser,
+  createUserAsAdmin,
   seedTestMessages,
   cleanupAllData,
   resetUserPassword,
