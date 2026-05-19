@@ -175,6 +175,8 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
   const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(null);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
+  const [mainImage, setMainImage] = useState<File | null>(null);
+  const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
   const [form, setForm] = useState({
     name: '',
@@ -191,13 +193,16 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
     opening_hours: '',
     business_description: '',
     access_route_description: '',
-    max_vehicle_height_ft: '',
-    max_vehicle_width_ft: '',
-    max_vehicle_length_ft: '',
+    max_vehicle_height_m: '',
+    max_vehicle_width_m: '',
+    max_vehicle_length_m: '',
     serves_food: false,
     food_menu_description: '',
     max_nights_per_stay: '',
     approval_status: 'approved',
+    electric_hookup_available: false,
+    electric_hookup_capacity: '',
+    electric_hookup_price_per_night: '',
   });
 
   const f = (field: keyof typeof form, value: string | boolean) =>
@@ -277,22 +282,26 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
         opening_hours: form.opening_hours || undefined,
         business_description: form.business_description || undefined,
         access_route_description: form.access_route_description || undefined,
-        max_vehicle_height_ft: form.max_vehicle_height_ft ? parseFloat(form.max_vehicle_height_ft) : undefined,
-        max_vehicle_width_ft: form.max_vehicle_width_ft ? parseFloat(form.max_vehicle_width_ft) : undefined,
-        max_vehicle_length_ft: form.max_vehicle_length_ft ? parseFloat(form.max_vehicle_length_ft) : undefined,
+        max_vehicle_height_ft: form.max_vehicle_height_m ? parseFloat(form.max_vehicle_height_m) * 3.28084 : undefined,
+        max_vehicle_width_ft: form.max_vehicle_width_m ? parseFloat(form.max_vehicle_width_m) * 3.28084 : undefined,
+        max_vehicle_length_ft: form.max_vehicle_length_m ? parseFloat(form.max_vehicle_length_m) * 3.28084 : undefined,
         serves_food: form.serves_food,
         food_menu_description: form.food_menu_description || undefined,
         max_nights_per_stay: form.max_nights_per_stay ? parseInt(form.max_nights_per_stay) : undefined,
         available_days: availableDays.length < 7 ? availableDays : undefined,
         approval_status: form.approval_status,
+        electric_hookup_available: form.electric_hookup_available,
+        electric_hookup_capacity: form.electric_hookup_capacity ? parseInt(form.electric_hookup_capacity) : undefined,
+        electric_hookup_price_per_night: form.electric_hookup_price_per_night ? parseFloat(form.electric_hookup_price_per_night) : undefined,
       };
 
       const result = await adminApi.createPlaceForUser(placeData);
       const placeId = result.place?.id;
 
       // Fire-and-forget — don't block success on image upload
-      if (images.length > 0 && placeId) {
-        uploadApi.placeImages(placeId, images).catch(() => {});
+      const allImages = [...(mainImage ? [mainImage] : []), ...images];
+      if (allImages.length > 0 && placeId) {
+        uploadApi.placeImages(placeId, allImages).catch(() => {});
       }
 
       setSuccess(`Site "${form.name}" created for ${ownerName}! It will appear in their app immediately.`);
@@ -301,11 +310,14 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
         name: '', description: '', address: '', city: '', postal_code: '', country: 'GB',
         latitude: '', longitude: '', price_per_night: '', capacity: '', place_type: 'pub',
         opening_hours: '', business_description: '', access_route_description: '',
-        max_vehicle_height_ft: '', max_vehicle_width_ft: '', max_vehicle_length_ft: '',
+        max_vehicle_height_m: '', max_vehicle_width_m: '', max_vehicle_length_m: '',
         serves_food: false, food_menu_description: '', max_nights_per_stay: '', approval_status: 'approved',
+        electric_hookup_available: false, electric_hookup_capacity: '', electric_hookup_price_per_night: '',
       });
       setImages([]);
       setImagePreview([]);
+      setMainImage(null);
+      setMainImagePreview(null);
       setMarkerPos(null);
       setAvailableDays([1, 2, 3, 4, 5, 6, 7]);
       if (mapSearchRef.current) mapSearchRef.current.value = '';
@@ -483,9 +495,9 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
         <h2 className="text-base font-semibold text-slate-200">Vehicle Limits</h2>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { field: 'max_vehicle_height_ft' as const, label: 'Max Height (ft)' },
-            { field: 'max_vehicle_width_ft' as const, label: 'Max Width (ft)' },
-            { field: 'max_vehicle_length_ft' as const, label: 'Max Length (ft)' },
+          { field: 'max_vehicle_height_m' as const, label: 'Max Height (m)' },
+            { field: 'max_vehicle_width_m' as const, label: 'Max Width (m)' },
+            { field: 'max_vehicle_length_m' as const, label: 'Max Length (m)' },
           ].map(({ field, label }) => (
             <div key={field}>
               <label className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>
@@ -498,6 +510,50 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Electric Hookup */}
+      <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-4">
+        <h2 className="text-base font-semibold text-slate-200">Electric Hookup</h2>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            className="w-4 h-4 accent-emerald-500"
+            checked={form.electric_hookup_available}
+            onChange={e => {
+              f('electric_hookup_available', e.target.checked);
+              if (!e.target.checked) {
+                f('electric_hookup_capacity', '');
+                f('electric_hookup_price_per_night', '');
+              }
+            }}
+          />
+          <span className="text-sm text-slate-300">⚡ Site has electric hookup spaces</span>
+        </label>
+        {form.electric_hookup_available && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Number of electric spaces</label>
+              <input
+                type="number" min="1"
+                value={form.electric_hookup_capacity}
+                onChange={e => f('electric_hookup_capacity', e.target.value)}
+                placeholder="e.g. 4"
+                className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Price per night (£, blank = free)</label>
+              <input
+                type="number" min="0" step="0.50"
+                value={form.electric_hookup_price_per_night}
+                onChange={e => f('electric_hookup_price_per_night', e.target.value)}
+                placeholder="e.g. 5"
+                className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Food */}
@@ -553,12 +609,43 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
         </div>
       </div>
 
-      {/* Photos */}
+      {/* Cover Photo */}
       <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-3">
-        <h2 className="text-base font-semibold text-slate-200">Photos</h2>
+        <h2 className="text-base font-semibold text-slate-200">Cover Photo</h2>
+        <p className="text-xs text-slate-500">The main image shown at the top of the listing. Upload one clear photo.</p>
+        {mainImagePreview ? (
+          <div className="relative w-full">
+            <img src={mainImagePreview} alt="Cover" className="w-full h-40 object-cover rounded-lg" />
+            <button
+              type="button" onClick={() => { setMainImage(null); setMainImagePreview(null); }}
+              className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+            >×</button>
+          </div>
+        ) : (
+          <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-600 hover:border-emerald-500/50 rounded-xl p-6 cursor-pointer transition-colors">
+            <span className="text-2xl">🖼️</span>
+            <span className="text-sm text-slate-400">Click to upload cover photo</span>
+            <input
+              type="file" accept="image/*" className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setMainImage(file);
+                const reader = new FileReader();
+                reader.onload = ev => setMainImagePreview(ev.target?.result as string);
+                reader.readAsDataURL(file);
+              }}
+            />
+          </label>
+        )}
+      </div>
+
+      {/* Additional Photos */}
+      <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-3">
+        <h2 className="text-base font-semibold text-slate-200">Additional Photos</h2>
         <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-600 hover:border-emerald-500/50 rounded-xl p-6 cursor-pointer transition-colors">
           <span className="text-2xl">📸</span>
-          <span className="text-sm text-slate-400">Click to upload photos (up to 10)</span>
+          <span className="text-sm text-slate-400">Click to upload extra photos (up to 10)</span>
           <input
             type="file" multiple accept="image/*" className="hidden"
             onChange={e => addFiles(Array.from(e.target.files || []))}

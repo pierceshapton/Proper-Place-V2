@@ -599,6 +599,7 @@ class ApiService {
     String? vanRegistration,
     String? paymentIntentId,
     String? connectedAccountId,
+    bool electricHookup = false,
   }) async {
     return _request(
       method: 'POST',
@@ -610,6 +611,7 @@ class ApiService {
         if (vanRegistration != null) 'van_registration': vanRegistration,
         if (paymentIntentId != null) 'paymentIntentId': paymentIntentId,
         if (connectedAccountId != null) 'connectedAccountId': connectedAccountId,
+        'electric_hookup': electricHookup,
       },
     );
   }

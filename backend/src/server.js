@@ -912,6 +912,19 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 41 error:', err.message);
     }
 
+    // Migration 42: Electric hookup on places and bookings
+    try {
+      console.log('[SERVER] Running migration 42: electric hookup fields...');
+      await db.query(`ALTER TABLE places ADD COLUMN IF NOT EXISTS electric_hookup_available BOOLEAN DEFAULT false`);
+      await db.query(`ALTER TABLE places ADD COLUMN IF NOT EXISTS electric_hookup_capacity INT`);
+      await db.query(`ALTER TABLE places ADD COLUMN IF NOT EXISTS electric_hookup_price_per_night DECIMAL(10,2)`);
+      await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS electric_hookup BOOLEAN DEFAULT false`);
+      await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS electric_hookup_price DECIMAL(10,2) DEFAULT 0`);
+      console.log('[SERVER] ✅ Migration 42 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 42 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller

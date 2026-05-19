@@ -95,6 +95,7 @@ export default function BookPlacePage() {
   const [form, setForm] = useState({
     check_in: '', check_out: '', special_requests: '',
     check_in_time: '12:00', check_out_time: '12:00',
+    electricHookup: false,
   });
 
   useEffect(() => {
@@ -154,7 +155,10 @@ export default function BookPlacePage() {
 
   const overnightCost = place ? nights * Number(place.price_per_night) : 0;
   const serviceFee = overnightCost * 0.18;
-  const total = overnightCost + serviceFee + earlyCheckinFee + lateCheckoutFee;
+  const electricFee = form.electricHookup && place?.electric_hookup_available && nights > 0
+    ? Number(place.electric_hookup_price_per_night || 0) * nights
+    : 0;
+  const total = overnightCost + serviceFee + earlyCheckinFee + lateCheckoutFee + electricFee;
 
   const isDateUnavailable = (date: string) => unavailableDates.includes(date);
 
@@ -213,6 +217,7 @@ export default function BookPlacePage() {
         contact_phone: user?.phone || user?.phone_number || undefined,
         special_requests: form.special_requests || undefined,
         payment_intent_id: paymentIntentId,
+        electric_hookup: form.electricHookup,
       } as Partial<Booking>);
 
       setStep('success');
@@ -238,6 +243,16 @@ export default function BookPlacePage() {
             <div className="flex justify-between"><span className="text-gray-500">Nights:</span><span className="font-medium text-gray-900">{nights}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Total:</span><span className="font-bold text-gray-900">£{total.toFixed(2)}</span></div>
           </div>
+          {form.electricHookup ? (
+            <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 rounded-lg p-3 mb-6">
+              <span>⚡</span>
+              <span>Electric hookup included on this booking.</span>
+            </div>
+          ) : place?.electric_hookup_available ? (
+            <div className="text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+              🔋 This booking doesn&apos;t include an electric hookup — you&apos;ll be self-sufficient on this one. Most motorhomers are well prepared for this, but it&apos;s worth making sure you&apos;re charged up before you arrive.
+            </div>
+          ) : null}
           <div className="flex flex-col gap-3">
             <button onClick={() => router.push('/dashboard/bookings')} className="btn-primary py-3 font-bold">View My Bookings</button>
             <button onClick={() => router.push('/')} className="btn-secondary py-3">Back to Home</button>
@@ -339,6 +354,28 @@ export default function BookPlacePage() {
               ) : null}
             </div>
 
+            {/* Electric Hookup Option */}
+            {place?.electric_hookup_available && (
+              <div className="card bg-white p-6">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <p className="font-semibold text-gray-900">⚡ Electric hookup</p>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {place.electric_hookup_price_per_night && Number(place.electric_hookup_price_per_night) > 0
+                        ? `+£${Number(place.electric_hookup_price_per_night).toFixed(0)}/night`
+                        : 'Included free'}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 accent-[#7BA7D8] cursor-pointer"
+                    checked={form.electricHookup}
+                    onChange={e => setForm(f => ({ ...f, electricHookup: e.target.checked }))}
+                  />
+                </label>
+              </div>
+            )}
+
             {/* Price Summary */}
             {nights > 0 && (
               <div className="card bg-white p-6">
@@ -353,6 +390,12 @@ export default function BookPlacePage() {
                   )}
                   {lateCheckoutFee > 0 && (
                     <div className="flex justify-between"><span className="text-amber-600">Late departure fee ({form.check_out_time})</span><span className="text-gray-900">£{lateCheckoutFee.toFixed(2)}</span></div>
+                  )}
+                  {form.electricHookup && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">⚡ Electric hookup × {nights} night{nights !== 1 ? 's' : ''}</span>
+                      <span className="text-gray-900">{electricFee > 0 ? `£${electricFee.toFixed(2)}` : <span className="text-green-600">Free</span>}</span>
+                    </div>
                   )}
                   <div className="border-t border-gray-100 pt-2 flex justify-between text-base font-bold"><span className="text-gray-900">Total</span><span className="text-gray-900">£{total.toFixed(2)}</span></div>
                 </div>

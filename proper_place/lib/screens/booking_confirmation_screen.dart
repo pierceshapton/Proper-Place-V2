@@ -30,6 +30,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   Map<String, int> bookedSpaces = {};
   bool isLoadingBookings = true;
   String? _userVanReg;
+  bool _electricHookup = false;
 
   @override
   void initState() {
@@ -421,6 +422,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 Text('Van Reg: ${_userVanReg ?? "Not set"}'),
                 const SizedBox(height: 8),
                 Text('Total: £${totalPrice.toStringAsFixed(0)}'),
+                if (_electricHookup)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text('⚡ Electric hookup included',
+                        style: TextStyle(
+                            color: Color(0xFF7BA7D8),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13)),
+                  ),
               ],
             ),
           ),
@@ -489,6 +499,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         checkOut: _formatDate(checkOutDate!),
         totalPrice: totalPrice,
         vanRegistration: _userVanReg ?? '',
+        electricHookup: _electricHookup,
       );
 
       debugPrint('✅ BOOKING: Booking created successfully');
@@ -637,7 +648,11 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPrice = widget.place.pricePerNight * numberOfNights;
+    final electricCostPerNight = widget.place.electricHookupAvailable
+        ? (widget.place.electricHookupPricePerNight ?? 0.0)
+        : 0.0;
+    final electricTotal = _electricHookup ? electricCostPerNight * numberOfNights : 0.0;
+    final totalPrice = widget.place.pricePerNight * numberOfNights + electricTotal;
     final availableOnCheckIn =
         checkInDate != null ? getAvailableSpaces(checkInDate!) : 0;
 
@@ -807,11 +822,32 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       Text(
                           '£${widget.place.pricePerNight.toStringAsFixed(0)} × $numberOfNights nights'),
                       Text(
-                        '£${totalPrice.toStringAsFixed(0)}',
+                        '£${(widget.place.pricePerNight * numberOfNights).toStringAsFixed(0)}',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
+                  if (_electricHookup) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('⚡ Electric hookup',
+                            style: TextStyle(fontSize: 13)),
+                        Text(
+                          electricCostPerNight > 0
+                              ? '£${electricTotal.toStringAsFixed(0)}'
+                              : 'Free',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: electricCostPerNight > 0
+                                ? Colors.black87
+                                : Colors.green[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const Divider(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -837,6 +873,71 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
               ),
             ),
             const SizedBox(height: 24),
+
+            // Electric Hookup Option
+            if (widget.place.electricHookupAvailable) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _electricHookup
+                      ? const Color(0xFFEBF4FF)
+                      : Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _electricHookup
+                        ? const Color(0xFF7BA7D8)
+                        : Colors.grey[300]!,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Text('⚡', style: TextStyle(fontSize: 20)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Electric hookup',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 14)),
+                          Text(
+                            electricCostPerNight > 0
+                                ? '+£${electricCostPerNight.toStringAsFixed(0)}/night'
+                                : 'Included free',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _electricHookup,
+                      activeColor: const Color(0xFF7BA7D8),
+                      onChanged: (val) =>
+                          setState(() => _electricHookup = val),
+                    ),
+                  ],
+                ),
+              ),
+              if (!_electricHookup) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[50],
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber[200]!),
+                  ),
+                  child: const Text(
+                    '🔋 No electric hookup on this stay — you\'ll be running self-contained. Make sure you\'re charged up before you arrive.',
+                    style: TextStyle(
+                        fontSize: 12, color: Color(0xFF7B6000)),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+            ],
 
             // Van Registration (from profile)
             Container(

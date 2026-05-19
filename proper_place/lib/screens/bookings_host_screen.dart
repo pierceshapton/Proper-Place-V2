@@ -121,6 +121,7 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
           'guestAvgRating': booking['guest_avg_rating'] != null ? double.tryParse(booking['guest_avg_rating'].toString()) : null,
           'guestReviewCount': booking['guest_review_count'] ?? 0,
           'guestReviewed': booking['guest_reviewed'] == true,
+          'electricHookup': booking['electric_hookup'] == true,
         };
 
         if (bookingsByDate[dateKey] == null) {
@@ -978,9 +979,17 @@ class _BookingsHostScreenState extends State<BookingsHostScreen> {
                         // Amount
                         if (b['amount'] != null) ...[
                           const SizedBox(height: 8),
-                          Text(
-                            b['amount'].toString(),
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Text(
+                                b['amount'].toString(),
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                              if (b['electricHookup'] == true) ...[
+                                const SizedBox(width: 6),
+                                const Text('⚡', style: TextStyle(fontSize: 13)),
+                              ],
+                            ],
                           ),
                         ],
                         const SizedBox(height: 10),

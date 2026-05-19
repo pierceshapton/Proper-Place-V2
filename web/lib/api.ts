@@ -364,6 +364,9 @@ export interface Place {
   food_menu_description?: string;
   max_nights_per_stay?: number | null;
   available_days?: number[] | null;
+  electric_hookup_available?: boolean;
+  electric_hookup_capacity?: number;
+  electric_hookup_price_per_night?: number;
   created_at?: string;
   owner_name?: string;
   host?: { id: number; name: string; avatar_url?: string };
@@ -415,6 +418,8 @@ export interface Booking {
   guest_email?: string;
   place?: { id: number; name: string; image_urls?: string[] };
   user?: { id: number; name: string; email?: string };
+  electric_hookup?: boolean;
+  electric_hookup_price?: number;
 }
 
 export interface Review {

@@ -44,6 +44,9 @@ class Place {
   final String? hostContractVersion;
   final int? maxNightsPerStay;
   final List<int> availableDays; // 1=Mon … 7=Sun; empty means all days allowed
+  final bool electricHookupAvailable;
+  final int? electricHookupCapacity;
+  final double? electricHookupPricePerNight;
 
   Place({
     required this.placeId,
@@ -77,6 +80,9 @@ class Place {
     this.hostContractVersion,
     this.maxNightsPerStay,
     this.availableDays = const [],
+    this.electricHookupAvailable = false,
+    this.electricHookupCapacity,
+    this.electricHookupPricePerNight,
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -139,6 +145,13 @@ class Place {
           ? List<int>.from(
               (json['available_days'] as List).map((d) => int.tryParse(d.toString()) ?? 0).where((d) => d > 0))
           : const [],
+      electricHookupAvailable: json['electric_hookup_available'] == true,
+      electricHookupCapacity: json['electric_hookup_capacity'] != null
+          ? int.tryParse(json['electric_hookup_capacity'].toString())
+          : null,
+      electricHookupPricePerNight: json['electric_hookup_price_per_night'] != null
+          ? double.tryParse(json['electric_hookup_price_per_night'].toString())
+          : null,
     );
   }
 
@@ -170,6 +183,9 @@ class Place {
       'opening_hours': openingHours,
       'kitchen_hours': kitchenHours,
       'food_menu_description': foodMenuDescription,
+      'electric_hookup_available': electricHookupAvailable,
+      if (electricHookupCapacity != null) 'electric_hookup_capacity': electricHookupCapacity,
+      if (electricHookupPricePerNight != null) 'electric_hookup_price_per_night': electricHookupPricePerNight,
     };
   }
 }

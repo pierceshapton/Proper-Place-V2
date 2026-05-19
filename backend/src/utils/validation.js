@@ -47,6 +47,9 @@ const schemas = {
     max_nights_per_stay: Joi.number().integer().min(1).max(365).optional().allow(null),
     available_days: Joi.array().items(Joi.number().integer().min(1).max(7)).optional().allow(null),
     owner_id: Joi.number().integer().optional(),
+    electric_hookup_available: Joi.boolean().optional(),
+    electric_hookup_capacity: Joi.number().integer().min(0).optional().allow(null),
+    electric_hookup_price_per_night: Joi.number().min(0).optional().allow(null),
   }).unknown(true),
 
   createBooking: Joi.object({
@@ -68,6 +71,7 @@ const schemas = {
     payment_intent_id: Joi.string().optional(),
     paymentIntentId: Joi.string().optional(),
     total_price: Joi.number().optional(),
+    electric_hookup: Joi.boolean().optional(),
   }),
 
   createReview: Joi.object({

@@ -426,13 +426,47 @@ async function createBooking(req, res, next) {
 
     // Get place/pub info for pricing
     let basePrice = 0;
+    let electricPrice = 0;
     if (data.place_id) {
       const placeResult = await db.query(
-        'SELECT price_per_night FROM places WHERE id = $1',
+        `SELECT price_per_night, electric_hookup_available, electric_hookup_capacity,
+                electric_hookup_price_per_night FROM places WHERE id = $1`,
         [data.place_id]
       );
       if (placeResult.rows.length > 0) {
-        basePrice = placeResult.rows[0].price_per_night * nights;
+        const placeInfo = placeResult.rows[0];
+        basePrice = placeInfo.price_per_night * nights;
+
+        // Electric hookup: validate availability and compute price
+        if (data.electric_hookup) {
+          if (!placeInfo.electric_hookup_available) {
+            return res.status(400).json({
+              error: 'electric_not_available',
+              message: 'This site does not offer electric hookup.',
+            });
+          }
+          const elecCap = placeInfo.electric_hookup_capacity || 0;
+          if (elecCap > 0) {
+            const elecCount = await db.query(
+              `SELECT COUNT(*) FROM bookings
+               WHERE place_id = $1
+                 AND electric_hookup = true
+                 AND status NOT IN ('cancelled', 'Cancelled')
+                 AND check_in_date < $3
+                 AND check_out_date > $2`,
+              [data.place_id, data.check_in_date, data.check_out_date]
+            );
+            if (parseInt(elecCount.rows[0].count) >= elecCap) {
+              return res.status(409).json({
+                error: 'electric_full',
+                message: `All electric hookup spaces are taken for those dates. You can still book without electric — perfect if you're self-sufficient.`,
+              });
+            }
+          }
+          if (placeInfo.electric_hookup_price_per_night > 0) {
+            electricPrice = Number(placeInfo.electric_hookup_price_per_night) * nights;
+          }
+        }
       }
     } else if (data.pub_id) {
       const pubResult = await db.query(
@@ -444,8 +478,8 @@ async function createBooking(req, res, next) {
       }
     }
     
-    // Total price includes base price + time-based fees
-    const totalPrice = basePrice + earlyCheckinFee + lateCheckoutFee;
+    // Total price includes base price + time-based fees + electric hookup
+    const totalPrice = basePrice + earlyCheckinFee + lateCheckoutFee + electricPrice;
 
     // Check capacity – ensure no night in the requested range exceeds the site's capacity
     const targetId = data.place_id || data.pub_id;
@@ -503,8 +537,9 @@ async function createBooking(req, res, next) {
                              check_in_time, check_out_time,
                              number_of_nights, total_price, status,
                              early_checkin_fee, late_checkout_fee,
-                             van_registration, contact_phone, special_requests, host_seen, user_seen, booking_ref, payment_intent_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, false, $16, $17)
+                             van_registration, contact_phone, special_requests, host_seen, user_seen, booking_ref, payment_intent_id,
+                             electric_hookup, electric_hookup_price)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, false, $16, $17, $18, $19)
        RETURNING *`,
       [
         userId,
@@ -524,6 +559,8 @@ async function createBooking(req, res, next) {
         data.special_requests || null,
         bookingRef,
         data.payment_intent_id || null,
+        data.electric_hookup ? true : false,
+        electricPrice,
       ]
     );
 

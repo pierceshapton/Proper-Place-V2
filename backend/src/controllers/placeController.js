@@ -156,8 +156,9 @@ async function createPlace(req, res, next) {
                            kitchen_hours, food_menu_description, serves_food,
                            business_description, access_route_description, approval_status,
                            max_vehicle_height_ft, max_vehicle_width_ft, max_vehicle_length_ft,
-                           max_nights_per_stay, available_days)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+                           max_nights_per_stay, available_days,
+                           electric_hookup_available, electric_hookup_capacity, electric_hookup_price_per_night)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
        RETURNING *`,
       [
         userId,
@@ -185,6 +186,9 @@ async function createPlace(req, res, next) {
         data.max_vehicle_length_ft || null,
         data.max_nights_per_stay || null,
         data.available_days || null,
+        data.electric_hookup_available || false,
+        data.electric_hookup_capacity || null,
+        data.electric_hookup_price_per_night || null,
       ]
     );
 
@@ -268,6 +272,7 @@ async function updatePlace(req, res, next) {
       'place_type', 'opening_hours', 'kitchen_hours', 'food_menu_description',
       'serves_food', 'business_description', 'access_route_description', 'max_vehicle_height_ft',
       'max_vehicle_width_ft', 'max_vehicle_length_ft', 'max_nights_per_stay', 'available_days',
+      'electric_hookup_available', 'electric_hookup_capacity', 'electric_hookup_price_per_night',
     ];
 
     // Admin can also reassign ownership and approval status
