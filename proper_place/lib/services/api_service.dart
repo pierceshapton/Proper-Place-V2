@@ -262,14 +262,14 @@ class ApiService {
   /// Login user
   /// Returns: { access_token, user_id, email, name, role, message }
   static Future<Map<String, dynamic>> login({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
     return _request(
       method: 'POST',
       endpoint: _authLoginEndpoint,
       body: {
-        'email': email,
+        'identifier': identifier,
         'password': password,
       },
     );
@@ -278,6 +278,7 @@ class ApiService {
   /// Sign up new user
   /// Returns: { access_token, user_id, email, name, role, message }
   static Future<Map<String, dynamic>> signup({
+    required String username,
     required String email,
     required String name,
     required String password,
@@ -286,6 +287,7 @@ class ApiService {
     String? vehicleRegistration,
   }) async {
     final body = <String, dynamic>{
+      'username': username,
       'email': email,
       'name': name,
       'password': password,

@@ -939,7 +939,7 @@ const { hashPassword } = require('../utils/hash');
 async function createUserAsAdmin(req, res, next) {
   try {
     const adminId = req.user.userId;
-    const { name, email, password, role = 'host', phone } = req.body;
+    const { name, email, password, role = 'host', phone, username } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'validation_error', message: 'name, email and password are required' });
@@ -950,13 +950,24 @@ async function createUserAsAdmin(req, res, next) {
       return res.status(409).json({ error: 'email_exists', message: 'An account with this email already exists' });
     }
 
+    // Resolve username: use provided one, or auto-generate from name
+    let finalUsername = (username || name.trim().toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_]/g, '')).slice(0, 30);
+    if (!finalUsername) finalUsername = 'user';
+    const unCheck = await db.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [finalUsername]);
+    if (unCheck.rows.length > 0) {
+      finalUsername = finalUsername + Math.floor(Math.random() * 9000 + 1000);
+    }
+    if (username && unCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'username_taken', message: 'Username already taken' });
+    }
+
     const passwordHash = await hashPassword(password);
 
     const result = await db.query(
-      `INSERT INTO users (email, password_hash, name, role, verified, phone_number)
-       VALUES ($1, $2, $3, $4, true, $5)
-       RETURNING id, email, name, role, verified, created_at`,
-      [email.trim().toLowerCase(), passwordHash, name.trim(), role, phone || null]
+      `INSERT INTO users (email, password_hash, name, username, role, verified, phone_number)
+       VALUES ($1, $2, $3, $4, $5, true, $6)
+       RETURNING id, email, name, username, role, verified, created_at`,
+      [email.trim().toLowerCase(), passwordHash, name.trim(), finalUsername, role, phone || null]
     );
 
     const user = result.rows[0];

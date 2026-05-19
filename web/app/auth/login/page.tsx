@@ -8,6 +8,7 @@ import { ApiError, authApi } from '@/lib/api';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,7 +24,7 @@ function LoginForm() {
     setLoading(true);
     setError('');
     try {
-      const userData = await login(email, password);
+      const userData = await login(identifier, password);
       if (userData && !userData.verified) {
         router.push('/auth/verify-email');
       } else {
@@ -98,8 +99,8 @@ function LoginForm() {
           <div className="card p-8 bg-white border-gray-200 shadow-lg">
             <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">Email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" required autoComplete="off" className="bg-white border-gray-300 text-gray-900 placeholder-gray-400" />
+                <label className="block text-sm font-medium mb-2 text-gray-700">Email or Username</label>
+                <input type="text" value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="yourname or email@example.com" required autoComplete="off" className="bg-white border-gray-300 text-gray-900 placeholder-gray-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">Password</label>

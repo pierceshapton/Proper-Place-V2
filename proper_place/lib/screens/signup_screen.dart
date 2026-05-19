@@ -13,6 +13,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  final _usernameController = TextEditingController();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -24,6 +25,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   void dispose() {
+    _usernameController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -32,14 +34,22 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleSignup() async {
+    final username = _usernameController.text.trim();
     final name = _nameController.text;
     final email = _emailController.text;
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+    if (username.isEmpty || name.isEmpty || email.isEmpty || password.isEmpty) {
       setState(() {
         _errorMessage = 'Please fill in all fields';
+      });
+      return;
+    }
+
+    if (!RegExp(r'^[a-zA-Z0-9_]{3,30}$').hasMatch(username)) {
+      setState(() {
+        _errorMessage = 'Username must be 3–30 characters (letters, numbers, underscores only)';
       });
       return;
     }
@@ -65,6 +75,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final response = await ApiService.signup(
+        username: username,
         email: email,
         name: name,
         password: password,
@@ -194,6 +205,55 @@ class _SignupScreenState extends State<SignupScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
 
+                      // Username Field
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Username',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _usernameController,
+                            decoration: InputDecoration(
+                              hintText: 'e.g. john_travels',
+                              hintStyle: TextStyle(color: Colors.grey[700]),
+                              helperText: 'Shown on reviews · letters, numbers, underscores',
+                              helperStyle: TextStyle(color: Colors.grey[500], fontSize: 11),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF7BA7D8),
+                                  width: 2,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -203,6 +263,14 @@ class _SignupScreenState extends State<SignupScreen> {
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: Colors.grey[700],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Used on bookings — not shown publicly on reviews',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[500],
                             ),
                           ),
                           const SizedBox(height: 8),

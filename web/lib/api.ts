@@ -108,9 +108,9 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
 
 // Auth
 export const authApi = {
-  login: (email: string, password: string) =>
-    api<{ access_token: string; refresh_token: string; user: User }>('/auth/login', { method: 'POST', body: { email, password }, auth: false }),
-  signup: (data: { name: string; email: string; password: string; role?: string; referral_code?: string }) =>
+  login: (identifier: string, password: string) =>
+    api<{ access_token: string; refresh_token: string; user: User }>('/auth/login', { method: 'POST', body: { identifier, password }, auth: false }),
+  signup: (data: { username: string; name: string; email: string; password: string; role?: string; referral_code?: string }) =>
     api<{ access_token: string; refresh_token: string; user: User }>('/auth/signup', { method: 'POST', body: data, auth: false }),
   me: () => api<{ user: User }>('/auth/me'),
   logout: () => api('/auth/logout', { method: 'POST' }),
@@ -237,7 +237,7 @@ export const adminApi = {
   rejectPlace: (id: number, reason: string) => api(`/admin/places/${id}/reject`, { method: 'PATCH', body: { reason } }),
   createPlaceForUser: (data: Partial<Place> & { owner_id: number }) =>
     api<{ place: Place }>('/admin/places', { method: 'POST', body: data }),
-  createUser: (data: { name: string; email: string; password: string; role?: string; phone?: string }) =>
+  createUser: (data: { username?: string; name: string; email: string; password: string; role?: string; phone?: string }) =>
     api<{ user: User }>('/admin/users', { method: 'POST', body: data }),
   users: (params?: Record<string, string>) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
@@ -295,6 +295,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  username?: string;
   role: 'user' | 'host' | 'admin';
   verified?: boolean;
   avatar_url?: string;

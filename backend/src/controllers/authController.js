@@ -11,18 +11,29 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emai
  */
 async function signup(req, res, next) {
   try {
-    const { email, password, name, role = 'user', referral_code, vehicle_registration } = req.validatedBody;
+    const { email, password, name, username, role = 'user', referral_code, vehicle_registration } = req.validatedBody;
 
-    // Check if user exists (case-insensitive)
+    // Check if email already registered (case-insensitive)
     const existingUser = await db.query(
       'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
       [email.trim()]
     );
-
     if (existingUser.rows.length > 0) {
       return res.status(409).json({
         error: 'email_exists',
         message: 'Email already registered',
+      });
+    }
+
+    // Check if username is taken (case-insensitive)
+    const existingUsername = await db.query(
+      'SELECT id FROM users WHERE LOWER(username) = LOWER($1)',
+      [username.trim()]
+    );
+    if (existingUsername.rows.length > 0) {
+      return res.status(409).json({
+        error: 'username_taken',
+        message: 'Username already taken — please choose another',
       });
     }
 
@@ -35,10 +46,10 @@ async function signup(req, res, next) {
 
     // Create user
     const result = await db.query(
-      `INSERT INTO users (email, password_hash, name, role, verified, referred_by, email_verification_token, email_verification_expires, vehicle_registration)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, email, name, role, created_at`,
-      [email, passwordHash, name, role, false, referral_code || null, verificationToken, verificationExpires, vehicle_registration || null]
+      `INSERT INTO users (email, password_hash, name, username, role, verified, referred_by, email_verification_token, email_verification_expires, vehicle_registration)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, email, name, username, role, created_at`,
+      [email, passwordHash, name, username.trim().toLowerCase(), role, false, referral_code || null, verificationToken, verificationExpires, vehicle_registration || null]
     );
 
     const user = result.rows[0];
@@ -76,6 +87,7 @@ async function signup(req, res, next) {
         id: user.id,
         email: user.email,
         name: user.name,
+        username: user.username,
         role: user.role,
       },
     });
@@ -90,19 +102,20 @@ async function signup(req, res, next) {
  */
 async function login(req, res, next) {
   try {
-    const { email, password } = req.validatedBody;
+    const { email, identifier, password } = req.validatedBody;
+    const loginKey = (identifier || email || '').trim();
 
-    // Find user (case-insensitive)
+    // Find user by email or username (case-insensitive)
     const result = await db.query(
-      `SELECT id, email, name, password_hash, role, verified
-       FROM users WHERE LOWER(email) = LOWER($1)`,
-      [email.trim()]
+      `SELECT id, email, name, username, password_hash, role, verified
+       FROM users WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1)`,
+      [loginKey]
     );
 
     if (result.rows.length === 0) {
       return res.status(401).json({
         error: 'invalid_credentials',
-        message: 'Email or password incorrect',
+        message: 'Email/username or password incorrect',
       });
     }
 
@@ -138,6 +151,7 @@ async function login(req, res, next) {
         id: user.id,
         email: user.email,
         name: user.name,
+        username: user.username,
         role: user.role,
         verified: user.verified,
       },
@@ -156,7 +170,7 @@ async function getCurrentUser(req, res, next) {
     const userId = req.user.userId;
 
     const result = await db.query(
-      `SELECT id, email, name, avatar_url, bio, phone_number, 
+      `SELECT id, email, name, username, avatar_url, bio, phone_number, 
               vehicle_registration, vehicle_length, vehicle_height, vehicle_width,
               dark_mode, offline_mode, role, verified, created_at,
               host_contract_accepted_at, host_contract_version

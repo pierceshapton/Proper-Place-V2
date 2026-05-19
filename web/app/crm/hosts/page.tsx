@@ -612,6 +612,7 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
 ───────────────────────────────────────────── */
 function CreateUserPanel() {
   const [form, setForm] = useState({
+    username: '',
     name: '',
     email: '',
     password: '',
@@ -641,6 +642,7 @@ function CreateUserPanel() {
     setSaving(true);
     try {
       const result = await adminApi.createUser({
+        username: form.username || undefined,
         name: form.name,
         email: form.email,
         password: form.password,
@@ -648,7 +650,7 @@ function CreateUserPanel() {
         phone: form.phone || undefined,
       });
       setSuccess(`Account created for ${result.user.name} (${result.user.email}). They can now log in immediately.`);
-      setForm({ name: '', email: '', password: '', phone: '', role: 'host' });
+      setForm({ username: '', name: '', email: '', password: '', phone: '', role: 'host' });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to create account');
     }
@@ -669,6 +671,16 @@ function CreateUserPanel() {
       <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-4">
         <h2 className="text-base font-semibold text-slate-200">New Account Details</h2>
         <p className="text-xs text-slate-500">The account is created as verified — they can log in immediately with these credentials.</p>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-1.5">Username <span className="text-slate-600">(optional — auto-generated from name if blank)</span></label>
+          <input
+            type="text" value={form.username} onChange={e => f('username', e.target.value)}
+            placeholder="aimeesmith"
+            className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
+          />
+          <p className="text-xs text-slate-600 mt-1">Shown on reviews · letters, numbers, underscores only</p>
+        </div>
 
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1.5">Full Name *</label>

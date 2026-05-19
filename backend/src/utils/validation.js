@@ -2,6 +2,11 @@ const Joi = require('joi');
 
 const schemas = {
   signup: Joi.object({
+    username: Joi.string().min(3).max(30).pattern(/^[a-zA-Z0-9_]+$/).required().messages({
+      'string.pattern.base': 'Username can only contain letters, numbers, and underscores',
+      'string.min': 'Username must be at least 3 characters',
+      'string.max': 'Username cannot exceed 30 characters',
+    }),
     email: Joi.string().email().required(),
     password: Joi.string().min(8).required(),
     name: Joi.string().min(2).max(255).required(),
@@ -11,9 +16,10 @@ const schemas = {
   }),
 
   login: Joi.object({
-    email: Joi.string().email().required(),
+    identifier: Joi.string().optional(), // email or username
+    email: Joi.string().optional(),      // backward compat
     password: Joi.string().required(),
-  }),
+  }).or('identifier', 'email'),
 
   createPlace: Joi.object({
     name: Joi.string().min(1).max(255).optional(),

@@ -14,7 +14,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _rememberMe = true;
           if (email != null) {
-            _emailController.text = email;
+            _identifierController.text = email;
           }
         });
       }
@@ -58,15 +58,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    if (_identifierController.text.isEmpty || _passwordController.text.isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter email and password';
+        _errorMessage = 'Please enter email/username and password';
       });
       return;
     }
@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await ApiService.login(
-        email: _emailController.text,
+        identifier: _identifierController.text,
         password: _passwordController.text,
       );
 
@@ -95,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       
       // Save remember me preference
-      await StorageService.setRememberMe(_rememberMe, email: _emailController.text);
+      await StorageService.setRememberMe(_rememberMe, email: _identifierController.text);
       
       // The login API may return user data either nested under 'user' or as
       // flat top-level fields ({user_id, email, name, role}). Support both.
@@ -142,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => EmailVerificationScreen(
-                email: user['email'] ?? _emailController.text),
+                email: user['email'] ?? _identifierController.text),
           ),
         );
         return;
@@ -260,12 +260,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                      // Email Field
+                      // Identifier Field
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Email',
+                            'Email or Username',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -274,10 +274,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 4),
                           TextField(
-                            controller: _emailController,
-                            autofillHints: const [AutofillHints.email],
+                            controller: _identifierController,
                             decoration: InputDecoration(
-                              hintText: 'Email',
+                              hintText: 'Email or username',
                               hintStyle: TextStyle(color: Colors.grey[600]),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(6),
@@ -303,7 +302,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 vertical: 8,
                               ),
                             ),
-                            keyboardType: TextInputType.emailAddress,
                           ),
                         ],
                       ),

@@ -902,6 +902,16 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 40 error:', err.message);
     }
 
+    // Migration 41: Username column for all users
+    try {
+      console.log('[SERVER] Running migration 41: username column on users...');
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50)`);
+      await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (LOWER(username)) WHERE username IS NOT NULL`);
+      console.log('[SERVER] ✅ Migration 41 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 41 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
