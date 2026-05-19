@@ -256,7 +256,7 @@ export default function EditPlacePage() {
         await uploadApi.placeImages(Number(id), newImages);
       }
 
-      setSuccess('Place updated! If previously approved, it will need re-approval.');
+      setSuccess('Changes saved!');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to update place');
     }

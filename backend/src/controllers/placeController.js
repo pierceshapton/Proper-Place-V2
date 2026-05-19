@@ -283,39 +283,7 @@ async function updatePlace(req, res, next) {
       }
     }
 
-    // When a host edits an approved site, save the current data and set it back to pending
-    if (req.user.role !== 'admin' && previousApprovalStatus === 'approved') {
-      // Require signed contract before re-submitting
-      const contractCheck = await db.query(
-        'SELECT host_contract_accepted_at FROM users WHERE id = $1',
-        [userId]
-      );
-      if (!contractCheck.rows[0]?.host_contract_accepted_at) {
-        return res.status(403).json({
-          error: 'contract_required',
-          message: 'You must sign the Host Agreement before submitting changes for review.',
-        });
-      }
-
-      // Snapshot the currently approved data so admin can see what changed
-      const previousData = { ...ownerResult.rows[0] };
-      delete previousData.previous_approved_data;
-      delete previousData.created_at;
-      delete previousData.updated_at;
-      delete previousData.deleted_at;
-      delete previousData.host_status_seen;
-
-      fields.push(`previous_approved_data = $${paramCount}`);
-      values.push(JSON.stringify(previousData));
-      paramCount++;
-
-      fields.push(`approval_status = $${paramCount}`);
-      values.push('pending');
-      paramCount++;
-      fields.push(`host_status_seen = $${paramCount}`);
-      values.push(true);
-      paramCount++;
-    }
+    // Once a site is approved, hosts can edit it freely — no re-approval needed.
 
     if (fields.length === 0) {
       return res.status(400).json({

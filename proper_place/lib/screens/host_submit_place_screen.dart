@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:proper_place/services/api_service.dart';
 import 'package:proper_place/services/image_picker_service.dart';
 import 'package:proper_place/widgets/google_places_address_field.dart';
-import 'package:proper_place/screens/stripe_payout_setup_screen.dart';
 import 'dart:io';
 
 class HostSubmitPlaceScreen extends StatefulWidget {

@@ -9,7 +9,6 @@ import '../services/place_service.dart';
 import '../services/google_places_service.dart';
 import '../services/api_service.dart';
 import '../config/app_config.dart';
-import 'host_contract_screen.dart';
 
 class HostCreateSiteScreen extends StatefulWidget {
   final Map<String, dynamic>? siteToEdit;
@@ -645,29 +644,11 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     setState(() => isSubmitting = true);
 
     try {
-      // Check if host has signed the contract before submitting
-      final contractStatus = await ApiService.getHostContractStatus();
-      if (contractStatus['accepted'] != true) {
-        setState(() => isSubmitting = false);
-        if (mounted) {
-          final signed = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(builder: (_) => const HostContractScreen()),
-          );
-          if (signed == true) {
-            // Contract just signed — retry submission
-            _submitSite();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('You must sign the Host Agreement before submitting a site')),
-            );
-          }
-        }
-        return;
-      }
-
       final siteData = _buildSiteData();
-      siteData['approval_status'] = 'pending';
+      // Keep approval_status as 'pending' only for brand-new (non-editing) submissions
+      if (!isEditing) {
+        siteData['approval_status'] = 'pending';
+      }
 
       int placeId;
       
@@ -700,12 +681,9 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       await StorageService.removeString('site_draft');
 
       if (mounted) {
-        final wasApproved = isEditing && widget.siteToEdit!['approval_status'] == 'approved';
-        final message = wasApproved
-            ? 'Changes submitted for admin review'
-            : isEditing
-                ? 'Site updated successfully! 🎉'
-                : 'Site submitted successfully! 🎉';
+        final message = isEditing
+            ? 'Changes saved! 🎉'
+            : 'Site submitted successfully! 🎉';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
