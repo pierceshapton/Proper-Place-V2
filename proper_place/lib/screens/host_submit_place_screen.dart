@@ -99,45 +99,8 @@ class _HostSubmitPlaceScreenState extends State<HostSubmitPlaceScreen> {
       return;
     }
 
-    // For new submissions, require Stripe Connect before sending to admin
-    if (!isEditing) {
-      try {
-        final status = await ApiService.getPayoutStatus();
-        final payoutsEnabled = status['details_submitted'] == true;
-        if (!payoutsEnabled && mounted) {
-          final setupComplete = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(builder: (_) => const StripePayoutSetupScreen()),
-          );
-          // Re-check after returning from setup
-          final recheck = await ApiService.getPayoutStatus();
-          if (recheck['details_submitted'] != true) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Please complete payout setup to allow your site to be submitted to Proper Place.'),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 4),
-                ),
-              );
-            }
-            return;
-          }
-        }
-      } catch (e) {
-        // If we can't verify Stripe status, block submission — don't let hosts skip setup
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Unable to verify payout setup. Please check your connection and try again.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
-        return;
-      }
-    }
+    // Stripe Connect setup and contract signing are deferred until the host
+    // receives their first booking — they'll be prompted to complete setup then.
 
     setState(() => isSubmitting = true);
 

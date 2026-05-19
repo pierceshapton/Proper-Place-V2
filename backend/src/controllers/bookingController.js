@@ -570,6 +570,28 @@ async function createBooking(req, res, next) {
               placeRes.rows[0].name,
               result.rows[0].id
             );
+
+            // If host hasn't completed contract or Stripe setup, nudge them now
+            const hostId = placeRes.rows[0].owner_id;
+            const hostRes = await db.query(
+              'SELECT host_contract_accepted_at, stripe_account_id FROM users WHERE id = $1',
+              [hostId]
+            );
+            const host = hostRes.rows[0];
+            const missingContract = !host?.host_contract_accepted_at;
+            const missingStripe = !host?.stripe_account_id;
+            if (missingContract || missingStripe) {
+              const missing = [
+                missingContract && 'Host Agreement',
+                missingStripe && 'payout (Stripe) setup',
+              ].filter(Boolean).join(' and ');
+              await pushService.sendToUser(
+                hostId,
+                'Action Required — Complete Your Setup',
+                `You have a new booking request! To accept it and receive payment, please complete your ${missing} in the Host section.`,
+                { type: 'setup_required', screen: 'host_setup' }
+              );
+            }
           }
         } catch (e) { /* ignore push errors */ }
       });

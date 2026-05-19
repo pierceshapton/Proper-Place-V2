@@ -146,19 +146,8 @@ async function createPlace(req, res, next) {
     const userId = req.user.userId;
     const data = req.validatedBody;
 
-    // Require signed host contract before submitting for approval
-    if (data.approval_status === 'pending') {
-      const contractCheck = await db.query(
-        'SELECT host_contract_accepted_at FROM users WHERE id = $1',
-        [userId]
-      );
-      if (!contractCheck.rows[0]?.host_contract_accepted_at) {
-        return res.status(403).json({
-          error: 'contract_required',
-          message: 'You must sign the Host Agreement before submitting a site for review.',
-        });
-      }
-    }
+    // Contract and Stripe setup are deferred until the host receives their first booking.
+    // No upfront gate here — hosts are prompted to complete setup when a booking arrives.
 
     const result = await db.query(
       `INSERT INTO places (owner_id, name, description, address, city, country,
