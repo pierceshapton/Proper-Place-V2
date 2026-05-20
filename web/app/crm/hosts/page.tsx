@@ -836,15 +836,3 @@ function CreateUserPanel() {
     </form>
   );
 }
-        </div>
-      </div>
-
-      <button
-        type="submit" disabled={saving}
-        className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm transition-colors"
-      >
-        {saving ? 'Creating account...' : 'Create Account'}
-      </button>
-    </form>
-  );
-}
