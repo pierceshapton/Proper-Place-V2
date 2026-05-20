@@ -1010,11 +1010,13 @@ function SearchSitesPanel() {
         price_per_night: updateData.price_per_night ?? r.price_per_night,
       } : r));
 
-      setSaveMsg('Saved successfully');
+      setSaveMsg('saved');
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : 'Failed to save');
     }
     setSaving(false);
+    // Auto-reset button after 2s
+    setTimeout(() => setSaveMsg(''), 2000);
   };
 
   const statusColor = (s: string) => {
@@ -1074,7 +1076,6 @@ function SearchSitesPanel() {
                     <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" /></div>
                   ) : (
                     <>
-                      {saveMsg && <div className="bg-emerald-900/40 text-emerald-300 text-sm px-4 py-2 rounded-lg">{saveMsg}</div>}
                       {saveError && <div className="bg-red-900/40 text-red-300 text-sm px-4 py-2 rounded-lg">{saveError}</div>}
 
                       {/* Basic */}
@@ -1207,10 +1208,14 @@ function SearchSitesPanel() {
                       <button
                         type="button"
                         onClick={() => handleSave(place.id)}
-                        disabled={saving}
-                        className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                        disabled={saving || saveMsg === 'saved'}
+                        className={`w-full font-semibold py-2.5 rounded-xl text-sm transition-colors ${
+                          saveMsg === 'saved'
+                            ? 'bg-emerald-700 text-emerald-200 cursor-default'
+                            : 'bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white'
+                        }`}
                       >
-                        {saving ? 'Saving…' : 'Save Changes'}
+                        {saving ? 'Saving…' : saveMsg === 'saved' ? '✓ Saved' : 'Save Changes'}
                       </button>
                     </>
                   )}
