@@ -24,12 +24,14 @@ function LoginForm() {
     setLoading(true);
     setError('');
     try {
-      const userData = await login(identifier, password);
-      if (userData && !userData.verified) {
+      const result = await login(identifier, password);
+      if (result.must_change_password) {
+        router.push('/auth/set-password');
+      } else if (result.user && !result.user.verified) {
         router.push('/auth/verify-email');
       } else {
         const redirect = searchParams.get('redirect');
-        const defaultDest = userData?.role === 'host' ? '/dashboard/host' : '/dashboard';
+        const defaultDest = result.user?.role === 'host' ? '/dashboard/host' : '/dashboard';
         router.push(redirect && redirect.startsWith('/') ? redirect : defaultDest);
       }
     } catch (err) {

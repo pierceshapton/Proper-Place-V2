@@ -6,7 +6,7 @@ import { authApi, setTokens, clearTokens, type User } from '@/lib/api';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (identifier: string, password: string) => Promise<User>;
+  login: (identifier: string, password: string) => Promise<{ user: User; must_change_password?: boolean }>;
   signup: (data: { username: string; name: string; email: string; password: string; role?: string; referral_code?: string }) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -15,7 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  login: async () => ({} as User),
+  login: async () => ({ user: {} as User }),
   signup: async () => ({} as User),
   logout: async () => {},
   refreshUser: async () => {},
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokens(data.access_token, data.refresh_token);
     setUser(data.user);
     localStorage.setItem('pp_user', JSON.stringify(data.user));
-    return data.user;
+    return { user: data.user, must_change_password: data.must_change_password };
   };
 
   const signup = async (signupData: { username: string; name: string; email: string; password: string; role?: string; referral_code?: string }) => {

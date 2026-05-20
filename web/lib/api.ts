@@ -109,7 +109,7 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
 // Auth
 export const authApi = {
   login: (identifier: string, password: string) =>
-    api<{ access_token: string; refresh_token: string; user: User }>('/auth/login', { method: 'POST', body: { identifier, password }, auth: false }),
+    api<{ access_token: string; refresh_token: string; user: User; must_change_password?: boolean }>('/auth/login', { method: 'POST', body: { identifier, password }, auth: false }),
   signup: (data: { username: string; name: string; email: string; password: string; role?: string; referral_code?: string }) =>
     api<{ access_token: string; refresh_token: string; user: User }>('/auth/signup', { method: 'POST', body: data, auth: false }),
   me: () => api<{ user: User }>('/auth/me'),
@@ -298,6 +298,7 @@ export interface User {
   username?: string;
   role: 'user' | 'host' | 'admin';
   verified?: boolean;
+  must_change_password?: boolean;
   avatar_url?: string;
   bio?: string;
   phone_number?: string;
