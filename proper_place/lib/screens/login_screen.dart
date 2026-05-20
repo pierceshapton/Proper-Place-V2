@@ -5,6 +5,7 @@ import 'package:proper_place/services/storage_service.dart';
 import 'package:proper_place/screens/signup_screen.dart';
 import 'package:proper_place/screens/email_verification_screen.dart';
 import 'package:proper_place/screens/forgot_password_screen.dart';
+import 'package:proper_place/screens/force_change_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -137,6 +138,16 @@ class _LoginScreenState extends State<LoginScreen> {
       
       if (!mounted) return;
       
+      // Force password change for OTP first-login flow
+      if (user['must_change_password'] == true) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const ForceChangePasswordScreen()),
+          (_) => false,
+        );
+        TextInput.finishAutofillContext();
+        return;
+      }
+
       // Check if email is verified (only when the API tells us explicitly)
       if (user['verified'] == false) {
         Navigator.of(context).pushReplacement(

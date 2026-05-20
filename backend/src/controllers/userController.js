@@ -284,7 +284,7 @@ async function changePassword(req, res, next) {
     }
 
     const hash = await bcrypt.hash(newPassword, 12);
-    await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, userId]);
+    await db.query('UPDATE users SET password_hash = $1, must_change_password = false, updated_at = NOW() WHERE id = $2', [hash, userId]);
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
@@ -293,10 +293,45 @@ async function changePassword(req, res, next) {
   }
 }
 
+/**
+ * POST /users/force-change-password
+ * Used on first login when must_change_password = true. No current password required.
+ */
+async function forceChangePassword(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ error: 'validation_error', message: 'New password is required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'validation_error', message: 'Password must be at least 8 characters' });
+    }
+
+    const userResult = await db.query('SELECT must_change_password FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'not_found', message: 'User not found' });
+    }
+    if (!userResult.rows[0].must_change_password) {
+      return res.status(403).json({ error: 'forbidden', message: 'Password change not required' });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await db.query('UPDATE users SET password_hash = $1, must_change_password = false, updated_at = NOW() WHERE id = $2', [hash, userId]);
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    logger.error('Force change password error', { error: error.message });
+    next(error);
+  }
+}
+
 module.exports = {
   getUserProfile,
   updateProfile,
   changePassword,
+  forceChangePassword,
   deleteAccount,
   exportUserData,
 };

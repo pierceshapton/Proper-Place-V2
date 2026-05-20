@@ -702,14 +702,13 @@ function CreateUserPanel() {
     username: '',
     name: '',
     email: '',
-    password: '',
     phone: '',
     role: 'host',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [otpResult, setOtpResult] = useState<{ name: string; email: string; otp: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const f = (field: keyof typeof form, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
@@ -717,13 +716,9 @@ function CreateUserPanel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
-    if (!form.name || !form.email || !form.password) {
-      setError('Name, email and password are required');
-      return;
-    }
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters');
+    setOtpResult(null);
+    if (!form.name || !form.email) {
+      setError('Name and email are required');
       return;
     }
     setSaving(true);
@@ -732,32 +727,54 @@ function CreateUserPanel() {
         username: form.username || undefined,
         name: form.name,
         email: form.email,
-        password: form.password,
         role: form.role,
         phone: form.phone || undefined,
       });
-      setSuccess(`Account created for ${result.user.name} (${result.user.email}). They can now log in immediately.`);
-      setForm({ username: '', name: '', email: '', password: '', phone: '', role: 'host' });
+      setOtpResult({ name: result.user.name, email: result.user.email, otp: result.otp_password });
+      setForm({ username: '', name: '', email: '', phone: '', role: 'host' });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to create account');
     }
     setSaving(false);
   };
 
+  const copyOtp = () => {
+    if (otpResult) {
+      navigator.clipboard.writeText(otpResult.otp);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-sm">{error}</div>}
-      {success && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl text-sm space-y-1">
-          <p className="font-semibold">Account created!</p>
-          <p>{success}</p>
-          <p className="text-emerald-500/70 text-xs">Switch to "Create Site" to set up their first site.</p>
+      {otpResult && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-4 rounded-xl text-sm space-y-3">
+          <p className="font-semibold text-emerald-300">✅ Account created for {otpResult.name}</p>
+          <p className="text-xs text-emerald-500/80">{otpResult.email}</p>
+          <div>
+            <p className="text-xs text-emerald-500/70 mb-1.5">One-time password — share this with the host. They must change it on first login:</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 bg-slate-900 border border-emerald-500/30 text-emerald-300 font-mono text-base px-4 py-2.5 rounded-lg tracking-widest select-all">
+                {otpResult.otp}
+              </code>
+              <button
+                type="button"
+                onClick={copyOtp}
+                className="px-3 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                {copied ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-emerald-500/60">Switch to "Create Site" to set up their first site.</p>
         </div>
       )}
 
       <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-4">
         <h2 className="text-base font-semibold text-slate-200">New Account Details</h2>
-        <p className="text-xs text-slate-500">The account is created as verified — they can log in immediately with these credentials.</p>
+        <p className="text-xs text-slate-500">A one-time password is auto-generated — share it with the host. They must change it on first login.</p>
 
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1.5">Username <span className="text-slate-600">(optional — auto-generated from name if blank)</span></label>
@@ -766,7 +783,6 @@ function CreateUserPanel() {
             placeholder="aimeesmith"
             className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
           />
-          <p className="text-xs text-slate-600 mt-1">Shown on reviews · letters, numbers, underscores only</p>
         </div>
 
         <div>
@@ -797,26 +813,6 @@ function CreateUserPanel() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Password *</label>
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={form.password} onChange={e => f('password', e.target.value)} required
-              placeholder="Set a temporary password (min. 8 chars)"
-              className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(p => !p)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-            >
-              {showPassword ? '🙈' : '👁'}
-            </button>
-          </div>
-          <p className="text-xs text-slate-600 mt-1">Share this with the host so they can log in, then they can change it in Settings.</p>
-        </div>
-
-        <div>
           <label className="block text-xs font-medium text-slate-400 mb-1.5">Account Role</label>
           <div className="flex gap-2">
             {['host', 'user'].map(r => (
@@ -828,6 +824,18 @@ function CreateUserPanel() {
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      <button
+        type="submit" disabled={saving}
+        className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm transition-colors"
+      >
+        {saving ? 'Creating account...' : 'Create Account'}
+      </button>
+    </form>
+  );
+}
         </div>
       </div>
 

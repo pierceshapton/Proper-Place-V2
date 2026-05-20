@@ -165,6 +165,7 @@ app.get('/cms/content', cmsContentController.getContent);
 app.get('/users/:id', userController.getUserProfile);
 app.patch('/users/:id', authMiddleware, validationMiddleware('updateProfile'), userController.updateProfile);
 app.post('/users/change-password', authMiddleware, userController.changePassword);
+app.post('/users/force-change-password', authMiddleware, userController.forceChangePassword);
 app.delete('/users/:id', authMiddleware, userController.deleteAccount);
 app.get('/users/:id/export', authMiddleware, userController.exportUserData); // GDPR Article 20
 
@@ -923,6 +924,15 @@ async function initializeDatabase() {
       console.log('[SERVER] ✅ Migration 42 completed');
     } catch (err) {
       console.error('[SERVER] Migration 42 error:', err.message);
+    }
+
+    // Migration 43: must_change_password for OTP first-login flow
+    try {
+      console.log('[SERVER] Running migration 43: must_change_password...');
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false`);
+      console.log('[SERVER] ✅ Migration 43 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 43 error:', err.message);
     }
 
     // Always try to seed admin user if it doesn't exist

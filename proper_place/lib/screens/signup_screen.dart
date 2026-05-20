@@ -45,7 +45,7 @@ class _SignupScreenState extends State<SignupScreen> {
     try {
       final available = await ApiService.checkUsernameAvailable(username);
       if (mounted) {
-        setState(() => _usernameError = available ? null : 'Username already taken — please choose another');
+        setState(() => _usernameError = available ? null : 'Username already taken');
       }
     } catch (_) {
       // Silently ignore network errors here; server will validate on submit

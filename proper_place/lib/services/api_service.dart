@@ -1219,6 +1219,15 @@ class ApiService {
       endpoint: '/auth/me',
     );
   }
+
+  /// Force-change password (OTP first-login flow — no current password required)
+  static Future<void> forceChangePassword({required String newPassword}) async {
+    await _request(
+      method: 'POST',
+      endpoint: '/users/force-change-password',
+      body: {'newPassword': newPassword},
+    );
+  }
 }
 
 /// Result of attempting to refresh the access token.

@@ -939,10 +939,10 @@ const { hashPassword } = require('../utils/hash');
 async function createUserAsAdmin(req, res, next) {
   try {
     const adminId = req.user.userId;
-    const { name, email, password, role = 'host', phone, username } = req.body;
+    const { name, email, role = 'host', phone, username } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'validation_error', message: 'name, email and password are required' });
+    if (!name || !email) {
+      return res.status(400).json({ error: 'validation_error', message: 'name and email are required' });
     }
 
     const existing = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
@@ -961,11 +961,15 @@ async function createUserAsAdmin(req, res, next) {
       return res.status(409).json({ error: 'username_taken', message: 'Username already taken' });
     }
 
-    const passwordHash = await hashPassword(password);
+    // Generate a random OTP password (12 chars, mixed case + numbers)
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const otpPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+
+    const passwordHash = await hashPassword(otpPassword);
 
     const result = await db.query(
-      `INSERT INTO users (email, password_hash, name, username, role, verified, phone_number)
-       VALUES ($1, $2, $3, $4, $5, true, $6)
+      `INSERT INTO users (email, password_hash, name, username, role, verified, phone_number, must_change_password)
+       VALUES ($1, $2, $3, $4, $5, true, $6, true)
        RETURNING id, email, name, username, role, verified, created_at`,
       [email.trim().toLowerCase(), passwordHash, name.trim(), finalUsername, role, phone || null]
     );
@@ -979,7 +983,7 @@ async function createUserAsAdmin(req, res, next) {
     ).catch(() => {});
 
     logger.info('Admin created user', { adminId, userId: user.id, email });
-    res.status(201).json({ user });
+    res.status(201).json({ user, otp_password: otpPassword });
   } catch (error) {
     logger.error('Admin create user error', { error: error.message });
     next(error);

@@ -107,7 +107,7 @@ async function login(req, res, next) {
 
     // Find user by email or username (case-insensitive)
     const result = await db.query(
-      `SELECT id, email, name, username, password_hash, role, verified
+      `SELECT id, email, name, username, password_hash, role, verified, must_change_password
        FROM users WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1)`,
       [loginKey]
     );
@@ -154,6 +154,7 @@ async function login(req, res, next) {
         username: user.username,
         role: user.role,
         verified: user.verified,
+        must_change_password: user.must_change_password || false,
       },
     });
   } catch (error) {
