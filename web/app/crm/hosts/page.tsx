@@ -707,7 +707,7 @@ function CreateUserPanel() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [otpResult, setOtpResult] = useState<{ name: string; email: string; otp: string } | null>(null);
+  const [otpResult, setOtpResult] = useState<{ name: string; username: string; email?: string; otp: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const f = (field: keyof typeof form, value: string) =>
@@ -717,20 +717,25 @@ function CreateUserPanel() {
     e.preventDefault();
     setError('');
     setOtpResult(null);
-    if (!form.name || !form.email) {
-      setError('Name and email are required');
+    if (!form.name) {
+      setError('Name is required');
       return;
     }
     setSaving(true);
     try {
       const result = await adminApi.createUser({
-        username: form.username || undefined,
+        ...(form.username ? { username: form.username } : {}),
         name: form.name,
-        email: form.email,
+        ...(form.email ? { email: form.email } : {}),
         role: form.role,
-        phone: form.phone || undefined,
+        ...(form.phone ? { phone: form.phone } : {}),
       });
-      setOtpResult({ name: result.user.name, email: result.user.email, otp: result.otp_password });
+      setOtpResult({
+        name: result.user.name,
+        username: result.user.username ?? '',
+        email: result.email_is_placeholder ? undefined : result.user.email,
+        otp: result.otp_password,
+      });
       setForm({ username: '', name: '', email: '', phone: '', role: 'host' });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to create account');
@@ -752,7 +757,11 @@ function CreateUserPanel() {
       {otpResult && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-4 rounded-xl text-sm space-y-3">
           <p className="font-semibold text-emerald-300">✅ Account created for {otpResult.name}</p>
-          <p className="text-xs text-emerald-500/80">{otpResult.email}</p>
+          {otpResult.email && <p className="text-xs text-emerald-500/80">{otpResult.email}</p>}
+          <div>
+            <p className="text-xs text-emerald-500/70 mb-1">Login username:</p>
+            <code className="bg-slate-900 border border-emerald-500/30 text-emerald-300 font-mono text-sm px-3 py-1.5 rounded-lg select-all">{otpResult.username}</code>
+          </div>
           <div>
             <p className="text-xs text-emerald-500/70 mb-1.5">One-time password — share this with the host. They must change it on first login:</p>
             <div className="flex items-center gap-2">
@@ -795,9 +804,9 @@ function CreateUserPanel() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Email Address *</label>
+          <label className="block text-xs font-medium text-slate-400 mb-1.5">Email Address <span className="text-slate-600">(optional — needed for password reset)</span></label>
           <input
-            type="email" value={form.email} onChange={e => f('email', e.target.value)} required
+            type="email" value={form.email} onChange={e => f('email', e.target.value)}
             placeholder="aimee@example.com"
             className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
           />

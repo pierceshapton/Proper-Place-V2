@@ -941,25 +941,33 @@ async function createUserAsAdmin(req, res, next) {
     const adminId = req.user.userId;
     const { name, email, role = 'host', phone, username } = req.body;
 
-    if (!name || !email) {
-      return res.status(400).json({ error: 'validation_error', message: 'name and email are required' });
-    }
-
-    const existing = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'email_exists', message: 'An account with this email already exists' });
+    if (!name && !username) {
+      return res.status(400).json({ error: 'validation_error', message: 'name or username is required' });
     }
 
     // Resolve username: use provided one, or auto-generate from name
-    let finalUsername = (username || name.trim().toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_]/g, '')).slice(0, 30);
+    let finalUsername = (username || (name || '').trim().toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_]/g, '')).slice(0, 30);
     if (!finalUsername) finalUsername = 'user';
     const unCheck = await db.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [finalUsername]);
     if (unCheck.rows.length > 0) {
+      if (username) {
+        return res.status(409).json({ error: 'username_taken', message: 'Username already taken' });
+      }
       finalUsername = finalUsername + Math.floor(Math.random() * 9000 + 1000);
     }
-    if (username && unCheck.rows.length > 0) {
-      return res.status(409).json({ error: 'username_taken', message: 'Username already taken' });
+
+    // Email: use provided, or generate a unique no-reply placeholder
+    let finalEmail;
+    if (email && email.trim()) {
+      finalEmail = email.trim().toLowerCase();
+      const existing = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [finalEmail]);
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ error: 'email_exists', message: 'An account with this email already exists' });
+      }
+    } else {
+      finalEmail = `${finalUsername}@noemail.properplace.internal`;
     }
+    const emailIsPlaceholder = finalEmail.endsWith('@noemail.properplace.internal');
 
     // Generate a random OTP password (12 chars, mixed case + numbers)
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -971,7 +979,7 @@ async function createUserAsAdmin(req, res, next) {
       `INSERT INTO users (email, password_hash, name, username, role, verified, phone_number, must_change_password)
        VALUES ($1, $2, $3, $4, $5, true, $6, true)
        RETURNING id, email, name, username, role, verified, created_at`,
-      [email.trim().toLowerCase(), passwordHash, name.trim(), finalUsername, role, phone || null]
+      [finalEmail, passwordHash, (name || finalUsername).trim(), finalUsername, role, phone || null]
     );
 
     const user = result.rows[0];
@@ -979,11 +987,11 @@ async function createUserAsAdmin(req, res, next) {
     await db.query(
       `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
        VALUES ($1, $2, $3, $4, $5)`,
-      [adminId, 'user_created_by_admin', 'user', user.id, `Admin created account for ${email}`]
+      [adminId, 'user_created_by_admin', 'user', user.id, `Admin created account for ${finalEmail}`]
     ).catch(() => {});
 
-    logger.info('Admin created user', { adminId, userId: user.id, email });
-    res.status(201).json({ user, otp_password: otpPassword });
+    logger.info('Admin created user', { adminId, userId: user.id, email: finalEmail });
+    res.status(201).json({ user, otp_password: otpPassword, email_is_placeholder: emailIsPlaceholder });
   } catch (error) {
     logger.error('Admin create user error', { error: error.message });
     next(error);

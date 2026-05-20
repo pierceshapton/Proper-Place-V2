@@ -237,8 +237,8 @@ export const adminApi = {
   rejectPlace: (id: number, reason: string) => api(`/admin/places/${id}/reject`, { method: 'PATCH', body: { reason } }),
   createPlaceForUser: (data: Partial<Place> & { owner_id: number }) =>
     api<{ place: Place }>('/admin/places', { method: 'POST', body: data }),
-  createUser: (data: { username?: string; name: string; email: string; role?: string; phone?: string }) =>
-    api<{ user: User; otp_password: string }>('/admin/users', { method: 'POST', body: data }),
+  createUser: (data: { username?: string; name: string; email?: string; role?: string; phone?: string }) =>
+    api<{ user: User; otp_password: string; email_is_placeholder?: boolean }>('/admin/users', { method: 'POST', body: data }),
   users: (params?: Record<string, string>) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return api<{ users: User[] }>(`/admin/users${qs}`);
