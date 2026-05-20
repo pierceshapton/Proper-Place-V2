@@ -99,9 +99,6 @@ export default function AdminPlacesPage() {
                       <p className="text-sm text-gray-500">{place.address}, {place.city}</p>
                       <p className="text-sm text-gray-500 mt-0.5">Type: {place.place_type} · £{Number(place.price_per_night).toFixed(2)}/night</p>
                       <p className="text-sm text-gray-400 mt-0.5">Host: {place.owner_name || place.host?.name || `User #${place.owner_id}`}</p>
-                      {!place.host_contract_accepted_at && (
-                        <span className="inline-block mt-1 bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded">Contract NOT Signed</span>
-                      )}
                       {place.host_contract_accepted_at && (
                         <span className="inline-block mt-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded">Contract Signed</span>
                       )}

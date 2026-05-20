@@ -109,20 +109,6 @@ async function approvePlace(req, res, next) {
     const { id } = req.params;
     const adminId = req.user.userId;
 
-    // Check host has signed the contract before approving
-    const contractCheck = await db.query(
-      `SELECT u.host_contract_accepted_at
-       FROM places p JOIN users u ON p.owner_id = u.id
-       WHERE p.id = $1`,
-      [id]
-    );
-    if (contractCheck.rows.length > 0 && !contractCheck.rows[0].host_contract_accepted_at) {
-      return res.status(403).json({
-        error: 'contract_required',
-        message: 'Cannot approve: the host has not signed the Host Agreement yet.',
-      });
-    }
-
     const result = await db.query(
       `UPDATE places
        SET approval_status = 'approved', status = 'available', host_status_seen = false, previous_approved_data = NULL, updated_at = NOW()
