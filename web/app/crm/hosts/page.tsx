@@ -208,6 +208,7 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
     electric_hookup_capacity: '',
     electric_hookup_price_per_night: '',
   });
+  const [amenities, setAmenities] = useState<string[]>([]);
 
   const f = (field: keyof typeof form, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
@@ -283,6 +284,7 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
         price_per_night: form.price_per_night ? parseFloat(form.price_per_night) : undefined,
         capacity: form.capacity ? parseInt(form.capacity) : undefined,
         place_type: form.place_type,
+        amenities,
         opening_hours: form.opening_hours || undefined,
         business_description: form.business_description || undefined,
         access_route_description: form.access_route_description || undefined,
@@ -318,6 +320,7 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
         serves_food: false, food_menu_description: '', max_nights_per_stay: '', approval_status: 'approved',
         electric_hookup_available: false, electric_hookup_capacity: '', electric_hookup_price_per_night: '',
       });
+      setAmenities([]);
       setImages([]);
       setImagePreview([]);
       setMainImage(null);
@@ -513,6 +516,30 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
               />
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Facilities */}
+      <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-4">
+        <h2 className="text-base font-semibold text-slate-200">Facilities</h2>
+        <div className="flex flex-wrap gap-2">
+          {['WiFi', 'Drinking Water', 'Toilets', 'Showers', 'Chemical Toilet Disposal', 'Grey Water Disposal', 'Dog Friendly', 'Campfire Allowed'].map(facility => {
+            const selected = amenities.includes(facility);
+            return (
+              <button
+                key={facility}
+                type="button"
+                onClick={() => setAmenities(prev => selected ? prev.filter(f => f !== facility) : [...prev, facility])}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  selected
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-slate-800 text-slate-300 border-slate-600 hover:border-emerald-500'
+                }`}
+              >
+                {facility}
+              </button>
+            );
+          })}
         </div>
       </div>
 
