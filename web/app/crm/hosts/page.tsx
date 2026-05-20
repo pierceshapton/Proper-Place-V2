@@ -897,6 +897,8 @@ function SearchSitesPanel() {
   const [editLoading, setEditLoading] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
   const [editAmenities, setEditAmenities] = useState<string[]>([]);
+  const [editImageUrls, setEditImageUrls] = useState<string[]>([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -929,6 +931,7 @@ function SearchSitesPanel() {
         const p = d.place || (d as unknown as Place);
         setEditPlace(p);
         setEditAmenities(p.amenities || []);
+        setEditImageUrls(p.image_urls || []);
         setEditForm({
           name: p.name || '',
           description: p.description || '',
@@ -974,6 +977,7 @@ function SearchSitesPanel() {
         capacity: editForm.capacity ? parseInt(editForm.capacity as string) : undefined,
         place_type: editForm.place_type as string,
         amenities: editAmenities,
+        image_urls: editImageUrls,
         access_route_description: (editForm.access_route_description as string) || undefined,
         business_description: (editForm.business_description as string) || undefined,
         opening_hours: (editForm.opening_hours as string) || undefined,
@@ -1146,6 +1150,57 @@ function SearchSitesPanel() {
                         {!!(editForm.serves_food) && (
                           <div><label className={lbl}>Menu Description</label><textarea className={inp} rows={2} value={editForm.food_menu_description as string} onChange={e => ef('food_menu_description', e.target.value)} /></div>
                         )}
+                      </div>
+
+                      {/* Photos */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-300">Photos ({editImageUrls.length})</span>
+                          <a
+                            href={`/place/${place.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-emerald-400 hover:text-emerald-300 underline"
+                          >
+                            View as user ↗
+                          </a>
+                        </div>
+                        {editImageUrls.length > 0 ? (
+                          <div className="grid grid-cols-3 gap-2">
+                            {editImageUrls.map((url, i) => (
+                              <div key={url} className="relative aspect-square rounded-lg overflow-hidden group">
+                                <img src={url} alt="" className="w-full h-full object-cover" />
+                                {i === 0 && <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">Main</span>}
+                                <button
+                                  type="button"
+                                  onClick={() => setEditImageUrls(prev => prev.filter((_, idx) => idx !== i))}
+                                  className="absolute top-1 right-1 bg-red-600/90 text-white w-6 h-6 rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                >✕</button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500">No photos uploaded yet</p>
+                        )}
+                        <label className={`flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-dashed border-slate-600 hover:border-emerald-500 transition-colors ${photoUploading ? 'opacity-50' : ''}`}>
+                          <span className="text-xs text-slate-400">{photoUploading ? 'Uploading…' : '+ Add photos'}</span>
+                          <input
+                            type="file" accept="image/*" multiple className="hidden"
+                            disabled={photoUploading}
+                            onChange={async e => {
+                              const files = Array.from(e.target.files || []);
+                              if (!files.length) return;
+                              setPhotoUploading(true);
+                              try {
+                                const res = await uploadApi.placeImages(place.id, files);
+                                setEditImageUrls(prev => [...prev, ...(res.imageUrls || [])]);
+                              } catch { setSaveError('Failed to upload photos'); }
+                              setPhotoUploading(false);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                        {editImageUrls.length > 0 && <p className="text-[11px] text-slate-600">Removals take effect when you Save Changes. First photo is the main image.</p>}
                       </div>
 
                       {/* Save */}
