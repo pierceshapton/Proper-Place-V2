@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { adminApi, uploadApi, ApiError, type User } from '@/lib/api';
+import { adminApi, uploadApi, ApiError, placesApi, crmApi, type User, type Place } from '@/lib/api';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
 const MAPS_LIBRARIES: ('places')[] = ['places'];
@@ -25,7 +25,7 @@ const APPROVAL_STATUSES = [
   { value: 'approved', label: 'Approved (live immediately)' },
 ];
 
-type Tab = 'site' | 'user';
+type Tab = 'site' | 'user' | 'search';
 
 export default function HostsOnboardingPage() {
   const [tab, setTab] = useState<Tab>('site');
@@ -51,9 +51,15 @@ export default function HostsOnboardingPage() {
         >
           + Create User
         </button>
+        <button
+          onClick={() => setTab('search')}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'search' ? 'bg-emerald-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+        >
+          🔍 Search Sites
+        </button>
       </div>
 
-      {tab === 'site' ? <CreateSitePanel /> : <CreateUserPanel />}
+      {tab === 'site' ? <CreateSitePanel /> : tab === 'user' ? <CreateUserPanel /> : <SearchSitesPanel />}
     </div>
   );
 }
@@ -874,5 +880,295 @@ function CreateUserPanel() {
         {saving ? 'Creating account...' : 'Create Account'}
       </button>
     </form>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   SEARCH & EDIT SITES
+───────────────────────────────────────────── */
+type CRMPlace = { id: number; name: string; address: string; city: string; approval_status: string; place_type: string | null; price_per_night: number | null; owner_name: string; owner_email: string; owner_phone: string | null };
+
+function SearchSitesPanel() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<CRMPlace[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editPlace, setEditPlace] = useState<Place | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editForm, setEditForm] = useState<Record<string, unknown>>({});
+  const [editAmenities, setEditAmenities] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const ef = (field: string, value: unknown) =>
+    setEditForm(prev => ({ ...prev, [field]: value }));
+
+  const search = (q: string) => {
+    setQuery(q);
+    if (debounce.current) clearTimeout(debounce.current);
+    if (!q.trim()) { setResults([]); return; }
+    debounce.current = setTimeout(() => {
+      setSearching(true);
+      crmApi.searchPlaces(q)
+        .then(d => setResults(d.places || []))
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+  };
+
+  const openEdit = (id: number) => {
+    if (editingId === id) { setEditingId(null); setEditPlace(null); return; }
+    setEditingId(id);
+    setEditLoading(true);
+    setSaveMsg('');
+    setSaveError('');
+    placesApi.get(id)
+      .then(d => {
+        const p = d.place || (d as unknown as Place);
+        setEditPlace(p);
+        setEditAmenities(p.amenities || []);
+        setEditForm({
+          name: p.name || '',
+          description: p.description || '',
+          address: p.address || '',
+          city: p.city || '',
+          postal_code: p.postal_code || '',
+          country: p.country || 'GB',
+          price_per_night: p.price_per_night?.toString() || '',
+          capacity: p.capacity?.toString() || '',
+          place_type: p.place_type || 'private_land',
+          approval_status: p.approval_status || 'pending',
+          access_route_description: p.access_route_description || '',
+          business_description: p.business_description || '',
+          opening_hours: p.opening_hours || '',
+          serves_food: p.serves_food || false,
+          food_menu_description: p.food_menu_description || '',
+          max_nights_per_stay: p.max_nights_per_stay?.toString() || '',
+          max_vehicle_height_ft: p.max_vehicle_height_ft?.toString() || '',
+          max_vehicle_width_ft: p.max_vehicle_width_ft?.toString() || '',
+          max_vehicle_length_ft: p.max_vehicle_length_ft?.toString() || '',
+          electric_hookup_available: p.electric_hookup_available || false,
+          electric_hookup_capacity: p.electric_hookup_capacity?.toString() || '',
+          electric_hookup_price_per_night: p.electric_hookup_price_per_night?.toString() || '',
+        });
+      })
+      .catch(() => setSaveError('Failed to load site'))
+      .finally(() => setEditLoading(false));
+  };
+
+  const handleSave = async (id: number) => {
+    setSaving(true);
+    setSaveMsg('');
+    setSaveError('');
+    try {
+      const updateData: Partial<Place> = {
+        name: editForm.name as string,
+        description: (editForm.description as string) || undefined,
+        address: (editForm.address as string) || undefined,
+        city: (editForm.city as string) || undefined,
+        postal_code: (editForm.postal_code as string) || undefined,
+        country: (editForm.country as string) || undefined,
+        price_per_night: editForm.price_per_night ? parseFloat(editForm.price_per_night as string) : undefined,
+        capacity: editForm.capacity ? parseInt(editForm.capacity as string) : undefined,
+        place_type: editForm.place_type as string,
+        amenities: editAmenities,
+        access_route_description: (editForm.access_route_description as string) || undefined,
+        business_description: (editForm.business_description as string) || undefined,
+        opening_hours: (editForm.opening_hours as string) || undefined,
+        serves_food: editForm.serves_food as boolean,
+        food_menu_description: (editForm.food_menu_description as string) || undefined,
+        max_nights_per_stay: editForm.max_nights_per_stay ? parseInt(editForm.max_nights_per_stay as string) : undefined,
+        max_vehicle_height_ft: editForm.max_vehicle_height_ft ? parseFloat(editForm.max_vehicle_height_ft as string) : undefined,
+        max_vehicle_width_ft: editForm.max_vehicle_width_ft ? parseFloat(editForm.max_vehicle_width_ft as string) : undefined,
+        max_vehicle_length_ft: editForm.max_vehicle_length_ft ? parseFloat(editForm.max_vehicle_length_ft as string) : undefined,
+        electric_hookup_available: editForm.electric_hookup_available as boolean,
+        electric_hookup_capacity: editForm.electric_hookup_available && editForm.electric_hookup_capacity ? parseInt(editForm.electric_hookup_capacity as string) : undefined,
+        electric_hookup_price_per_night: editForm.electric_hookup_available && editForm.electric_hookup_price_per_night ? parseFloat(editForm.electric_hookup_price_per_night as string) : undefined,
+      };
+
+      // Handle approval status separately via admin endpoints
+      const newStatus = editForm.approval_status as string;
+      const oldStatus = editPlace?.approval_status;
+      if (newStatus !== oldStatus) {
+        if (newStatus === 'approved') await adminApi.approvePlace(id);
+        else if (newStatus === 'rejected') await adminApi.rejectPlace(id, 'Rejected via CRM');
+      }
+
+      await placesApi.update(id, updateData);
+
+      // Refresh the result in the list
+      setResults(prev => prev.map(r => r.id === id ? {
+        ...r,
+        name: updateData.name || r.name,
+        approval_status: newStatus || r.approval_status,
+        price_per_night: updateData.price_per_night ?? r.price_per_night,
+      } : r));
+
+      setSaveMsg('Saved successfully');
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : 'Failed to save');
+    }
+    setSaving(false);
+  };
+
+  const statusColor = (s: string) => {
+    if (s === 'approved') return 'text-emerald-400';
+    if (s === 'pending') return 'text-amber-400';
+    if (s === 'draft') return 'text-slate-400';
+    if (s === 'rejected') return 'text-red-400';
+    return 'text-slate-400';
+  };
+
+  const inp = 'w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600';
+  const lbl = 'block text-xs font-medium text-slate-400 mb-1';
+
+  return (
+    <div className="space-y-4">
+      {/* Search input */}
+      <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+        <input
+          type="text"
+          value={query}
+          onChange={e => search(e.target.value)}
+          placeholder="Search by site name, address, owner name or email…"
+          className={inp}
+          autoFocus
+        />
+      </div>
+
+      {searching && <p className="text-sm text-slate-500 px-1">Searching…</p>}
+
+      {/* Results */}
+      {results.length > 0 && (
+        <div className="space-y-2">
+          {results.map(place => (
+            <div key={place.id} className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+              {/* Row */}
+              <button
+                type="button"
+                onClick={() => openEdit(place.id)}
+                className="w-full flex items-start justify-between gap-4 p-4 hover:bg-slate-800/60 transition-colors text-left"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-100 truncate">{place.name}</p>
+                  <p className="text-xs text-slate-400 truncate">{place.address}{place.city ? `, ${place.city}` : ''}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Owner: {place.owner_name} · {place.owner_email}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className={`text-xs font-semibold uppercase tracking-wide ${statusColor(place.approval_status)}`}>{place.approval_status}</span>
+                  {place.price_per_night != null && <span className="text-xs text-slate-400">£{place.price_per_night}/night</span>}
+                  <span className="text-xs text-slate-600">{editingId === place.id ? '▲ Close' : '▼ Edit'}</span>
+                </div>
+              </button>
+
+              {/* Edit panel */}
+              {editingId === place.id && (
+                <div className="border-t border-slate-700 p-5 space-y-5 bg-slate-950">
+                  {editLoading ? (
+                    <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" /></div>
+                  ) : (
+                    <>
+                      {saveMsg && <div className="bg-emerald-900/40 text-emerald-300 text-sm px-4 py-2 rounded-lg">{saveMsg}</div>}
+                      {saveError && <div className="bg-red-900/40 text-red-300 text-sm px-4 py-2 rounded-lg">{saveError}</div>}
+
+                      {/* Basic */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2"><label className={lbl}>Site Name</label><input className={inp} value={editForm.name as string} onChange={e => ef('name', e.target.value)} /></div>
+                        <div className="col-span-2"><label className={lbl}>Description</label><textarea className={inp} rows={3} value={editForm.description as string} onChange={e => ef('description', e.target.value)} /></div>
+                        <div className="col-span-2"><label className={lbl}>Address</label><input className={inp} value={editForm.address as string} onChange={e => ef('address', e.target.value)} /></div>
+                        <div><label className={lbl}>City</label><input className={inp} value={editForm.city as string} onChange={e => ef('city', e.target.value)} /></div>
+                        <div><label className={lbl}>Postal Code</label><input className={inp} value={editForm.postal_code as string} onChange={e => ef('postal_code', e.target.value)} /></div>
+                        <div>
+                          <label className={lbl}>Place Type</label>
+                          <select className={inp} value={editForm.place_type as string} onChange={e => ef('place_type', e.target.value)}>
+                            {PLACE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className={lbl}>Approval Status</label>
+                          <select className={inp} value={editForm.approval_status as string} onChange={e => ef('approval_status', e.target.value)}>
+                            {APPROVAL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                            <option value="rejected">Rejected</option>
+                          </select>
+                        </div>
+                        <div><label className={lbl}>Price / Night (£)</label><input type="number" min="0" step="0.50" className={inp} value={editForm.price_per_night as string} onChange={e => ef('price_per_night', e.target.value)} /></div>
+                        <div><label className={lbl}>Capacity (vans)</label><input type="number" min="1" className={inp} value={editForm.capacity as string} onChange={e => ef('capacity', e.target.value)} /></div>
+                        <div className="col-span-2"><label className={lbl}>Access Route Description</label><textarea className={inp} rows={2} value={editForm.access_route_description as string} onChange={e => ef('access_route_description', e.target.value)} /></div>
+                        <div className="col-span-2"><label className={lbl}>Business Description</label><textarea className={inp} rows={2} value={editForm.business_description as string} onChange={e => ef('business_description', e.target.value)} /></div>
+                      </div>
+
+                      {/* Facilities */}
+                      <div>
+                        <label className={lbl + ' text-slate-300 text-sm'}>Facilities</label>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {['WiFi', 'Drinking Water', 'Toilets', 'Showers', 'Chemical Toilet Disposal', 'Grey Water Disposal', 'Dog Friendly', 'Campfire Allowed'].map(fac => {
+                            const sel = editAmenities.includes(fac);
+                            return (
+                              <button key={fac} type="button"
+                                onClick={() => setEditAmenities(prev => sel ? prev.filter(f => f !== fac) : [...prev, fac])}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${sel ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-800 text-slate-300 border-slate-600 hover:border-emerald-500'}`}
+                              >{fac}</button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Electric hookup */}
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" className="w-4 h-4 accent-emerald-500" checked={editForm.electric_hookup_available as boolean} onChange={e => { ef('electric_hookup_available', e.target.checked); if (!e.target.checked) { ef('electric_hookup_capacity', ''); ef('electric_hookup_price_per_night', ''); } }} />
+                          <span className="text-sm text-slate-300">⚡ Electric hookup available</span>
+                        </label>
+                        {!!(editForm.electric_hookup_available) && (
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <div><label className={lbl}>Number of electric spaces</label><input type="number" min="1" className={inp} value={editForm.electric_hookup_capacity as string} onChange={e => ef('electric_hookup_capacity', e.target.value)} /></div>
+                            <div><label className={lbl}>Price/night (£, blank = free)</label><input type="number" min="0" step="0.50" className={inp} value={editForm.electric_hookup_price_per_night as string} onChange={e => ef('electric_hookup_price_per_night', e.target.value)} /></div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Booking rules */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><label className={lbl}>Max Nights Per Stay (blank = no limit)</label><input type="number" min="1" max="30" className={inp} value={editForm.max_nights_per_stay as string} onChange={e => ef('max_nights_per_stay', e.target.value)} /></div>
+                        <div><label className={lbl}>Max Length ft</label><input type="number" step="0.1" className={inp} value={editForm.max_vehicle_length_ft as string} onChange={e => ef('max_vehicle_length_ft', e.target.value)} /></div>
+                        <div><label className={lbl}>Max Height ft</label><input type="number" step="0.1" className={inp} value={editForm.max_vehicle_height_ft as string} onChange={e => ef('max_vehicle_height_ft', e.target.value)} /></div>
+                        <div><label className={lbl}>Max Width ft</label><input type="number" step="0.1" className={inp} value={editForm.max_vehicle_width_ft as string} onChange={e => ef('max_vehicle_width_ft', e.target.value)} /></div>
+                      </div>
+
+                      {/* Food */}
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" className="w-4 h-4 accent-emerald-500" checked={editForm.serves_food as boolean} onChange={e => ef('serves_food', e.target.checked)} />
+                          <span className="text-sm text-slate-300">Serves food</span>
+                        </label>
+                        {!!(editForm.serves_food) && (
+                          <div><label className={lbl}>Menu Description</label><textarea className={inp} rows={2} value={editForm.food_menu_description as string} onChange={e => ef('food_menu_description', e.target.value)} /></div>
+                        )}
+                      </div>
+
+                      {/* Save */}
+                      <button
+                        type="button"
+                        onClick={() => handleSave(place.id)}
+                        disabled={saving}
+                        className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                      >
+                        {saving ? 'Saving…' : 'Save Changes'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!searching && query && results.length === 0 && (
+        <p className="text-sm text-slate-500 px-1">No sites found for "{query}"</p>
+      )}
+    </div>
   );
 }
