@@ -433,7 +433,7 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
 
   // Build draft data with defaults for required fields
   Map<String, dynamic> _buildDraftData() {
-    final data = {
+    final Map<String, dynamic> data = {
       'name': siteNameController.text.isNotEmpty ? siteNameController.text : 'Untitled Draft',
       'address': addressController.text.isNotEmpty ? addressController.text : 'Address pending',
       'description': descriptionController.text.isNotEmpty ? descriptionController.text : 'Draft - description pending',
