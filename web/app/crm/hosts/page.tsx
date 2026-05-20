@@ -966,30 +966,32 @@ function SearchSitesPanel() {
     setSaveMsg('');
     setSaveError('');
     try {
-      const updateData: Partial<Place> = {
+      // Always send every field (null = clear, not undefined = skip).
+      // This ensures all fields are saved and future fields carry through automatically.
+      const updateData: Record<string, unknown> = {
         name: editForm.name as string,
-        description: (editForm.description as string) || undefined,
-        address: (editForm.address as string) || undefined,
-        city: (editForm.city as string) || undefined,
-        postal_code: (editForm.postal_code as string) || undefined,
-        country: (editForm.country as string) || undefined,
-        price_per_night: editForm.price_per_night ? parseFloat(editForm.price_per_night as string) : undefined,
-        capacity: editForm.capacity ? parseInt(editForm.capacity as string) : undefined,
+        description: (editForm.description as string) || null,
+        address: (editForm.address as string) || null,
+        city: (editForm.city as string) || null,
+        postal_code: (editForm.postal_code as string) || null,
+        country: (editForm.country as string) || null,
+        price_per_night: editForm.price_per_night ? parseFloat(editForm.price_per_night as string) : null,
+        capacity: editForm.capacity ? parseInt(editForm.capacity as string) : null,
         place_type: editForm.place_type as string,
         amenities: editAmenities,
         image_urls: editImageUrls,
-        access_route_description: (editForm.access_route_description as string) || undefined,
-        business_description: (editForm.business_description as string) || undefined,
-        opening_hours: (editForm.opening_hours as string) || undefined,
+        access_route_description: (editForm.access_route_description as string) || null,
+        business_description: (editForm.business_description as string) || null,
+        opening_hours: (editForm.opening_hours as string) || null,
         serves_food: editForm.serves_food as boolean,
-        food_menu_description: (editForm.food_menu_description as string) || undefined,
-        max_nights_per_stay: editForm.max_nights_per_stay ? parseInt(editForm.max_nights_per_stay as string) : undefined,
-        max_vehicle_height_ft: editForm.max_vehicle_height_ft ? parseFloat(editForm.max_vehicle_height_ft as string) : undefined,
-        max_vehicle_width_ft: editForm.max_vehicle_width_ft ? parseFloat(editForm.max_vehicle_width_ft as string) : undefined,
-        max_vehicle_length_ft: editForm.max_vehicle_length_ft ? parseFloat(editForm.max_vehicle_length_ft as string) : undefined,
+        food_menu_description: (editForm.food_menu_description as string) || null,
+        max_nights_per_stay: editForm.max_nights_per_stay ? parseInt(editForm.max_nights_per_stay as string) : null,
+        max_vehicle_height_ft: editForm.max_vehicle_height_ft ? parseFloat(editForm.max_vehicle_height_ft as string) : null,
+        max_vehicle_width_ft: editForm.max_vehicle_width_ft ? parseFloat(editForm.max_vehicle_width_ft as string) : null,
+        max_vehicle_length_ft: editForm.max_vehicle_length_ft ? parseFloat(editForm.max_vehicle_length_ft as string) : null,
         electric_hookup_available: editForm.electric_hookup_available as boolean,
-        electric_hookup_capacity: editForm.electric_hookup_available && editForm.electric_hookup_capacity ? parseInt(editForm.electric_hookup_capacity as string) : undefined,
-        electric_hookup_price_per_night: editForm.electric_hookup_available && editForm.electric_hookup_price_per_night ? parseFloat(editForm.electric_hookup_price_per_night as string) : undefined,
+        electric_hookup_capacity: editForm.electric_hookup_available && editForm.electric_hookup_capacity ? parseInt(editForm.electric_hookup_capacity as string) : null,
+        electric_hookup_price_per_night: editForm.electric_hookup_available && editForm.electric_hookup_price_per_night ? parseFloat(editForm.electric_hookup_price_per_night as string) : null,
       };
 
       // Handle approval status separately via admin endpoints
@@ -1000,14 +1002,14 @@ function SearchSitesPanel() {
         else if (newStatus === 'rejected') await adminApi.rejectPlace(id, 'Rejected via CRM');
       }
 
-      await placesApi.update(id, updateData);
+      await placesApi.update(id, updateData as unknown as Partial<Place>);
 
       // Refresh the result in the list
       setResults(prev => prev.map(r => r.id === id ? {
         ...r,
-        name: updateData.name || r.name,
+        name: (updateData.name as string) || r.name,
         approval_status: newStatus || r.approval_status,
-        price_per_night: updateData.price_per_night ?? r.price_per_night,
+        price_per_night: (updateData.price_per_night as number) ?? r.price_per_night,
       } : r));
 
       setSaveMsg('saved');
