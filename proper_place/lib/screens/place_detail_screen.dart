@@ -664,7 +664,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     final ratingRaw = widget.place['rating'];
     final rating = ratingRaw != null ? (ratingRaw is String ? double.tryParse(ratingRaw) ?? 0.0 : (ratingRaw as num).toDouble()) : 0.0;
     final reviewCount = widget.place['review_count'] ?? 0;
-    final facilities = widget.place['facilities'] as List? ?? [];
+    final facilities = (widget.place['amenities'] as List? ?? widget.place['facilities'] as List? ?? []);
 
     return Scaffold(
       appBar: AppBar(

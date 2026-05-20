@@ -111,6 +111,19 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
   // Indexed 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun  (all true = all days allowed)
   List<bool> _availableDays = List.filled(7, true);
 
+  // Facilities
+  static const List<String> _allFacilities = [
+    'WiFi', 'Drinking Water', 'Toilets', 'Showers',
+    'Chemical Toilet Disposal', 'Grey Water Disposal',
+    'Dog Friendly', 'Campfire Allowed',
+  ];
+  List<String> _selectedFacilities = [];
+
+  // Electric hookup
+  bool _electricHookupAvailable = false;
+  final TextEditingController _electricCapacityController = TextEditingController();
+  final TextEditingController _electricPriceController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -234,7 +247,21 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
         }
       }
 
-      // Amenities removed — no longer collected
+      // Amenities / facilities
+      if (site['amenities'] is List) {
+        _selectedFacilities = List<String>.from(
+          (site['amenities'] as List).map((e) => e.toString()),
+        );
+      }
+
+      // Electric hookup
+      _electricHookupAvailable = site['electric_hookup_available'] == true;
+      if (site['electric_hookup_capacity'] != null) {
+        _electricCapacityController.text = site['electric_hookup_capacity'].toString();
+      }
+      if (site['electric_hookup_price_per_night'] != null) {
+        _electricPriceController.text = site['electric_hookup_price_per_night'].toString();
+      }
       
       // Load max nights and available days
       _maxNightsPerStay = int.tryParse(site['max_nights_per_stay']?.toString() ?? '') ?? 0;
@@ -419,9 +446,17 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'max_vehicle_height_ft': maxVehicleHeight,
       'max_vehicle_width_ft': maxVehicleWidth,
       'max_vehicle_length_ft': maxVehicleLength,
-      'amenities': [],
+      'amenities': _selectedFacilities,
       'place_type': selectedLocationType,
+      'electric_hookup_available': _electricHookupAvailable,
     };
+
+    if (_electricHookupAvailable && _electricCapacityController.text.isNotEmpty) {
+      data['electric_hookup_capacity'] = int.tryParse(_electricCapacityController.text);
+    }
+    if (_electricHookupAvailable && _electricPriceController.text.isNotEmpty) {
+      data['electric_hookup_price_per_night'] = double.tryParse(_electricPriceController.text);
+    }
 
     // Add pub-specific data if location type is pub
     if (selectedLocationType == 'pub') {
@@ -471,9 +506,17 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
       'max_vehicle_height_ft': maxVehicleHeight,
       'max_vehicle_width_ft': maxVehicleWidth,
       'max_vehicle_length_ft': maxVehicleLength,
-      'amenities': [],
+      'amenities': _selectedFacilities,
       'place_type': selectedLocationType,
+      'electric_hookup_available': _electricHookupAvailable,
     };
+
+    if (_electricHookupAvailable && _electricCapacityController.text.isNotEmpty) {
+      data['electric_hookup_capacity'] = int.tryParse(_electricCapacityController.text);
+    }
+    if (_electricHookupAvailable && _electricPriceController.text.isNotEmpty) {
+      data['electric_hookup_price_per_night'] = double.tryParse(_electricPriceController.text);
+    }
 
     // Add pub-specific data if location type is pub
     if (selectedLocationType == 'pub') {
@@ -719,6 +762,8 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
     foodMenuController.dispose();
     businessDescriptionController.dispose();
     searchAddressController.dispose();
+    _electricCapacityController.dispose();
+    _electricPriceController.dispose();
     _priceFocusNode.dispose();
     super.dispose();
   }
@@ -1381,6 +1426,113 @@ class _HostCreateSiteScreenState extends State<HostCreateSiteScreen> {
                     ),
                   ],
                 ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Facilities / Amenities
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Facilities',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1B4332),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _allFacilities.map((facility) {
+                    final selected = _selectedFacilities.contains(facility);
+                    return GestureDetector(
+                      onTap: () => setState(() {
+                        if (selected) {
+                          _selectedFacilities.remove(facility);
+                        } else {
+                          _selectedFacilities.add(facility);
+                        }
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: selected ? const Color(0xFF1B4332) : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: selected ? const Color(0xFF1B4332) : Colors.grey[300]!,
+                          ),
+                        ),
+                        child: Text(
+                          facility,
+                          style: TextStyle(
+                            color: selected ? Colors.white : Colors.grey[700],
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Electric Hookup
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Electric Hookup',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1B4332),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Electric hookup available'),
+                  value: _electricHookupAvailable,
+                  activeColor: const Color(0xFF1B4332),
+                  onChanged: (val) => setState(() => _electricHookupAvailable = val),
+                ),
+                if (_electricHookupAvailable) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _electricCapacityController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Capacity (number of vans)',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _electricPriceController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            labelText: 'Price per night (£)',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
 

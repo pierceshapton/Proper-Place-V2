@@ -57,7 +57,11 @@ export default function NewPlacePage() {
     serves_food: false,
     food_menu_description: '',
     max_nights_per_stay: '',
+    electric_hookup_available: false,
+    electric_hookup_capacity: '',
+    electric_hookup_price_per_night: '',
   });
+  const [amenities, setAmenities] = useState<string[]>([]);
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
   const [dragOver, setDragOver] = useState(false);
 
@@ -126,7 +130,10 @@ export default function NewPlacePage() {
         price_per_night: parseFloat(form.price_per_night),
         capacity: form.capacity ? parseInt(form.capacity) : undefined,
         place_type: form.place_type,
-        amenities: [],
+        amenities,
+        electric_hookup_available: form.electric_hookup_available,
+        electric_hookup_capacity: form.electric_hookup_available && form.electric_hookup_capacity ? parseInt(form.electric_hookup_capacity) : undefined,
+        electric_hookup_price_per_night: form.electric_hookup_available && form.electric_hookup_price_per_night ? parseFloat(form.electric_hookup_price_per_night) : undefined,
         opening_hours: form.opening_hours || undefined,
         business_description: form.business_description || undefined,
         access_route_description: form.access_route_description || undefined,
@@ -412,6 +419,46 @@ export default function NewPlacePage() {
               <textarea value={form.food_menu_description} onChange={e => setForm(f => ({ ...f, food_menu_description: e.target.value }))} rows={2} placeholder="Describe your food offerings..." className="bg-white border-gray-300 text-gray-900" />
             </div>
           )}
+        </div>
+
+        {/* Facilities & Electric Hookup */}
+        <div className="card bg-white p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Facilities</h2>
+          <div className="flex flex-wrap gap-2">
+            {['WiFi', 'Drinking Water', 'Toilets', 'Showers', 'Chemical Toilet Disposal', 'Grey Water Disposal', 'Dog Friendly', 'Campfire Allowed'].map(facility => {
+              const selected = amenities.includes(facility);
+              return (
+                <button
+                  key={facility}
+                  type="button"
+                  onClick={() => setAmenities(prev => selected ? prev.filter(f => f !== facility) : [...prev, facility])}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${selected ? 'bg-green-800 text-white border-green-800' : 'bg-white text-gray-600 border-gray-300 hover:border-green-700'}`}
+                >
+                  {facility}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="border-t pt-4 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-700">Electric Hookup</h3>
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="electric_hookup" checked={form.electric_hookup_available} onChange={e => setForm(f => ({ ...f, electric_hookup_available: e.target.checked }))} className="w-4 h-4" />
+              <label htmlFor="electric_hookup" className="text-sm font-medium text-gray-700">Electric hookup available</label>
+            </div>
+            {form.electric_hookup_available && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Capacity (number of vans)</label>
+                  <input type="number" min="1" value={form.electric_hookup_capacity} onChange={e => setForm(f => ({ ...f, electric_hookup_capacity: e.target.value }))} placeholder="e.g. 3" className="bg-white border-gray-300 text-gray-900 w-full" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Price per night (£)</label>
+                  <input type="number" min="0" step="0.50" value={form.electric_hookup_price_per_night} onChange={e => setForm(f => ({ ...f, electric_hookup_price_per_night: e.target.value }))} placeholder="e.g. 5.00" className="bg-white border-gray-300 text-gray-900 w-full" />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Photos */}
