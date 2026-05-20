@@ -39,7 +39,7 @@ export default async function Home() {
       <section className="relative min-h-screen flex items-center overflow-hidden bg-dark-bg">
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=1920&q=80"
+            src="/images/hero-campervan.jpg"
             alt="A motorhome parked in the British countryside at golden hour"
             fill
             className="object-cover opacity-50"
