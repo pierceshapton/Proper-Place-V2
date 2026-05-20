@@ -95,7 +95,9 @@ function CreateSitePanel() {
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-100">{selectedUser.name}</p>
-              <p className="text-xs text-slate-400">{selectedUser.email}</p>
+              {selectedUser.email && !selectedUser.email.endsWith('@noemail.properplace.internal') && (
+                <p className="text-xs text-slate-400">{selectedUser.email}</p>
+              )}
             </div>
           </div>
           <button
@@ -145,7 +147,9 @@ function CreateSitePanel() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-200 truncate">{u.name}</p>
-                  <p className="text-xs text-slate-500 truncate">{u.email}</p>
+                  {!u.email?.endsWith('@noemail.properplace.internal') && (
+                    <p className="text-xs text-slate-500 truncate">{u.email}</p>
+                  )}
                 </div>
                 <span className={`ml-auto flex-shrink-0 text-xs px-2 py-0.5 rounded-full ${u.role === 'host' ? 'bg-blue-500/20 text-blue-400' : u.role === 'admin' ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
                   {u.role}
