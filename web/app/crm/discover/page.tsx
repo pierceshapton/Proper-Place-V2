@@ -923,51 +923,66 @@ async function searchGooglePlacesBatch(keywords: string[], region: string, apiKe
 }
 
 async function searchGooglePlaces(keyword: string, region: string, apiKey: string, bounds: RegionBounds | null = null): Promise<CandidatePlace[]> {
-  const requestBody: Record<string, unknown> = {
+  const fieldMask = [
+    'places.id',
+    'places.displayName',
+    'places.formattedAddress',
+    'places.location',
+    'places.rating',
+    'places.userRatingCount',
+    'places.websiteUri',
+    'places.primaryType',
+    'places.types',
+    'places.parkingOptions',
+    'places.accessibilityOptions',
+    'places.reviews',
+    'places.editorialSummary',
+    'places.regularOpeningHours',
+    'nextPageToken',
+  ].join(',');
+
+  const baseBody: Record<string, unknown> = {
     textQuery: `${keyword} in ${region}`,
     maxResultCount: 20,
     languageCode: 'en-GB',
   };
-  // Use geocoded viewport as a location bias (soft preference) — keeps results
-  // in the region without hard-capping the count like locationRestriction would
   if (bounds) {
-    requestBody.locationBias = { rectangle: { low: bounds.low, high: bounds.high } };
-  }
-  const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': [
-        'places.id',
-        'places.displayName',
-        'places.formattedAddress',
-        'places.location',
-        'places.rating',
-        'places.userRatingCount',
-        'places.websiteUri',
-        'places.primaryType',
-        'places.types',
-        'places.parkingOptions',
-        'places.accessibilityOptions',
-        'places.reviews',
-        'places.editorialSummary',
-        'places.regularOpeningHours',
-      ].join(','),
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    let detail = '';
-    try { const e = await response.json(); detail = JSON.stringify(e); } catch { detail = await response.text().catch(() => ''); }
-    throw new Error(`HTTP ${response.status}: ${detail.slice(0, 200)}`);
+    baseBody.locationBias = { rectangle: { low: bounds.low, high: bounds.high } };
   }
 
-  const data: GooglePlacesResponse = await response.json();
-  const places = Array.isArray(data.places) ? data.places : [];
+  const allPlaces: GooglePlaceItem[] = [];
+  let pageToken: string | undefined;
+  const MAX_PAGES = 3; // up to 60 results total
 
-  return places.map((place, idx: number) => ({
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const body: Record<string, unknown> = { ...baseBody };
+    if (pageToken) body.pageToken = pageToken;
+
+    const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': fieldMask,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      let detail = '';
+      try { const e = await response.json(); detail = JSON.stringify(e); } catch { detail = await response.text().catch(() => ''); }
+      throw new Error(`HTTP ${response.status}: ${detail.slice(0, 200)}`);
+    }
+
+    const data: GooglePlacesResponse = await response.json();
+    const batch = Array.isArray(data.places) ? data.places : [];
+    allPlaces.push(...batch);
+
+    if (!data.nextPageToken) break;
+    pageToken = data.nextPageToken;
+  }
+
+  return allPlaces.map((place, idx) => ({
     id: place.id || `${keyword}-${idx}`,
     name: place.displayName?.text || 'Unnamed',
     address: place.formattedAddress || '',
@@ -1016,6 +1031,7 @@ interface GooglePlaceItem {
 
 interface GooglePlacesResponse {
   places?: GooglePlaceItem[];
+  nextPageToken?: string;
 }
 
 function safeParseFeedback(raw: string): DiscoveryFeedbackItem[] {
