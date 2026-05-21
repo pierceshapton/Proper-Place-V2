@@ -118,6 +118,9 @@ export default function DiscoverPage() {
 
       setAutoEmailEnabled(settingsMap.discovery_auto_email_enabled === 'true');
       setCriteriaInput(settingsMap.discovery_criteria_v1 || '');
+      if (settingsMap.discovery_region) {
+        setRegionQuery(settingsMap.discovery_region);
+      }
 
       try {
         const stageRes = await crmApi.getStages();
@@ -150,14 +153,18 @@ export default function DiscoverPage() {
 
     const keywords = deriveKeywordsFromCriteria(criteriaInput);
 
-    // Persist criteria and min score so they survive page refresh
-    crmApi.updateSettings({ discovery_criteria_v1: criteriaInput, discovery_min_score: String(minScore), discovery_min_rating: String(minRating) }).catch(() => {});
+    // Persist region, criteria and min score so they survive page refresh
+    crmApi.updateSettings({ discovery_region: regionQuery.trim(), discovery_criteria_v1: criteriaInput, discovery_min_score: String(minScore), discovery_min_rating: String(minRating) }).catch(() => {});
 
     setIsSearching(true);
     try {
       const subRegions = regionQuery.split(',').map(r => r.trim()).filter(Boolean);
+      // Geocode each sub-region to get proper lat/lng bounds for the Places API
+      const geocodedRegions = await Promise.all(
+        subRegions.map(region => geocodeRegion(region, GOOGLE_MAPS_API_KEY))
+      );
       const allCandidates = await Promise.all(
-        subRegions.map(region => searchGooglePlacesBatch(keywords, region, GOOGLE_MAPS_API_KEY))
+        subRegions.map((region, i) => searchGooglePlacesBatch(keywords, region, GOOGLE_MAPS_API_KEY, geocodedRegions[i]))
       );
       const candidates = dedupeByPlaceId(allCandidates.flat());
 
@@ -875,8 +882,30 @@ export default function DiscoverPage() {
   );
 }
 
-async function searchGooglePlacesBatch(keywords: string[], region: string, apiKey: string): Promise<CandidatePlace[]> {
-  const all = await Promise.all(keywords.map(keyword => searchGooglePlaces(keyword, region, apiKey)));
+interface RegionBounds {
+  low: { latitude: number; longitude: number };
+  high: { latitude: number; longitude: number };
+}
+
+async function geocodeRegion(region: string, apiKey: string): Promise<RegionBounds | null> {
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(region + ', UK')}&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data: { results?: Array<{ geometry?: { viewport?: { northeast?: { lat: number; lng: number }; southwest?: { lat: number; lng: number } } } }> } = await res.json();
+    const viewport = data.results?.[0]?.geometry?.viewport;
+    if (!viewport?.northeast || !viewport?.southwest) return null;
+    return {
+      low: { latitude: viewport.southwest.lat, longitude: viewport.southwest.lng },
+      high: { latitude: viewport.northeast.lat, longitude: viewport.northeast.lng },
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function searchGooglePlacesBatch(keywords: string[], region: string, apiKey: string, bounds: RegionBounds | null = null): Promise<CandidatePlace[]> {
+  const all = await Promise.all(keywords.map(keyword => searchGooglePlaces(keyword, region, apiKey, bounds)));
   const merged = all.flat();
 
   const deduped = new Map<string, CandidatePlace>();
@@ -888,7 +917,16 @@ async function searchGooglePlacesBatch(keywords: string[], region: string, apiKe
   return Array.from(deduped.values());
 }
 
-async function searchGooglePlaces(keyword: string, region: string, apiKey: string): Promise<CandidatePlace[]> {
+async function searchGooglePlaces(keyword: string, region: string, apiKey: string, bounds: RegionBounds | null = null): Promise<CandidatePlace[]> {
+  const requestBody: Record<string, unknown> = {
+    textQuery: `${keyword} in ${region}`,
+    maxResultCount: 20,
+    languageCode: 'en-GB',
+  };
+  // Use geocoded viewport as a hard geographic restriction when available
+  if (bounds) {
+    requestBody.locationRestriction = { rectangle: { low: bounds.low, high: bounds.high } };
+  }
   const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
     headers: {
@@ -911,11 +949,7 @@ async function searchGooglePlaces(keyword: string, region: string, apiKey: strin
         'places.regularOpeningHours',
       ].join(','),
     },
-    body: JSON.stringify({
-      textQuery: `${keyword} in ${region}`,
-      maxResultCount: 20,
-      languageCode: 'en-GB',
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
