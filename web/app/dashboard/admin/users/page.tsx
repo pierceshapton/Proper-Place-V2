@@ -12,6 +12,10 @@ export default function AdminUsersPage() {
   const [selectedBookings, setSelectedBookings] = useState<AdminUserBooking[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [actionBusyId, setActionBusyId] = useState<number | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '' });
+  const [editBusy, setEditBusy] = useState(false);
+  const [editErr, setEditErr] = useState('');
 
   const load = async () => {
     try {
@@ -46,6 +50,31 @@ export default function AdminUsersPage() {
       setSelectedBookings([]);
     } finally {
       setDetailsLoading(false);
+    }
+  };
+
+  const handleEditOpen = (user: User) => {
+    setEditErr('');
+    setEditForm({ name: user.name || '', email: user.email || '', phone: user.phone || '' });
+    setEditingUser(user);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingUser) return;
+    setEditErr('');
+    setEditBusy(true);
+    try {
+      await adminApi.updateUser(editingUser.id, {
+        name: editForm.name.trim() || undefined,
+        email: editForm.email.trim() || undefined,
+        phone: editForm.phone.trim() || undefined,
+      });
+      setEditingUser(null);
+      await load();
+    } catch (err) {
+      setEditErr(err instanceof ApiError ? err.message : 'Failed to save changes');
+    } finally {
+      setEditBusy(false);
     }
   };
 
@@ -134,6 +163,12 @@ export default function AdminUsersPage() {
                     >
                       View
                     </button>
+                    <button
+                      onClick={() => handleEditOpen(user)}
+                      className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg px-2 py-1"
+                    >
+                      Edit
+                    </button>
                     <a
                       href={`mailto:${user.email}`}
                       className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-2 py-1"
@@ -167,6 +202,57 @@ export default function AdminUsersPage() {
       {filtered.length === 0 && (
         <div className="text-center py-12">
           <p className="text-gray-500">No users match your search.</p>
+        </div>
+      )}
+
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Edit user</h2>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setEditingUser(null)}>✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              {editErr && <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-sm">{editErr}</div>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-light-blue"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-light-blue"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-light-blue"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => setEditingUser(null)} className="text-sm text-gray-600 hover:text-gray-900 px-4 py-2">Cancel</button>
+                <button
+                  onClick={handleEditSave}
+                  disabled={editBusy}
+                  className="text-sm bg-light-blue hover:bg-accent-blue text-white rounded-lg px-4 py-2 disabled:opacity-50"
+                >
+                  {editBusy ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

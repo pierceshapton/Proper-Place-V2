@@ -20,6 +20,7 @@ router.patch('/places/:id/reject', adminController.rejectPlace);
 router.get('/users', adminController.getUsers);
 router.post('/users', adminController.createUserAsAdmin);
 router.get('/users/:id', adminController.getUserDetails);
+router.patch('/users/:id', adminController.updateUser);
 router.patch('/users/:id/role', adminController.updateUserRole);
 router.delete('/users/:id', adminController.deleteUser);
 router.post('/users/:id/reset-password', adminController.resetUserPassword);

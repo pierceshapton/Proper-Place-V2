@@ -462,6 +462,54 @@ async function updateUserRole(req, res, next) {
 }
 
 /**
+ * PATCH /admin/users/:id
+ */
+async function updateUser(req, res, next) {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.userId;
+    const { name, email, phone } = req.body;
+
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (name !== undefined) { fields.push(`name = $${idx++}`); values.push(name.trim()); }
+    if (email !== undefined) { fields.push(`email = $${idx++}`); values.push(email.trim().toLowerCase()); }
+    if (phone !== undefined) { fields.push(`phone_number = $${idx++}`); values.push(phone ? phone.trim() : null); }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'no_fields', message: 'No fields to update' });
+    }
+
+    fields.push(`updated_at = NOW()`);
+    values.push(id);
+
+    const result = await db.query(
+      `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING id, email, name, phone_number AS phone, role`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'user_not_found', message: 'User not found' });
+    }
+
+    await db.query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, 'user_updated', 'user', id, JSON.stringify({ name, email, phone })]
+    );
+
+    logger.info('Admin updated user', { adminId, userId: id });
+
+    res.json({ user: result.rows[0] });
+  } catch (error) {
+    logger.error('Admin update user error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
  * POST /admin/seed-test-messages
  * Seed test messages for demo/testing purposes
  */
@@ -1114,6 +1162,7 @@ module.exports = {
   getUserDetails,
   deleteUser,
   updateUserRole,
+  updateUser,
   updatePlace,
   createPlaceForUser,
   createUserAsAdmin,
