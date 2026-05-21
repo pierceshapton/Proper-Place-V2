@@ -21,7 +21,7 @@ export default async function Home() {
   return (
     <main>
       <section className="relative min-h-screen flex items-center bg-dark-bg pt-16">
-        <Image src="/images/hero-motorhome-farmland.jpg" alt="Motorhome on farmland" fill priority className="object-cover" />
+        <Image src="https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=1920&q=80" alt="Motorhome on farmland" fill priority className="object-cover" />
         <div className="absolute inset-0 bg-dark-bg/60" />
         <div className="relative z-10 container-md py-20">
           <p className="text-xs tracking-[0.2em] uppercase text-white/70">Starting in the South West</p>
