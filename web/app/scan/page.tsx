@@ -122,7 +122,7 @@ export default function ScanPage() {
         <div className="container-md text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to book your stay?</h2>
           <p className="text-gray-300 mb-8 max-w-lg mx-auto">
-            Join thousands of motorhome travellers finding unique stays across the UK.
+            Join thousands of campers finding unique stays across the UK.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Link href="/download" className="bg-light-blue hover:bg-accent-blue text-white px-8 py-3 rounded-xl font-semibold transition-colors">
