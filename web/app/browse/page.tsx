@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { MarkerClusterer } from '@googlemaps/markerclusterer';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://octopus-app-lxh2t.ondigitalocean.app';
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
@@ -9,7 +10,6 @@ const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIza
 // UK center coordinates (same as app default)
 const DEFAULT_CENTER = { lat: 51.1, lng: -3.8 };
 const DEFAULT_ZOOM = 9;
-const MIN_ZOOM_FOR_MARKERS = 8;
 
 // Security: Prevent console access to data
 if (typeof window !== 'undefined') {
@@ -66,9 +66,9 @@ export default function BrowsePage() {
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showMarkers, setShowMarkers] = useState(false);
-  const [zoomHintDismissed, setZoomHintDismissed] = useState(false);
   const [placeReviews, setPlaceReviews] = useState<{ [key: string]: PlaceReview[] }>({});
+  const clustererRef = useRef<MarkerClusterer | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'terrain' | 'hybrid'>('roadmap');
   const [showSearch, setShowSearch] = useState(false);
@@ -207,13 +207,68 @@ export default function BrowsePage() {
     if (map) {
       const zoom = map.getZoom() || DEFAULT_ZOOM;
       setMapZoom(zoom);
-      setShowMarkers(zoom >= MIN_ZOOM_FOR_MARKERS);
-      // Dismiss zoom hint on any zoom in (one-time hint)
-      if (zoom > DEFAULT_ZOOM) {
-        setZoomHintDismissed(true);
-      }
     }
   }, [map]);
+
+  // Manage clustered markers imperatively
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+
+    // Clear previous markers
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
+    if (clustererRef.current) {
+      clustererRef.current.clearMarkers();
+    }
+
+    if (places.length === 0) return;
+
+    const newMarkers = places.map((place) => {
+      const isFav = favorites.has(place.place_id);
+      const marker = new google.maps.Marker({
+        position: { lat: place.location_lat, lng: place.location_lng },
+        title: place.name,
+        icon: isFav
+          ? { url: '/map-pin-heart.svg', scaledSize: new google.maps.Size(32, 32), anchor: new google.maps.Point(16, 28) }
+          : { url: '/map-pin-blue.png', scaledSize: new google.maps.Size(30, 44), anchor: new google.maps.Point(15, 44) },
+      });
+      marker.addListener('click', () => handleMarkerClick(place));
+      return marker;
+    });
+
+    markersRef.current = newMarkers;
+
+    clustererRef.current = new MarkerClusterer({
+      map,
+      markers: newMarkers,
+      renderer: {
+        render: ({ count, position }) =>
+          new google.maps.Marker({
+            position,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              fillColor: '#5B8FC4',
+              fillOpacity: 0.9,
+              strokeColor: '#ffffff',
+              strokeWeight: 2.5,
+              scale: 20 + Math.min(count * 3, 16),
+            },
+            label: {
+              text: String(count),
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 'bold',
+            },
+            zIndex: 1000 + count,
+          }),
+      },
+    });
+
+    return () => {
+      markersRef.current.forEach((m) => m.setMap(null));
+      clustererRef.current?.clearMarkers();
+    };
+  }, [map, places, favorites, isLoaded]);
 
   // Get user's current location
   const goToCurrentLocation = () => {
@@ -267,7 +322,7 @@ export default function BrowsePage() {
   return (
     <main className="flex flex-col overflow-hidden" data-protected="true">
       {/* Map Container - fills remaining viewport height below navbar */}
-      <div className="h-[calc(100vh-96px)] relative" data-protected="true">
+      <div className="h-[calc(100vh-64px)] relative" data-protected="true">
         {!isLoaded || isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
             <div className="text-center">
@@ -299,18 +354,6 @@ export default function BrowsePage() {
               options={mapOptions}
               mapTypeId={mapType}
             >
-              {/* Place Markers - only show when zoomed in */}
-              {showMarkers &&
-                places.map((place) => (
-                  <Marker
-                    key={place.place_id}
-                    position={{ lat: place.location_lat, lng: place.location_lng }}
-                    icon={getMarkerIcon(favorites.has(place.place_id))}
-                    onClick={() => handleMarkerClick(place)}
-                    title={place.name}
-                  />
-                ))}
-
 
             </GoogleMap>
 
@@ -394,13 +437,7 @@ export default function BrowsePage() {
               </button>
             </div>
 
-            {/* Zoom Hint - only shows once, dismissed after any zoom in */}
-            {!showMarkers && !zoomHintDismissed && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm px-6 py-4 rounded-lg shadow-lg text-center">
-                <p className="text-gray-700 font-medium">Zoom in to see available places</p>
-                <p className="text-sm text-gray-500 mt-1">Use scroll or pinch to zoom</p>
-              </div>
-            )}
+
           </>
         )}
 
