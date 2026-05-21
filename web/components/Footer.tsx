@@ -63,7 +63,7 @@ export default function Footer() {
         <hr className="border-white/10 mb-8" />
 
         <div className="flex flex-col md:flex-row justify-between items-center text-gray-500 text-sm gap-4">
-          <p>&copy; {currentYear} Proper Place. All rights reserved.</p>
+          <p>&copy; {currentYear} A Proper Place Ltd. All rights reserved.</p>
           <div className="flex items-center gap-5">
             <a href="https://www.instagram.com/proper_place_ltd" target="_blank" rel="noopener noreferrer" aria-label="Proper Place on Instagram" className="hover:text-white transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

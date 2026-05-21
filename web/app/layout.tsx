@@ -183,7 +183,7 @@ export default function RootLayout({
         <AuthProvider>
           <ScrollToTop />
           <Navbar />
-          <div className="pt-24">
+          <div className="pt-16">
             {children}
           </div>
           <ConditionalFooter />

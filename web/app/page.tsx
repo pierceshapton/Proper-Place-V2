@@ -45,7 +45,7 @@ export default function Home() {
     <main>
 
       {/* ─── HERO ─────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden bg-dark-bg">
+      <section className="relative min-h-screen flex items-center overflow-hidden bg-dark-bg -mt-16">
         <div className="absolute inset-0">
           <Image
             src="/images/hero-campervan.jpg"
@@ -216,8 +216,8 @@ export default function Home() {
             </div>
             <div className="relative h-[600px] rounded-xl overflow-hidden">
               <Image
-                src="https://images.unsplash.com/photo-1533745848184-3db07256e163?w=800&q=80"
-                alt="Motorhome parked on a coastal cliff in the South West"
+                src="https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=800&q=80"
+                alt="Campervan on a coastal road in the countryside"
                 fill
                 className="object-cover"
               />
@@ -232,8 +232,8 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="relative h-[560px] rounded-xl overflow-hidden">
               <Image
-                src="https://images.unsplash.com/photo-1473496169904-658ba7574b0d?w=800&q=80"
-                alt="A country lane in rural England"
+                src="https://images.unsplash.com/photo-1504233529578-6d46baba6d34?w=800&q=80"
+                alt="A narrow country lane in rural England"
                 fill
                 className="object-cover"
               />
