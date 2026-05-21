@@ -216,8 +216,8 @@ export default function Home() {
             </div>
             <div className="relative h-[600px] rounded-xl overflow-hidden">
               <Image
-                src="https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=800&q=80"
-                alt="Campervan on a coastal road in the countryside"
+                src="/images/how-hosting-works.jpg"
+                alt="Motorhome parked at a Proper Place host site"
                 fill
                 className="object-cover"
               />

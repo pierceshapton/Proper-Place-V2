@@ -7,9 +7,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://octopus-app-lxh
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
 
 // UK center coordinates (same as app default)
-const DEFAULT_CENTER = { lat: 54.5, lng: -2.5 };
-const DEFAULT_ZOOM = 6;
-const MIN_ZOOM_FOR_MARKERS = 11;
+const DEFAULT_CENTER = { lat: 51.1, lng: -3.8 };
+const DEFAULT_ZOOM = 9;
+const MIN_ZOOM_FOR_MARKERS = 8;
 
 // Security: Prevent console access to data
 if (typeof window !== 'undefined') {
