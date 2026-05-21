@@ -49,21 +49,21 @@ export default async function Home() {
         <div className="absolute inset-0 bg-dark-bg/50" />
         <div className="relative container-md py-24 lg:py-32">
           <p className="text-xs tracking-[0.22em] uppercase text-light-blue mb-6">
-            Starting in the South West · Cornwall · Devon · Somerset · Dorset
+            Starting in the South West
           </p>
           <h1 className="text-5xl md:text-7xl font-bold text-white leading-[1.05] tracking-tight max-w-4xl mb-8">
             {c(cms, 'homepage.hero.title', "The UK's answer to Europe's Aires.")}
           </h1>
           <p className="text-lg md:text-xl text-gray-300 max-w-xl leading-relaxed mb-10">
-            {c(cms, 'homepage.hero.subtitle', "Simple, legal overnight stops hosted by pubs, farms and small businesses — earning from space they already have. You set the price. You set the rules.")}
+            {c(cms, 'homepage.hero.subtitle', "Simple, legal overnight stops for motorhomes — hosted by pubs, farms and small businesses earning from space they already have.")}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mb-8">
-            <Link href="/auth/signup?type=host" className="inline-flex items-center justify-center gap-2 bg-light-blue hover:bg-accent-blue text-white px-8 py-4 rounded-xl font-semibold transition-colors text-base">
-              Create a host account
+            <Link href="/auth/signup?type=host" className="inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-gray-900 px-8 py-4 rounded-xl font-semibold transition-colors text-base">
+              Become a host
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
             </Link>
-            <Link href="/auth/signup?type=camper" className="inline-flex items-center justify-center gap-2 border-2 border-white/40 text-white hover:border-white px-8 py-4 rounded-xl font-semibold transition-colors text-base">
-              Sign up as a camper
+            <Link href="/browse" className="inline-flex items-center justify-center gap-2 border-2 border-white/40 text-white hover:border-white px-8 py-4 rounded-xl font-semibold transition-colors text-base">
+              Find a place to stay
             </Link>
           </div>
           <p className="text-gray-400 text-sm">
