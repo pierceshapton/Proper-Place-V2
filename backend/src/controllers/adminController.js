@@ -209,6 +209,7 @@ async function getUsers(req, res, next) {
         u.id,
         u.email,
         u.name,
+        u.username,
         u.role,
         u.verified,
         u.phone_number AS phone,
@@ -229,7 +230,7 @@ async function getUsers(req, res, next) {
     }
 
     if (search) {
-      conditions.push(`(u.name ILIKE $${paramCount} OR u.email ILIKE $${paramCount})`);
+      conditions.push(`(u.name ILIKE $${paramCount} OR u.email ILIKE $${paramCount} OR u.username ILIKE $${paramCount})`);
       params.push(`%${search}%`);
       paramCount++;
     }

@@ -123,14 +123,14 @@ function CreateSitePanel() {
     <div className="space-y-4">
       <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-3">
         <h2 className="text-base font-semibold text-slate-200">Search for existing user</h2>
-        <p className="text-xs text-slate-500">Type the host's name or email. If they don't have an account yet, use the "Create User" tab first.</p>
+        <p className="text-xs text-slate-500">Type the host's name, username or email. If they don't have an account yet, use the "Create User" tab first.</p>
 
         <div className="relative">
           <input
             type="text"
             value={userSearch}
             onChange={e => handleSearchChange(e.target.value)}
-            placeholder="e.g. Aimee or aimee@example.com"
+            placeholder="e.g. Aimee, @aimee or aimee@example.com"
             className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
           />
           {searching && (
@@ -153,9 +153,11 @@ function CreateSitePanel() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-200 truncate">{u.name}</p>
-                  {!u.email?.endsWith('@noemail.properplace.internal') && (
-                    <p className="text-xs text-slate-500 truncate">{u.email}</p>
-                  )}
+                  <p className="text-xs text-slate-500 truncate">
+                    {u.username ? `@${u.username}` : ''}
+                    {u.username && u.email && !u.email.endsWith('@noemail.properplace.internal') ? ' · ' : ''}
+                    {!u.email?.endsWith('@noemail.properplace.internal') ? u.email : ''}
+                  </p>
                 </div>
                 <span className={`ml-auto flex-shrink-0 text-xs px-2 py-0.5 rounded-full ${u.role === 'host' ? 'bg-blue-500/20 text-blue-400' : u.role === 'admin' ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
                   {u.role}
