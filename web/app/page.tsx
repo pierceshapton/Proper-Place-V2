@@ -232,8 +232,8 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="relative h-[560px] rounded-xl overflow-hidden">
               <Image
-                src="https://images.unsplash.com/photo-1504233529578-6d46baba6d34?w=800&q=80"
-                alt="A narrow country lane in rural England"
+                src="/images/motorhome-sunset.png"
+                alt="Motorhome parked at sunset"
                 fill
                 className="object-cover"
               />
