@@ -7,6 +7,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        editorial: ['"Playfair Display"', 'Georgia', 'serif'],
+      },
       colors: {
         "dark-bg": "#1a1a1a",
         "light-blue": "#5B8FC4",
