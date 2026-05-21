@@ -151,7 +151,12 @@ export default function DiscoverPage() {
       return;
     }
 
-    const keywords = deriveKeywordsFromCriteria(criteriaInput);
+    // Use the full criteria sentence directly as the Google Places query —
+    // the Text Search API handles natural language natively. Fall back to a
+    // sensible default only when criteria is blank.
+    const keywords = criteriaInput.trim()
+      ? [criteriaInput.trim()]
+      : ['country pub with parking'];
 
     // Persist region, criteria and min score so they survive page refresh
     crmApi.updateSettings({ discovery_region: regionQuery.trim(), discovery_criteria_v1: criteriaInput, discovery_min_score: String(minScore), discovery_min_rating: String(minRating) }).catch(() => {});
