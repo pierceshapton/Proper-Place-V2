@@ -923,9 +923,10 @@ async function searchGooglePlaces(keyword: string, region: string, apiKey: strin
     maxResultCount: 20,
     languageCode: 'en-GB',
   };
-  // Use geocoded viewport as a hard geographic restriction when available
+  // Use geocoded viewport as a location bias (soft preference) — keeps results
+  // in the region without hard-capping the count like locationRestriction would
   if (bounds) {
-    requestBody.locationRestriction = { rectangle: { low: bounds.low, high: bounds.high } };
+    requestBody.locationBias = { rectangle: { low: bounds.low, high: bounds.high } };
   }
   const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
@@ -1154,7 +1155,7 @@ async function searchByExactName(query: string, apiKey: string): Promise<Candida
     },
     body: JSON.stringify({
       textQuery: query,
-      maxResultCount: 5,
+      maxResultCount: 20,
       languageCode: 'en-GB',
     }),
   });
