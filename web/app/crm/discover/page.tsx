@@ -173,42 +173,75 @@ export default function DiscoverPage() {
       );
       const candidates = dedupeByPlaceId(allCandidates.flat());
 
-      // Build base scores (used as fallback if AI ranking fails)
-      const basedScored = candidates.map(candidate => scoreCandidate(candidate, profile));
+      // Hard-filter clearly irrelevant Google place types before any scoring.
+      // These will never be campervan-friendly hospitality venues.
+      const EXCLUDED_TYPES = new Set([
+        'gas_station', 'fuel', 'supermarket', 'grocery_or_supermarket', 'convenience_store',
+        'school', 'primary_school', 'secondary_school', 'university',
+        'gym', 'fitness_center', 'sports_complex', 'swimming_pool', 'stadium',
+        'hospital', 'doctor', 'dentist', 'pharmacy', 'health',
+        'bank', 'atm', 'finance', 'insurance_agency',
+        'car_dealer', 'car_repair', 'car_wash',
+        'real_estate_agency', 'storage',
+        'laundry', 'hair_care', 'beauty_salon', 'spa',
+        'electronics_store', 'clothing_store', 'shoe_store', 'furniture_store',
+        'hardware_store', 'home_goods_store', 'department_store', 'shopping_mall',
+        'pet_store', 'florist', 'book_store', 'jewelry_store',
+        'movie_theater', 'casino', 'bowling_alley', 'amusement_park',
+        'cemetery', 'funeral_home', 'place_of_worship', 'church',
+        'local_government_office', 'post_office', 'fire_station', 'police',
+        'parking', 'transit_station', 'bus_station', 'airport',
+        'fast_food_restaurant',
+      ]);
+      const relevant = candidates.filter(c => {
+        const allTypes = [c.primaryType, ...c.types].filter(Boolean).map(t => t!.toLowerCase());
+        // Exclude if primary type is in blocklist
+        if (c.primaryType && EXCLUDED_TYPES.has(c.primaryType.toLowerCase())) return false;
+        // Exclude if ALL types are in blocklist (no hospitality type at all)
+        if (allTypes.length > 0 && allTypes.every(t => EXCLUDED_TYPES.has(t))) return false;
+        return true;
+      });
 
-      // Apply OpenAI ranking — re-scores every candidate using feedback as few-shot examples
+      // Build base scores (used as fallback if AI ranking fails)
+      const basedScored = relevant.map(candidate => scoreCandidate(candidate, profile));
+
+      // Apply OpenAI ranking in batches of 15 — smaller batches give much better per-venue quality
       let scored: ScoredCandidate[];
       try {
-        const rankRes = await fetch('/api/discovery/rank', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            candidates: basedScored,
-            feedback: feedbackHistory,
-            criteria: criteriaInput,
-            profile: { topTypes: profile.topTypes },
-          }),
-        });
-        if (rankRes.ok) {
-          const rankData = await rankRes.json() as { results?: Array<{ id: string; score: number; reasoning: string; criteriaChecks?: Array<{ label: string; met: boolean; detail: string }> }> };
-          const aiMap = new Map((rankData.results || []).map(r => [r.id, r]));
-          scored = basedScored.map(c => {
-            const ai = aiMap.get(c.id);
-            if (ai) {
-              return {
-                ...c,
-                score: ai.score,
-                reasons: [ai.reasoning, ...c.reasons],
-                criteriaChecks: ai.criteriaChecks,
-              };
-            }
-            return c;
-          });
-        } else {
-          scored = basedScored;
+        const BATCH_SIZE = 15;
+        const batches: ScoredCandidate[][] = [];
+        for (let i = 0; i < basedScored.length; i += BATCH_SIZE) {
+          batches.push(basedScored.slice(i, i + BATCH_SIZE));
         }
+        const batchResults = await Promise.all(
+          batches.map(batch =>
+            fetch('/api/discovery/rank', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                candidates: batch,
+                feedback: feedbackHistory,
+                criteria: criteriaInput,
+                profile: { topTypes: profile.topTypes },
+              }),
+            }).then(r => r.ok ? r.json() as Promise<{ results?: Array<{ id: string; score: number; reasoning: string; criteriaChecks?: Array<{ label: string; met: boolean; detail: string }> }> }> : Promise.resolve({ results: [] }))
+              .catch(() => ({ results: [] as Array<{ id: string; score: number; reasoning: string; criteriaChecks?: Array<{ label: string; met: boolean; detail: string }> }> }))
+          )
+        );
+        const aiMap = new Map(batchResults.flatMap(r => r.results || []).map(r => [r.id, r]));
+        scored = basedScored.map(c => {
+          const ai = aiMap.get(c.id);
+          if (ai) {
+            return {
+              ...c,
+              score: ai.score,
+              reasons: [ai.reasoning, ...c.reasons],
+              criteriaChecks: ai.criteriaChecks,
+            };
+          }
+          return c;
+        });
       } catch {
-        // AI unavailable — fall back to base scores silently
         scored = basedScored;
       }
 

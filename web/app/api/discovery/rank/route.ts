@@ -79,8 +79,8 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        temperature: 0.2,
+        model: 'gpt-4o',
+        temperature: 0.1,
         response_format: { type: 'json_object' },
         messages: [
           {
@@ -130,11 +130,16 @@ function buildPrompt(
 
   parts.push(
     'Score each candidate venue 0–100 for how good a fit they are for Proper Place campervan overnight parking partnerships.',
-    'Proper Place partners with pubs, inns, hotels, country pubs, and similar hospitality venues that have outdoor space and car parks where campervans can stay overnight.',
-    'A score of 80–100: obvious fit — rural/country pub or inn with parking, mentions campervans or camping, good reviews.',
-    'A score of 40–79: possible fit — hospitality venue with parking but no specific campervan signal.',
-    'A score below 40: poor fit — score these 10–20: fast food, retail, supermarkets, petrol stations, gyms, offices, residential, schools, urban venues with no parking, chains unlikely to allow overnight stays.',
-    'If the venue is clearly NOT a pub, inn, hotel or similar hospitality venue, score it 10 or below.',
+    'Proper Place partners with pubs, inns, hotels, country pubs, gastropubs, farms, vineyards and similar hospitality venues that have OUTDOOR SPACE and CAR PARKS where campervans can stay overnight.',
+    '',
+    'SCORING BANDS — apply these strictly:',
+    '80–100: Clear match — rural/country pub, inn, or hotel with a car park; mentions camping, campervans, or overnight stays; good reviews; away from town centres.',
+    '50–79: Possible match — hospitality venue with parking but no specific campervan signal; decent reviews; room to negotiate.',
+    '20–49: Weak match — venue type could work but urban, no parking signals, or heavily chain-branded.',
+    '0–19: Not suitable — fast food, retail, supermarkets, petrol stations, gyms, offices, schools, chains (e.g. McDonald\'s, Tesco, Costa, Greggs), urban venues with no outdoor space.',
+    '',
+    'BE STRICT. Most results from a broad Google search will score 20–50. Only score 80+ if there is real evidence of rural location + parking + hospitality.',
+    'Do NOT give a venue 60+ just because it is a pub. It must have evidence of parking space suitable for campervans.',
     '',
   );
 
