@@ -151,12 +151,22 @@ export default function DiscoverPage() {
       return;
     }
 
-    // Use the full criteria sentence directly as the Google Places query —
-    // the Text Search API handles natural language natively. Fall back to a
-    // sensible default only when criteria is blank.
-    const keywords = criteriaInput.trim()
-      ? [criteriaInput.trim()]
-      : ['country pub with parking'];
+    // Build the search query from criteria + signals extracted from your high-rated feedback.
+    // High-rated (4-5★) notes contain valuable vocabulary like "large gravel car park",
+    // "rural", "dog friendly" — extract those and reinforce the search query.
+    const highRatedNotes = feedbackHistory
+      .filter(f => f.stars >= 4 && f.note?.trim())
+      .map(f => f.note!.trim());
+
+    let searchQuery = criteriaInput.trim() || 'country pub with parking';
+
+    if (highRatedNotes.length > 0) {
+      // Append up to 3 most recent high-rated notes as reinforcement signal
+      const noteSignals = highRatedNotes.slice(-3).join('; ');
+      searchQuery = `${searchQuery}. Similar to: ${noteSignals}`;
+    }
+
+    const keywords = [searchQuery];
 
     // Persist region, criteria and min score so they survive page refresh
     crmApi.updateSettings({ discovery_region: regionQuery.trim(), discovery_criteria_v1: criteriaInput, discovery_min_score: String(minScore), discovery_min_rating: String(minRating) }).catch(() => {});
@@ -685,6 +695,15 @@ export default function DiscoverPage() {
           >
             {isSearching ? 'Finding matching locations…' : 'Search for Sites'}
           </button>
+
+          {feedbackHistory.length > 0 && (
+            <p className="text-xs text-slate-500">
+              Using <span className="text-emerald-400 font-medium">{feedbackHistory.filter(f => f.stars >= 4).length} high-rated</span> and <span className="text-red-400 font-medium">{feedbackHistory.filter(f => f.stars <= 2).length} rejected</span> venues from your ratings to shape results.
+              {feedbackHistory.filter(f => f.stars >= 4 && f.note?.trim()).length > 0 && (
+                <span className="text-slate-600"> Your notes are included in the search query.</span>
+              )}
+            </p>
+          )}
 
           <p className="text-xs text-slate-500">Candidates are matched against your existing pipeline leads ({leads.length} loaded). Nothing is auto-added; review each site first.</p>
         </section>

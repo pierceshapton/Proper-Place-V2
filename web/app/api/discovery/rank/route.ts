@@ -147,20 +147,48 @@ function buildPrompt(
     parts.push(`Preferred venue types based on existing partnerships: ${profile.topTypes.join(', ')}.`, '');
   }
 
+  if (feedback.length > 0) {
+    const highRated = feedback.filter(f => f.stars >= 4);
+    const lowRated = feedback.filter(f => f.stars <= 2);
+
+    parts.push('== MY PAST RATINGS — THIS IS THE MOST IMPORTANT SIGNAL ==');
+    parts.push('Use these as your primary training data. Venues similar to the 4-5★ ones should score higher. Venues similar to the 1-2★ ones should score lower.');
+    parts.push('');
+
+    if (highRated.length > 0) {
+      parts.push('✅ GOOD FITS (4-5 stars) — find more like these:');
+      highRated.forEach(f => {
+        const line = `  - "${f.name}", ${f.address} → ${f.stars}/5★${f.note ? ` | Note: "${f.note}"` : ''}`;
+        parts.push(line);
+      });
+      parts.push('');
+    }
+
+    if (lowRated.length > 0) {
+      parts.push('❌ POOR FITS (1-2 stars) — avoid venues like these:');
+      lowRated.forEach(f => {
+        const line = `  - "${f.name}", ${f.address} → ${f.stars}/5★${f.note ? ` | Reason: "${f.note}"` : ''}`;
+        parts.push(line);
+      });
+      parts.push('');
+    }
+
+    const midRated = feedback.filter(f => f.stars === 3);
+    if (midRated.length > 0) {
+      parts.push('⚠️ BORDERLINE (3 stars):');
+      midRated.forEach(f => {
+        const line = `  - "${f.name}", ${f.address}${f.note ? ` | Note: "${f.note}"` : ''}`;
+        parts.push(line);
+      });
+      parts.push('');
+    }
+  }
+
   if (criteria?.trim()) {
     parts.push('== SEARCH CRITERIA ==');
     parts.push(criteria.trim());
     parts.push('For EACH candidate, evaluate every distinct requirement stated in the criteria above.');
     parts.push('Return a criteriaChecks array with one entry per requirement: label (short name), met (true/false), detail (short explanation or value found).');
-    parts.push('');
-  }
-
-  if (feedback.length > 0) {
-    parts.push('== MY PAST RATINGS (learn from these) ==');
-    feedback.forEach(f => {
-      const line = `- "${f.name}", ${f.address} → ${f.stars}/5 stars${f.note ? ` (reason: ${f.note})` : ''}`;
-      parts.push(line);
-    });
     parts.push('');
   }
 
