@@ -78,8 +78,13 @@ async function getLeads(req, res, next) {
       SELECT hl.*,
         (SELECT COUNT(*) FROM crm_activities ca WHERE ca.lead_id = hl.id) as activity_count,
         (SELECT COUNT(*) FROM crm_tasks ct WHERE ct.lead_id = hl.id AND ct.status = 'pending') as pending_tasks,
-        (SELECT MAX(ca.created_at) FROM crm_activities ca WHERE ca.lead_id = hl.id) as last_activity_at
+        (SELECT MAX(ca.created_at) FROM crm_activities ca WHERE ca.lead_id = hl.id) as last_activity_at,
+        CASE WHEN hl.place_id IS NOT NULL THEN json_build_object(
+          'owner_phone', u.phone_number
+        ) ELSE NULL END AS linked_place
       FROM host_leads hl
+      LEFT JOIN places p ON p.id = hl.place_id
+      LEFT JOIN users u ON u.id = p.owner_id
       ${where}
       ORDER BY hl.${sortCol} ${sortOrder}
       LIMIT $${limitIdx} OFFSET $${offsetIdx}

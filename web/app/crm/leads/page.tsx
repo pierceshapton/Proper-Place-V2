@@ -507,8 +507,8 @@ export default function LeadsPage() {
                           <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Contact</p>
                           <div className="space-y-0.5">
                             {lead.email && <p className="truncate">{lead.email}</p>}
-                            {lead.phone && <p className="text-slate-500">{lead.phone}</p>}
-                            {!lead.email && !lead.phone && <p className="text-slate-600">—</p>}
+                            {(lead.phone || lead.linked_place?.owner_phone) && <p className="text-slate-500">{lead.phone || lead.linked_place?.owner_phone}</p>}
+                            {!lead.email && !lead.phone && !lead.linked_place?.owner_phone && <p className="text-slate-600">—</p>}
                           </div>
                         </div>
                       </div>
@@ -559,8 +559,8 @@ export default function LeadsPage() {
                       <td className="px-3 py-2.5">
                         <div className="text-xs text-slate-400 space-y-0.5">
                           {lead.email && <p className="truncate max-w-[160px]">{lead.email}</p>}
-                          {lead.phone && <p className="text-slate-500">{lead.phone}</p>}
-                          {!lead.email && !lead.phone && <span className="text-slate-600">—</span>}
+                          {(lead.phone || lead.linked_place?.owner_phone) && <p className="text-slate-500">{lead.phone || lead.linked_place?.owner_phone}</p>}
+                          {!lead.email && !lead.phone && !lead.linked_place?.owner_phone && <span className="text-slate-600">—</span>}
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
