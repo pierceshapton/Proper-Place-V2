@@ -68,8 +68,22 @@ function adminMiddleware(req, res, next) {
   next();
 }
 
+/**
+ * CRM middleware — allows admin or employee roles
+ */
+function crmMiddleware(req, res, next) {
+  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {
+    return res.status(403).json({
+      error: 'forbidden',
+      message: 'CRM access required',
+    });
+  }
+  next();
+}
+
 module.exports = {
   authMiddleware,
   optionalAuthMiddleware,
   adminMiddleware,
+  crmMiddleware,
 };

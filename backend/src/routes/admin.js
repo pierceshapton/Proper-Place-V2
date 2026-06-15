@@ -1,20 +1,23 @@
 const express = require('express');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminMiddleware, crmMiddleware } = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
 
 const router = express.Router();
 
-// All admin routes require auth + admin role
-router.use(authMiddleware, adminMiddleware);
+// All admin routes require auth at minimum
+router.use(authMiddleware);
+
+// Place moderation — accessible by admin OR employee
+router.get('/places', crmMiddleware, adminController.getPlacesForModeration);
+router.post('/places', crmMiddleware, adminController.createPlaceForUser);
+router.patch('/places/:id', crmMiddleware, adminController.updatePlace);
+router.patch('/places/:id/approve', crmMiddleware, adminController.approvePlace);
+router.patch('/places/:id/reject', crmMiddleware, adminController.rejectPlace);
+
+// Everything below is admin-only
+router.use(adminMiddleware);
 
 router.get('/dashboard', adminController.getDashboard);
-
-// Place moderation
-router.get('/places', adminController.getPlacesForModeration);
-router.post('/places', adminController.createPlaceForUser);
-router.patch('/places/:id', adminController.updatePlace);
-router.patch('/places/:id/approve', adminController.approvePlace);
-router.patch('/places/:id/reject', adminController.rejectPlace);
 
 // User management
 router.get('/users', adminController.getUsers);

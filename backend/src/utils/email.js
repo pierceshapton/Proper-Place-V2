@@ -96,6 +96,61 @@ async function sendPasswordResetEmail(to, token) {
 }
 
 /**
+ * Send a staff invitation email with a link to set their password.
+ * @param {string} to – recipient email
+ * @param {string} name – recipient's name
+ * @param {string} token – password_reset_token (UUID)
+ */
+async function sendInviteEmail(to, name, token) {
+  const frontendUrl = process.env.FRONTEND_URL || 'https://proper-place.co.uk';
+  const inviteUrl = `${frontendUrl}/set-password?token=${encodeURIComponent(token)}`;
+  const firstName = (name || 'there').split(' ')[0];
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 0;">
+      <div style="background: #0f172a; border-radius: 12px 12px 0 0; padding: 28px 32px;">
+        <p style="color: #10b981; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 8px;">Proper Place</p>
+        <h1 style="color: #f1f5f9; font-size: 22px; font-weight: 700; margin: 0;">You're invited to the team</h1>
+      </div>
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
+        <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+          Hi ${escapeHtml(firstName)},
+        </p>
+        <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+          An admin has created a <strong>Proper Place</strong> account for you. Click the button below to set your password and get started.
+        </p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${inviteUrl}"
+             style="display: inline-block; background: #10b981; color: #ffffff; text-decoration: none;
+                    padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600;">
+            Set my password
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
+          This link expires in <strong>7 days</strong>. If the button doesn't work, copy and paste this link:
+        </p>
+        <p style="color: #6b7280; font-size: 12px; word-break: break-all; margin: 0 0 24px;">
+          <a href="${inviteUrl}" style="color: #10b981;">${inviteUrl}</a>
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; margin: 0; border-top: 1px solid #f3f4f6; padding-top: 20px;">
+          If you weren't expecting this, you can safely ignore it. — The Proper Place Team
+        </p>
+      </div>
+    </div>
+  `;
+
+  const info = await transporter.sendMail({
+    from: `"Proper Place" <${process.env.SMTP_USER}>`,
+    to,
+    subject: 'You\'ve been invited to Proper Place',
+    html,
+  });
+
+  logger.info('Invite email sent', { to, messageId: info.messageId });
+  return info;
+}
+
+/**
  * Send an admin reply to a support ticket.
  */
 async function sendSupportReplyEmail(to, subject, originalMessage, replyBody) {
@@ -164,7 +219,7 @@ async function sendHostDeletionRequestEmail(user) {
   return info;
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendSupportReplyEmail, sendHostDeletionRequestEmail, transporter };
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendInviteEmail, sendSupportReplyEmail, sendHostDeletionRequestEmail, transporter };
 
 function escapeHtml(str) {
   return String(str)

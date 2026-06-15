@@ -1,47 +1,47 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminMiddleware, crmMiddleware } = require('../middleware/auth');
 const crm = require('../controllers/crmController');
 const cmsContent = require('../controllers/cmsContentController');
 
-// All CRM routes require auth + admin
+// All CRM routes require auth + CRM access (admin or employee)
 router.use(authMiddleware);
-router.use(adminMiddleware);
+router.use(crmMiddleware);
 
 // ─── Stats ──────────────────────────
 router.get('/stats', crm.getStats);
 // ─── Pipeline Stages ────────────────
 router.get('/stages', crm.getStages);
-router.post('/stages', crm.createStage);
-router.patch('/stages/reorder', crm.reorderStages);
-router.patch('/stages/:id', crm.updateStage);
-router.delete('/stages/:id', crm.deleteStage);
+router.post('/stages', adminMiddleware, crm.createStage);
+router.patch('/stages/reorder', adminMiddleware, crm.reorderStages);
+router.patch('/stages/:id', adminMiddleware, crm.updateStage);
+router.delete('/stages/:id', adminMiddleware, crm.deleteStage);
 
 // ─── Custom Fields ──────────────────
 router.get('/custom-fields', crm.getCustomFields);
-router.post('/custom-fields', crm.createCustomField);
-router.patch('/custom-fields/:id', crm.updateCustomField);
-router.delete('/custom-fields/:id', crm.deleteCustomField);
+router.post('/custom-fields', adminMiddleware, crm.createCustomField);
+router.patch('/custom-fields/:id', adminMiddleware, crm.updateCustomField);
+router.delete('/custom-fields/:id', adminMiddleware, crm.deleteCustomField);
 
 // ─── Custom Values (per lead) ────────────
 router.get('/leads/:id/custom-values', crm.getCustomValues);
 router.put('/leads/:id/custom-values', crm.setCustomValues);
 // ─── Settings ───────────────────────
 router.get('/settings', crm.getSettings);
-router.patch('/settings', crm.updateSettings);
+router.patch('/settings', adminMiddleware, crm.updateSettings);
 // Discovery automation stubs (not yet fully implemented)
 router.get('/automation-status', (req, res) => res.json({ enabled: false }));
-router.post('/discovery/auto-find/run', (req, res) => res.json({ message: 'not implemented' }));
+router.post('/discovery/auto-find/run', adminMiddleware, (req, res) => res.json({ message: 'not implemented' }));
 router.get('/discovery/review-queue', (req, res) => res.json({ queue: [] }));
-router.post('/discovery/review-queue/replace', (req, res) => res.json({ message: 'not implemented' }));
-router.post('/discovery/review-queue/:id/submit', (req, res) => res.json({ message: 'not implemented' }));
+router.post('/discovery/review-queue/replace', adminMiddleware, (req, res) => res.json({ message: 'not implemented' }));
+router.post('/discovery/review-queue/:id/submit', adminMiddleware, (req, res) => res.json({ message: 'not implemented' }));
 
 // ─── CMS Content ────────────────────
 router.get('/content', cmsContent.getContent);
-router.put('/content', cmsContent.updateContent);
+router.put('/content', adminMiddleware, cmsContent.updateContent);
 
 // ─── Import & Enrich ────────────────
-router.post('/leads/import', crm.importLeads);
+router.post('/leads/import', adminMiddleware, crm.importLeads);
 router.post('/leads/:id/enrich', crm.enrichLead);
 router.post('/leads/:id/upload-contract', crm.contractUploadMiddleware.single('file'), crm.uploadContract);
 

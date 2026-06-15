@@ -1004,17 +1004,32 @@ async function createUserAsAdmin(req, res, next) {
     }
     const emailIsPlaceholder = finalEmail.endsWith('@noemail.properplace.internal');
 
-    // Generate a random OTP password (12 chars, mixed case + numbers)
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    const otpPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    // If a real email was provided, use an invite token flow (no usable password until they set one).
+    // If no real email, generate a temporary OTP password they can share manually.
+    let passwordHash;
+    let otpPassword = null;
+    let inviteToken = null;
+    let inviteExpires = null;
 
-    const passwordHash = await hashPassword(otpPassword);
+    if (!emailIsPlaceholder) {
+      // Locked password — random 64-char hex that can never be entered manually
+      const crypto = require('crypto');
+      const lockedPassword = crypto.randomBytes(32).toString('hex');
+      passwordHash = await hashPassword(lockedPassword);
+      // Invite token valid for 7 days
+      inviteToken = crypto.randomUUID();
+      inviteExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    } else {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+      otpPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      passwordHash = await hashPassword(otpPassword);
+    }
 
     const result = await db.query(
-      `INSERT INTO users (email, password_hash, name, username, role, verified, phone_number, must_change_password)
-       VALUES ($1, $2, $3, $4, $5, true, $6, true)
+      `INSERT INTO users (email, password_hash, name, username, role, verified, phone_number, must_change_password, password_reset_token, password_reset_expires)
+       VALUES ($1, $2, $3, $4, $5, true, $6, true, $7, $8)
        RETURNING id, email, name, username, role, verified, created_at`,
-      [finalEmail, passwordHash, (name || finalUsername).trim(), finalUsername, role, phone || null]
+      [finalEmail, passwordHash, (name || finalUsername).trim(), finalUsername, role, phone || null, inviteToken, inviteExpires]
     );
 
     const user = result.rows[0];
@@ -1025,8 +1040,23 @@ async function createUserAsAdmin(req, res, next) {
       [adminId, 'user_created_by_admin', 'user', user.id, `Admin created account for ${finalEmail}`]
     ).catch(() => {});
 
-    logger.info('Admin created user', { adminId, userId: user.id, email: finalEmail });
-    res.status(201).json({ user, otp_password: otpPassword, email_is_placeholder: emailIsPlaceholder });
+    // Send invite email if we have a real address
+    let inviteSent = false;
+    if (!emailIsPlaceholder && inviteToken) {
+      const { sendInviteEmail } = require('../utils/email');
+      sendInviteEmail(finalEmail, user.name, inviteToken).catch((err) => {
+        logger.error('Failed to send invite email', { email: finalEmail, error: err.message });
+      });
+      inviteSent = true;
+    }
+
+    logger.info('Admin created user', { adminId, userId: user.id, email: finalEmail, inviteSent });
+    res.status(201).json({
+      user,
+      invite_sent: inviteSent,
+      otp_password: otpPassword,           // null when invite email was sent
+      email_is_placeholder: emailIsPlaceholder,
+    });
   } catch (error) {
     logger.error('Admin create user error', { error: error.message });
     next(error);

@@ -674,7 +674,7 @@ async function resetPassword(req, res, next) {
     const passwordHash = await hashPassword(password);
 
     await db.query(
-      `UPDATE users SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL WHERE id = $2`,
+      `UPDATE users SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL, must_change_password = false WHERE id = $2`,
       [passwordHash, user.id]
     );
 
