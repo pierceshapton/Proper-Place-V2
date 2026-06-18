@@ -7,6 +7,7 @@ import { crmApi, type CRMLead, type CRMStage, type CRMEmailTemplate } from '@/li
 import { mergeTemplate, buildEmailWithSignature } from '@/lib/crmEmailDraft';
 import { getDefaultTemplateId } from '@/lib/defaultTemplate';
 import { stageColors } from '@/lib/stageColors';
+import { CRMLeadDetailModal } from '@/components/CRMLeadDetailModal';
 
 const DEFAULT_STAGES: CRMStage[] = [
   { id: 1, slug: 'reviewed',    name: 'Reviewed',    color: 'blue',    sort_order: 1, is_won: false, is_lost: false },
@@ -44,6 +45,7 @@ export default function LeadsPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkStage, setBulkStage] = useState('');
+  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
 
   // Email blast state
   const [showEmailBlast, setShowEmailBlast] = useState(false);
@@ -184,6 +186,7 @@ export default function LeadsPage() {
   );
 
   return (
+    <>
     <div className="space-y-4 max-w-full">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
@@ -464,33 +467,33 @@ export default function LeadsPage() {
               const overdue = !!(lead.next_follow_up && new Date(lead.next_follow_up) < new Date());
               const isSelected = selected.has(lead.id);
               return (
-                <div key={lead.id} className={`rounded-xl border p-3 bg-slate-900 ${isSelected ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-slate-800'}`}>
+                <div key={lead.id} onClick={() => setSelectedLeadId(lead.id)} className={`rounded-xl border p-3 bg-slate-900 cursor-pointer ${isSelected ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-slate-800'}`}>
                   <div className="flex items-start gap-3">
-                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(lead.id)} className="accent-emerald-500 cursor-pointer mt-1" />
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(lead.id)} onClick={e => e.stopPropagation()} className="accent-emerald-500 cursor-pointer mt-1" />
                     <div className="flex-1 min-w-0 space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-slate-100 truncate">{name}</p>
                           {lead.property_type && <p className="text-[11px] text-slate-500 capitalize mt-0.5">{lead.property_type.replace('_', ' ')}</p>}
                         </div>
-                        <Link href={`/crm/leads/${lead.id}`} className="text-xs text-emerald-400 hover:text-emerald-300 flex-shrink-0">
-                          Open
+                        <Link href={`/crm/leads/${lead.id}`} className="text-xs text-slate-500 hover:text-slate-300 flex-shrink-0 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-1 rounded-md transition-colors">
+                          Edit
                         </Link>
                       </div>
 
                       <div className="grid grid-cols-1 gap-2 text-xs text-slate-400">
                         <div>
                           <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Location</p>
-                          <InlineText value={lead.location || ''} placeholder="Add location…" onSave={v => patchLead(lead.id, { location: v })} textClass="text-xs text-slate-300" />
+                          <span className="text-xs text-slate-300">{lead.location || <span className="text-slate-600">—</span>}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Stage</p>
-                            <InlineStageCell stageSlug={lead.pipeline_stage} stages={stages} onSave={v => patchLead(lead.id, { pipeline_stage: v as CRMLead['pipeline_stage'] })} />
+                            {(() => { const s = stages.find(x => x.slug === lead.pipeline_stage); const c = s ? stageColors(s.color) : stageColors('blue'); return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${c.bg} text-white`}>{s?.name || lead.pipeline_stage}</span>; })()}
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Priority</p>
-                            <InlinePriorityCell priority={lead.priority} onSave={v => patchLead(lead.id, { priority: v })} />
+                            {lead.priority ? <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_STYLES[lead.priority]?.bg || 'bg-slate-500/10'} ${PRIORITY_STYLES[lead.priority]?.text || 'text-slate-400'}`}>{lead.priority}</span> : <span className="text-slate-600">—</span>}
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
@@ -500,7 +503,7 @@ export default function LeadsPage() {
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Follow-up</p>
-                            <InlineDateCell value={lead.next_follow_up ? lead.next_follow_up.split('T')[0] : ''} overdue={overdue} onSave={v => patchLead(lead.id, { next_follow_up: v || null } as Partial<CRMLead>)} />
+                            {lead.next_follow_up ? <span className={`text-xs ${overdue ? 'text-red-400' : 'text-slate-300'}`}>{lead.next_follow_up.split('T')[0]}{overdue && ' ⚠'}</span> : <span className="text-slate-600">—</span>}
                           </div>
                         </div>
                         <div>
@@ -545,16 +548,16 @@ export default function LeadsPage() {
                   const overdue = !!(lead.next_follow_up && new Date(lead.next_follow_up) < new Date());
                   const isSelected = selected.has(lead.id);
                   return (
-                    <tr key={lead.id} className={`group transition-colors hover:bg-slate-900/60 ${isSelected ? 'bg-emerald-500/5' : ''}`}>
+                    <tr key={lead.id} className={`group transition-colors hover:bg-slate-900/60 cursor-pointer ${isSelected ? 'bg-emerald-500/5' : ''}`} onClick={() => setSelectedLeadId(lead.id)}>
                       <td className="px-3 py-2.5" onClick={e => { e.stopPropagation(); toggleSelect(lead.id); }}>
                         <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(lead.id)} className="accent-emerald-500 cursor-pointer" />
                       </td>
                       <td className="px-3 py-2.5 max-w-[210px]">
-                        <InlineText value={name} onSave={v => patchLead(lead.id, { business_name: v })} textClass="text-sm font-medium text-slate-200" />
+                        <p className="text-sm font-medium text-slate-200 truncate">{name}</p>
                         {lead.property_type && <p className="text-[11px] text-slate-600 capitalize mt-0.5">{lead.property_type.replace('_', ' ')}</p>}
                       </td>
                       <td className="px-3 py-2.5 max-w-[150px]">
-                        <InlineText value={lead.location || ''} placeholder="Add location…" onSave={v => patchLead(lead.id, { location: v })} textClass="text-xs text-slate-400" />
+                        <span className="text-xs text-slate-400 truncate block">{lead.location || <span className="text-slate-700">—</span>}</span>
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="text-xs text-slate-400 space-y-0.5">
@@ -564,10 +567,10 @@ export default function LeadsPage() {
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
-                        <InlineStageCell stageSlug={lead.pipeline_stage} stages={stages} onSave={v => patchLead(lead.id, { pipeline_stage: v as CRMLead['pipeline_stage'] })} />
+                        {(() => { const s = stages.find(x => x.slug === lead.pipeline_stage); const c = s ? stageColors(s.color) : stageColors('blue'); return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${c.bg} text-white`}>{s?.name || lead.pipeline_stage}</span>; })()}
                       </td>
                       <td className="px-3 py-2.5">
-                        <InlinePriorityCell priority={lead.priority} onSave={v => patchLead(lead.id, { priority: v })} />
+                        {lead.priority ? <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_STYLES[lead.priority]?.bg || 'bg-slate-500/10'} ${PRIORITY_STYLES[lead.priority]?.text || 'text-slate-400'}`}>{lead.priority}</span> : <span className="text-slate-700 text-xs">—</span>}
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-xs text-slate-400 font-mono">{lead.google_rating ? `${lead.google_rating}★` : '—'}</span>
@@ -576,15 +579,11 @@ export default function LeadsPage() {
                         <span className="text-xs text-slate-500">{lead.last_contact_date ? timeAgo(lead.last_contact_date) : <span className="text-slate-700">Never</span>}</span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <InlineDateCell value={lead.next_follow_up ? lead.next_follow_up.split('T')[0] : ''} overdue={overdue} onSave={v => patchLead(lead.id, { next_follow_up: v || null } as Partial<CRMLead>)} />
+                        {lead.next_follow_up ? <span className={`text-xs ${overdue ? 'text-red-400' : 'text-slate-400'}`}>{lead.next_follow_up.split('T')[0]}{overdue && ' ⚠'}</span> : <span className="text-slate-700 text-xs">—</span>}
                       </td>
-                      <td className="px-3 py-2.5">
-                        <Link href={`/crm/leads/${lead.id}`} className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-6 h-6 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-700 transition-all" title="Open lead">
-                          <span className="flex flex-col gap-[3px] items-center">
-                            <span className="w-[3px] h-[3px] rounded-full bg-current" />
-                            <span className="w-[3px] h-[3px] rounded-full bg-current" />
-                            <span className="w-[3px] h-[3px] rounded-full bg-current" />
-                          </span>
+                      <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                        <Link href={`/crm/leads/${lead.id}`} className="opacity-0 group-hover:opacity-100 text-xs text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-1 rounded-md transition-all whitespace-nowrap" title="Edit lead">
+                          Edit
                         </Link>
                       </td>
                     </tr>
@@ -601,6 +600,16 @@ export default function LeadsPage() {
         </>
       )}
     </div>
+
+      {selectedLeadId && (
+        <CRMLeadDetailModal
+          leadId={selectedLeadId}
+          stages={stages}
+          onClose={() => setSelectedLeadId(null)}
+          onStageChange={(id, stage) => setLeads(ls => ls.map(l => l.id === id ? { ...l, pipeline_stage: stage } : l))}
+        />
+      )}
+    </>
   );
 }
 

@@ -746,7 +746,7 @@ function CreateUserPanel() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [otpResult, setOtpResult] = useState<{ name: string; username: string; email?: string; otp: string } | null>(null);
+  const [otpResult, setOtpResult] = useState<{ name: string; username: string; email?: string; otp: string | null; invite_sent?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const f = (field: keyof typeof form, value: string) =>
@@ -774,6 +774,7 @@ function CreateUserPanel() {
         username: result.user.username ?? '',
         email: result.email_is_placeholder ? undefined : result.user.email,
         otp: result.otp_password,
+        invite_sent: result.invite_sent,
       });
       setForm({ username: '', name: '', email: '', phone: '', role: 'host' });
     } catch (err) {
@@ -783,7 +784,7 @@ function CreateUserPanel() {
   };
 
   const copyOtp = () => {
-    if (otpResult) {
+    if (otpResult?.otp) {
       navigator.clipboard.writeText(otpResult.otp);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -797,26 +798,31 @@ function CreateUserPanel() {
         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-4 rounded-xl text-sm space-y-3">
           <p className="font-semibold text-emerald-300">✅ Account created for {otpResult.name}</p>
           {otpResult.email && <p className="text-xs text-emerald-500/80">{otpResult.email}</p>}
-          <div>
-            <p className="text-xs text-emerald-500/70 mb-1">Login username:</p>
-            <code className="bg-slate-900 border border-emerald-500/30 text-emerald-300 font-mono text-sm px-3 py-1.5 rounded-lg select-all">{otpResult.username}</code>
-          </div>
-          <div>
-            <p className="text-xs text-emerald-500/70 mb-1.5">One-time password — share this with the host. They must change it on first login:</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 bg-slate-900 border border-emerald-500/30 text-emerald-300 font-mono text-base px-4 py-2.5 rounded-lg tracking-widest select-all">
-                {otpResult.otp}
-              </code>
-              <button
-                type="button"
-                onClick={copyOtp}
-                className="px-3 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold rounded-lg transition-colors"
-              >
-                {copied ? '✓ Copied' : 'Copy'}
-              </button>
-            </div>
-          </div>
-          <p className="text-xs text-emerald-500/60">Switch to "Create Site" to set up their first site.</p>
+          {otpResult.invite_sent ? (
+            <p className="text-sm text-emerald-400">📧 Invitation email sent — they'll receive a link to set their password.</p>
+          ) : (
+            <>
+              <div>
+                <p className="text-xs text-emerald-500/70 mb-1">Login username:</p>
+                <code className="bg-slate-900 border border-emerald-500/30 text-emerald-300 font-mono text-sm px-3 py-1.5 rounded-lg select-all">{otpResult.username}</code>
+              </div>
+              <div>
+                <p className="text-xs text-emerald-500/70 mb-1.5">One-time password — share this with them. They must change it on first login:</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-slate-900 border border-emerald-500/30 text-emerald-300 font-mono text-base px-4 py-2.5 rounded-lg tracking-widest select-all">
+                    {otpResult.otp}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={copyOtp}
+                    className="px-3 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    {copied ? '✓ Copied' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -862,16 +868,19 @@ function CreateUserPanel() {
 
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1.5">Account Role</label>
-          <div className="flex gap-2">
-            {['host', 'user'].map(r => (
+          <div className="flex gap-2 flex-wrap">
+            {(['host', 'user', 'employee'] as const).map(r => (
               <button
                 key={r} type="button" onClick={() => f('role', r)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${form.role === r ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${form.role === r ? (r === 'employee' ? 'bg-violet-500 text-white' : 'bg-emerald-500 text-white') : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
               >
-                {r === 'host' ? '🏠 Host' : '👤 User'}
+                {r === 'host' ? '🏠 Host' : r === 'user' ? '👤 User' : '🔧 Employee'}
               </button>
             ))}
           </div>
+          {form.role === 'employee' && (
+            <p className="text-xs text-violet-400/80 mt-2">Employee accounts get CRM access. If you provide an email, an invitation link will be sent automatically.</p>
+          )}
         </div>
       </div>
 

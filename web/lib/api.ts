@@ -238,7 +238,7 @@ export const adminApi = {
   createPlaceForUser: (data: Partial<Place> & { owner_id: number }) =>
     api<{ place: Place }>('/admin/places', { method: 'POST', body: data }),
   createUser: (data: { username?: string; name: string; email?: string; role?: string; phone?: string }) =>
-    api<{ user: User; otp_password: string; email_is_placeholder?: boolean }>('/admin/users', { method: 'POST', body: data }),
+    api<{ user: User; otp_password: string | null; invite_sent: boolean; email_is_placeholder?: boolean }>('/admin/users', { method: 'POST', body: data }),
   users: (params?: Record<string, string>) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return api<{ users: User[] }>(`/admin/users${qs}`);
@@ -298,7 +298,7 @@ export interface User {
   email: string;
   name: string;
   username?: string;
-  role: 'user' | 'host' | 'admin';
+  role: 'user' | 'host' | 'admin' | 'employee';
   verified?: boolean;
   must_change_password?: boolean;
   avatar_url?: string;

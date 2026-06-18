@@ -17,6 +17,34 @@ export default function AdminUsersPage() {
   const [editBusy, setEditBusy] = useState(false);
   const [editErr, setEditErr] = useState('');
 
+  // Create user
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: '', email: '', phone: '', role: 'host' });
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createErr, setCreateErr] = useState('');
+  const [createdResult, setCreatedResult] = useState<{ name: string; email: string; password: string | null; inviteSent: boolean } | null>(null);
+
+  const handleCreateUser = async () => {
+    if (!createForm.name.trim()) { setCreateErr('Name is required'); return; }
+    setCreateErr('');
+    setCreateBusy(true);
+    try {
+      const res = await adminApi.createUser({
+        name: createForm.name.trim(),
+        email: createForm.email.trim() || undefined,
+        phone: createForm.phone.trim() || undefined,
+        role: createForm.role,
+      });
+      setCreatedResult({ name: res.user.name || createForm.name, email: res.user.email, password: res.otp_password, inviteSent: res.invite_sent });
+      setCreateForm({ name: '', email: '', phone: '', role: 'host' });
+      await load();
+    } catch (err) {
+      setCreateErr(err instanceof ApiError ? err.message : 'Failed to create user');
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
   const load = async () => {
     try {
       const data = await adminApi.users();
@@ -102,15 +130,25 @@ export default function AdminUsersPage() {
   );
 
   const roleColor = (r: string) => {
-    switch (r) { case 'admin': return 'bg-red-100 text-red-700'; case 'host': return 'bg-blue-100 text-blue-700'; default: return 'bg-gray-100 text-gray-700'; }
+    switch (r) { case 'admin': return 'bg-red-100 text-red-700'; case 'host': return 'bg-blue-100 text-blue-700'; case 'employee': return 'bg-violet-100 text-violet-700'; default: return 'bg-gray-100 text-gray-700'; }
   };
 
   if (loading) return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-light-blue"></div></div>;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-      <p className="text-gray-500">{users.length} total users</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-500">{users.length} total users</p>
+        </div>
+        <button
+          onClick={() => { setShowCreate(true); setCreatedResult(null); setCreateErr(''); }}
+          className="bg-light-blue hover:bg-accent-blue text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+        >
+          + Create User
+        </button>
+      </div>
 
       {actionErr && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{actionErr}</div>}
 
@@ -182,6 +220,7 @@ export default function AdminUsersPage() {
                     >
                       <option value="user">User</option>
                       <option value="host">Host</option>
+                      <option value="employee">Employee</option>
                       <option value="admin">Admin</option>
                     </select>
                     <button
@@ -202,6 +241,104 @@ export default function AdminUsersPage() {
       {filtered.length === 0 && (
         <div className="text-center py-12">
           <p className="text-gray-500">No users match your search.</p>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => { if (!createBusy) { setShowCreate(false); setCreatedResult(null); } }}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">{createdResult ? 'User created' : 'Create new user'}</h2>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => { setShowCreate(false); setCreatedResult(null); }}>✕</button>
+            </div>
+            {createdResult ? (
+              <div className="p-5 space-y-4">
+                {createdResult.inviteSent ? (
+                  <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+                    <span className="text-emerald-500 text-xl leading-none mt-0.5">✉</span>
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-800">Invitation email sent!</p>
+                      <p className="text-xs text-emerald-700 mt-0.5">A link to set their password has been sent to <strong>{createdResult.email}</strong>. The link expires in 7 days.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">Account created successfully!</p>
+                )}
+                <div className="space-y-2 text-sm">
+                  <div><span className="text-gray-500">Name: </span><span className="font-medium text-gray-900">{createdResult.name}</span></div>
+                  <div><span className="text-gray-500">Email: </span><span className="font-medium text-gray-900">{createdResult.email}</span></div>
+                </div>
+                {!createdResult.inviteSent && createdResult.password && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Temporary password — share with user</p>
+                    <p className="font-mono text-lg font-bold text-amber-900 tracking-widest select-all">{createdResult.password}</p>
+                    <p className="text-xs text-amber-600">The user will be prompted to change this on first login.</p>
+                  </div>
+                )}
+                <div className="flex justify-end pt-1">
+                  <button onClick={() => { setShowCreate(false); setCreatedResult(null); }} className="text-sm bg-light-blue hover:bg-accent-blue text-white rounded-lg px-4 py-2">Done</button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-5 space-y-4">
+                {createErr && <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-sm">{createErr}</div>}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={createForm.name}
+                    onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Full name"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-light-blue"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="email"
+                    value={createForm.email}
+                    onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="user@example.com"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-light-blue"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="tel"
+                    value={createForm.phone}
+                    onChange={e => setCreateForm(f => ({ ...f, phone: e.target.value }))}
+                    placeholder="+44 7700 000000"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-light-blue"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <select
+                    value={createForm.role}
+                    onChange={e => setCreateForm(f => ({ ...f, role: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-light-blue"
+                  >
+                    <option value="user">User</option>
+                    <option value="host">Host</option>
+                    <option value="employee">Employee (CRM access, no admin tools)</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-3 pt-1">
+                  <button onClick={() => setShowCreate(false)} className="text-sm text-gray-600 hover:text-gray-900 px-4 py-2">Cancel</button>
+                  <button
+                    onClick={handleCreateUser}
+                    disabled={createBusy}
+                    className="text-sm bg-light-blue hover:bg-accent-blue text-white rounded-lg px-4 py-2 disabled:opacity-50"
+                  >
+                    {createBusy ? 'Creating…' : 'Create user'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

@@ -36,6 +36,7 @@ function buildPinSvg(hex: string): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+
 const PRIORITIES = ['hot', 'warm', 'medium', 'cold'];
 const PRIORITY_BADGE: Record<string, string> = {
   hot: 'bg-red-500 text-white', warm: 'bg-orange-500 text-white',
@@ -218,6 +219,7 @@ export default function CRMMapPage() {
             </button>
           );
         })}
+
       </div>
 
       {/* Map */}
@@ -269,6 +271,7 @@ export default function CRMMapPage() {
           onLeadUpdate={(id, patch) => setLeads(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l))}
         />
       )}
+
     </div>
   );
 }
@@ -289,7 +292,7 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
   const [showAddNote, setShowAddNote] = useState(false);
   const [noteForm, setNoteForm] = useState({ activity_type: 'note', title: '', description: '' });
   const [showAddTask, setShowAddTask] = useState(false);
-  const [taskForm, setTaskForm] = useState({ title: '', due_date: '', priority: 'medium' });
+  const [taskForm, setTaskForm] = useState({ title: '', due_date: '', priority: 'medium', description: '' });
   const [showSendEmail, setShowSendEmail] = useState(false);
   const [emailForm, setEmailForm] = useState({ subject: '', body: '', to: '' });
 
@@ -333,7 +336,7 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
   async function handleAddTask(e: React.FormEvent) {
     e.preventDefault();
     await crmApi.createTask({ lead_id: leadId, ...taskForm });
-    setShowAddTask(false); setTaskForm({ title: '', due_date: '', priority: 'medium' });
+    setShowAddTask(false); setTaskForm({ title: '', due_date: '', priority: 'medium', description: '' });
     loadData();
   }
 
@@ -517,6 +520,8 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
                 <form onSubmit={handleAddTask} className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
                   <input value={taskForm.title} onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))} placeholder="Task title..."
                     className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500" />
+                  <textarea value={taskForm.description} onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))} placeholder="Notes (optional)..." rows={2}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500" />
                   <div className="flex gap-2">
                     <input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))}
                       className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500" />
@@ -538,6 +543,7 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
                       </button>
                       <div className="flex-1">
                         <p className={`text-sm ${t.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{t.title}</p>
+                        {t.description && <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>}
                         {t.due_date && (
                           <p className={`text-[11px] mt-0.5 ${new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-400' : 'text-slate-500'}`}>
                             Due: {new Date(t.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}

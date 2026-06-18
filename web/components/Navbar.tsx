@@ -153,6 +153,12 @@ export default function Navbar() {
                       <Link href="/crm" className="block px-4 py-2 text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-600" onClick={() => setProfileOpen(false)}>Operations CRM</Link>
                     </>
                   )}
+                  {user.role === 'employee' && (
+                    <>
+                      <hr className="my-1 border-gray-100" />
+                      <Link href="/crm" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setProfileOpen(false)}>Operations CRM</Link>
+                    </>
+                  )}
                   <hr className="my-1 border-gray-100" />
                   <button onClick={() => { logout(); setProfileOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
                     Sign Out
@@ -209,6 +215,12 @@ export default function Navbar() {
                 {mobileLink('/dashboard/admin/users', 'Manage Users')}
                 {mobileLink('/dashboard/admin/bookings', 'All Bookings')}
                 {mobileLink('/dashboard/admin/contacts', 'Support Tickets')}
+                {mobileLink('/crm', 'Operations CRM')}
+              </>
+            )}
+            {user?.role === 'employee' && (
+              <>
+                <p className="text-xs text-white/50 uppercase tracking-wider pt-4 pb-1">Operations</p>
                 {mobileLink('/crm', 'Operations CRM')}
               </>
             )}

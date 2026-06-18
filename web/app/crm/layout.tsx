@@ -12,14 +12,14 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'admin')) {
+    if (!loading && (!user || (user.role !== 'admin' && user.role !== 'employee'))) {
       router.push('/404');
     }
   }, [loading, user, router]);
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  if (loading || !user || user.role !== 'admin') {
+  if (loading || !user || (user.role !== 'admin' && user.role !== 'employee')) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-2 border-emerald-500 border-t-transparent"></div>
@@ -29,6 +29,7 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
 
   const isActive = (path: string) => pathname === path;
   const isActiveGroup = (path: string) => pathname.startsWith(path) && (pathname === path || pathname[path.length] === '/');
+  const isAdmin = user.role === 'admin';
 
   const navItem = (href: string, label: string, icon: string, exact = false) => {
     const active = exact ? isActive(href) : isActiveGroup(href);
@@ -80,7 +81,7 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-100">Operations</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest">Internal · Admin</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest">Internal · {isAdmin ? 'Admin' : 'Employee'}</p>
               </div>
             </div>
           </div>
@@ -96,14 +97,29 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
             {navItem('/crm/leads', 'Leads', '◉')}
             {navItem('/crm/tasks', 'Tasks', '☐')}
             {navItem('/crm/emails', 'Emails', '✉')}
+            <Link
+              href="/dashboard/admin/places"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                pathname === '/dashboard/admin/places'
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              <span className="text-base w-5 text-center">🏠</span>
+              <span>Sites</span>
+            </Link>
 
-            <p className="px-3 pt-4 pb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Hosts</p>
-            {navItem('/crm/hosts', 'Onboarding', '⊞')}
+            {isAdmin && (
+              <>
+                <p className="px-3 pt-4 pb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Hosts</p>
+                {navItem('/crm/hosts', 'Onboarding', '⊞')}
 
-            <p className="px-3 pt-4 pb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Tools</p>
-            {navItem('/crm/discover', 'Discover', '⊕')}
-            {navItem('/crm/content', 'Website Content', '✎')}
-            {navItem('/crm/settings', 'Settings', '⚙')}
+                <p className="px-3 pt-4 pb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Tools</p>
+                {navItem('/crm/discover', 'Discover', '⊕')}
+                {navItem('/crm/content', 'Website Content', '✎')}
+                {navItem('/crm/settings', 'Settings', '⚙')}
+              </>
+            )}
           </div>
 
           {/* Footer */}
