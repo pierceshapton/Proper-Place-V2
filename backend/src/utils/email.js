@@ -268,7 +268,7 @@ function emailShell({ headerBg = '#059669', title, intro, body, ctaHref, ctaLabe
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
           <tr>
             <td style="vertical-align: middle; padding-right: 10px;">
-              <img src="https://proper-place.co.uk/logo-192.png" width="28" height="28" alt="Proper Place" style="display: block; border: 0;" />
+              <img src="https://www.proper-place.co.uk/logo-192.png" width="28" height="28" alt="Proper Place" style="display: block; border: 0;" />
             </td>
             <td style="vertical-align: middle; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; font-weight: 700; color: #0f172a; letter-spacing: 0.2px;">
               Proper Place
@@ -319,7 +319,7 @@ async function sendHostNewBookingEmail({ hostEmail, hostName, guestName, booking
     ctaLabel: 'Review booking',
     footer: 'Payment is held (not taken) until you accept the request.',
   });
-  return sendBookingMail(hostEmail, `New booking request — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(hostEmail, `New booking request - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
 }
 
 /**
@@ -337,7 +337,7 @@ async function sendGuestBookingSubmittedEmail({ guestEmail, guestName, booking }
     ctaLabel: 'View booking',
     footer: 'You&rsquo;ll get another email as soon as the host confirms or declines.',
   });
-  return sendBookingMail(guestEmail, `Booking request received — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(guestEmail, `Booking request received - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
 }
 
 /**
@@ -355,7 +355,7 @@ async function sendGuestBookingConfirmedEmail({ guestEmail, guestName, booking }
     ctaLabel: 'View booking',
     footer: 'Have a great stay!',
   });
-  return sendBookingMail(guestEmail, `Booking confirmed — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(guestEmail, `Booking confirmed - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
 }
 
 /**
@@ -372,7 +372,7 @@ async function sendGuestBookingRejectedEmail({ guestEmail, guestName, booking })
     ctaLabel: 'Find another site',
     footer: 'Try booking a nearby alternative — plenty of hosts are available.',
   });
-  return sendBookingMail(guestEmail, `Booking not approved — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(guestEmail, `Booking not approved - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
 }
 
 /**
@@ -404,7 +404,7 @@ async function sendBookingCancelledEmail({ recipientEmail, recipientName, recipi
     ctaHref: `${APP_URL}/dashboard`,
     ctaLabel: 'View bookings',
   });
-  return sendBookingMail(recipientEmail, `Booking cancelled — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(recipientEmail, `Booking cancelled - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
 }
 
 module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendInviteEmail, sendSupportReplyEmail, sendHostDeletionRequestEmail, sendHostNewBookingEmail, sendGuestBookingSubmittedEmail, sendGuestBookingConfirmedEmail, sendGuestBookingRejectedEmail, sendBookingCancelledEmail, transporter };
