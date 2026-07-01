@@ -828,6 +828,49 @@ async function resetUserPassword(req, res, next) {
 }
 
 /**
+ * POST /admin/users/:id/send-password-reset
+ * Admin-only: generate a reset token and email the user a link to set a new password.
+ */
+async function sendPasswordResetEmailAction(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const userRes = await db.query('SELECT id, email, name FROM users WHERE id = $1', [id]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'user_not_found', message: 'User not found' });
+    }
+    const user = userRes.rows[0];
+
+    if (!user.email || user.email.endsWith('@noemail.properplace.internal')) {
+      return res.status(400).json({
+        error: 'no_email',
+        message: 'This user does not have a real email address on file. Add one first, then send the reset link.',
+      });
+    }
+
+    const crypto = require('crypto');
+    const resetToken = crypto.randomUUID();
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.query(
+      'UPDATE users SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
+      [resetToken, resetExpires, user.id]
+    );
+
+    const { sendPasswordResetEmail } = require('../utils/email');
+    sendPasswordResetEmail(user.email, resetToken).catch((err) => {
+      logger.error('Failed to send password reset email', { email: user.email, error: err.message });
+    });
+
+    logger.info('Admin sent password reset email', { adminId: req.user.userId, targetUser: user.email });
+    res.json({ message: `Password reset link sent to ${user.email}`, email: user.email });
+  } catch (error) {
+    logger.error('Admin send password reset error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
  * POST /admin/users/:id/verify
  * Admin-only: manually verify a user's email
  */
@@ -1200,6 +1243,7 @@ module.exports = {
   seedTestMessages,
   cleanupAllData,
   resetUserPassword,
+  sendPasswordResetEmailAction,
   verifyUser,
   unverifyUser,
   getHostApplications,

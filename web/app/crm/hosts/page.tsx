@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { adminApi, uploadApi, ApiError, placesApi, crmApi, type User, type Place } from '@/lib/api';
+import { adminApi, uploadApi, ApiError, placesApi, crmApi, type User, type Place, type CRMLead } from '@/lib/api';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
 const MAPS_LIBRARIES: ('places')[] = ['places'];
@@ -25,17 +26,52 @@ const APPROVAL_STATUSES = [
   { value: 'approved', label: 'Approved (live immediately)' },
 ];
 
-type Tab = 'site' | 'user' | 'search';
+type Tab = 'site' | 'user' | 'search' | 'hosts';
 
 export default function HostsOnboardingPage() {
+  const searchParams = useSearchParams();
+  const leadIdParam = searchParams.get('lead_id');
+  const leadId = leadIdParam ? parseInt(leadIdParam, 10) : null;
+
   const [tab, setTab] = useState<Tab>('site');
+  const [leadPrefill, setLeadPrefill] = useState<CRMLead | null>(null);
+  const [leadLoading, setLeadLoading] = useState(false);
+  const [leadError, setLeadError] = useState('');
+
+  useEffect(() => {
+    if (!leadId) return;
+    setTab('site');
+    setLeadLoading(true);
+    setLeadError('');
+    crmApi.getLead(leadId)
+      .then(res => setLeadPrefill(res.lead))
+      .catch(() => setLeadError('Could not load lead data — you can still create the site manually.'))
+      .finally(() => setLeadLoading(false));
+  }, [leadId]);
 
   return (
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-100">Host Onboarding</h1>
-        <p className="text-sm text-slate-500 mt-1">Create accounts and sites for hosts you're onboarding in person.</p>
+        <p className="text-sm text-slate-500 mt-1">Create accounts and sites for hosts you&apos;re onboarding in person.</p>
       </div>
+
+      {leadId && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3 text-sm">
+          {leadLoading && <span className="text-emerald-300">Loading lead data…</span>}
+          {leadError && <span className="text-red-400">{leadError}</span>}
+          {leadPrefill && (
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-emerald-200">
+                <span className="font-semibold">Creating site from lead:</span>{' '}
+                {leadPrefill.business_name || `${leadPrefill.first_name || ''} ${leadPrefill.last_name || ''}`.trim() || `Lead #${leadPrefill.id}`}
+                {leadPrefill.location && <span className="text-emerald-400/80"> · {leadPrefill.location}</span>}
+              </div>
+              <span className="text-[10px] uppercase tracking-wide text-emerald-400/70 flex-shrink-0">auto-fill enabled</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="flex gap-1 bg-slate-800/60 p-1 rounded-xl w-fit">
@@ -57,9 +93,15 @@ export default function HostsOnboardingPage() {
         >
           🔍 Search Sites
         </button>
+        <button
+          onClick={() => setTab('hosts')}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'hosts' ? 'bg-emerald-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+        >
+          👤 Search Hosts
+        </button>
       </div>
 
-      {tab === 'site' ? <CreateSitePanel /> : tab === 'user' ? <CreateUserPanel /> : <SearchSitesPanel />}
+      {tab === 'site' ? <CreateSitePanel leadPrefill={leadPrefill} /> : tab === 'user' ? <CreateUserPanel /> : tab === 'search' ? <SearchSitesPanel /> : <SearchHostsPanel />}
     </div>
   );
 }
@@ -67,11 +109,14 @@ export default function HostsOnboardingPage() {
 /* ─────────────────────────────────────────────
    CREATE SITE
 ───────────────────────────────────────────── */
-function CreateSitePanel() {
+function CreateSitePanel({ leadPrefill }: { leadPrefill?: CRMLead | null }) {
   const [userSearch, setUserSearch] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [creatingHost, setCreatingHost] = useState(false);
+  const [createHostError, setCreateHostError] = useState('');
+  const [createHostNotice, setCreateHostNotice] = useState('');
 
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,9 +135,46 @@ function CreateSitePanel() {
     searchDebounce.current = setTimeout(() => searchUsers(v), 300);
   };
 
+  const quickCreateHostFromLead = async () => {
+    if (!leadPrefill || creatingHost) return;
+    setCreateHostError('');
+    setCreateHostNotice('');
+    const contactName = `${leadPrefill.first_name || ''} ${leadPrefill.last_name || ''}`.trim()
+      || leadPrefill.business_name?.trim()
+      || '';
+    if (!contactName) {
+      setCreateHostError('Lead has no name — add one on the lead first.');
+      return;
+    }
+    setCreatingHost(true);
+    try {
+      const result = await adminApi.createUser({
+        name: contactName,
+        role: 'host',
+        ...(leadPrefill.email ? { email: leadPrefill.email } : {}),
+        ...(leadPrefill.phone ? { phone: leadPrefill.phone } : {}),
+      });
+      setSelectedUser(result.user);
+      if (result.invite_sent) {
+        setCreateHostNotice(`Host account created and invite email sent to ${result.user.email}.`);
+      } else if (result.otp_password) {
+        setCreateHostNotice(`Host account created. Temporary password: ${result.otp_password}`);
+      } else {
+        setCreateHostNotice('Host account created.');
+      }
+    } catch (err) {
+      setCreateHostError(err instanceof ApiError ? err.message : 'Failed to create host.');
+    } finally {
+      setCreatingHost(false);
+    }
+  };
+
   if (selectedUser) {
     return (
       <div className="space-y-4">
+        {createHostNotice && (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl text-sm">{createHostNotice}</div>
+        )}
         {/* Selected user banner */}
         <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
           <div className="flex items-center gap-3">
@@ -114,16 +196,52 @@ function CreateSitePanel() {
           </button>
         </div>
 
-        <PlaceForm ownerId={selectedUser.id} ownerName={selectedUser.name} />
+        <PlaceForm ownerId={selectedUser.id} ownerName={selectedUser.name} leadPrefill={leadPrefill} />
       </div>
     );
   }
 
+  const leadContactName = leadPrefill
+    ? `${leadPrefill.first_name || ''} ${leadPrefill.last_name || ''}`.trim() || leadPrefill.business_name || ''
+    : '';
+
   return (
     <div className="space-y-4">
+      {leadPrefill && leadContactName && (
+        <div className="bg-slate-900 border border-emerald-500/30 rounded-xl p-5 space-y-3">
+          <div>
+            <h2 className="text-base font-semibold text-slate-200">Quick-create host from lead</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              No account yet for this contact? Create one instantly using the lead&apos;s details, then continue straight to the site form.
+            </p>
+          </div>
+          <div className="text-xs text-slate-300 space-y-1 bg-slate-800/60 rounded-lg p-3">
+            <div><span className="text-slate-500">Name:</span> <span className="text-slate-100 font-medium">{leadContactName}</span></div>
+            {leadPrefill.email && <div><span className="text-slate-500">Email:</span> {leadPrefill.email}</div>}
+            {leadPrefill.phone && <div><span className="text-slate-500">Phone:</span> {leadPrefill.phone}</div>}
+            <div><span className="text-slate-500">Role:</span> <span className="text-emerald-400">host</span></div>
+          </div>
+          {createHostError && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-2 rounded-lg text-xs">{createHostError}</div>
+          )}
+          <button
+            type="button"
+            onClick={quickCreateHostFromLead}
+            disabled={creatingHost}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+          >
+            {creatingHost ? 'Creating host…' : '⚡ Create host from lead & continue'}
+          </button>
+        </div>
+      )}
+
+      {createHostNotice && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl text-sm">{createHostNotice}</div>
+      )}
+
       <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-3">
         <h2 className="text-base font-semibold text-slate-200">Search for existing user</h2>
-        <p className="text-xs text-slate-500">Type the host's name, username or email. If they don't have an account yet, use the "Create User" tab first.</p>
+        <p className="text-xs text-slate-500">Type the host&apos;s name, username or email. If they don&apos;t have an account yet, use the &quot;Create User&quot; tab first.</p>
 
         <div className="relative">
           <input
@@ -178,45 +296,193 @@ function CreateSitePanel() {
 /* ─────────────────────────────────────────────
    PLACE FORM
 ───────────────────────────────────────────── */
-function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string }) {
+const PLACE_TYPE_VALUES = PLACE_TYPES.map(t => t.value);
+
+function mapLeadPropertyTypeToPlaceType(pt: string | null | undefined): string {
+  if (!pt) return 'pub';
+  const normalized = pt.toLowerCase().trim();
+  if (PLACE_TYPE_VALUES.includes(normalized)) return normalized;
+  // Common aliases from CRM lead property_type
+  if (normalized.includes('pub')) return 'pub';
+  if (normalized.includes('farm')) return 'farm';
+  if (normalized.includes('vineyard') || normalized.includes('winery')) return 'vineyard';
+  if (normalized.includes('camp')) return 'campsite';
+  if (normalized.includes('coast') || normalized.includes('beach')) return 'coastal';
+  if (normalized.includes('wood') || normalized.includes('forest')) return 'woodland';
+  if (normalized.includes('garden') || normalized.includes('estate')) return 'garden';
+  return 'pub';
+}
+
+// Great-circle distance in kilometres (used for duplicate-site guard).
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Compact Google-style weekly opening hours into human-readable ranges.
+//   "Monday: 11:00 AM – 11:00 PM\nTuesday: 11:00 AM – 11:00 PM\n..." →
+//   "Mon–Sat 11am–11pm, Sun 12pm–10pm"
+function compactOpeningHours(text: string | null | undefined): string {
+  if (!text) return '';
+  const shortName: Record<string, string> = {
+    monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu',
+    friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
+  };
+  const order = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+  const simplifyTime = (t: string): string => {
+    const m = t.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+    if (!m) return t.trim();
+    const hour = m[1];
+    const mins = m[2];
+    const ap = (m[3] || '').toLowerCase();
+    const timeStr = mins && mins !== '00' ? `${hour}:${mins}` : hour;
+    return `${timeStr}${ap}`;
+  };
+
+  const normalizeHours = (hours: string): string => {
+    const h = hours.trim();
+    if (/closed/i.test(h)) return 'closed';
+    if (/open\s*24|24\s*hours?/i.test(h)) return '24hr';
+    const parts = h.split(/\s*[–—-]\s*/).map(p => p.trim());
+    if (parts.length !== 2) return h.toLowerCase();
+    return `${simplifyTime(parts[0])}–${simplifyTime(parts[1])}`;
+  };
+
+  const parsed: { day: string; hours: string }[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const m = line.match(/^([A-Za-z]+)\s*:?\s*(.+)$/);
+    if (!m) continue;
+    const dayKey = m[1].toLowerCase();
+    if (!shortName[dayKey]) continue;
+    parsed.push({ day: dayKey, hours: normalizeHours(m[2]) });
+  }
+  if (parsed.length === 0) return text.trim();
+
+  parsed.sort((a, b) => order.indexOf(a.day) - order.indexOf(b.day));
+
+  // Group consecutive days that share the same hours
+  const groups: { days: string[]; hours: string }[] = [];
+  for (const p of parsed) {
+    const last = groups[groups.length - 1];
+    const isConsecutive =
+      last &&
+      last.hours === p.hours &&
+      order.indexOf(p.day) === order.indexOf(last.days[last.days.length - 1]) + 1;
+    if (isConsecutive) {
+      last.days.push(p.day);
+    } else {
+      groups.push({ days: [p.day], hours: p.hours });
+    }
+  }
+
+  return groups
+    .map(g => {
+      const first = shortName[g.days[0]];
+      const last = shortName[g.days[g.days.length - 1]];
+      const range = g.days.length === 1 ? first : `${first}–${last}`;
+      return g.hours === 'closed' ? `${range} closed` : `${range} ${g.hours}`;
+    })
+    .join(', ');
+}
+
+// Human-sounding site description tailored to motorhome guests. Deliberately
+// avoids generic marketing words; leaves the copy in draft so it gets reviewed
+// before it goes live.
+function generateSiteDescription(lead: CRMLead): string {
+  const nameRaw = lead.business_name?.trim() || '';
+  const name = nameRaw || 'This spot';
+  const city = lead.location?.split(',')[0]?.trim() || '';
+  const cityBit = city ? ` in ${city}` : '';
+  const type = mapLeadPropertyTypeToPlaceType(lead.property_type);
+  const parking = lead.parking_spaces;
+  const parkingBit = parking && parking >= 2
+    ? ` There's room for around ${parking} motorhomes.`
+    : parking === 1
+      ? ' One motorhome fits comfortably.'
+      : '';
+  const ratingBit = lead.google_rating && lead.google_reviews_count
+    ? ` Locals rate it ${lead.google_rating}★ on Google (${lead.google_reviews_count} reviews).`
+    : lead.google_rating
+      ? ` Locals rate it ${lead.google_rating}★ on Google.`
+      : '';
+
+  const intros: Record<string, string> = {
+    pub: `${name} is a proper country pub${cityBit} that opens its car park to motorhomes for the night. Pop in for a pint or a bite to eat, then head back to the van for a quiet, secure stop before you carry on in the morning.`,
+    farm: `A working farm${cityBit} with plenty of level ground for motorhomes. Wake up to open fields and fresh air, well away from the noise of the road.`,
+    vineyard: `${name} welcomes motorhomes to park among the vines overnight${cityBit}. Cellar tours and tastings are usually available — just ask when you arrive.`,
+    campsite: `A relaxed campsite${cityBit} set up for motorhomes of every size. Level pitches, clean facilities, and a proper welcome from the owners.`,
+    coastal: `A cracking spot right by the coast${cityBit}, perfect for waking up to a sea view from your motorhome. Level parking, easy access, and stunning sunsets.`,
+    woodland: `A quiet woodland setting${cityBit} where motorhomes can park up for the night, tucked away from the noise of the road. Bring a book and enjoy the peace.`,
+    garden: `A private garden${cityBit} opening its gates to motorhomes for overnight stays. Beautiful surroundings and a warm host.`,
+    private_land: `Private land${cityBit} with generous space for motorhomes. A calm, out-of-the-way place to spend the night.`,
+    other: `${name}${cityBit} is a welcoming stop-off for motorhomes needing a safe place to park up for the night.`,
+  };
+
+  return `${intros[type] || intros.other}${parkingBit}${ratingBit}`.trim();
+}
+
+function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; ownerName: string; leadPrefill?: CRMLead | null }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const mapSearchRef = useRef<HTMLInputElement>(null);
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
-  const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(
+    leadPrefill?.latitude != null && leadPrefill?.longitude != null
+      ? { lat: Number(leadPrefill.latitude), lng: Number(leadPrefill.longitude) }
+      : null
+  );
   const [images, setImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [mainImage, setMainImage] = useState<File | null>(null);
   const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    address: '',
-    city: '',
-    postal_code: '',
-    country: 'GB',
-    latitude: '',
-    longitude: '',
-    price_per_night: '',
-    capacity: '',
-    place_type: 'pub',
-    opening_hours: '',
-    business_description: '',
-    access_route_description: '',
-    max_vehicle_height_m: '',
-    max_vehicle_width_m: '',
-    max_vehicle_length_m: '',
-    serves_food: false,
-    food_menu_description: '',
-    max_nights_per_stay: '',
-    approval_status: 'approved',
-    electric_hookup_available: false,
-    electric_hookup_capacity: '',
-    electric_hookup_price_per_night: '',
+  const [form, setForm] = useState(() => {
+    const prefillName = leadPrefill?.business_name
+      || `${leadPrefill?.first_name || ''} ${leadPrefill?.last_name || ''}`.trim()
+      || '';
+    return {
+      name: prefillName,
+      description: leadPrefill ? generateSiteDescription(leadPrefill) : '',
+      address: '',
+      city: '',
+      postal_code: '',
+      country: 'GB',
+      latitude: leadPrefill?.latitude != null ? String(leadPrefill.latitude) : '',
+      longitude: leadPrefill?.longitude != null ? String(leadPrefill.longitude) : '',
+      price_per_night: '',
+      capacity: leadPrefill?.parking_spaces != null ? String(leadPrefill.parking_spaces) : '',
+      place_type: mapLeadPropertyTypeToPlaceType(leadPrefill?.property_type),
+      opening_hours: compactOpeningHours(leadPrefill?.opening_hours_text),
+      business_description: '',
+      access_route_description: '',
+      max_vehicle_height_m: '',
+      max_vehicle_width_m: '',
+      max_vehicle_length_m: '',
+      serves_food: false,
+      food_menu_description: '',
+      max_nights_per_stay: '',
+      // Lead-sourced sites default to pending so the auto-generated description
+      // is reviewed before the listing goes live. Manual creates stay 'approved'.
+      approval_status: leadPrefill ? 'pending' : 'approved',
+      electric_hookup_available: false,
+      electric_hookup_capacity: '',
+      electric_hookup_price_per_night: '',
+    };
   });
   const [amenities, setAmenities] = useState<string[]>([]);
+
+  // Duplicate-site guard: if a place with the same name already exists within
+  // ~200m of the coordinates, warn the user so they can decide before creating.
+  const [duplicate, setDuplicate] = useState<Place | null>(null);
+  const [duplicateDismissed, setDuplicateDismissed] = useState(false);
 
   const f = (field: keyof typeof form, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
@@ -248,6 +514,88 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
     return () => window.google.maps.event.clearInstanceListeners(ac);
   }, [isLoaded]);
 
+  // Auto-lookup address details from the lead when pre-filling. Prefers the
+  // lead's google_place_id (unambiguous); falls back to a text search combining
+  // business name + location.
+  useEffect(() => {
+    if (!isLoaded || !leadPrefill) return;
+
+    const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+    const fields = ['address_components', 'geometry', 'formatted_address', 'name'];
+
+    const applyPlace = (place: google.maps.places.PlaceResult | null) => {
+      if (!place || !place.geometry?.location) return;
+      const get = (type: string, short = false) =>
+        place.address_components?.find(c => c.types.includes(type))?.[short ? 'short_name' : 'long_name'] ?? '';
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setMarkerPos({ lat, lng });
+      setForm(prev => ({
+        ...prev,
+        address: [get('street_number'), get('route')].filter(Boolean).join(' ') || place.formatted_address || prev.address,
+        city: get('postal_town') || get('locality') || get('administrative_area_level_2') || prev.city,
+        postal_code: get('postal_code') || prev.postal_code,
+        country: get('country', true) || prev.country || 'GB',
+        latitude: lat.toString(),
+        longitude: lng.toString(),
+      }));
+    };
+
+    if (leadPrefill.google_place_id) {
+      service.getDetails(
+        { placeId: leadPrefill.google_place_id, fields },
+        (place, status) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK) applyPlace(place);
+        }
+      );
+      return;
+    }
+
+    const businessName = leadPrefill.business_name
+      || `${leadPrefill.first_name || ''} ${leadPrefill.last_name || ''}`.trim();
+    const query = [businessName, leadPrefill.location].filter(Boolean).join(', ');
+    if (!query) return;
+
+    service.findPlaceFromQuery(
+      { query, fields: ['place_id'] },
+      (results, status) => {
+        if (status !== window.google.maps.places.PlacesServiceStatus.OK || !results?.[0]?.place_id) return;
+        service.getDetails(
+          { placeId: results[0].place_id!, fields },
+          (place, s) => {
+            if (s === window.google.maps.places.PlacesServiceStatus.OK) applyPlace(place);
+          }
+        );
+      }
+    );
+  }, [isLoaded, leadPrefill]);
+
+  // Duplicate-site guard: whenever we have a name + coordinates, ask the admin
+  // API for places matching the name and check whether any are within ~200m.
+  useEffect(() => {
+    const lat = parseFloat(form.latitude);
+    const lng = parseFloat(form.longitude);
+    if (!form.name || !isFinite(lat) || !isFinite(lng)) {
+      setDuplicate(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      adminApi.places({ search: form.name, limit: '20' })
+        .then(res => {
+          if (cancelled) return;
+          const match = (res.places || []).find(p => {
+            if (typeof p.latitude !== 'number' || typeof p.longitude !== 'number') return false;
+            return haversineKm(lat, lng, p.latitude, p.longitude) < 0.2;
+          });
+          setDuplicate(match || null);
+          if (!match) setDuplicateDismissed(false);
+        })
+        .catch(() => { if (!cancelled) setDuplicate(null); });
+    }, 500);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [form.name, form.latitude, form.longitude]);
+
   const addFiles = (files: File[]) => {
     const combined = [...images, ...files].slice(0, 10);
     setImages(combined);
@@ -276,6 +624,10 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
     setError('');
     setSuccess('');
     if (!form.name) { setError('Place name is required'); return; }
+    if (duplicate && !duplicateDismissed) {
+      setError(`A similar site already exists near this location. Click "Create anyway" on the warning banner to confirm.`);
+      return;
+    }
 
     setSaving(true);
     try {
@@ -318,7 +670,34 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
         uploadApi.placeImages(placeId, allImages).catch(() => {});
       }
 
-      setSuccess(`Site "${form.name}" created for ${ownerName}! It will appear in their app immediately.`);
+      // If this site was created from a CRM lead, link the place and move the lead
+      // to the appropriate pipeline stage:
+      //   approved  → converted   (Live)
+      //   pending   → negotiating (Listing process — awaiting approval)
+      //   draft     → negotiating (Listing process — draft)
+      let leadStageMessage = '';
+      if (leadPrefill?.id && placeId) {
+        const nextStage = form.approval_status === 'approved' ? 'converted' : 'negotiating';
+        const stageLabel = nextStage === 'converted' ? 'Live' : 'Listing process';
+        try {
+          await crmApi.updateLead(leadPrefill.id, {
+            pipeline_stage: nextStage,
+            place_id: placeId,
+          } as Partial<CRMLead>);
+          leadStageMessage = ` Lead moved to ${stageLabel}.`;
+        } catch {
+          leadStageMessage = ' (Site created, but the lead could not be updated automatically.)';
+        }
+        try {
+          await crmApi.createActivity(leadPrefill.id, {
+            activity_type: 'note',
+            title: `Site created: ${form.name}`,
+            description: `Linked site #${placeId} to this lead (${form.approval_status}).`,
+          });
+        } catch { /* activity is nice-to-have */ }
+      }
+
+      setSuccess(`Site "${form.name}" created for ${ownerName}! It will appear in their app immediately.${leadStageMessage}`);
       // Reset form
       setForm({
         name: '', description: '', address: '', city: '', postal_code: '', country: 'GB',
@@ -346,6 +725,29 @@ function PlaceForm({ ownerId, ownerName }: { ownerId: number; ownerName: string 
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-sm">{error}</div>}
       {success && <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl text-sm">{success}</div>}
+
+      {duplicate && !duplicateDismissed && (
+        <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl px-4 py-3 text-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-amber-200">
+              <p className="font-semibold">⚠️ Possible duplicate site</p>
+              <p className="text-amber-300/90 text-xs mt-1">
+                A site called <span className="font-semibold">{duplicate.name}</span>
+                {duplicate.city ? ` in ${duplicate.city}` : ''} already exists at this location
+                {' '}(owner: {duplicate.owner_name || `#${duplicate.owner_id}`}, status: {duplicate.approval_status || 'unknown'}).
+                {' '}Are you sure you want to create another?
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDuplicateDismissed(true)}
+              className="text-[11px] text-amber-300 hover:text-amber-100 px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 flex-shrink-0 whitespace-nowrap"
+            >
+              Create anyway
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Basic Info */}
       <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-4">
@@ -1241,6 +1643,186 @@ function SearchSitesPanel() {
 
       {!searching && query && results.length === 0 && (
         <p className="text-sm text-slate-500 px-1">No sites found for "{query}"</p>
+      )}
+    </div>
+  );
+}
+
+function SearchHostsPanel() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<User[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<{ name: string; email: string; phone: string }>({ name: '', email: '', phone: '' });
+  const [saving, setSaving] = useState(false);
+  const [rowMsg, setRowMsg] = useState<{ id: number; msg: string; kind: 'ok' | 'err' } | null>(null);
+  const [sendingReset, setSendingReset] = useState<number | null>(null);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const runSearch = (q: string) => {
+    setQuery(q);
+    if (debounce.current) clearTimeout(debounce.current);
+    if (!q.trim()) { setResults([]); return; }
+    debounce.current = setTimeout(() => {
+      setSearching(true);
+      adminApi.users({ role: 'host', search: q, limit: '25' })
+        .then(d => setResults(d.users || []))
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+  };
+
+  const loadAllHosts = () => {
+    setSearching(true);
+    adminApi.users({ role: 'host', limit: '25' })
+      .then(d => setResults(d.users || []))
+      .catch(() => setResults([]))
+      .finally(() => setSearching(false));
+  };
+
+  const openEdit = (u: User) => {
+    if (editingId === u.id) { setEditingId(null); return; }
+    setEditingId(u.id);
+    setRowMsg(null);
+    setEditForm({
+      name: u.name || '',
+      email: (u.email && !u.email.endsWith('@noemail.properplace.internal')) ? u.email : '',
+      phone: u.phone || u.phone_number || '',
+    });
+  };
+
+  const handleSave = async (id: number) => {
+    setSaving(true);
+    setRowMsg(null);
+    try {
+      const payload: { name?: string; email?: string; phone?: string } = {};
+      if (editForm.name.trim()) payload.name = editForm.name.trim();
+      if (editForm.email.trim()) payload.email = editForm.email.trim();
+      payload.phone = editForm.phone.trim() || undefined;
+      const res = await adminApi.updateUser(id, payload);
+      setResults(prev => prev.map(u => u.id === id ? { ...u, ...res.user } : u));
+      setRowMsg({ id, msg: 'Saved', kind: 'ok' });
+      setTimeout(() => setRowMsg(m => m && m.id === id ? null : m), 2500);
+    } catch (err) {
+      setRowMsg({ id, msg: err instanceof ApiError ? err.message : 'Failed to save', kind: 'err' });
+    }
+    setSaving(false);
+  };
+
+  const handleSendReset = async (id: number) => {
+    if (!confirm('Send a password reset email to this host?')) return;
+    setSendingReset(id);
+    setRowMsg(null);
+    try {
+      const res = await adminApi.sendPasswordResetEmail(id);
+      setRowMsg({ id, msg: res.message || `Reset email sent`, kind: 'ok' });
+      setTimeout(() => setRowMsg(m => m && m.id === id ? null : m), 3500);
+    } catch (err) {
+      setRowMsg({ id, msg: err instanceof ApiError ? err.message : 'Failed to send email', kind: 'err' });
+    }
+    setSendingReset(null);
+  };
+
+  const inp = 'w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600';
+  const lbl = 'block text-xs font-medium text-slate-400 mb-1';
+
+  const isPlaceholderEmail = (e?: string) => !!e && e.endsWith('@noemail.properplace.internal');
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3">
+        <input
+          type="text"
+          value={query}
+          onChange={e => runSearch(e.target.value)}
+          placeholder="Search hosts by name, email or username…"
+          className={inp}
+          autoFocus
+        />
+        <button
+          type="button"
+          onClick={loadAllHosts}
+          className="text-xs text-emerald-400 hover:text-emerald-300 underline"
+        >
+          Show recent hosts →
+        </button>
+      </div>
+
+      {searching && <p className="text-sm text-slate-500 px-1">Searching…</p>}
+
+      {results.length > 0 && (
+        <div className="space-y-2">
+          {results.map(u => {
+            const placeholder = isPlaceholderEmail(u.email);
+            return (
+              <div key={u.id} className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => openEdit(u)}
+                  className="w-full flex items-start justify-between gap-4 p-4 hover:bg-slate-800/60 transition-colors text-left"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-100 truncate">{u.name || u.username || `User #${u.id}`}</p>
+                    <p className="text-xs text-slate-400 truncate">
+                      {placeholder ? <span className="italic text-slate-500">no email on file</span> : u.email}
+                      {(u.phone || u.phone_number) && <span className="text-slate-500"> · {u.phone || u.phone_number}</span>}
+                    </p>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      @{u.username || '—'}
+                      {u.verified ? <span className="text-emerald-500/80"> · verified</span> : <span className="text-amber-500/80"> · unverified</span>}
+                      {typeof u.bookings_count === 'number' && u.bookings_count > 0 && <span className="text-slate-500"> · {u.bookings_count} bookings</span>}
+                    </p>
+                  </div>
+                  <span className="text-xs text-slate-600 shrink-0 mt-1">{editingId === u.id ? '▲ Close' : '▼ Edit'}</span>
+                </button>
+
+                {editingId === u.id && (
+                  <div className="border-t border-slate-700 p-5 space-y-4 bg-slate-950">
+                    {rowMsg && rowMsg.id === u.id && (
+                      <div className={`text-sm px-3 py-2 rounded-lg ${rowMsg.kind === 'ok' ? 'bg-emerald-900/40 text-emerald-300' : 'bg-red-900/40 text-red-300'}`}>
+                        {rowMsg.msg}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2"><label className={lbl}>Name</label><input className={inp} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} /></div>
+                      <div className="col-span-2">
+                        <label className={lbl}>Email {placeholder && <span className="text-amber-500/80">(placeholder — add a real address to enable password reset)</span>}</label>
+                        <input type="email" className={inp} value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} placeholder="host@example.com" />
+                      </div>
+                      <div className="col-span-2"><label className={lbl}>Phone</label><input type="tel" className={inp} value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+44…" /></div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSave(u.id)}
+                        disabled={saving}
+                        className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl text-sm"
+                      >
+                        {saving ? 'Saving…' : 'Save Changes'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSendReset(u.id)}
+                        disabled={sendingReset === u.id || placeholder}
+                        title={placeholder ? 'Add a real email address first' : 'Send password reset link'}
+                        className="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-100 border border-slate-600 font-semibold py-2.5 rounded-xl text-sm"
+                      >
+                        {sendingReset === u.id ? 'Sending…' : '✉ Send Password Reset Email'}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-600">The reset link expires in 1 hour and lets the host choose a new password.</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!searching && query && results.length === 0 && (
+        <p className="text-sm text-slate-500 px-1">No hosts found for &quot;{query}&quot;</p>
       )}
     </div>
   );

@@ -986,14 +986,24 @@ export default function LeadDetailPage() {
                       </div>
                     )}
                   </div>
-                  <a
-                    href={`/admin/places/${lead.linked_place.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block text-xs text-blue-400 hover:text-blue-300 mt-1"
-                  >
-                    View place in admin →
-                  </a>
+                  <div className="flex flex-wrap gap-3 mt-1">
+                    <a
+                      href={`/place/${lead.linked_place.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-emerald-400 hover:text-emerald-300"
+                    >
+                      View live listing ↗
+                    </a>
+                    <a
+                      href={`/admin/places/${lead.linked_place.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-blue-400 hover:text-blue-300"
+                    >
+                      View place in admin →
+                    </a>
+                  </div>
                 </div>
               ) : (
                 !placeSearchOpen && <p className="text-xs text-slate-500">No place linked yet. This lead has not been converted to an active listing.</p>

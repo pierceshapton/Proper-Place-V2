@@ -247,6 +247,8 @@ export const adminApi = {
   updateUserRole: (id: number, role: string) => api(`/admin/users/${id}/role`, { method: 'PATCH', body: { role } }),
   updateUser: (id: number, data: { name?: string; email?: string; phone?: string }) =>
     api<{ user: User }>(`/admin/users/${id}`, { method: 'PATCH', body: data }),
+  sendPasswordResetEmail: (id: number) =>
+    api<{ message: string; email: string }>(`/admin/users/${id}/send-password-reset`, { method: 'POST' }),
   deleteUser: (id: number) => api<{ message: string; booking_actions?: { cancelled: number; refundsAttempted: number } }>(`/admin/users/${id}`, { method: 'DELETE' }),
   hostApplications: (status?: string) => api<{ applications: HostApplication[] }>(`/admin/host-applications${status ? `?status=${status}` : ''}`),
   approveHostApplication: (id: number, adminNotes?: string) => api(`/admin/host-applications/${id}/approve`, { method: 'PATCH', body: { admin_notes: adminNotes || '' } }),

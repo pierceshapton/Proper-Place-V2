@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { crmApi, type CRMLead, type CRMStage, type CRMActivity, type CRMTask, type CRMSiteVisit, type CRMEmailLog } from '@/lib/api';
 import { stageColors, COLOR_HEX } from '@/lib/stageColors';
@@ -282,6 +283,7 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
   leadId: number; stages: CRMStage[]; onClose: () => void;
   onLeadUpdate?: (id: number, patch: Partial<CRMLead>) => void;
 }) {
+  const router = useRouter();
   const [lead, setLead] = useState<CRMLead | null>(null);
   const [activities, setActivities] = useState<CRMActivity[]>([]);
   const [tasks, setTasks] = useState<CRMTask[]>([]);
@@ -462,6 +464,43 @@ function LeadDetailModal({ leadId, stages, onClose, onLeadUpdate }: {
             </a>
           </div>
         )}
+
+        {/* Create Site action */}
+        <div className="mx-5 mt-3">
+          {lead.linked_place ? (
+            <div className="w-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 py-2.5 px-3 rounded-lg text-xs flex items-center justify-between gap-3">
+              <span className="min-w-0 truncate">
+                ✓ Site linked: <span className="font-semibold text-emerald-200">{lead.linked_place.name}</span>
+                {' · '}
+                <span className="text-emerald-400/80">{lead.linked_place.approval_status}</span>
+              </span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <a
+                  href={`/place/${lead.linked_place.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-300 hover:text-emerald-100 bg-emerald-500/20 hover:bg-emerald-500/30 px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap"
+                >
+                  View listing ↗
+                </a>
+                <Link
+                  href={`/admin/places/${lead.linked_place.id}`}
+                  className="text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap"
+                >
+                  Edit
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.push(`/crm/hosts?lead_id=${leadId}`)}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow"
+            >
+              🏠 Create Site for Host
+            </button>
+          )}
+        </div>
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-slate-800 px-5">

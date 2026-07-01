@@ -27,6 +27,7 @@ router.patch('/users/:id', adminController.updateUser);
 router.patch('/users/:id/role', adminController.updateUserRole);
 router.delete('/users/:id', adminController.deleteUser);
 router.post('/users/:id/reset-password', adminController.resetUserPassword);
+router.post('/users/:id/send-password-reset', adminController.sendPasswordResetEmailAction);
 router.post('/users/:id/verify', adminController.verifyUser);
 router.post('/users/:id/unverify', adminController.unverifyUser);
 
