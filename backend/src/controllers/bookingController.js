@@ -4,6 +4,13 @@ const pushService = require('../services/pushNotificationService');
 const autoMessageController = require('./autoMessageController');
 const crypto = require('crypto');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const {
+  sendHostNewBookingEmail,
+  sendGuestBookingSubmittedEmail,
+  sendGuestBookingConfirmedEmail,
+  sendGuestBookingRejectedEmail,
+  sendBookingCancelledEmail,
+} = require('../utils/email');
 
 /**
  * Generate a unique booking reference: PP-YYMMDD-XXXX
@@ -599,7 +606,7 @@ async function createBooking(req, res, next) {
       setImmediate(async () => {
         try {
           const placeRes = await db.query('SELECT name, owner_id FROM places WHERE id = $1', [data.place_id]);
-          const userRes = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
+          const userRes = await db.query('SELECT name, email FROM users WHERE id = $1', [userId]);
           if (placeRes.rows[0]?.owner_id) {
             await pushService.notifyNewBooking(
               placeRes.rows[0].owner_id,
@@ -608,13 +615,38 @@ async function createBooking(req, res, next) {
               result.rows[0].id
             );
 
+            // Email the host
+            const hostRow = await db.query(
+              'SELECT name, email, host_contract_accepted_at, stripe_account_id FROM users WHERE id = $1',
+              [placeRes.rows[0].owner_id]
+            );
+            const host = hostRow.rows[0];
+            if (host?.email) {
+              sendHostNewBookingEmail({
+                hostEmail: host.email,
+                hostName: host.name,
+                guestName: userRes.rows[0]?.name || 'A guest',
+                booking: {
+                  ...result.rows[0],
+                  place_name: placeRes.rows[0].name,
+                },
+              }).catch(err => logger.error('Host new booking email failed', { err: err.message }));
+            }
+
+            // Email the guest (submitted / pending)
+            if (userRes.rows[0]?.email) {
+              sendGuestBookingSubmittedEmail({
+                guestEmail: userRes.rows[0].email,
+                guestName: userRes.rows[0].name,
+                booking: {
+                  ...result.rows[0],
+                  place_name: placeRes.rows[0].name,
+                },
+              }).catch(err => logger.error('Guest submitted email failed', { err: err.message }));
+            }
+
             // If host hasn't completed contract or Stripe setup, nudge them now
             const hostId = placeRes.rows[0].owner_id;
-            const hostRes = await db.query(
-              'SELECT host_contract_accepted_at, stripe_account_id FROM users WHERE id = $1',
-              [hostId]
-            );
-            const host = hostRes.rows[0];
             const missingContract = !host?.host_contract_accepted_at;
             const missingStripe = !host?.stripe_account_id;
             if (missingContract || missingStripe) {
@@ -1361,6 +1393,14 @@ async function approveBooking(req, res, next) {
           type: 'booking_update',
           status: 'confirmed',
         });
+        const guestRow = await db.query('SELECT name, email FROM users WHERE id = $1', [booking.user_id]);
+        if (guestRow.rows[0]?.email) {
+          sendGuestBookingConfirmedEmail({
+            guestEmail: guestRow.rows[0].email,
+            guestName: guestRow.rows[0].name,
+            booking: { ...result.rows[0], place_name: booking.place_name },
+          }).catch(err => logger.error('Guest confirmed email failed', { err: err.message }));
+        }
       } catch (e) { /* ignore */ }
     });
 
@@ -1428,6 +1468,14 @@ async function rejectBooking(req, res, next) {
           type: 'booking_update',
           status: 'cancelled',
         });
+        const guestRow = await db.query('SELECT name, email FROM users WHERE id = $1', [booking.user_id]);
+        if (guestRow.rows[0]?.email) {
+          sendGuestBookingRejectedEmail({
+            guestEmail: guestRow.rows[0].email,
+            guestName: guestRow.rows[0].name,
+            booking: { ...result.rows[0], place_name: booking.place_name },
+          }).catch(err => logger.error('Guest rejected email failed', { err: err.message }));
+        }
       } catch (e) { /* ignore */ }
     });
 
@@ -1486,6 +1534,7 @@ async function cancelBooking(req, res, next) {
     }
 
     // Cancel/refund Stripe payment if applicable
+    let refundIssued = false;
     if (booking.payment_intent_id) {
       try {
         const pi = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
@@ -1495,8 +1544,9 @@ async function cancelBooking(req, res, next) {
         } else if (pi.status === 'succeeded') {
           // Already captured — issue refund
           await stripe.refunds.create({ payment_intent: booking.payment_intent_id });
+          refundIssued = true;
         }
-        logger.info('Stripe payment cancelled/refunded', { bookingId: id });
+        logger.info('Stripe payment cancelled/refunded', { bookingId: id, refundIssued });
       } catch (stripeErr) {
         logger.error('Stripe cancel/refund failed', { bookingId: id, error: stripeErr.message });
       }
@@ -1509,22 +1559,47 @@ async function cancelBooking(req, res, next) {
 
     logger.info('Booking cancelled', { userId, bookingId: id });
 
-    // Notify the other party (fire-and-forget)
+    // Notify + email both parties (fire-and-forget)
     setImmediate(async () => {
       try {
-        if (booking.user_id === userId) {
-          // Guest cancelled — notify host
-          const userRes = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
-          await pushService.sendToUser(booking.owner_id, 'Booking Cancelled', `${userRes.rows[0]?.name || 'A guest'} cancelled their booking at ${booking.place_name}`, {
+        const cancelledBy = userRole === 'admin' ? 'admin' : (booking.user_id === userId ? 'guest' : 'host');
+        const guestRow = await db.query('SELECT name, email FROM users WHERE id = $1', [booking.user_id]);
+        const hostRow = await db.query('SELECT name, email FROM users WHERE id = $1', [booking.owner_id]);
+        const bookingPayload = { ...result.rows[0], place_name: booking.place_name };
+
+        // Push to the "other party" (existing behaviour)
+        if (cancelledBy === 'guest') {
+          await pushService.sendToUser(booking.owner_id, 'Booking Cancelled', `${guestRow.rows[0]?.name || 'A guest'} cancelled their booking at ${booking.place_name}`, {
             type: 'booking_update',
             status: 'cancelled',
           });
         } else {
-          // Host cancelled — notify guest
           await pushService.sendToUser(booking.user_id, 'Booking Cancelled', `Your booking at ${booking.place_name} has been cancelled by the host.`, {
             type: 'booking_update',
             status: 'cancelled',
           });
+        }
+
+        // Email BOTH parties
+        if (guestRow.rows[0]?.email) {
+          sendBookingCancelledEmail({
+            recipientEmail: guestRow.rows[0].email,
+            recipientName: guestRow.rows[0].name,
+            recipientRole: 'guest',
+            cancelledBy,
+            booking: bookingPayload,
+            refundIssued,
+          }).catch(err => logger.error('Guest cancelled email failed', { err: err.message }));
+        }
+        if (hostRow.rows[0]?.email) {
+          sendBookingCancelledEmail({
+            recipientEmail: hostRow.rows[0].email,
+            recipientName: hostRow.rows[0].name,
+            recipientRole: 'host',
+            cancelledBy,
+            booking: bookingPayload,
+            refundIssued,
+          }).catch(err => logger.error('Host cancelled email failed', { err: err.message }));
         }
       } catch (e) { /* ignore */ }
     });

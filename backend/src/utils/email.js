@@ -219,7 +219,181 @@ async function sendHostDeletionRequestEmail(user) {
   return info;
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendInviteEmail, sendSupportReplyEmail, sendHostDeletionRequestEmail, transporter };
+/* ─────────────────────────────────────────────────────────────
+   Booking notification emails
+   ───────────────────────────────────────────────────────────── */
+
+const BOOKING_TEST_BCC = process.env.BOOKING_TEST_BCC || 'pierce.shapton@nookparcelbox.com';
+const APP_URL = process.env.APP_URL || 'https://proper-place.co.uk';
+
+function formatDate(d) {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  } catch { return String(d); }
+}
+
+function formatMoney(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '—';
+  return `£${v.toFixed(2)}`;
+}
+
+function bookingDetailsTable(b) {
+  const rows = [
+    ['Booking reference', b.booking_ref ? `<strong>${escapeHtml(b.booking_ref)}</strong>` : `#${b.id}`],
+    ['Site', escapeHtml(b.place_name || '')],
+    ['Check-in', formatDate(b.check_in_date)],
+    ['Check-out', formatDate(b.check_out_date)],
+    b.nights ? ['Nights', String(b.nights)] : null,
+    (b.total_price != null) ? ['Total', formatMoney(b.total_price)] : null,
+    b.van_registration ? ['Vehicle', escapeHtml(b.van_registration)] : null,
+    b.contact_phone ? ['Guest phone', escapeHtml(b.contact_phone)] : null,
+  ].filter(Boolean);
+  return `
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+      ${rows.map(([k, v]) => `
+        <tr>
+          <td style="padding: 8px 0; color: #6b7280; width: 40%;">${escapeHtml(k)}</td>
+          <td style="padding: 8px 0; color: #111827;">${v}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+}
+
+function emailShell({ headerBg = '#059669', title, intro, body, ctaHref, ctaLabel, footer }) {
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 0;">
+      <div style="background: ${headerBg}; color: white; padding: 18px 24px; border-radius: 8px 8px 0 0;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 600;">${title}</h2>
+      </div>
+      <div style="background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; padding: 28px 24px;">
+        <p style="color: #374151; margin: 0 0 8px; line-height: 1.55;">${intro}</p>
+        ${body || ''}
+        ${ctaHref ? `<a href="${ctaHref}" style="display: inline-block; background: ${headerBg}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; margin: 12px 0 4px;">${escapeHtml(ctaLabel || 'View details')}</a>` : ''}
+        <p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0; line-height: 1.5;">${footer || 'You&rsquo;re receiving this because of activity on your Proper Place account.'}</p>
+      </div>
+    </div>
+  `;
+}
+
+async function sendBookingMail(to, subject, html) {
+  const info = await transporter.sendMail({
+    from: `"Proper Place" <${process.env.SMTP_USER}>`,
+    to,
+    bcc: BOOKING_TEST_BCC,
+    subject,
+    html,
+  });
+  logger.info('Booking email sent', { to, subject, messageId: info.messageId });
+  return info;
+}
+
+/**
+ * Host receives a new booking request.
+ */
+async function sendHostNewBookingEmail({ hostEmail, hostName, guestName, booking }) {
+  if (!hostEmail || hostEmail.endsWith('@noemail.properplace.internal')) return null;
+  const html = emailShell({
+    headerBg: '#059669',
+    title: 'New Booking Request',
+    intro: `Hi ${escapeHtml(hostName || 'there')}, <strong>${escapeHtml(guestName || 'a guest')}</strong> has just requested to book <strong>${escapeHtml(booking.place_name || 'your site')}</strong>.`,
+    body: bookingDetailsTable(booking) +
+      `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">Please review and accept or decline within 7 days. If you don&rsquo;t respond, the hold on the guest&rsquo;s card is released automatically.</p>`,
+    ctaHref: `${APP_URL}/dashboard`,
+    ctaLabel: 'Review booking',
+    footer: 'Payment is held (not taken) until you accept the request.',
+  });
+  return sendBookingMail(hostEmail, `New booking request — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+}
+
+/**
+ * Guest gets a confirmation that their booking request was submitted (pending host approval).
+ */
+async function sendGuestBookingSubmittedEmail({ guestEmail, guestName, booking }) {
+  if (!guestEmail || guestEmail.endsWith('@noemail.properplace.internal')) return null;
+  const html = emailShell({
+    headerBg: '#1976D2',
+    title: 'Booking request submitted',
+    intro: `Hi ${escapeHtml(guestName || 'there')}, thanks for booking with Proper Place. Your request for <strong>${escapeHtml(booking.place_name || 'the site')}</strong> is now with the host for approval.`,
+    body: bookingDetailsTable(booking) +
+      `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">The host has up to 7 days to respond. Until then your card is authorised but not charged — if they don&rsquo;t respond in time, the hold is released automatically.</p>`,
+    ctaHref: `${APP_URL}/dashboard`,
+    ctaLabel: 'View booking',
+    footer: 'You&rsquo;ll get another email as soon as the host confirms or declines.',
+  });
+  return sendBookingMail(guestEmail, `Booking request received — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+}
+
+/**
+ * Guest gets an email when the host accepts the booking.
+ */
+async function sendGuestBookingConfirmedEmail({ guestEmail, guestName, booking }) {
+  if (!guestEmail || guestEmail.endsWith('@noemail.properplace.internal')) return null;
+  const html = emailShell({
+    headerBg: '#059669',
+    title: 'Booking confirmed 🎉',
+    intro: `Great news ${escapeHtml(guestName || '')} — your booking at <strong>${escapeHtml(booking.place_name || 'the site')}</strong> has been confirmed by the host.`,
+    body: bookingDetailsTable(booking) +
+      `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">Payment has been taken. You&rsquo;ll find directions, opening hours and any host instructions in the app.</p>`,
+    ctaHref: `${APP_URL}/dashboard`,
+    ctaLabel: 'View booking',
+    footer: 'Have a great stay!',
+  });
+  return sendBookingMail(guestEmail, `Booking confirmed — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+}
+
+/**
+ * Guest gets an email when the host declines the booking.
+ */
+async function sendGuestBookingRejectedEmail({ guestEmail, guestName, booking }) {
+  if (!guestEmail || guestEmail.endsWith('@noemail.properplace.internal')) return null;
+  const html = emailShell({
+    headerBg: '#b91c1c',
+    title: 'Booking not approved',
+    intro: `Hi ${escapeHtml(guestName || 'there')}, unfortunately the host wasn&rsquo;t able to approve your booking at <strong>${escapeHtml(booking.place_name || 'the site')}</strong>. No payment has been taken and any hold on your card has been released.`,
+    body: bookingDetailsTable(booking),
+    ctaHref: `${APP_URL}`,
+    ctaLabel: 'Find another site',
+    footer: 'Try booking a nearby alternative — plenty of hosts are available.',
+  });
+  return sendBookingMail(guestEmail, `Booking not approved — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+}
+
+/**
+ * Both parties get an email when a booking is cancelled.
+ * @param {'guest'|'host'|'admin'} cancelledBy - who initiated the cancellation
+ * @param {'guest'|'host'} recipientRole - who is receiving this copy
+ */
+async function sendBookingCancelledEmail({ recipientEmail, recipientName, recipientRole, cancelledBy, booking, refundIssued }) {
+  if (!recipientEmail || recipientEmail.endsWith('@noemail.properplace.internal')) return null;
+  const bySelf = cancelledBy === recipientRole;
+  const byLabel = cancelledBy === 'admin' ? 'Proper Place support' : (cancelledBy === 'guest' ? 'the guest' : 'the host');
+
+  let intro;
+  if (bySelf) {
+    intro = `Hi ${escapeHtml(recipientName || 'there')}, this confirms you&rsquo;ve cancelled the booking at <strong>${escapeHtml(booking.place_name || 'the site')}</strong>.`;
+  } else {
+    intro = `Hi ${escapeHtml(recipientName || 'there')}, the booking at <strong>${escapeHtml(booking.place_name || 'the site')}</strong> has been cancelled by ${byLabel}.`;
+  }
+
+  const refundNote = refundIssued
+    ? `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">${recipientRole === 'guest' ? 'A refund has been issued to your card. It usually appears within 5–10 working days.' : 'The guest&rsquo;s payment has been refunded.'}</p>`
+    : `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">No payment was taken, so nothing needs to be refunded.</p>`;
+
+  const html = emailShell({
+    headerBg: '#b91c1c',
+    title: 'Booking cancelled',
+    intro,
+    body: bookingDetailsTable(booking) + refundNote,
+    ctaHref: `${APP_URL}/dashboard`,
+    ctaLabel: 'View bookings',
+  });
+  return sendBookingMail(recipientEmail, `Booking cancelled — ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+}
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendInviteEmail, sendSupportReplyEmail, sendHostDeletionRequestEmail, sendHostNewBookingEmail, sendGuestBookingSubmittedEmail, sendGuestBookingConfirmedEmail, sendGuestBookingRejectedEmail, sendBookingCancelledEmail, transporter };
 
 function escapeHtml(str) {
   return String(str)
