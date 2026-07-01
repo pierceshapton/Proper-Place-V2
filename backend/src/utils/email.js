@@ -1,5 +1,9 @@
 const nodemailer = require('nodemailer');
+const path = require('path');
 const logger = require('./logger');
+
+const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo.png');
+const LOGO_CID = 'proper-place-logo';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp-relay.gmail.com',
@@ -268,7 +272,7 @@ function emailShell({ headerBg = '#059669', title, intro, body, ctaHref, ctaLabe
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
           <tr>
             <td style="vertical-align: middle; padding-right: 10px;">
-              <img src="https://www.proper-place.co.uk/logo-192.png" width="28" height="28" alt="Proper Place" style="display: block; border: 0;" />
+              <img src="cid:${LOGO_CID}" width="28" height="28" alt="Proper Place" style="display: block; border: 0;" />
             </td>
             <td style="vertical-align: middle; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; font-weight: 700; color: #0f172a; letter-spacing: 0.2px;">
               Proper Place
@@ -299,6 +303,14 @@ async function sendBookingMail(to, subject, html) {
     to,
     subject,
     html,
+    attachments: [
+      {
+        filename: 'logo.png',
+        path: LOGO_PATH,
+        cid: LOGO_CID,
+        contentDisposition: 'inline',
+      },
+    ],
   });
   logger.info('Booking email sent', { to, subject, messageId: info.messageId });
   return info;
