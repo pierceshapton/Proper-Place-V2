@@ -436,6 +436,35 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 4 error:', err.message);
     }
 
+    // Promote opening_hours / kitchen_hours to TEXT — Google-style opening hours
+    // strings routinely exceed the old VARCHAR(100) limit and were causing
+    // "value too long" errors when creating sites from CRM leads.
+    const migrationHoursText = `
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'places' AND column_name = 'opening_hours'
+            AND data_type = 'character varying'
+        ) THEN
+          ALTER TABLE places ALTER COLUMN opening_hours TYPE TEXT;
+        END IF;
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'places' AND column_name = 'kitchen_hours'
+            AND data_type = 'character varying'
+        ) THEN
+          ALTER TABLE places ALTER COLUMN kitchen_hours TYPE TEXT;
+        END IF;
+      END $$;
+    `;
+    try {
+      console.log('[SERVER] Running migration: promote opening_hours/kitchen_hours to TEXT...');
+      await db.query(migrationHoursText);
+      console.log('[SERVER] ✅ opening_hours/kitchen_hours are TEXT');
+    } catch (err) {
+      console.error('[SERVER] hours-to-text migration error:', err.message);
+    }
+
     // Always run migration 8 to create unavailable_periods table (for managing site unavailability)
     const migration8 = `
       CREATE TABLE IF NOT EXISTS unavailable_periods (
