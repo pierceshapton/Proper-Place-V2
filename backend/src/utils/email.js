@@ -197,7 +197,7 @@ async function sendHostDeletionRequestEmail(user) {
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 0;">
       <div style="background: #b91c1c; color: white; padding: 18px 24px; border-radius: 8px 8px 0 0;">
-        <h2 style="margin: 0; font-size: 17px; font-weight: 600;">⚠️ Host Account Deletion Request</h2>
+        <h2 style="margin: 0; font-size: 17px; font-weight: 600;">Host Account Deletion Request</h2>
       </div>
       <div style="background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; padding: 28px 24px;">
         <p style="color: #374151; margin: 0 0 20px;">A host has requested their account be deleted. Please review and process manually.</p>
@@ -359,7 +359,7 @@ async function sendGuestBookingConfirmedEmail({ guestEmail, guestName, booking }
   if (!guestEmail || guestEmail.endsWith('@noemail.properplace.internal')) return null;
   const html = emailShell({
     headerBg: '#059669',
-    title: 'Booking confirmed 🎉',
+    title: 'Booking confirmed',
     intro: `Great news ${escapeHtml(guestName || '')} — your booking at <strong>${escapeHtml(booking.place_name || 'the site')}</strong> has been confirmed by the host.`,
     body: bookingDetailsTable(booking) +
       `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">Payment has been taken. You&rsquo;ll find directions, opening hours and any host instructions in the app.</p>`,
