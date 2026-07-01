@@ -66,23 +66,41 @@ async function getDashboard(req, res, next) {
  */
 async function getPlacesForModeration(req, res, next) {
   try {
-    const { status = 'pending', page = 1, limit = 20 } = req.query;
+    const { status = 'pending', page = 1, limit = 20, search } = req.query;
     const offset = (page - 1) * limit;
+
+    const conditions = [];
+    const params = [];
+    let paramCount = 1;
+
+    if (status && status !== 'all') {
+      conditions.push(`p.approval_status = $${paramCount}`);
+      params.push(status);
+      paramCount++;
+    }
+
+    if (search && String(search).trim()) {
+      conditions.push(`(p.name ILIKE $${paramCount} OR p.address ILIKE $${paramCount} OR p.city ILIKE $${paramCount} OR u.name ILIKE $${paramCount} OR u.email ILIKE $${paramCount})`);
+      params.push(`%${String(search).trim()}%`);
+      paramCount++;
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await db.query(
       `SELECT p.*, u.name as owner_name, u.email as owner_email,
               u.host_contract_accepted_at, u.host_contract_version
        FROM places p
        JOIN users u ON p.owner_id = u.id
-       WHERE p.approval_status = $1
-       ORDER BY p.created_at ASC
-       LIMIT $2 OFFSET $3`,
-      [status, limit, offset]
+       ${where}
+       ORDER BY p.created_at DESC
+       LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
+      [...params, limit, offset]
     );
 
     const countResult = await db.query(
-      'SELECT COUNT(*) FROM places WHERE approval_status = $1',
-      [status]
+      `SELECT COUNT(*) FROM places p JOIN users u ON p.owner_id = u.id ${where}`,
+      params
     );
     const total = parseInt(countResult.rows[0].count);
 
@@ -192,6 +210,44 @@ async function rejectPlace(req, res, next) {
     });
   } catch (error) {
     logger.error('Reject place error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
+ * PATCH /admin/places/:id/visibility
+ * CRM: toggle a place's public map visibility without changing its approval status.
+ * Body: { hidden: boolean } — true sets status='unavailable' (hidden), false sets 'available'.
+ */
+async function setPlaceVisibility(req, res, next) {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.userId;
+    const hidden = !!req.body.hidden;
+    const newStatus = hidden ? 'unavailable' : 'available';
+
+    const result = await db.query(
+      `UPDATE places SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, status, approval_status`,
+      [newStatus, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'place_not_found', message: 'Place not found' });
+    }
+
+    await db.query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, hidden ? 'place_hidden' : 'place_shown', 'place', id, `status=${newStatus}`]
+    ).catch(() => {});
+
+    logger.info('Admin toggled place visibility', { adminId, placeId: id, status: newStatus });
+    res.json({
+      message: hidden ? 'Place hidden from public map' : 'Place restored to public map',
+      place: result.rows[0],
+    });
+  } catch (error) {
+    logger.error('Set place visibility error', { error: error.message });
     next(error);
   }
 }
@@ -1231,6 +1287,7 @@ module.exports = {
   getPlacesForModeration,
   approvePlace,
   rejectPlace,
+  setPlaceVisibility,
   reopenPlace,
   getUsers,
   getUserDetails,

@@ -235,6 +235,11 @@ export const adminApi = {
   },
   approvePlace: (id: number) => api(`/admin/places/${id}/approve`, { method: 'PATCH' }),
   rejectPlace: (id: number, reason: string) => api(`/admin/places/${id}/reject`, { method: 'PATCH', body: { reason } }),
+  setPlaceVisibility: (id: number, hidden: boolean) =>
+    api<{ message: string; place: { id: number; name: string; status: string; approval_status: string } }>(
+      `/admin/places/${id}/visibility`,
+      { method: 'PATCH', body: { hidden } }
+    ),
   createPlaceForUser: (data: Partial<Place> & { owner_id: number }) =>
     api<{ place: Place }>('/admin/places', { method: 'POST', body: data }),
   createUser: (data: { username?: string; name: string; email?: string; role?: string; phone?: string }) =>

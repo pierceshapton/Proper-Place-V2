@@ -32,6 +32,8 @@ export default function HostsOnboardingPage() {
   const searchParams = useSearchParams();
   const leadIdParam = searchParams.get('lead_id');
   const leadId = leadIdParam ? parseInt(leadIdParam, 10) : null;
+  const editPlaceParam = searchParams.get('edit_place');
+  const editPlaceId = editPlaceParam ? parseInt(editPlaceParam, 10) : null;
 
   const [tab, setTab] = useState<Tab>('site');
   const [leadPrefill, setLeadPrefill] = useState<CRMLead | null>(null);
@@ -48,6 +50,10 @@ export default function HostsOnboardingPage() {
       .catch(() => setLeadError('Could not load lead data — you can still create the site manually.'))
       .finally(() => setLeadLoading(false));
   }, [leadId]);
+
+  useEffect(() => {
+    if (editPlaceId) setTab('search');
+  }, [editPlaceId]);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -101,7 +107,7 @@ export default function HostsOnboardingPage() {
         </button>
       </div>
 
-      {tab === 'site' ? <CreateSitePanel leadPrefill={leadPrefill} /> : tab === 'user' ? <CreateUserPanel /> : tab === 'search' ? <SearchSitesPanel /> : <SearchHostsPanel />}
+      {tab === 'site' ? <CreateSitePanel leadPrefill={leadPrefill} /> : tab === 'user' ? <CreateUserPanel /> : tab === 'search' ? <SearchSitesPanel initialEditPlaceId={editPlaceId} /> : <SearchHostsPanel />}
     </div>
   );
 }
@@ -1301,7 +1307,7 @@ function CreateUserPanel() {
 ───────────────────────────────────────────── */
 type CRMPlace = { id: number; name: string; address: string; city: string; approval_status: string; place_type: string | null; price_per_night: number | null; owner_name: string; owner_email: string; owner_phone: string | null };
 
-function SearchSitesPanel() {
+function SearchSitesPanel({ initialEditPlaceId }: { initialEditPlaceId?: number | null } = {}) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CRMPlace[]>([]);
   const [searching, setSearching] = useState(false);
@@ -1319,6 +1325,11 @@ function SearchSitesPanel() {
 
   const ef = (field: string, value: unknown) =>
     setEditForm(prev => ({ ...prev, [field]: value }));
+
+  useEffect(() => {
+    if (initialEditPlaceId) openEdit(initialEditPlaceId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialEditPlaceId]);
 
   const search = (q: string) => {
     setQuery(q);
@@ -1345,6 +1356,19 @@ function SearchSitesPanel() {
         setEditPlace(p);
         setEditAmenities(p.amenities || []);
         setEditImageUrls(p.image_urls || []);
+        // If the place isn't in the results list yet (deep-link), inject a summary row.
+        setResults(prev => prev.find(r => r.id === id) ? prev : [{
+          id: p.id,
+          name: p.name || '',
+          address: p.address || '',
+          city: p.city || '',
+          approval_status: p.approval_status || 'pending',
+          place_type: p.place_type || null,
+          price_per_night: (p.price_per_night as number) ?? null,
+          owner_name: p.owner_name || '',
+          owner_email: p.owner_email || '',
+          owner_phone: null,
+        }, ...prev]);
         setEditForm({
           name: p.name || '',
           description: p.description || '',

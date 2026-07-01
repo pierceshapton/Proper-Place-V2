@@ -13,6 +13,7 @@ router.post('/places', crmMiddleware, adminController.createPlaceForUser);
 router.patch('/places/:id', crmMiddleware, adminController.updatePlace);
 router.patch('/places/:id/approve', crmMiddleware, adminController.approvePlace);
 router.patch('/places/:id/reject', crmMiddleware, adminController.rejectPlace);
+router.patch('/places/:id/visibility', crmMiddleware, adminController.setPlaceVisibility);
 
 // Everything below is admin-only
 router.use(adminMiddleware);
