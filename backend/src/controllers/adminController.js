@@ -253,6 +253,63 @@ async function setPlaceVisibility(req, res, next) {
 }
 
 /**
+ * POST /admin/test-booking-emails
+ * Send a set of sample booking-related emails to an address so admins can preview the templates.
+ * Body: { email?: string } — defaults to pierce.shapton@nookparcelbox.com
+ */
+async function sendSampleBookingEmails(req, res, next) {
+  try {
+    const target = (req.body?.email || 'pierce.shapton@nookparcelbox.com').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+      return res.status(400).json({ error: 'invalid_email', message: 'Please provide a valid email address.' });
+    }
+
+    const {
+      sendHostNewBookingEmail,
+      sendGuestBookingSubmittedEmail,
+      sendGuestBookingConfirmedEmail,
+      sendGuestBookingRejectedEmail,
+      sendBookingCancelledEmail,
+    } = require('../utils/email');
+
+    const sample = {
+      id: 9999,
+      booking_ref: 'PP-260701-TEST',
+      place_name: 'The Old Barn (sample)',
+      check_in_date: '2026-08-14',
+      check_out_date: '2026-08-16',
+      nights: 2,
+      total_price: 45.00,
+      van_registration: 'AB12 CDE',
+      contact_phone: '+44 7700 900123',
+    };
+
+    const results = [];
+    const run = async (label, fn) => {
+      try {
+        await fn();
+        results.push({ label, ok: true });
+      } catch (err) {
+        results.push({ label, ok: false, error: err.message });
+      }
+    };
+
+    await run('host_new_booking', () => sendHostNewBookingEmail({ hostEmail: target, hostName: 'Sample Host', guestName: 'Alex Guest', booking: sample }));
+    await run('guest_submitted', () => sendGuestBookingSubmittedEmail({ guestEmail: target, guestName: 'Alex Guest', booking: sample }));
+    await run('guest_confirmed', () => sendGuestBookingConfirmedEmail({ guestEmail: target, guestName: 'Alex Guest', booking: sample }));
+    await run('guest_rejected', () => sendGuestBookingRejectedEmail({ guestEmail: target, guestName: 'Alex Guest', booking: sample }));
+    await run('cancelled_guest_copy', () => sendBookingCancelledEmail({ recipientEmail: target, recipientName: 'Alex Guest', recipientRole: 'guest', cancelledBy: 'host', booking: sample, refundIssued: true }));
+
+    const sentCount = results.filter(r => r.ok).length;
+    logger.info('Sample booking emails sent', { adminId: req.user.userId, target, sentCount });
+    res.json({ message: `Sent ${sentCount} of ${results.length} sample emails to ${target}`, target, results });
+  } catch (error) {
+    logger.error('Sample booking emails error', { error: error.message });
+    next(error);
+  }
+}
+
+/**
  * GET /admin/users
  */
 async function getUsers(req, res, next) {
@@ -1288,6 +1345,7 @@ module.exports = {
   approvePlace,
   rejectPlace,
   setPlaceVisibility,
+  sendSampleBookingEmails,
   reopenPlace,
   getUsers,
   getUserDetails,

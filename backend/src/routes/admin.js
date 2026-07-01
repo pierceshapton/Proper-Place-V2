@@ -35,6 +35,9 @@ router.post('/users/:id/unverify', adminController.unverifyUser);
 // Seed test data (for demo/testing)
 router.post('/seed-test-messages', adminController.seedTestMessages);
 
+// Send a set of sample booking emails to a target address (for previewing templates)
+router.post('/test-booking-emails', adminController.sendSampleBookingEmails);
+
 // Cleanup all mock data (WARNING: Destructive!)
 router.delete('/cleanup-all', adminController.cleanupAllData);
 

@@ -223,7 +223,6 @@ async function sendHostDeletionRequestEmail(user) {
    Booking notification emails
    ───────────────────────────────────────────────────────────── */
 
-const BOOKING_TEST_BCC = process.env.BOOKING_TEST_BCC || 'pierce.shapton@nookparcelbox.com';
 const APP_URL = process.env.APP_URL || 'https://proper-place.co.uk';
 
 function formatDate(d) {
@@ -282,7 +281,6 @@ async function sendBookingMail(to, subject, html) {
   const info = await transporter.sendMail({
     from: `"Proper Place" <${process.env.SMTP_USER}>`,
     to,
-    bcc: BOOKING_TEST_BCC,
     subject,
     html,
   });

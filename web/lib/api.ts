@@ -254,6 +254,11 @@ export const adminApi = {
     api<{ user: User }>(`/admin/users/${id}`, { method: 'PATCH', body: data }),
   sendPasswordResetEmail: (id: number) =>
     api<{ message: string; email: string }>(`/admin/users/${id}/send-password-reset`, { method: 'POST' }),
+  sendSampleBookingEmails: (email: string) =>
+    api<{ message: string; target: string; results: { label: string; ok: boolean; error?: string }[] }>(
+      '/admin/test-booking-emails',
+      { method: 'POST', body: { email } }
+    ),
   deleteUser: (id: number) => api<{ message: string; booking_actions?: { cancelled: number; refundsAttempted: number } }>(`/admin/users/${id}`, { method: 'DELETE' }),
   hostApplications: (status?: string) => api<{ applications: HostApplication[] }>(`/admin/host-applications${status ? `?status=${status}` : ''}`),
   approveHostApplication: (id: number, adminNotes?: string) => api(`/admin/host-applications/${id}/approve`, { method: 'PATCH', body: { admin_notes: adminNotes || '' } }),

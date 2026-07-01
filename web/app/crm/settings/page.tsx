@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { crmApi, type CRMStage, type CRMCustomField } from '@/lib/api';
+import { crmApi, adminApi, ApiError, type CRMStage, type CRMCustomField } from '@/lib/api';
 import { AVAILABLE_COLORS, COLOR_MAP, COLOR_GROUPS, COLOR_HEX, FIELD_TYPE_BADGES } from '@/lib/stageColors';
 
 type Tab = 'stages' | 'fields' | 'general';
@@ -412,9 +412,63 @@ export default function SettingsPage() {
                 </button>
                 {settingsSaved && <span className="text-xs text-emerald-400">✓ Saved</span>}
               </div>
+
+              {/* Sample booking email previews */}
+              <SampleBookingEmailsPanel />
             </>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function SampleBookingEmailsPanel() {
+  const [email, setEmail] = useState('pierce.shapton@nookparcelbox.com');
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const send = async () => {
+    setSending(true);
+    setMsg(null);
+    try {
+      const res = await adminApi.sendSampleBookingEmails(email.trim());
+      const failed = res.results.filter(r => !r.ok);
+      if (failed.length) {
+        setMsg({ ok: false, text: `${res.message}. Failed: ${failed.map(f => `${f.label} (${f.error})`).join(', ')}` });
+      } else {
+        setMsg({ ok: true, text: res.message });
+      }
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof ApiError ? err.message : 'Failed to send' });
+    }
+    setSending(false);
+  };
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+      <div>
+        <label className="block text-sm font-medium text-slate-200 mb-0.5">Preview booking emails</label>
+        <p className="text-xs text-slate-500 mb-2">Sends one of each booking template (new request, submitted, confirmed, rejected, cancelled) to the address below.</p>
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+        />
+        <button
+          onClick={send}
+          disabled={sending || !email.trim()}
+          className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap"
+        >
+          {sending ? 'Sending…' : 'Send 5 samples'}
+        </button>
+      </div>
+      {msg && (
+        <p className={`text-xs ${msg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{msg.text}</p>
       )}
     </div>
   );
