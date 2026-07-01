@@ -264,7 +264,19 @@ function bookingDetailsTable(b) {
 function emailShell({ headerBg = '#059669', title, intro, body, ctaHref, ctaLabel, footer }) {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 0;">
-      <div style="background: ${headerBg}; color: white; padding: 18px 24px; border-radius: 8px 8px 0 0;">
+      <div style="background: #ffffff; border: 1px solid #e5e7eb; border-bottom: none; border-radius: 8px 8px 0 0; padding: 14px 20px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+          <tr>
+            <td style="vertical-align: middle; padding-right: 10px;">
+              <img src="https://proper-place.co.uk/logo-192.png" width="28" height="28" alt="Proper Place" style="display: block; border: 0;" />
+            </td>
+            <td style="vertical-align: middle; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; font-weight: 700; color: #0f172a; letter-spacing: 0.2px;">
+              Proper Place
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div style="background: ${headerBg}; color: white; padding: 16px 24px;">
         <h2 style="margin: 0; font-size: 17px; font-weight: 600;">${title}</h2>
       </div>
       <div style="background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; padding: 28px 24px;">
@@ -273,6 +285,10 @@ function emailShell({ headerBg = '#059669', title, intro, body, ctaHref, ctaLabe
         ${ctaHref ? `<a href="${ctaHref}" style="display: inline-block; background: ${headerBg}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; margin: 12px 0 4px;">${escapeHtml(ctaLabel || 'View details')}</a>` : ''}
         <p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0; line-height: 1.5;">${footer || 'You&rsquo;re receiving this because of activity on your Proper Place account.'}</p>
       </div>
+      <p style="text-align: center; color: #94a3b8; font-size: 11px; margin: 14px 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <a href="https://proper-place.co.uk" style="color: #64748b; text-decoration: none;">proper-place.co.uk</a>
+        &nbsp;·&nbsp; A Proper Place Limited, London
+      </p>
     </div>
   `;
 }
