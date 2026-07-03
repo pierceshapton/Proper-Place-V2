@@ -1200,7 +1200,7 @@ async function createUserAsAdmin(req, res, next) {
     let inviteSent = false;
     if (!emailIsPlaceholder && inviteToken) {
       const { sendInviteEmail } = require('../utils/email');
-      sendInviteEmail(finalEmail, user.name, inviteToken).catch((err) => {
+      sendInviteEmail(finalEmail, user.name, inviteToken, user.username).catch((err) => {
         logger.error('Failed to send invite email', { email: finalEmail, error: err.message });
       });
       inviteSent = true;

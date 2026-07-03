@@ -105,32 +105,51 @@ async function sendPasswordResetEmail(to, token) {
  * @param {string} name – recipient's name
  * @param {string} token – password_reset_token (UUID)
  */
-async function sendInviteEmail(to, name, token) {
+async function sendInviteEmail(to, name, token, username) {
   const frontendUrl = process.env.FRONTEND_URL || 'https://proper-place.co.uk';
   const inviteUrl = `${frontendUrl}/set-password?token=${encodeURIComponent(token)}`;
   const firstName = (name || 'there').split(' ')[0];
+  const usernameBlock = username
+    ? `
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin: 0 0 24px;">
+          <p style="color: #64748b; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 4px;">Your username</p>
+          <p style="color: #0f172a; font-size: 15px; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0;">${escapeHtml(username)}</p>
+          <p style="color: #94a3b8; font-size: 12px; margin: 6px 0 0;">Keep this handy — you'll use it to sign in.</p>
+        </div>`
+    : '';
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 0;">
-      <div style="background: #0f172a; border-radius: 12px 12px 0 0; padding: 28px 32px;">
-        <p style="color: #10b981; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 8px;">Proper Place</p>
-        <h1 style="color: #f1f5f9; font-size: 22px; font-weight: 700; margin: 0;">You're invited to the team</h1>
+      <div style="background: #0f172a; border-radius: 12px 12px 0 0; padding: 24px 32px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin: 0 0 14px;">
+          <tr>
+            <td style="vertical-align: middle; padding-right: 10px;">
+              <img src="cid:${LOGO_CID}" width="30" height="30" alt="Proper Place" style="display: block; border: 0; border-radius: 6px;" />
+            </td>
+            <td style="vertical-align: middle; color: #10b981; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+              Proper Place
+            </td>
+          </tr>
+        </table>
+        <h1 style="color: #f1f5f9; font-size: 22px; font-weight: 700; margin: 0;">Welcome to Proper Place</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin: 6px 0 0;">Your account has been created — let's get you set up.</p>
       </div>
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
         <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
           Hi ${escapeHtml(firstName)},
         </p>
         <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-          An admin has created a <strong>Proper Place</strong> account for you. Click the button below to set your password and get started.
+          An admin has created a <strong>Proper Place</strong> account for you. Choose your password below to finish setting up.
         </p>
-        <div style="text-align: center; margin: 32px 0;">
+        ${usernameBlock}
+        <div style="text-align: center; margin: 24px 0 8px;">
           <a href="${inviteUrl}"
              style="display: inline-block; background: #10b981; color: #ffffff; text-decoration: none;
                     padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600;">
             Set my password
           </a>
         </div>
-        <p style="color: #6b7280; font-size: 13px; line-height: 1.5; margin: 0 0 8px;">
+        <p style="color: #6b7280; font-size: 13px; line-height: 1.5; margin: 20px 0 8px;">
           This link expires in <strong>7 days</strong>. If the button doesn't work, copy and paste this link:
         </p>
         <p style="color: #6b7280; font-size: 12px; word-break: break-all; margin: 0 0 24px;">
@@ -140,14 +159,26 @@ async function sendInviteEmail(to, name, token) {
           If you weren't expecting this, you can safely ignore it. — The Proper Place Team
         </p>
       </div>
+      <p style="text-align: center; color: #94a3b8; font-size: 11px; margin: 14px 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <a href="https://proper-place.co.uk" style="color: #64748b; text-decoration: none;">proper-place.co.uk</a>
+        &nbsp;·&nbsp; A Proper Place Limited, London
+      </p>
     </div>
   `;
 
   const info = await transporter.sendMail({
     from: `"Proper Place" <${process.env.SMTP_USER}>`,
     to,
-    subject: 'You\'ve been invited to Proper Place',
+    subject: 'Welcome to Proper Place - set your password',
     html,
+    attachments: [
+      {
+        filename: 'logo.png',
+        path: LOGO_PATH,
+        cid: LOGO_CID,
+        contentDisposition: 'inline',
+      },
+    ],
   });
 
   logger.info('Invite email sent', { to, messageId: info.messageId });
