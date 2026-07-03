@@ -139,7 +139,10 @@ async function sendInviteEmail(to, name, token, username) {
           Hi ${escapeHtml(firstName)},
         </p>
         <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-          An admin has created a <strong>Proper Place</strong> account for you. Choose your password below to finish setting up.
+          You have been signed up to <strong>Proper Place</strong>, your new motorhome stopover platform. Please click <strong>Set my password</strong> below to log in to the system.
+        </p>
+        <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+          Great to have you on board!
         </p>
         ${usernameBlock}
         <div style="text-align: center; margin: 24px 0 8px;">
