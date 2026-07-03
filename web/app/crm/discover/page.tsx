@@ -528,7 +528,7 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-7xl">
+    <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold text-slate-100">Discover Leads</h1>
         <p className="text-sm text-slate-500 mt-1">Location identification matched against your pipeline</p>

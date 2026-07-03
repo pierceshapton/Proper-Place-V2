@@ -166,7 +166,7 @@ export default function EmailsPage() {
   const mergeFields = ['{{first_name}}', '{{last_name}}', '{{business_name}}', '{{location}}', '{{property_type}}'];
 
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-100">Email Templates</h1>
         <button onClick={() => { setShowAdd(true); setEditingId(null); setShowPreview(false); setForm({ name: '', subject: '', body: '', template_type: 'outreach' }); }}

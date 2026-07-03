@@ -314,7 +314,7 @@ export default function LeadDetailPage() {
   const displayName = lead.business_name || `${lead.first_name} ${lead.last_name}`.trim() || 'Unnamed Lead';
 
   return (
-    <div className="space-y-4 max-w-6xl">
+    <div className="space-y-4">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-slate-500">
         <Link href="/crm/leads" className="hover:text-slate-300">Leads</Link>

@@ -56,7 +56,7 @@ export default function HostsOnboardingPage() {
   }, [editPlaceId]);
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-100">Host Onboarding</h1>
         <p className="text-sm text-slate-500 mt-1">Create accounts and sites for hosts you&apos;re onboarding in person.</p>

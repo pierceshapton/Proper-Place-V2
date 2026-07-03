@@ -62,7 +62,7 @@ export default function TasksPage() {
   const orderedTasks = filter === 'completed' ? completed : [...overdue, ...upcoming, ...noDue];
 
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-100">Tasks</h1>
         <button onClick={() => setShowAdd(!showAdd)} className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">

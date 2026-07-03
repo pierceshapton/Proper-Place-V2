@@ -292,7 +292,7 @@ export default function SettingsPage() {
   const sortedFields = [...fields].sort((a, b) => a.sort_order - b.sort_order);
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold text-slate-100">CRM Settings</h1>
         <p className="text-sm text-slate-500 mt-0.5">Customise your pipeline, fields, and preferences</p>
