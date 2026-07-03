@@ -3,10 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useJsApiLoader } from '@react-google-maps/api';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LOADER_ID, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMaps';
 import { adminApi, uploadApi, ApiError, placesApi, crmApi, type User, type Place, type CRMLead } from '@/lib/api';
 
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
-const MAPS_LIBRARIES: ('places')[] = ['places'];
+
 
 const PLACE_TYPES = [
   { value: 'private_land', label: 'Private Land' },
@@ -439,7 +439,7 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const mapSearchRef = useRef<HTMLInputElement>(null);
-  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
+  const { isLoaded } = useJsApiLoader({ id: GOOGLE_MAPS_LOADER_ID, googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
   const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(
     leadPrefill?.latitude != null && leadPrefill?.longitude != null
       ? { lat: Number(leadPrefill.latitude), lng: Number(leadPrefill.longitude) }

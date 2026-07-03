@@ -5,8 +5,7 @@ import { crmApi, type CRMAutomationStatus, type CRMLead } from '@/lib/api';
 import { buildDiscoveryProfile, scoreCandidate, type CandidatePlace, type ScoredCandidate } from '@/lib/discoveryScoring';
 import { computeLearningMetrics, type DiscoveryFeedbackItem } from '@/lib/discoveryLearning';
 import type { SiteAnalysisResult } from '@/lib/discoverySiteAnalysis';
-
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMaps';
 
 export default function DiscoverPage() {
   const [leads, setLeads] = useState<CRMLead[]>([]);

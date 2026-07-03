@@ -4,9 +4,10 @@ import { Fragment, useEffect, useMemo, useRef, useState, useCallback } from 'rea
 import Link from 'next/link';
 import { adminApi, placesApi, ApiError, type Place } from '@/lib/api';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LOADER_ID, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMaps';
 import ReasonModal from '@/components/ReasonModal';
 
-const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
+
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'draft';
 
@@ -23,7 +24,7 @@ export default function AdminPlacesPage() {
   const [rowNotice, setRowNotice] = useState<{ id: number; msg: string; kind: 'ok' | 'err' } | null>(null);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: MAPS_KEY, libraries: ['places'] });
+  const { isLoaded } = useJsApiLoader({ id: GOOGLE_MAPS_LOADER_ID, googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
 
   const load = useCallback(async (opts?: { status?: StatusFilter; search?: string }) => {
     setLoading(true);

@@ -3,10 +3,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LOADER_ID, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMaps';
 import { placesApi, uploadApi, ApiError, type Place } from '@/lib/api';
 
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBqXtdl4q7VW4PEbK2dKsdouT1d_35WTy0';
-const MAPS_LIBRARIES: ('places')[] = ['places'];
+
 
 const PLACE_TYPES = [
   { value: 'private_land', label: 'Private Land' },
@@ -29,7 +29,7 @@ export default function EditPlacePage() {
   const [success, setSuccess] = useState('');
   const addressInputRef = useRef<HTMLInputElement>(null);
   const mapSearchRef = useRef<HTMLInputElement>(null);
-  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
+  const { isLoaded } = useJsApiLoader({ id: GOOGLE_MAPS_LOADER_ID, googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
   const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 54.5, lng: -2.5 });
   const [mapZoom, setMapZoom] = useState(6);
