@@ -126,7 +126,7 @@ async function sendInviteEmail(to, name, token, username) {
             <td style="vertical-align: middle; padding-right: 10px;">
               <img src="cid:${LOGO_CID}" width="30" height="30" alt="Proper Place" style="display: block; border: 0; border-radius: 6px;" />
             </td>
-            <td style="vertical-align: middle; color: #10b981; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <td style="vertical-align: middle; color: #5B8FC4; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
               Proper Place
             </td>
           </tr>
