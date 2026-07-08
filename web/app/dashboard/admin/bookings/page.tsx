@@ -77,7 +77,7 @@ export default function AdminBookingsPage() {
                 <td className="py-3 px-4 text-sm text-gray-900">{b.user?.name || b.guest_name || `User #${b.user_id}`}</td>
                 <td className="py-3 px-4 text-sm text-gray-900">{b.place?.name || b.place_name || `Place #${b.place_id}`}</td>
                 <td className="py-3 px-4 text-sm text-gray-500">
-                  {new Date(b.check_in_date || b.check_in).toLocaleDateString()} — {new Date(b.check_out_date || b.check_out).toLocaleDateString()}
+                  {new Date(b.check_in_date || b.check_in).toLocaleDateString()} - {new Date(b.check_out_date || b.check_out).toLocaleDateString()}
                 </td>
                 <td className="py-3 px-4 text-sm font-semibold text-gray-900">£{Number(b.total_price).toFixed(2)}</td>
                 <td className="py-3 px-4">

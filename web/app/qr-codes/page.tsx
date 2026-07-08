@@ -100,7 +100,7 @@ function QRCard({ qr }: { qr: typeof qrCodes[0] }) {
         </head>
         <body>
           <h1>Proper Place</h1>
-          <p>${qr.id === 'host-recruitment' ? 'Become a Host — Scan to Register' : 'Download the App — Scan to Get Started'}</p>
+          <p>${qr.id === 'host-recruitment' ? 'Become a Host - Scan to Register' : 'Download the App - Scan to Get Started'}</p>
           ${svgData}
           <p class="url">${qr.url}</p>
         </body>

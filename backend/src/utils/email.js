@@ -18,8 +18,8 @@ const transporter = nodemailer.createTransport({
 
 /**
  * Send an email verification link.
- * @param {string} to – recipient email
- * @param {string} token – verification token (UUID)
+ * @param {string} to - recipient email
+ * @param {string} token - verification token (UUID)
  */
 async function sendVerificationEmail(to, token) {
   const baseUrl = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
@@ -59,8 +59,8 @@ async function sendVerificationEmail(to, token) {
 
 /**
  * Send a password reset link.
- * @param {string} to – recipient email
- * @param {string} token – reset token (UUID)
+ * @param {string} to - recipient email
+ * @param {string} token - reset token (UUID)
  */
 async function sendPasswordResetEmail(to, token) {
   const baseUrl = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
@@ -101,9 +101,9 @@ async function sendPasswordResetEmail(to, token) {
 
 /**
  * Send a staff invitation email with a link to set their password.
- * @param {string} to – recipient email
- * @param {string} name – recipient's name
- * @param {string} token – password_reset_token (UUID)
+ * @param {string} to - recipient email
+ * @param {string} name - recipient's name
+ * @param {string} token - password_reset_token (UUID)
  */
 async function sendInviteEmail(to, name, token, username) {
   const frontendUrl = process.env.FRONTEND_URL || 'https://proper-place.co.uk';
@@ -114,7 +114,7 @@ async function sendInviteEmail(to, name, token, username) {
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin: 0 0 24px;">
           <p style="color: #64748b; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 4px;">Your username</p>
           <p style="color: #0f172a; font-size: 15px; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0;">${escapeHtml(username)}</p>
-          <p style="color: #94a3b8; font-size: 12px; margin: 6px 0 0;">Keep this handy — you'll use it to sign in.</p>
+          <p style="color: #94a3b8; font-size: 12px; margin: 6px 0 0;">Keep this handy - you'll use it to sign in.</p>
         </div>`
     : '';
 
@@ -132,7 +132,7 @@ async function sendInviteEmail(to, name, token, username) {
           </tr>
         </table>
         <h1 style="color: #f1f5f9; font-size: 22px; font-weight: 700; margin: 0;">Welcome to Proper Place</h1>
-        <p style="color: #94a3b8; font-size: 14px; margin: 6px 0 0;">Your account has been created — let's get you set up.</p>
+        <p style="color: #94a3b8; font-size: 14px; margin: 6px 0 0;">Your account has been created - let's get you set up.</p>
       </div>
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
         <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
@@ -159,7 +159,7 @@ async function sendInviteEmail(to, name, token, username) {
           <a href="${inviteUrl}" style="color: #10b981;">${inviteUrl}</a>
         </p>
         <p style="color: #9ca3af; font-size: 12px; margin: 0; border-top: 1px solid #f3f4f6; padding-top: 20px;">
-          If you weren't expecting this, you can safely ignore it. — The Proper Place Team
+          If you weren't expecting this, you can safely ignore it. - The Proper Place Team
         </p>
       </div>
       <p style="text-align: center; color: #94a3b8; font-size: 11px; margin: 14px 0 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
@@ -208,7 +208,7 @@ async function sendSupportReplyEmail(to, subject, originalMessage, replyBody) {
           <div style="background: #f9fafb; padding: 12px 14px; border-radius: 6px; color: #6b7280; font-size: 13px; margin-top: 8px; white-space: pre-wrap; line-height: 1.5;">${escapeHtml(originalMessage)}</div>
         </details>
         <p style="color: #6b7280; font-size: 13px; margin: 0 0 24px;">If you have further questions, reply to this email or visit <a href="https://properplace.com/contact" style="color: #1565C0;">properplace.com/contact</a>.</p>
-        <p style="color: #9ca3af; font-size: 12px; margin: 0; border-top: 1px solid #f3f4f6; padding-top: 16px;">— The Proper Place Team</p>
+        <p style="color: #9ca3af; font-size: 12px; margin: 0; border-top: 1px solid #f3f4f6; padding-top: 16px;">- The Proper Place Team</p>
       </div>
     </div>
   `;
@@ -249,7 +249,7 @@ async function sendHostDeletionRequestEmail(user) {
   const info = await transporter.sendMail({
     from: `"Proper Place" <${process.env.SMTP_USER}>`,
     to: 'pierce.shapton@gmail.com',
-    subject: `Host deletion request – ${user.name} (${user.email})`,
+    subject: `Host deletion request - ${user.name} (${user.email})`,
     html,
   });
 
@@ -272,7 +272,7 @@ function formatDate(d) {
 
 function formatMoney(n) {
   const v = Number(n);
-  if (!Number.isFinite(v)) return '—';
+  if (!Number.isFinite(v)) return '-';
   return `£${v.toFixed(2)}`;
 }
 
@@ -378,7 +378,7 @@ async function sendGuestBookingSubmittedEmail({ guestEmail, guestName, booking }
     title: 'Booking request submitted',
     intro: `Hi ${escapeHtml(guestName || 'there')}, thanks for booking with Proper Place. Your request for <strong>${escapeHtml(booking.place_name || 'the site')}</strong> is now with the host for approval.`,
     body: bookingDetailsTable(booking) +
-      `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">The host has up to 7 days to respond. Until then your card is authorised but not charged — if they don&rsquo;t respond in time, the hold is released automatically.</p>`,
+      `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">The host has up to 7 days to respond. Until then your card is authorised but not charged - if they don&rsquo;t respond in time, the hold is released automatically.</p>`,
     ctaHref: `${APP_URL}/dashboard`,
     ctaLabel: 'View booking',
     footer: 'You&rsquo;ll get another email as soon as the host confirms or declines.',
@@ -394,7 +394,7 @@ async function sendGuestBookingConfirmedEmail({ guestEmail, guestName, booking }
   const html = emailShell({
     headerBg: '#059669',
     title: 'Booking confirmed',
-    intro: `Great news ${escapeHtml(guestName || '')} — your booking at <strong>${escapeHtml(booking.place_name || 'the site')}</strong> has been confirmed by the host.`,
+    intro: `Great news ${escapeHtml(guestName || '')} - your booking at <strong>${escapeHtml(booking.place_name || 'the site')}</strong> has been confirmed by the host.`,
     body: bookingDetailsTable(booking) +
       `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">Payment has been taken. You&rsquo;ll find directions, opening hours and any host instructions in the app.</p>`,
     ctaHref: `${APP_URL}/dashboard`,
@@ -416,7 +416,7 @@ async function sendGuestBookingRejectedEmail({ guestEmail, guestName, booking })
     body: bookingDetailsTable(booking),
     ctaHref: `${APP_URL}`,
     ctaLabel: 'Find another site',
-    footer: 'Try booking a nearby alternative — plenty of hosts are available.',
+    footer: 'Try booking a nearby alternative - plenty of hosts are available.',
   });
   return sendBookingMail(guestEmail, `Booking not approved - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
 }
@@ -439,7 +439,7 @@ async function sendBookingCancelledEmail({ recipientEmail, recipientName, recipi
   }
 
   const refundNote = refundIssued
-    ? `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">${recipientRole === 'guest' ? 'A refund has been issued to your card. It usually appears within 5–10 working days.' : 'The guest&rsquo;s payment has been refunded.'}</p>`
+    ? `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">${recipientRole === 'guest' ? 'A refund has been issued to your card. It usually appears within 5-10 working days.' : 'The guest&rsquo;s payment has been refunded.'}</p>`
     : `<p style="color:#374151; line-height:1.55; margin:0 0 12px;">No payment was taken, so nothing needs to be refunded.</p>`;
 
   const html = emailShell({

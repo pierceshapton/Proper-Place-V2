@@ -466,7 +466,7 @@ async function createBooking(req, res, next) {
             if (parseInt(elecCount.rows[0].count) >= elecCap) {
               return res.status(409).json({
                 error: 'electric_full',
-                message: `All electric hookup spaces are taken for those dates. You can still book without electric — perfect if you're self-sufficient.`,
+                message: `All electric hookup spaces are taken for those dates. You can still book without electric - perfect if you're self-sufficient.`,
               });
             }
           }
@@ -488,7 +488,7 @@ async function createBooking(req, res, next) {
     // Total price includes base price + time-based fees + electric hookup
     const totalPrice = basePrice + earlyCheckinFee + lateCheckoutFee + electricPrice;
 
-    // Check capacity – ensure no night in the requested range exceeds the site's capacity
+    // Check capacity - ensure no night in the requested range exceeds the site's capacity
     const targetId = data.place_id || data.pub_id;
     const targetColumn = data.place_id ? 'place_id' : 'pub_id';
     const targetTable = data.place_id ? 'places' : 'pubs';
@@ -656,7 +656,7 @@ async function createBooking(req, res, next) {
               ].filter(Boolean).join(' and ');
               await pushService.sendToUser(
                 hostId,
-                'Action Required — Complete Your Setup',
+                'Action Required - Complete Your Setup',
                 `You have a new booking request! To accept it and receive payment, please complete your ${missing} in the Host section.`,
                 { type: 'setup_required', screen: 'host_setup' }
               );
@@ -671,7 +671,7 @@ async function createBooking(req, res, next) {
       setImmediate(async () => {
         try {
           const placeRes = await db.query('SELECT name FROM places WHERE id = $1', [data.place_id]);
-          await pushService.sendToUser(userId, 'Booking Submitted', `Your booking at ${placeRes.rows[0]?.name || 'a site'} is pending host approval. The host has 7 days to respond — if they don't, the hold on your card will be released and no payment will be taken.`, {
+          await pushService.sendToUser(userId, 'Booking Submitted', `Your booking at ${placeRes.rows[0]?.name || 'a site'} is pending host approval. The host has 7 days to respond - if they don't, the hold on your card will be released and no payment will be taken.`, {
             type: 'booking_update',
             status: 'pending',
           });
@@ -1289,7 +1289,7 @@ async function getGuestRating(req, res, next) {
 
 /**
  * PUT /bookings/:id/approve
- * Host approves a pending booking — captures the Stripe payment.
+ * Host approves a pending booking - captures the Stripe payment.
  */
 async function approveBooking(req, res, next) {
   try {
@@ -1362,7 +1362,7 @@ async function approveBooking(req, res, next) {
 
     logger.info('Booking approved', { userId, bookingId: id });
 
-    // Check if this is the host's first confirmed booking — trigger referral bonus
+    // Check if this is the host's first confirmed booking - trigger referral bonus
     setImmediate(async () => {
       try {
         // Count confirmed bookings for this host's places
@@ -1413,7 +1413,7 @@ async function approveBooking(req, res, next) {
 
 /**
  * PUT /bookings/:id/reject
- * Host rejects a pending booking — cancels the Stripe payment hold.
+ * Host rejects a pending booking - cancels the Stripe payment hold.
  */
 async function rejectBooking(req, res, next) {
   try {
@@ -1450,7 +1450,7 @@ async function rejectBooking(req, res, next) {
         logger.info('Stripe payment hold cancelled', { bookingId: id, paymentIntentId: booking.payment_intent_id });
       } catch (stripeErr) {
         logger.error('Stripe cancel failed', { bookingId: id, error: stripeErr.message });
-        // Continue with rejection even if Stripe cancel fails — the hold will expire
+        // Continue with rejection even if Stripe cancel fails - the hold will expire
       }
     }
 
@@ -1519,7 +1519,7 @@ async function cancelBooking(req, res, next) {
       return res.status(400).json({ error: 'invalid_status', message: `Cannot cancel a booking with status '${booking.status}'` });
     }
 
-    // Enforce 24-hour cancellation deadline (guests only — hosts and admins can always cancel)
+    // Enforce 24-hour cancellation deadline (guests only - hosts and admins can always cancel)
     if (booking.user_id === userId && userRole !== 'admin') {
       const checkInDate = new Date(booking.check_in_date);
       // Set check-in to midday
@@ -1539,10 +1539,10 @@ async function cancelBooking(req, res, next) {
       try {
         const pi = await stripe.paymentIntents.retrieve(booking.payment_intent_id);
         if (pi.status === 'requires_capture') {
-          // Not yet captured — just cancel the hold
+          // Not yet captured - just cancel the hold
           await stripe.paymentIntents.cancel(booking.payment_intent_id);
         } else if (pi.status === 'succeeded') {
-          // Already captured — issue refund
+          // Already captured - issue refund
           await stripe.refunds.create({ payment_intent: booking.payment_intent_id });
           refundIssued = true;
         }

@@ -1,7 +1,7 @@
 /**
  * Server-side CMS content helper.
  * Used in Next.js Server Components to fetch editable content from the backend.
- * Caches for 60 seconds (ISR) — changes made in the CRM editor are visible within ~1 minute.
+ * Caches for 60 seconds (ISR) - changes made in the CRM editor are visible within ~1 minute.
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://octopus-app-lxh2t.ondigitalocean.app';

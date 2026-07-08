@@ -69,7 +69,7 @@ function adminMiddleware(req, res, next) {
 }
 
 /**
- * CRM middleware — allows admin or employee roles
+ * CRM middleware - allows admin or employee roles
  */
 function crmMiddleware(req, res, next) {
   if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'employee')) {

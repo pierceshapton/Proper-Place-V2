@@ -59,7 +59,7 @@ export default function ContentPage() {
       setRows(prev => prev.map(r => ({ ...r, value: draft[r.key] ?? r.value })));
       setSaved(`Saved ${updates.length} change${updates.length > 1 ? 's' : ''}. Changes will be live within ~60 seconds.`);
     } catch {
-      setSaved('Save failed — please try again.');
+      setSaved('Save failed - please try again.');
     } finally {
       setSaving(false);
     }

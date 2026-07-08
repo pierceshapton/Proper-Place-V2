@@ -47,7 +47,7 @@ export default function HostsOnboardingPage() {
     setLeadError('');
     crmApi.getLead(leadId)
       .then(res => setLeadPrefill(res.lead))
-      .catch(() => setLeadError('Could not load lead data — you can still create the site manually.'))
+      .catch(() => setLeadError('Could not load lead data - you can still create the site manually.'))
       .finally(() => setLeadLoading(false));
   }, [leadId]);
 
@@ -149,7 +149,7 @@ function CreateSitePanel({ leadPrefill }: { leadPrefill?: CRMLead | null }) {
       || leadPrefill.business_name?.trim()
       || '';
     if (!contactName) {
-      setCreateHostError('Lead has no name — add one on the lead first.');
+      setCreateHostError('Lead has no name - add one on the lead first.');
       return;
     }
     setCreatingHost(true);
@@ -330,8 +330,8 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 }
 
 // Compact Google-style weekly opening hours into human-readable ranges.
-//   "Monday: 11:00 AM – 11:00 PM\nTuesday: 11:00 AM – 11:00 PM\n..." →
-//   "Mon–Sat 11am–11pm, Sun 12pm–10pm"
+//   "Monday: 11:00 AM - 11:00 PM\nTuesday: 11:00 AM - 11:00 PM\n..." →
+//   "Mon-Sat 11am-11pm, Sun 12pm-10pm"
 function compactOpeningHours(text: string | null | undefined): string {
   if (!text) return '';
   const shortName: Record<string, string> = {
@@ -356,7 +356,7 @@ function compactOpeningHours(text: string | null | undefined): string {
     if (/open\s*24|24\s*hours?/i.test(h)) return '24hr';
     const parts = h.split(/\s*[–—-]\s*/).map(p => p.trim());
     if (parts.length !== 2) return h.toLowerCase();
-    return `${simplifyTime(parts[0])}–${simplifyTime(parts[1])}`;
+    return `${simplifyTime(parts[0])}-${simplifyTime(parts[1])}`;
   };
 
   const parsed: { day: string; hours: string }[] = [];
@@ -392,98 +392,72 @@ function compactOpeningHours(text: string | null | undefined): string {
     .map(g => {
       const first = shortName[g.days[0]];
       const last = shortName[g.days[g.days.length - 1]];
-      const range = g.days.length === 1 ? first : `${first}–${last}`;
+      const range = g.days.length === 1 ? first : `${first}-${last}`;
       return g.hours === 'closed' ? `${range} closed` : `${range} ${g.hours}`;
     })
     .join(', ');
 }
 
-// Warmer, more evocative site description in the style of a travel writeup:
-// a scene-setting hook, a nod to what makes it special for campervan
-// travellers, and a cosy close balancing adventure with peace. Uses only
-// fields we have on the lead — never invents specific features. Copy stays
-// in draft so a human can add local colour before it goes live.
+// Short, human-sounding site description. Deliberately avoids AI-copy tells:
+// no full addresses, no rating mentions, no formulaic "whether you're X or Y"
+// closes. Uses only the broad region (never a street), so hosts can add
+// specific detail before it goes live.
 function generateSiteDescription(lead: CRMLead): string {
   const nameRaw = lead.business_name?.trim() || '';
   const name = nameRaw || 'this spot';
-  const locParts = (lead.location || '').split(',').map(s => s.trim()).filter(Boolean);
-  const city = locParts[0] || '';
-  const region = locParts.slice(1).join(', ');
-  const placeBit = city && region ? ` in ${city}, ${region}` : city ? ` in ${city}` : region ? ` in ${region}` : '';
-  const regionOnly = region || city;
+  const parts = (lead.location || '').split(',').map(s => s.trim()).filter(Boolean);
+  // Use only the broad region (last component) - avoids street-address dumps.
+  const region = parts.length ? parts[parts.length - 1] : '';
+  const inRegion = region ? ` in ${region}` : '';
 
   const type = mapLeadPropertyTypeToPlaceType(lead.property_type);
   const parking = lead.parking_spaces;
-  const rating = lead.google_rating;
-  const reviews = lead.google_reviews_count;
 
-  const opening: Record<string, string> = {
-    pub: `Experience a warm and welcoming pub stopover at ${name}${placeBit}. Perfect for campervan travellers, this proper country inn opens its car park to motorhomes looking for a peaceful, secure spot for the night — ideal for breaking up a longer trip or settling in for a quiet evening away from the road.`,
-    farm: `Escape to open countryside with a farm stay at ${name}${placeBit}. Perfect for campervan travellers, this working farm offers plenty of level ground, wide skies and the kind of quiet you can only find well away from the main road — wake up to birdsong and the smell of fresh air.`,
-    vineyard: `Discover a memorable vineyard stopover at ${name}${placeBit}. Perfect for campervan travellers, this welcoming estate opens its grounds to motorhomes for the night — wander the vines, and where the season allows, join a cellar tour or a tasting before settling in for a peaceful evening.`,
-    campsite: `Settle in for the night at ${name}, a relaxed campsite${placeBit} tailored for campervan travellers and motorhomes of every size. Level pitches, clean facilities and a genuine welcome from owners who know life on the road — an easy, comfortable base whether you're staying one night or several.`,
-    coastal: `Wake up to the sea at ${name}, a cracking coastal stopover${placeBit}. Perfect for campervan travellers, this spot combines level parking and easy access with the kind of coastal views that alone make it worth the detour — sunset from the van window is hard to beat.`,
-    woodland: `Tuck yourself away for the night at ${name}, a peaceful woodland setting${placeBit}. Perfect for campervan travellers, this quiet spot lets you park up among the trees, well shielded from the noise of the road — the sort of place where an evening slips by with a book and a boiled kettle.`,
-    garden: `Enjoy a private garden stay at ${name}${placeBit}. Perfect for campervan travellers, this beautifully kept spot offers a warm host and the rare pleasure of parking somewhere that feels more like a hideaway than a stopover — an unusual and memorable place to spend the night.`,
-    private_land: `Find a slice of quiet at ${name}, private land${placeBit} with generous room for motorhomes. Perfect for campervan travellers, it's calm, out-of-the-way and unfussy — the kind of overnight spot you seek out when you want a proper night away from everything.`,
-    other: `Discover a welcoming stopover at ${name}${placeBit}. Perfect for campervan and motorhome travellers, this is a safe, comfortable place to park up for the night, whether you're mid-adventure or breaking up a longer drive.`,
+  const templates: Record<string, string> = {
+    pub: `${name} is one of those proper country pubs${inRegion} that just gets it. Park up in the car park for the night, wander in for a pint and a plate of something hearty, then head back to the van for a quiet, easy evening. The kind of place you'll want to stop at again on the way home.`,
+    farm: `A working farm${inRegion} with plenty of space for motorhomes and campervans. Wake up to open fields, quiet mornings and none of the noise you get closer to the road. An honest, easy overnight stop with a proper welcome from the people who work the land.`,
+    vineyard: `${name} lets motorhomes and campervans park up among the vines for the night${inRegion}. Depending on the day you might catch a tasting or a walk around the estate before settling in for a peaceful evening. A really nice change from the usual overnight stop.`,
+    campsite: `A relaxed campsite${inRegion} that knows what motorhomes and campervans want: level pitches, clean facilities and a straightforward welcome. Stay one night or several, it works either way as an easy base for exploring the area.`,
+    coastal: `A cracking coastal spot${inRegion} with level parking and views straight out over the water. Wake up to the sea from the van window, wander a bit of the coast path, and settle in for another quiet night. Sunsets alone are worth the detour.`,
+    woodland: `A quiet spot tucked in among the trees${inRegion}. Motorhomes and campervans can park up well shielded from the road, and it's the sort of place where an evening slips by without much happening at all. Bring a book and boil the kettle.`,
+    garden: `${name}${inRegion} opens up its garden to motorhomes and campervans for overnight stays. Beautifully kept grounds, a warm host, and the rare pleasure of parking somewhere that feels more like a hideaway than a stopover.`,
+    private_land: `A patch of private land${inRegion} with plenty of room for motorhomes and campervans. Calm, unfussy and out of the way - a proper night off the road, with no more fuss than that.`,
+    other: `${name}${inRegion} is a welcoming overnight spot for motorhomes and campervans. Safe, straightforward and a comfortable place to break up a longer trip.`,
   };
 
-  const parts: string[] = [opening[type] || opening.other];
-
+  const out = [templates[type] || templates.other];
   if (parking && parking >= 2) {
-    parts.push(`There's room for around ${parking} motorhomes, with plenty of space to level up and settle in.`);
+    out.push(`Room for around ${parking} motorhomes, with space to level up and settle in.`);
   } else if (parking === 1) {
-    parts.push(`One motorhome fits comfortably, with plenty of space to level up and settle in.`);
+    out.push(`Room for one motorhome, with space to level up and settle in.`);
   }
-
-  if (rating != null && reviews != null && reviews > 0) {
-    parts.push(`Locals rate it ${rating}★ on Google from ${reviews.toLocaleString()} reviews.`);
-  } else if (rating != null) {
-    parts.push(`Locals rate it ${rating}★ on Google.`);
-  }
-
-  const closingRegion = regionOnly ? ` around ${regionOnly}` : '';
-  const closing: Record<string, string> = {
-    pub: `Whether you're chasing local walks and hearty pub food or simply looking for a peaceful overnight escape${closingRegion}, ${name} is an unforgettable place to park up and relax.`,
-    farm: `Whether you're taking in the countryside${closingRegion} or simply looking for a peaceful overnight reset before the next leg of the trip, ${name} is an unforgettable place to park up and relax.`,
-    vineyard: `Whether you're touring the region's food and drink scene${closingRegion} or simply looking for a peaceful overnight escape, ${name} is an unforgettable place to park up and relax.`,
-    campsite: `Whether you're exploring the local area${closingRegion} or simply looking for an easy overnight base, ${name} is a comfortable, welcoming place to park up and relax.`,
-    coastal: `Whether you're chasing coastal walks, seaside suppers and slow sunrises${closingRegion} or simply looking for a peaceful overnight escape, ${name} is an unforgettable place to park up and relax.`,
-    woodland: `Whether you're chasing forest walks${closingRegion} or simply looking for a peaceful overnight escape surrounded by trees, ${name} is an unforgettable place to park up and relax.`,
-    garden: `Whether you're exploring the area${closingRegion} or simply looking for a peaceful overnight escape in beautiful surroundings, ${name} is an unforgettable place to park up and relax.`,
-    private_land: `Whether you're breaking up a long drive${closingRegion} or simply looking for a proper night away from it all, ${name} is a calm, unfussy place to park up and relax.`,
-    other: `Whether you're mid-adventure${closingRegion} or simply looking for a peaceful overnight escape, ${name} is a comfortable place to park up and relax.`,
-  };
-  parts.push(closing[type] || closing.other);
-
-  return parts.join(' ');
+  return out.join(' ');
 }
 
-// Warm, evocative “about the business” copy in the same voice as the site
-// description. Focuses on the character of the venue — the welcome, the pace,
-// the kind of experience a guest can expect — without inventing specifics.
+// Warm "about the business" copy in the same voice. Focuses on character -
+// welcome, pace, the feel of the place - without inventing specifics or
+// leaning on AI-copy tells.
 function generateBusinessDescription(lead: CRMLead): string {
   const nameRaw = lead.business_name?.trim() || '';
   const name = nameRaw || 'This venue';
   const type = mapLeadPropertyTypeToPlaceType(lead.property_type);
   const templates: Record<string, string> = {
-    pub: `${name} is a proper country pub at heart — a warm, dog-friendly welcome, real ales at the bar, and the kind of relaxed atmosphere where locals and travellers happily share the same tables. Whether you're stopping in for a quick pint, a hearty meal by the fire or a long, easy evening, it's the sort of place that makes you feel at home the moment you walk through the door.`,
-    farm: `${name} is a working farm that has quietly opened its gates to campervan travellers looking for real countryside and open skies. Expect a genuine welcome, honest surroundings, and — where the season allows — farm-fresh eggs, meat or produce straight from the gate.`,
-    vineyard: `${name} is a working vineyard that welcomes travellers to walk among the vines, learn a little about the wine, and — depending on the day — join a tasting or a tour. Expect a warm, informal welcome from a team that clearly loves what they do.`,
-    campsite: `${name} is a family-run campsite built around what campervan and motorhome travellers actually need: level pitches, clean facilities, unhurried check-ins, and a proper welcome. It's the kind of place run by people who understand life on the road.`,
-    coastal: `${name} is a coastal spot with a genuine welcome and an easy pace — the sort of place where locals know each other and travellers get treated the same. Perfect for anyone who wants sea air, calm evenings and a good honest night's rest.`,
-    woodland: `${name} is a quiet retreat tucked in among the trees, run by hosts who value the peace as much as their guests do. No fuss, no crowds — just a well-cared-for setting and a warm, low-key welcome.`,
-    garden: `${name} is a beautifully kept private setting, opened up to campervan travellers by hosts who love sharing the place they've built. Expect thoughtful touches, a warm welcome, and the feeling of being somewhere a little special.`,
-    private_land: `${name} is a piece of private land offered by hosts who understand the appeal of a genuinely quiet overnight stop. It's calm, unfussy and honest — no pretence, just a proper night away from it all.`,
-    other: `${name} is a welcoming stopover run by hosts who understand what campervan and motorhome travellers are after: somewhere safe, straightforward and warm to spend the night.`,
+    pub: `${name} is a proper country pub at heart. A warm, dog-friendly welcome, real ales at the bar, and the kind of relaxed atmosphere where locals and visitors happily share the same tables. Stop in for a quick pint, a hearty meal by the fire or a long, easy evening - it's the sort of place that feels like home the moment you walk in.`,
+    farm: `${name} is a working farm that has quietly opened its gates to motorhomes and campervans looking for real countryside and open skies. Expect a genuine welcome, honest surroundings, and where the season allows, farm-fresh eggs, meat or produce straight from the gate.`,
+    vineyard: `${name} is a working vineyard that welcomes motorhomes and campervans to walk among the vines, learn a little about the wine and, depending on the day, join a tasting or a tour. A warm, informal welcome from a team that clearly loves what they do.`,
+    campsite: `${name} is a family-run campsite built around what motorhomes and campervans actually need: level pitches, clean facilities, unhurried check-ins and a proper welcome. Run by people who understand life on the road.`,
+    coastal: `${name} is a coastal spot with a genuine welcome and an easy pace. Locals know each other and guests get treated the same - perfect for anyone who wants sea air, calm evenings and a good honest night's rest.`,
+    woodland: `${name} is a quiet retreat tucked in among the trees, run by hosts who value the peace as much as their guests do. No fuss, no crowds, just a well-cared-for setting and a warm, low-key welcome.`,
+    garden: `${name} is a beautifully kept private setting, opened up to motorhomes and campervans by hosts who love sharing the place they've built. Expect thoughtful touches, a warm welcome and the feeling of being somewhere a little special.`,
+    private_land: `${name} is a piece of private land offered by hosts who understand the appeal of a genuinely quiet overnight stop. Calm, unfussy and honest - a proper night away from it all.`,
+    other: `${name} is a welcoming stopover run by hosts who understand what motorhomes and campervans need: somewhere safe, straightforward and warm to spend the night.`,
   };
   return templates[type] || templates.other;
 }
 
-// Menu copy — only for venue types where food is a core part of the offering.
-// Returns an empty string when the venue doesn’t typically serve food, so we
-// don’t clobber the host’s own menu text.
+// Menu copy - only for venue types where food is a core part of the offering.
+// Returns an empty string when the venue doesn't typically serve food, so we
+// don't clobber the host's own menu text.
 function generateFoodMenuDescription(lead: CRMLead): string {
   const type = mapLeadPropertyTypeToPlaceType(lead.property_type);
   const templates: Record<string, string> = {
@@ -786,7 +760,7 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
       const result = await adminApi.createPlaceForUser(placeData);
       const placeId = result.place?.id;
 
-      // Fire-and-forget — don't block success on image upload
+      // Fire-and-forget - don't block success on image upload
       const allImages = [...(mainImage ? [mainImage] : []), ...images];
       if (allImages.length > 0 && placeId) {
         uploadApi.placeImages(placeId, allImages).catch(() => {});
@@ -795,8 +769,8 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
       // If this site was created from a CRM lead, link the place and move the lead
       // to the appropriate pipeline stage:
       //   approved  → converted   (Live)
-      //   pending   → negotiating (Listing process — awaiting approval)
-      //   draft     → negotiating (Listing process — draft)
+      //   pending   → negotiating (Listing process - awaiting approval)
+      //   draft     → negotiating (Listing process - draft)
       let leadStageMessage = '';
       if (linkedLead?.id && placeId) {
         const nextStage = form.approval_status === 'approved' ? 'converted' : 'negotiating';
@@ -921,7 +895,7 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
                           <div className="min-w-0">
                             <p className="text-sm text-slate-100 truncate">{label}</p>
                             <p className="text-[11px] text-slate-500 truncate">
-                              {lead.location || '—'}
+                              {lead.location || '-'}
                               {lead.google_rating != null && <span className="ml-1.5 text-amber-400">{lead.google_rating}★</span>}
                             </p>
                           </div>
@@ -995,7 +969,7 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
           <label className="block text-xs font-medium text-slate-400 mb-1.5">Opening Hours</label>
           <input
             type="text" value={form.opening_hours} onChange={e => f('opening_hours', e.target.value)}
-            placeholder="e.g. Mon–Fri 10am–10pm, Sat–Sun All day"
+            placeholder="e.g. Mon-Fri 10am-10pm, Sat-Sun All day"
             className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
           />
         </div>
@@ -1100,7 +1074,7 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
               <input
                 type="number" step="0.1" min="0" value={form[field]}
                 onChange={e => f(field, e.target.value)}
-                placeholder="—"
+                placeholder="-"
                 className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
               />
             </div>
@@ -1380,7 +1354,7 @@ function CreateUserPanel() {
           <p className="font-semibold text-emerald-300">✅ Account created for {otpResult.name}</p>
           {otpResult.email && <p className="text-xs text-emerald-500/80">{otpResult.email}</p>}
           {otpResult.invite_sent ? (
-            <p className="text-sm text-emerald-400">📧 Invitation email sent — they'll receive a link to set their password.</p>
+            <p className="text-sm text-emerald-400">📧 Invitation email sent - they'll receive a link to set their password.</p>
           ) : (
             <>
               <div>
@@ -1388,7 +1362,7 @@ function CreateUserPanel() {
                 <code className="bg-slate-900 border border-emerald-500/30 text-emerald-300 font-mono text-sm px-3 py-1.5 rounded-lg select-all">{otpResult.username}</code>
               </div>
               <div>
-                <p className="text-xs text-emerald-500/70 mb-1.5">One-time password — share this with them. They must change it on first login:</p>
+                <p className="text-xs text-emerald-500/70 mb-1.5">One-time password - share this with them. They must change it on first login:</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-slate-900 border border-emerald-500/30 text-emerald-300 font-mono text-base px-4 py-2.5 rounded-lg tracking-widest select-all">
                     {otpResult.otp}
@@ -1409,10 +1383,10 @@ function CreateUserPanel() {
 
       <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-4">
         <h2 className="text-base font-semibold text-slate-200">New Account Details</h2>
-        <p className="text-xs text-slate-500">A one-time password is auto-generated — share it with the host. They must change it on first login.</p>
+        <p className="text-xs text-slate-500">A one-time password is auto-generated - share it with the host. They must change it on first login.</p>
 
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Username <span className="text-slate-600">(optional — auto-generated from name if blank)</span></label>
+          <label className="block text-xs font-medium text-slate-400 mb-1.5">Username <span className="text-slate-600">(optional - auto-generated from name if blank)</span></label>
           <input
             type="text" value={form.username} onChange={e => f('username', e.target.value)}
             placeholder="aimeesmith"
@@ -1430,7 +1404,7 @@ function CreateUserPanel() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Email Address <span className="text-slate-600">(optional — needed for password reset)</span></label>
+          <label className="block text-xs font-medium text-slate-400 mb-1.5">Email Address <span className="text-slate-600">(optional - needed for password reset)</span></label>
           <input
             type="email" value={form.email} onChange={e => f('email', e.target.value)}
             placeholder="aimee@example.com"
@@ -1965,7 +1939,7 @@ function SearchHostsPanel() {
                       {(u.phone || u.phone_number) && <span className="text-slate-500"> · {u.phone || u.phone_number}</span>}
                     </p>
                     <p className="text-[11px] text-slate-600 mt-0.5">
-                      @{u.username || '—'}
+                      @{u.username || '-'}
                       {u.verified ? <span className="text-emerald-500/80"> · verified</span> : <span className="text-amber-500/80"> · unverified</span>}
                       {typeof u.bookings_count === 'number' && u.bookings_count > 0 && <span className="text-slate-500"> · {u.bookings_count} bookings</span>}
                     </p>
@@ -1984,7 +1958,7 @@ function SearchHostsPanel() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="col-span-2"><label className={lbl}>Name</label><input className={inp} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} /></div>
                       <div className="col-span-2">
-                        <label className={lbl}>Email {placeholder && <span className="text-amber-500/80">(placeholder — add a real address to enable password reset)</span>}</label>
+                        <label className={lbl}>Email {placeholder && <span className="text-amber-500/80">(placeholder - add a real address to enable password reset)</span>}</label>
                         <input type="email" className={inp} value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} placeholder="host@example.com" />
                       </div>
                       <div className="col-span-2"><label className={lbl}>Phone</label><input type="tel" className={inp} value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+44…" /></div>

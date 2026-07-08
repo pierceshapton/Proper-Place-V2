@@ -118,7 +118,7 @@ export default function ReferralsPage() {
         {stats?.connect_status === 'active' ? (
           <div className="flex items-center gap-2 text-green-600">
             <span className="text-lg">✅</span>
-            <span className="font-medium">Stripe Connect is active — payouts enabled!</span>
+            <span className="font-medium">Stripe Connect is active - payouts enabled!</span>
           </div>
         ) : (
           <button onClick={setupStripeConnect} disabled={connectLoading} className="btn-primary py-2.5 px-6 text-sm disabled:opacity-50">

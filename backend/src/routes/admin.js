@@ -7,7 +7,7 @@ const router = express.Router();
 // All admin routes require auth at minimum
 router.use(authMiddleware);
 
-// Place moderation — accessible by admin OR employee
+// Place moderation - accessible by admin OR employee
 router.get('/places', crmMiddleware, adminController.getPlacesForModeration);
 router.post('/places', crmMiddleware, adminController.createPlaceForUser);
 router.patch('/places/:id', crmMiddleware, adminController.updatePlace);

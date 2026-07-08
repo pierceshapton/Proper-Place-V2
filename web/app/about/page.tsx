@@ -51,8 +51,8 @@ export default function AboutPage() {
                 the character that makes a trip memorable.
               </p>
               <p className="text-gray-600 text-lg leading-relaxed">
-                We envisioned a platform where landowners could share their beautiful spaces — farms, vineyards, 
-                coastal spots, and countryside retreats — with respectful motorhome owners looking for something different. 
+                We envisioned a platform where landowners could share their beautiful spaces - farms, vineyards, 
+                coastal spots, and countryside retreats - with respectful motorhome owners looking for something different. 
                 A place where both hosts and guests benefit from genuine community connections.
               </p>
             </div>

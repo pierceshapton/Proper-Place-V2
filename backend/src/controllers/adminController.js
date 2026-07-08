@@ -217,7 +217,7 @@ async function rejectPlace(req, res, next) {
 /**
  * PATCH /admin/places/:id/visibility
  * CRM: toggle a place's public map visibility without changing its approval status.
- * Body: { hidden: boolean } — true sets status='unavailable' (hidden), false sets 'available'.
+ * Body: { hidden: boolean } - true sets status='unavailable' (hidden), false sets 'available'.
  */
 async function setPlaceVisibility(req, res, next) {
   try {
@@ -255,7 +255,7 @@ async function setPlaceVisibility(req, res, next) {
 /**
  * POST /admin/test-booking-emails
  * Send a set of sample booking-related emails to an address so admins can preview the templates.
- * Body: { email?: string } — defaults to pierce.shapton@nookparcelbox.com
+ * Body: { email?: string } - defaults to pierce.shapton@nookparcelbox.com
  */
 async function sendSampleBookingEmails(req, res, next) {
   try {
@@ -1168,7 +1168,7 @@ async function createUserAsAdmin(req, res, next) {
     let inviteExpires = null;
 
     if (!emailIsPlaceholder) {
-      // Locked password — random 64-char hex that can never be entered manually
+      // Locked password - random 64-char hex that can never be entered manually
       const crypto = require('crypto');
       const lockedPassword = crypto.randomBytes(32).toString('hex');
       passwordHash = await hashPassword(lockedPassword);

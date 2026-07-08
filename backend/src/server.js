@@ -121,7 +121,7 @@ app.use(cors({
   },
   credentials: true,
 }));
-// Stripe webhooks need raw body for signature verification — mount BEFORE json parser
+// Stripe webhooks need raw body for signature verification - mount BEFORE json parser
 app.use('/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
 
 app.use(morgan('combined'));
@@ -158,7 +158,7 @@ app.use('/host-leads', hostLeadsRoutes);
 app.use('/host-applications', hostApplicationRoutes);
 app.use('/referrals', referralRoutes);
 app.use('/crm', crmRoutes);
-// Public CMS content endpoint (no auth — read-only, used by the website frontend)
+// Public CMS content endpoint (no auth - read-only, used by the website frontend)
 app.get('/cms/content', cmsContentController.getContent);
 
 // User routes
@@ -436,7 +436,7 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 4 error:', err.message);
     }
 
-    // Promote opening_hours / kitchen_hours to TEXT — Google-style opening hours
+    // Promote opening_hours / kitchen_hours to TEXT - Google-style opening hours
     // strings routinely exceed the old VARCHAR(100) limit and were causing
     // "value too long" errors when creating sites from CRM leads.
     const migrationHoursText = `
@@ -1091,7 +1091,7 @@ async function initializeDatabase() {
   }
 }
 
-// Run a SQL migration file — splits on ; so every statement executes individually
+// Run a SQL migration file - splits on ; so every statement executes individually
 async function runSqlMigration(filename, label) {
   const fs = require('fs');
   const path = require('path');
@@ -1106,7 +1106,7 @@ async function runSqlMigration(filename, label) {
     try {
       await db.query(stmt);
     } catch (err) {
-      // Log but continue — most errors are "already exists" on re-runs
+      // Log but continue - most errors are "already exists" on re-runs
       console.error(`[SERVER] ${label} stmt error: ${err.message.split('\n')[0]}`);
     }
   }

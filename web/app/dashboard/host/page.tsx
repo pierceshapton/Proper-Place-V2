@@ -92,7 +92,7 @@ export default function HostDashboardPage() {
                 <Link key={b.id} href={`/dashboard/host/bookings`} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                   <div>
                     <p className="font-medium text-gray-900">{b.place_name}</p>
-                    <p className="text-xs text-gray-500">{b.guest_name} · {new Date(b.check_in_date).toLocaleDateString()} – {new Date(b.check_out_date).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500">{b.guest_name} · {new Date(b.check_in_date).toLocaleDateString()} - {new Date(b.check_out_date).toLocaleDateString()}</p>
                   </div>
                   <div className="text-right">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor[b.status] || 'bg-gray-100 text-gray-700'}`}>{b.status}</span>

@@ -132,7 +132,7 @@ export default function BookPlacePage() {
               if (!blocked.includes(ds)) blocked.push(ds);
             }
           }
-        } catch { /* user bookings fetch failed – continue without */ }
+        } catch { /* user bookings fetch failed - continue without */ }
 
         setUnavailableDates(blocked);
         setUserBookingBoundaries(boundaries);
@@ -175,7 +175,7 @@ export default function BookPlacePage() {
     for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
       const ds = d.toISOString().split('T')[0];
       if (isDateUnavailable(ds)) {
-        return `The date ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} is not available — you may already have a booking for these dates.`;
+        return `The date ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} is not available - you may already have a booking for these dates.`;
       }
     }
     return null;
@@ -190,7 +190,7 @@ export default function BookPlacePage() {
       const paymentData = await paymentsApi.createIntent(Math.round(total * 100), 'gbp', Number(id));
       const secret = paymentData.clientSecret || (paymentData as Record<string, unknown>).client_secret as string;
       if (!secret) {
-        setError('Payment setup failed — no client secret returned. Please try again.');
+        setError('Payment setup failed - no client secret returned. Please try again.');
         setSubmitting(false);
         return;
       }
@@ -250,7 +250,7 @@ export default function BookPlacePage() {
             </div>
           ) : place?.electric_hookup_available ? (
             <div className="text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
-              🔋 This booking doesn&apos;t include an electric hookup — you&apos;ll be self-sufficient on this one. Most motorhomers are well prepared for this, but it&apos;s worth making sure you&apos;re charged up before you arrive.
+              🔋 This booking doesn&apos;t include an electric hookup - you&apos;ll be self-sufficient on this one. Most motorhomers are well prepared for this, but it&apos;s worth making sure you&apos;re charged up before you arrive.
             </div>
           ) : null}
           <div className="flex flex-col gap-3">
@@ -297,7 +297,7 @@ export default function BookPlacePage() {
                 }}
               />
               {unavailableDates.length > 0 && (
-                <p className="text-xs text-amber-600">⚠️ Some dates are unavailable — either this place is full or you already have a booking.</p>
+                <p className="text-xs text-amber-600">⚠️ Some dates are unavailable - either this place is full or you already have a booking.</p>
               )}
               {(() => {
                 if (!form.check_in || !form.check_out) return null;
@@ -403,7 +403,7 @@ export default function BookPlacePage() {
             )}
 
             <button onClick={handleProceedToPayment} disabled={!form.check_in || !form.check_out || nights < 1 || submitting} className="w-full btn-primary py-4 font-bold text-lg disabled:opacity-50">
-              {submitting ? 'Setting up payment...' : `Continue to Payment — £${total.toFixed(2)}`}
+              {submitting ? 'Setting up payment...' : `Continue to Payment - £${total.toFixed(2)}`}
             </button>
           </div>
         )}

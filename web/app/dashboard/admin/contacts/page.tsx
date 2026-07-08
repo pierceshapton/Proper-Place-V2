@@ -312,7 +312,7 @@ export default function AdminContactsPage() {
 
                 {/* Replies */}
                 {(selectedTicket.replies || []).length === 0 && (
-                  <p className="text-xs text-gray-400 text-center py-2">No replies yet — respond below.</p>
+                  <p className="text-xs text-gray-400 text-center py-2">No replies yet - respond below.</p>
                 )}
                 {(selectedTicket.replies || []).map(reply => (
                   <div key={reply.id} className="flex flex-col items-end">

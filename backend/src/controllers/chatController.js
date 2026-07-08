@@ -695,7 +695,7 @@ async function getChatStatus(req, res, next) {
     const booking = bookingResult.rows[0];
     const status = (booking.status || '').toLowerCase();
 
-    // Not completed — chat is fully open
+    // Not completed - chat is fully open
     if (status !== 'completed') {
       return res.json({ chatStatus: 'open', hoursRemaining: null, reopenRequestId: null, reopenStatus: null });
     }
@@ -710,7 +710,7 @@ async function getChatStatus(req, res, next) {
       return res.json({ chatStatus: 'closing_soon', hoursRemaining, reopenRequestId: null, reopenStatus: null });
     }
 
-    // Past 72 hours — check for reopen requests
+    // Past 72 hours - check for reopen requests
     const reopenResult = await db.query(
       `SELECT id, status, requester_id, responded_at FROM chat_reopen_requests
        WHERE booking_id = $1
@@ -727,7 +727,7 @@ async function getChatStatus(req, res, next) {
         const hoursRemaining = Math.max(0, Math.ceil(24 - hoursSinceReopen));
         return res.json({ chatStatus: 'reopened', hoursRemaining, reopenRequestId: reopenReq.id, reopenStatus: 'approved', reopenedAt: reopenedAt.toISOString() });
       }
-      // Reopen window expired — treat as closed
+      // Reopen window expired - treat as closed
     }
 
     return res.json({

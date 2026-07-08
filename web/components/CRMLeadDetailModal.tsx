@@ -336,7 +336,7 @@ export function CRMLeadDetailModal({ leadId, stages, onClose, onStageChange }: {
                         setEmailForm(f => ({ ...f, template_id: '', subject: '', body: '' }));
                       }
                     }} className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500">
-                      <option value="">— choose template —</option>
+                      <option value="">- choose template -</option>
                       {templates.map(t => <option key={t.id} value={t.id}>{t.name}{getDefaultTemplateId() === t.id ? ' ★' : ''}</option>)}
                     </select>
                   )}
@@ -389,7 +389,7 @@ export function CRMLeadDetailModal({ leadId, stages, onClose, onStageChange }: {
                         }`}>{v.verdict.replace(/_/g, ' ')}</span>
                       )}
                     </div>
-                    {v.contact_name && <p className="text-xs text-slate-400">Spoke to: {v.contact_name} ({v.contact_role || '—'})</p>}
+                    {v.contact_name && <p className="text-xs text-slate-400">Spoke to: {v.contact_name} ({v.contact_role || '-'})</p>}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                       <InfoField label="Surface" value={v.car_park_surface} />
                       <InfoField label="Spaces" value={v.car_park_spaces?.toString()} />
@@ -406,15 +406,15 @@ export function CRMLeadDetailModal({ leadId, stages, onClose, onStageChange }: {
           {tab === 'info' && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                <InfoField label="Source" value={lead.source || '—'} />
-                <InfoField label="Property Type" value={lead.property_type || '—'} />
-                <InfoField label="Website" value={lead.website || '—'} />
-                <InfoField label="Parking Type" value={lead.parking_type || '—'} />
-                <InfoField label="Parking Spaces" value={lead.parking_spaces?.toString() || '—'} />
-                <InfoField label="Ownership" value={lead.ownership_type || '—'} />
+                <InfoField label="Source" value={lead.source || '-'} />
+                <InfoField label="Property Type" value={lead.property_type || '-'} />
+                <InfoField label="Website" value={lead.website || '-'} />
+                <InfoField label="Parking Type" value={lead.parking_type || '-'} />
+                <InfoField label="Parking Spaces" value={lead.parking_spaces?.toString() || '-'} />
+                <InfoField label="Ownership" value={lead.ownership_type || '-'} />
                 <InfoField label="Created" value={new Date(lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} />
                 <InfoField label="Last Updated" value={new Date(lead.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} />
-                <InfoField label="Est. Value" value={lead.estimated_value ? `£${lead.estimated_value}` : '—'} />
+                <InfoField label="Est. Value" value={lead.estimated_value ? `£${lead.estimated_value}` : '-'} />
               </div>
               {lead.admin_notes && (
                 <div>
@@ -447,7 +447,7 @@ function InfoField({ label, value }: { label: string; value: string | undefined 
   return (
     <div>
       <p className="text-[10px] text-slate-600 uppercase tracking-wider">{label}</p>
-      <p className="text-xs text-slate-300">{value || '—'}</p>
+      <p className="text-xs text-slate-300">{value || '-'}</p>
     </div>
   );
 }

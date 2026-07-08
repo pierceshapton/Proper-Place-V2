@@ -27,7 +27,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
       />
       {open && (
         <div className="absolute left-0 top-7 z-50 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-2">
-          {/* 3 rows: light (300) / medium (500) / dark (700) — 19 cols, one per hue */}
+          {/* 3 rows: light (300) / medium (500) / dark (700) - 19 cols, one per hue */}
           {[0, 1, 2].map(row => (
             <div key={row} className="flex gap-1" style={{ marginBottom: row < 2 ? 4 : 0 }}>
               {COLOR_GROUPS.map(group => {
@@ -347,7 +347,7 @@ export default function SettingsPage() {
             <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-2 border-emerald-500 border-t-transparent" /></div>
           ) : (
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-              {sortedFields.length === 0 && <p className="text-center py-6 text-slate-600 text-sm">No custom fields yet — add one below</p>}
+              {sortedFields.length === 0 && <p className="text-center py-6 text-slate-600 text-sm">No custom fields yet - add one below</p>}
               {sortedFields.map((field, i) => (
                 <FieldRow key={field.id} field={field} isFirst={i === 0} isLast={i === sortedFields.length - 1}
                   onUpdate={handleUpdateField} onDelete={handleDeleteField}

@@ -235,7 +235,7 @@ export default function LeadDetailPage() {
       setEmailForm({ subject: '', body: '', template_id: '', to_email: lead?.email || '' });
       loadAll();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to send — check SMTP settings';
+      const msg = err instanceof Error ? err.message : 'Failed to send - check SMTP settings';
       setEmailError(msg);
     } finally {
       setEmailSending(false);
@@ -701,7 +701,7 @@ export default function LeadDetailPage() {
 
             {/* Thread */}
             {emails.length === 0 ? (
-              <p className="text-sm text-slate-600 text-center py-8">No emails yet — compose your first message below</p>
+              <p className="text-sm text-slate-600 text-center py-8">No emails yet - compose your first message below</p>
             ) : (
               <div className="space-y-2 mb-4">
                 {emails.map((e, idx) => {
@@ -774,7 +774,7 @@ export default function LeadDetailPage() {
                     <span className="text-xs text-slate-500 w-16 flex-shrink-0">Template</span>
                     <select value={emailForm.template_id} onChange={e => handleTemplateSelect(e.target.value)}
                       className="flex-1 bg-transparent text-sm text-slate-300 focus:outline-none">
-                      <option value="">— none —</option>
+                      <option value="">- none -</option>
                       {templates.map(t => <option key={t.id} value={t.id}>{t.name}{getDefaultTemplateId() === t.id ? ' ★' : ''}</option>)}
                     </select>
                     {emailForm.template_id && (
@@ -830,7 +830,7 @@ export default function LeadDetailPage() {
                       </span>
                       <VerdictBadge verdict={v.verdict} />
                     </div>
-                    {v.contact_name && <p className="text-xs text-slate-400">Spoke to: {v.contact_name} ({v.contact_role || '—'})</p>}
+                    {v.contact_name && <p className="text-xs text-slate-400">Spoke to: {v.contact_name} ({v.contact_role || '-'})</p>}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
                       <Field label="Surface" value={v.car_park_surface} />
                       <Field label="Spaces" value={v.car_park_spaces?.toString()} />
@@ -839,7 +839,7 @@ export default function LeadDetailPage() {
                       <Field label="Reaction" value={v.owner_reaction?.replace('_', ' ')} />
                       <Field label="Level" value={v.level_ground ? 'Yes' : 'No'} />
                       <Field label="Water" value={v.water_access ? 'Yes' : 'No'} />
-                      <Field label="Electric" value={v.electric_hookup || '—'} />
+                      <Field label="Electric" value={v.electric_hookup || '-'} />
                     </div>
                     {v.objections && <p className="text-xs text-red-400/80">Objections: {v.objections}</p>}
                     {v.notes && <p className="text-xs text-slate-400 italic">{v.notes}</p>}
@@ -855,23 +855,23 @@ export default function LeadDetailPage() {
           <div className="space-y-4">
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                <Field label="Source" value={lead.source || '—'} />
-                <Field label="Property Type" value={lead.property_type || '—'} />
+                <Field label="Source" value={lead.source || '-'} />
+                <Field label="Property Type" value={lead.property_type || '-'} />
                 {lead.is_chain != null && (
                   <div>
                     <p className="text-xs text-slate-500 mb-0.5">Chain Venue</p>
                     {lead.is_chain
-                      ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">🔗 {lead.chain_name || 'Yes — chain unknown'}</span>
+                      ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">🔗 {lead.chain_name || 'Yes - chain unknown'}</span>
                       : <span className="text-[11px] text-slate-500">Independent</span>
                     }
                   </div>
                 )}
-                <Field label="Website" value={lead.website ? lead.website : '—'} isLink={!!lead.website} />
-                <Field label="Parking Type" value={lead.parking_type || '—'} />                <Field label="Parking Spaces" value={lead.parking_spaces?.toString() || '—'} />
-                <Field label="Ownership" value={lead.ownership_type || '—'} />
+                <Field label="Website" value={lead.website ? lead.website : '-'} isLink={!!lead.website} />
+                <Field label="Parking Type" value={lead.parking_type || '-'} />                <Field label="Parking Spaces" value={lead.parking_spaces?.toString() || '-'} />
+                <Field label="Ownership" value={lead.ownership_type || '-'} />
                 <Field label="Created" value={new Date(lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} />
                 <Field label="Last Updated" value={new Date(lead.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} />
-                <Field label="Estimated Value" value={lead.estimated_value ? `£${lead.estimated_value}` : '—'} />
+                <Field label="Estimated Value" value={lead.estimated_value ? `£${lead.estimated_value}` : '-'} />
               </div>
               {lead.admin_notes && (
                 <div>
@@ -1054,7 +1054,7 @@ export default function LeadDetailPage() {
                         )}
                         {field.field_type === 'select' && (
                           <select value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <option value="">—</option>
+                            <option value="">-</option>
                             {(field.options || []).map(opt => <option key={opt.label} value={opt.label}>{opt.label}</option>)}
                           </select>
                         )}
@@ -1094,7 +1094,7 @@ function EmailThreadItem({
         ? 'border-slate-700 bg-slate-900'
         : 'border-blue-900/40 bg-[#0d1f35]'
     }`}>
-      {/* Header row — always visible */}
+      {/* Header row - always visible */}
       <button
         type="button"
         onClick={() => setExpanded(e => !e)}
@@ -1178,7 +1178,7 @@ function CRMSelect({ label, value, onChange, options }: {
       <label className="block text-xs text-slate-400 mb-1">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)}
         className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-        {options.map(o => <option key={o} value={o}>{o === '' ? '—' : o.charAt(0).toUpperCase() + o.slice(1).replace(/_/g, ' ')}</option>)}
+        {options.map(o => <option key={o} value={o}>{o === '' ? '-' : o.charAt(0).toUpperCase() + o.slice(1).replace(/_/g, ' ')}</option>)}
       </select>
     </div>
   );
@@ -1191,7 +1191,7 @@ function Field({ label, value, isLink }: { label: string; value: string | undefi
       {isLink && value ? (
         <a href={value} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:underline truncate block">{value}</a>
       ) : (
-        <p className="text-xs text-slate-300">{value || '—'}</p>
+        <p className="text-xs text-slate-300">{value || '-'}</p>
       )}
     </div>
   );

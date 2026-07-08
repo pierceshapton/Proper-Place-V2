@@ -86,7 +86,7 @@ export default function Navbar() {
           <span className="font-bold text-white text-lg tracking-tight">Proper Place</span>
         </Link>
 
-        {/* Desktop Nav — centred */}
+        {/* Desktop Nav - centred */}
         <div className="hidden lg:flex gap-7 xl:gap-8 absolute left-1/2 transform -translate-x-1/2">
           {navLink('/', 'Home')}
           {navLink('/browse', 'Browse Map')}

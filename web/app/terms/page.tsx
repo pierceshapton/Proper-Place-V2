@@ -82,7 +82,7 @@ export default function TermsPage() {
               no charge is made to the Guest&apos;s payment method. Proper Place does not capture or process any payments directly.
             </p>
             <p className="text-gray-600 mb-4">
-              <strong>6.3 Fund Holding.</strong> All captured funds are held securely by Stripe — not by Proper Place — until the 
+              <strong>6.3 Fund Holding.</strong> All captured funds are held securely by Stripe - not by Proper Place - until the 
               stay has been completed. Proper Place never holds, controls, or has custody of Guest funds at any stage. 
               Funds are disbursed to the Host by Stripe following the successful completion of the Guest&apos;s stay. 
               This holding period serves as protection for both Hosts and Guests in the event of a dispute, cancellation, or damage claim.

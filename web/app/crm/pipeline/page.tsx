@@ -152,7 +152,7 @@ export default function PipelinePage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-200 truncate">{lead.business_name || `${lead.first_name} ${lead.last_name}`.trim()}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{lead.location || '—'}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{lead.location || '-'}</p>
                   </div>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[lead.priority] || PRIORITY_COLORS.medium}`}>
                     {lead.priority}

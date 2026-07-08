@@ -102,7 +102,7 @@ function OutlookPreview({
 
       {/* Status bar */}
       <div className="bg-[#f3f2f1] border-t border-[#d1d1d1] px-3 py-1 flex items-center gap-3">
-        <span className="text-[10px] text-[#605e5c]">Preview only — sample data used</span>
+        <span className="text-[10px] text-[#605e5c]">Preview only - sample data used</span>
         <span className="ml-auto text-[10px] text-[#605e5c]">Sarah Mitchell · The Crown Inn · Cotswolds</span>
       </div>
     </div>
@@ -258,7 +258,7 @@ export default function EmailsPage() {
         </div>
       ) : templates.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-slate-600 text-sm">No templates yet — create your first one to speed up outreach</p>
+          <p className="text-slate-600 text-sm">No templates yet - create your first one to speed up outreach</p>
         </div>
       ) : (
         <div className="space-y-3">

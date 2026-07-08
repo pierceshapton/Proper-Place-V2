@@ -31,7 +31,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError('');
     if (!/^[a-zA-Z0-9_]{3,30}$/.test(formData.username)) {
-      setError('Username must be 3–30 characters and can only contain letters, numbers, and underscores');
+      setError('Username must be 3-30 characters and can only contain letters, numbers, and underscores');
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -158,12 +158,12 @@ export default function SignupPage() {
                 <div>
                   <label className="block text-sm font-medium mb-1 text-gray-700">Username</label>
                   <input type="text" name="username" value={formData.username} onChange={handleChange} placeholder="e.g. john_travels" required autoComplete="off" className="bg-white border-gray-300 text-gray-900 placeholder-gray-400" />
-                  <p className="text-xs text-gray-400 mt-1">3–30 characters · letters, numbers, underscores only · shown on reviews</p>
+                  <p className="text-xs text-gray-400 mt-1">3-30 characters · letters, numbers, underscores only · shown on reviews</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1 text-gray-700">Full Name</label>
                   <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="John Doe" required autoComplete="off" className="bg-white border-gray-300 text-gray-900 placeholder-gray-400" />
-                  <p className="text-xs text-gray-400 mt-1">Used on bookings — not shown publicly on reviews</p>
+                  <p className="text-xs text-gray-400 mt-1">Used on bookings - not shown publicly on reviews</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>

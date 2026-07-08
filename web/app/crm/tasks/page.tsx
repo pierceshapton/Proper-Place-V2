@@ -132,7 +132,7 @@ export default function TasksPage() {
         </div>
       ) : orderedTasks.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-slate-600 text-sm">{filter === 'completed' ? 'No completed tasks' : 'All clear — no tasks'}</p>
+          <p className="text-slate-600 text-sm">{filter === 'completed' ? 'No completed tasks' : 'All clear - no tasks'}</p>
         </div>
       ) : (
         <div className="space-y-1">

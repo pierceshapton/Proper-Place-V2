@@ -283,7 +283,7 @@ export default function LeadsPage() {
                       else { setBlastSubject(''); setBlastBody(''); }
                     }}
                   >
-                    <option value="">— choose a template —</option>
+                    <option value="">- choose a template -</option>
                     {templates.map(t => <option key={t.id} value={t.id}>{t.name}{getDefaultTemplateId() === t.id ? ' ★' : ''}</option>)}
                   </select>
                 </div>
@@ -333,7 +333,7 @@ export default function LeadsPage() {
                   {reviewedLeadsWithEmail.length > 0 && (blastSubject || blastBody) && (
                     <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Preview — {reviewedLeadsWithEmail[blastPreviewIndex]?.business_name || reviewedLeadsWithEmail[blastPreviewIndex]?.first_name || 'Lead'}</p>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Preview - {reviewedLeadsWithEmail[blastPreviewIndex]?.business_name || reviewedLeadsWithEmail[blastPreviewIndex]?.first_name || 'Lead'}</p>
                         <div className="flex items-center gap-1">
                           <button onClick={() => setBlastPreviewIndex(i => Math.max(0, i - 1))} disabled={blastPreviewIndex === 0} className="text-slate-500 hover:text-slate-300 disabled:opacity-30 text-xs px-1">‹</button>
                           <span className="text-[10px] text-slate-600">{blastPreviewIndex + 1}/{reviewedLeadsWithEmail.length}</span>
@@ -484,7 +484,7 @@ export default function LeadsPage() {
                       <div className="grid grid-cols-1 gap-2 text-xs text-slate-400">
                         <div>
                           <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Location</p>
-                          <span className="text-xs text-slate-300">{lead.location || <span className="text-slate-600">—</span>}</span>
+                          <span className="text-xs text-slate-300">{lead.location || <span className="text-slate-600">-</span>}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
@@ -493,17 +493,17 @@ export default function LeadsPage() {
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Priority</p>
-                            {lead.priority ? <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_STYLES[lead.priority]?.bg || 'bg-slate-500/10'} ${PRIORITY_STYLES[lead.priority]?.text || 'text-slate-400'}`}>{lead.priority}</span> : <span className="text-slate-600">—</span>}
+                            {lead.priority ? <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_STYLES[lead.priority]?.bg || 'bg-slate-500/10'} ${PRIORITY_STYLES[lead.priority]?.text || 'text-slate-400'}`}>{lead.priority}</span> : <span className="text-slate-600">-</span>}
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Rating</p>
-                            <span className="text-xs text-slate-300 font-mono">{lead.google_rating ? `${lead.google_rating}★` : '—'}</span>
+                            <span className="text-xs text-slate-300 font-mono">{lead.google_rating ? `${lead.google_rating}★` : '-'}</span>
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Follow-up</p>
-                            {lead.next_follow_up ? <span className={`text-xs ${overdue ? 'text-red-400' : 'text-slate-300'}`}>{lead.next_follow_up.split('T')[0]}{overdue && ' ⚠'}</span> : <span className="text-slate-600">—</span>}
+                            {lead.next_follow_up ? <span className={`text-xs ${overdue ? 'text-red-400' : 'text-slate-300'}`}>{lead.next_follow_up.split('T')[0]}{overdue && ' ⚠'}</span> : <span className="text-slate-600">-</span>}
                           </div>
                         </div>
                         <div>
@@ -511,7 +511,7 @@ export default function LeadsPage() {
                           <div className="space-y-0.5">
                             {lead.email && <p className="truncate">{lead.email}</p>}
                             {(lead.phone || lead.linked_place?.owner_phone) && <p className="text-slate-500">{lead.phone || lead.linked_place?.owner_phone}</p>}
-                            {!lead.email && !lead.phone && !lead.linked_place?.owner_phone && <p className="text-slate-600">—</p>}
+                            {!lead.email && !lead.phone && !lead.linked_place?.owner_phone && <p className="text-slate-600">-</p>}
                           </div>
                         </div>
                       </div>
@@ -557,29 +557,29 @@ export default function LeadsPage() {
                         {lead.property_type && <p className="text-[11px] text-slate-600 capitalize mt-0.5">{lead.property_type.replace('_', ' ')}</p>}
                       </td>
                       <td className="px-3 py-2.5 max-w-[150px]">
-                        <span className="text-xs text-slate-400 truncate block">{lead.location || <span className="text-slate-700">—</span>}</span>
+                        <span className="text-xs text-slate-400 truncate block">{lead.location || <span className="text-slate-700">-</span>}</span>
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="text-xs text-slate-400 space-y-0.5">
                           {lead.email && <p className="truncate max-w-[160px]">{lead.email}</p>}
                           {(lead.phone || lead.linked_place?.owner_phone) && <p className="text-slate-500">{lead.phone || lead.linked_place?.owner_phone}</p>}
-                          {!lead.email && !lead.phone && !lead.linked_place?.owner_phone && <span className="text-slate-600">—</span>}
+                          {!lead.email && !lead.phone && !lead.linked_place?.owner_phone && <span className="text-slate-600">-</span>}
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
                         {(() => { const s = stages.find(x => x.slug === lead.pipeline_stage); const c = s ? stageColors(s.color) : stageColors('blue'); return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${c.bg} text-white`}>{s?.name || lead.pipeline_stage}</span>; })()}
                       </td>
                       <td className="px-3 py-2.5">
-                        {lead.priority ? <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_STYLES[lead.priority]?.bg || 'bg-slate-500/10'} ${PRIORITY_STYLES[lead.priority]?.text || 'text-slate-400'}`}>{lead.priority}</span> : <span className="text-slate-700 text-xs">—</span>}
+                        {lead.priority ? <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_STYLES[lead.priority]?.bg || 'bg-slate-500/10'} ${PRIORITY_STYLES[lead.priority]?.text || 'text-slate-400'}`}>{lead.priority}</span> : <span className="text-slate-700 text-xs">-</span>}
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="text-xs text-slate-400 font-mono">{lead.google_rating ? `${lead.google_rating}★` : '—'}</span>
+                        <span className="text-xs text-slate-400 font-mono">{lead.google_rating ? `${lead.google_rating}★` : '-'}</span>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-xs text-slate-500">{lead.last_contact_date ? timeAgo(lead.last_contact_date) : <span className="text-slate-700">Never</span>}</span>
                       </td>
                       <td className="px-3 py-2.5">
-                        {lead.next_follow_up ? <span className={`text-xs ${overdue ? 'text-red-400' : 'text-slate-400'}`}>{lead.next_follow_up.split('T')[0]}{overdue && ' ⚠'}</span> : <span className="text-slate-700 text-xs">—</span>}
+                        {lead.next_follow_up ? <span className={`text-xs ${overdue ? 'text-red-400' : 'text-slate-400'}`}>{lead.next_follow_up.split('T')[0]}{overdue && ' ⚠'}</span> : <span className="text-slate-700 text-xs">-</span>}
                       </td>
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                         <Link href={`/crm/leads/${lead.id}`} className="opacity-0 group-hover:opacity-100 text-xs text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-1 rounded-md transition-all whitespace-nowrap" title="Edit lead">

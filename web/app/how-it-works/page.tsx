@@ -189,7 +189,7 @@ export default function HowItWorksPage() {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">Fair Pricing</h3>
-              <p className="text-gray-600">Hosts set their own prices, typically £10-15 per night — a fraction of traditional campsite fees.</p>
+              <p className="text-gray-600">Hosts set their own prices, typically £10-15 per night - a fraction of traditional campsite fees.</p>
             </div>
           </div>
         </div>

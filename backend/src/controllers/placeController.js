@@ -147,7 +147,7 @@ async function createPlace(req, res, next) {
     const data = req.validatedBody;
 
     // Contract and Stripe setup are deferred until the host receives their first booking.
-    // No upfront gate here — hosts are prompted to complete setup when a booking arrives.
+    // No upfront gate here - hosts are prompted to complete setup when a booking arrives.
 
     const result = await db.query(
       `INSERT INTO places (owner_id, name, description, address, city, country,
@@ -288,7 +288,7 @@ async function updatePlace(req, res, next) {
       }
     }
 
-    // Once a site is approved, hosts can edit it freely — no re-approval needed.
+    // Once a site is approved, hosts can edit it freely - no re-approval needed.
 
     if (fields.length === 0) {
       return res.status(400).json({

@@ -33,7 +33,7 @@ async function signup(req, res, next) {
     if (existingUsername.rows.length > 0) {
       return res.status(409).json({
         error: 'username_taken',
-        message: 'Username already taken — please choose another',
+        message: 'Username already taken - please choose another',
       });
     }
 
@@ -325,7 +325,7 @@ async function acceptHostContract(req, res, next) {
       return res.status(400).json({ error: 'Signature is required to accept the Host Agreement.' });
     }
 
-    // Check if already signed — cannot re-sign or unsign
+    // Check if already signed - cannot re-sign or unsign
     const existing = await db.query(
       `SELECT host_contract_accepted_at FROM users WHERE id = $1`,
       [userId]
@@ -509,7 +509,7 @@ function verifyHtmlPage(success, message) {
   const icon = success ? '✅' : '❌';
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Email Verification – Proper Place</title>
+<title>Email Verification - Proper Place</title>
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
 .card{background:#fff;border-radius:16px;padding:48px 32px;text-align:center;max-width:400px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
 .icon{font-size:48px;margin-bottom:16px;}
@@ -593,7 +593,7 @@ async function showResetPasswordForm(req, res) {
   // Show password form
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Reset Password – Proper Place</title>
+<title>Reset Password - Proper Place</title>
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
 .card{background:#fff;border-radius:16px;padding:48px 32px;text-align:center;max-width:400px;width:90%;box-shadow:0 2px 12px rgba(0,0,0,.08);}
 h1{color:#1a1a1a;font-size:22px;margin-bottom:12px;}
@@ -701,7 +701,7 @@ function resetHtmlPage(success, message) {
   const icon = success ? '✅' : '❌';
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Password Reset – Proper Place</title>
+<title>Password Reset - Proper Place</title>
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
 .card{background:#fff;border-radius:16px;padding:48px 32px;text-align:center;max-width:400px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
 .icon{font-size:48px;margin-bottom:16px;}

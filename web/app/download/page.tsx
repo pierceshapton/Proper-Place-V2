@@ -43,7 +43,7 @@ export default function DownloadPage() {
               Download the <span className="text-light-blue">Proper Place</span> App
             </h1>
             <p className="text-xl md:text-2xl text-gray-200 mb-10 leading-relaxed">
-              Find affordable motorhome overnight stays across the UK. Browse locations, book stays, and connect with hosts — all from your phone.
+              Find affordable motorhome overnight stays across the UK. Browse locations, book stays, and connect with hosts - all from your phone.
             </p>
             
             {/* App Download Buttons */}
@@ -117,7 +117,7 @@ export default function DownloadPage() {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">Secure Payments</h3>
-              <p className="text-gray-600">Book and pay securely through the app. No cash needed — everything is handled digitally.</p>
+              <p className="text-gray-600">Book and pay securely through the app. No cash needed - everything is handled digitally.</p>
             </div>
           </div>
         </div>
@@ -133,7 +133,7 @@ export default function DownloadPage() {
                 Manage your listings on the go
               </h2>
               <p className="text-gray-600 text-lg mb-6 leading-relaxed">
-                The Proper Place app makes hosting easy. Manage your listings, respond to booking requests, and communicate with guests — all from your phone.
+                The Proper Place app makes hosting easy. Manage your listings, respond to booking requests, and communicate with guests - all from your phone.
               </p>
               <ul className="space-y-4">
                 <li className="flex items-center gap-3">

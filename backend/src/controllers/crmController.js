@@ -677,7 +677,7 @@ async function sendEmail(req, res, next) {
     const lead = leadResult.rows[0];
 
     const recipient = to_email || lead.email;
-    if (!recipient) return res.status(400).json({ error: 'No recipient email address — add one in the To field or on the lead' });
+    if (!recipient) return res.status(400).json({ error: 'No recipient email address - add one in the To field or on the lead' });
     if (!subject || !body) return res.status(400).json({ error: 'subject and body required' });
 
     // Interpolate variables
@@ -982,7 +982,7 @@ async function deleteStage(req, res, next) {
     const slug = stage.rows[0].slug;
     const count = await db.query('SELECT COUNT(*) FROM host_leads WHERE pipeline_stage = $1', [slug]);
     if (parseInt(count.rows[0].count) > 0) {
-      return res.status(409).json({ error: `Cannot delete — ${count.rows[0].count} lead(s) in this stage. Move them first.` });
+      return res.status(409).json({ error: `Cannot delete - ${count.rows[0].count} lead(s) in this stage. Move them first.` });
     }
     await db.query('DELETE FROM crm_stages WHERE id = $1', [id]);
     res.json({ success: true });
@@ -1312,7 +1312,7 @@ async function enrichLead(req, res, next) {
 
     await db.query(
       `INSERT INTO crm_activities (lead_id, activity_type, title, description, created_by) VALUES ($1, 'note', 'Enriched from Google Places', $2, $3)`,
-      [id, `Rating: ${enriched.google_rating || '–'} (${enriched.google_reviews_count || 0} reviews). Website: ${enriched.website || 'none'}${enriched.is_chain ? `. Chain: ${enriched.chain_name}` : ''}`, req.user.userId]
+      [id, `Rating: ${enriched.google_rating || '-'} (${enriched.google_reviews_count || 0} reviews). Website: ${enriched.website || 'none'}${enriched.is_chain ? `. Chain: ${enriched.chain_name}` : ''}`, req.user.userId]
     );
 
     res.json({ lead: updated.rows[0], enriched });
@@ -1437,7 +1437,7 @@ async function importLeads(req, res, next) {
   }
 }
 
-// Discovery auto-email scheduler hook — checks the kill switch and enabled flag
+// Discovery auto-email scheduler hook - checks the kill switch and enabled flag
 // before doing anything, so it is safe to call on a timer even if not fully built out.
 async function processDiscoveryAutoEmails() {
   try {

@@ -3,7 +3,7 @@ const logger = require('../utils/logger');
 
 /**
  * GET /cms/content  (public)
- * GET /crm/content  (admin — same handler, used from CRM editor)
+ * GET /crm/content  (admin - same handler, used from CRM editor)
  * Returns all CMS content as a flat { key: value } map plus full rows for the editor.
  */
 async function getContent(req, res, next) {

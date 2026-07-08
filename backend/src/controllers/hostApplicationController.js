@@ -1,6 +1,6 @@
 const { pool } = require('../config/database');
 
-// Submit a new host application — auto-approved, user becomes host immediately
+// Submit a new host application - auto-approved, user becomes host immediately
 const submitApplication = async (req, res) => {
   try {
     const {

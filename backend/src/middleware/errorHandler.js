@@ -106,7 +106,7 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  // Postgres errors have 5-char SQLSTATE codes — translate the ones we know.
+  // Postgres errors have 5-char SQLSTATE codes - translate the ones we know.
   if (err.code && typeof err.code === 'string' && /^[0-9A-Z]{5}$/.test(err.code)) {
     const friendly = friendlyPgError(err);
     if (friendly) {
@@ -119,7 +119,7 @@ function errorHandler(err, req, res, next) {
   const status = err.statusCode || 500;
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // 4xx errors have intentional operator-facing messages — pass them through.
+  // 4xx errors have intentional operator-facing messages - pass them through.
   if (status < 500) {
     return res.status(status).json({
       error: err.error || 'request_failed',
@@ -127,7 +127,7 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  // 5xx — never leak internals in production.
+  // 5xx - never leak internals in production.
   res.status(status).json({
     error: err.error || 'internal_error',
     message: isProduction

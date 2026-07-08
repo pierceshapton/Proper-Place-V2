@@ -205,9 +205,9 @@ export default function AdminPlacesPage() {
                           <p className="text-xs text-gray-400 truncate max-w-[180px]">{place.owner_email}</p>
                         </td>
                         <td className="px-4 py-3 text-gray-600">
-                          <p className="truncate max-w-[220px]">{[place.address, place.city].filter(Boolean).join(', ') || '—'}</p>
+                          <p className="truncate max-w-[220px]">{[place.address, place.city].filter(Boolean).join(', ') || '-'}</p>
                         </td>
-                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{place.place_type?.replace(/_/g, ' ') || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{place.place_type?.replace(/_/g, ' ') || '-'}</td>
                         <td className="px-4 py-3 text-gray-800 whitespace-nowrap">£{Number(place.price_per_night || 0).toFixed(2)}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusChip(place.approval_status)}`}>
@@ -219,7 +219,7 @@ export default function AdminPlacesPage() {
                             type="button"
                             onClick={() => handleToggleVisibility(place)}
                             disabled={togglingId === place.id}
-                            title={hidden ? 'Currently hidden from the public map — click to restore' : 'Currently visible on the public map — click to hide'}
+                            title={hidden ? 'Currently hidden from the public map - click to restore' : 'Currently visible on the public map - click to hide'}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                               hidden
                                 ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
@@ -504,7 +504,7 @@ function PlaceDetails({
             {detail('Host Name', place.owner_name || place.host?.name)}
             {detail('Owner ID', place.owner_id)}
             {detail('Host Email', place.owner_email)}
-            {detail('Contract Signed', place.host_contract_accepted_at ? `Yes (v${place.host_contract_version || '?'} — ${new Date(place.host_contract_accepted_at).toLocaleDateString('en-GB')})` : 'NO')}
+            {detail('Contract Signed', place.host_contract_accepted_at ? `Yes (v${place.host_contract_version || '?'} - ${new Date(place.host_contract_accepted_at).toLocaleDateString('en-GB')})` : 'NO')}
           </div>
 
           {place.description && (

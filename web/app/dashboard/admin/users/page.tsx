@@ -192,7 +192,7 @@ export default function AdminUsersPage() {
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${roleColor(user.role)}`}>{user.role}</span>
                 </td>
                 <td className="py-3 px-4 text-sm text-gray-600">{user.bookings_count ?? 0}</td>
-                <td className="py-3 px-4 text-sm text-gray-500">{user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}</td>
+                <td className="py-3 px-4 text-sm text-gray-500">{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</td>
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
@@ -271,7 +271,7 @@ export default function AdminUsersPage() {
                 </div>
                 {!createdResult.inviteSent && createdResult.password && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Temporary password — share with user</p>
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Temporary password - share with user</p>
                     <p className="font-mono text-lg font-bold text-amber-900 tracking-widest select-all">{createdResult.password}</p>
                     <p className="text-xs text-amber-600">The user will be prompted to change this on first login.</p>
                   </div>
@@ -399,7 +399,7 @@ export default function AdminUsersPage() {
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">{selectedUser.name || 'User details'}</h2>
-                <p className="text-sm text-gray-500">Joined {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : '—'}</p>
+                <p className="text-sm text-gray-500">Joined {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : '-'}</p>
               </div>
               <button className="text-gray-500 hover:text-gray-700" onClick={() => setSelectedUser(null)}>Close</button>
             </div>
@@ -408,11 +408,11 @@ export default function AdminUsersPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-gray-500">Email</p>
-                  <p className="text-gray-900 font-medium">{selectedUser.email || '—'}</p>
+                  <p className="text-gray-900 font-medium">{selectedUser.email || '-'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Phone</p>
-                  <p className="text-gray-900 font-medium">{selectedUser.phone || '—'}</p>
+                  <p className="text-gray-900 font-medium">{selectedUser.phone || '-'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Role</p>
@@ -440,8 +440,8 @@ export default function AdminUsersPage() {
                     {selectedBookings.map(booking => (
                       <div key={booking.id} className="border border-gray-200 rounded-lg p-3 text-sm">
                         <p className="font-medium text-gray-900">{booking.place_name || 'Unknown place'}{booking.place_city ? `, ${booking.place_city}` : ''}</p>
-                        <p className="text-gray-600">{booking.check_in_date ? new Date(booking.check_in_date).toLocaleDateString() : '—'} to {booking.check_out_date ? new Date(booking.check_out_date).toLocaleDateString() : '—'}</p>
-                        <p className="text-gray-500">Status: {booking.status || '—'}{booking.booking_ref ? ` • ${booking.booking_ref}` : ''}</p>
+                        <p className="text-gray-600">{booking.check_in_date ? new Date(booking.check_in_date).toLocaleDateString() : '-'} to {booking.check_out_date ? new Date(booking.check_out_date).toLocaleDateString() : '-'}</p>
+                        <p className="text-gray-500">Status: {booking.status || '-'}{booking.booking_ref ? ` • ${booking.booking_ref}` : ''}</p>
                       </div>
                     ))}
                   </div>

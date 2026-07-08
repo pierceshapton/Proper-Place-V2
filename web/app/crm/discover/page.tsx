@@ -152,7 +152,7 @@ export default function DiscoverPage() {
 
     // Build the search query from criteria + signals extracted from your high-rated feedback.
     // High-rated (4-5★) notes contain valuable vocabulary like "large gravel car park",
-    // "rural", "dog friendly" — extract those and reinforce the search query.
+    // "rural", "dog friendly" - extract those and reinforce the search query.
     const highRatedNotes = feedbackHistory
       .filter(f => f.stars >= 4 && f.note?.trim())
       .map(f => f.note!.trim());
@@ -214,7 +214,7 @@ export default function DiscoverPage() {
       // Build base scores (used as fallback if AI ranking fails)
       const basedScored = relevant.map(candidate => scoreCandidate(candidate, profile));
 
-      // Apply OpenAI ranking in batches of 15 — smaller batches give much better per-venue quality
+      // Apply OpenAI ranking in batches of 15 - smaller batches give much better per-venue quality
       let scored: ScoredCandidate[];
       try {
         const BATCH_SIZE = 15;
@@ -277,7 +277,7 @@ export default function DiscoverPage() {
       try {
         await crmApi.replaceDiscoveryQueue(filtered);
       } catch {
-        // non-fatal — queue refresh failure doesn't block the UI results
+        // non-fatal - queue refresh failure doesn't block the UI results
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -606,7 +606,7 @@ export default function DiscoverPage() {
                 <div key={item.id} className="flex items-center justify-between gap-3 bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5">
                   <div className="min-w-0">
                     <p className="text-sm text-slate-200 font-medium truncate">{item.name}</p>
-                    <p className="text-xs text-slate-500 truncate">{item.address || '—'}</p>
+                    <p className="text-xs text-slate-500 truncate">{item.address || '-'}</p>
                     {item.rating != null && (
                       <p className="text-xs text-slate-400 mt-0.5">{item.rating}★ · {item.reviews ?? 0} reviews</p>
                     )}
@@ -648,14 +648,14 @@ export default function DiscoverPage() {
               value={criteriaInput}
               onChange={e => setCriteriaInput(e.target.value)}
               rows={4}
-              placeholder={`Describe what you're looking for. E.g:\n• pub with large car park near the coast\n• vineyard with parking\n• farm with plenty of parking near a beauty spot\n\nJust describe it naturally — the type of place and any extras. Parking is always required.`}
+              placeholder={`Describe what you're looking for. E.g:\n• pub with large car park near the coast\n• vineyard with parking\n• farm with plenty of parking near a beauty spot\n\nJust describe it naturally - the type of place and any extras. Parking is always required.`}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
             />
-            <p className="text-[11px] text-slate-600 mt-1">Write naturally — the AI reads this and checks each requirement per site. Notes you leave on rated sites are also learned from.</p>
+            <p className="text-[11px] text-slate-600 mt-1">Write naturally - the AI reads this and checks each requirement per site. Notes you leave on rated sites are also learned from.</p>
           </div>
 
           <div>
-            <label className="block text-xs text-slate-500 mb-1">Min AI Score (0–100)</label>
+            <label className="block text-xs text-slate-500 mb-1">Min AI Score (0-100)</label>
             <div className="flex items-center gap-3">
               <input
                 type="range"
@@ -738,11 +738,11 @@ export default function DiscoverPage() {
                     <tr key={item.id} onClick={() => { setActiveCandidate(item); setReviewStars(0); }} className="cursor-pointer hover:bg-slate-800/40">
                       <td className="px-3 py-2 align-top">
                         <p className="text-sm text-slate-200 font-medium">{item.name}</p>
-                        <p className="text-xs text-slate-500 max-w-[280px]">{item.address || '—'}</p>
+                        <p className="text-xs text-slate-500 max-w-[280px]">{item.address || '-'}</p>
                       </td>
-                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.rating ?? '—'}</td>
-                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.reviews ?? '—'}</td>
-                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.primaryType || item.types[0] || '—'}</td>
+                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.rating ?? '-'}</td>
+                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.reviews ?? '-'}</td>
+                      <td className="px-3 py-2 align-top text-xs text-slate-300">{item.primaryType || item.types[0] || '-'}</td>
                       <td className="px-3 py-2 align-top">
                         {item.latitude !== null && item.longitude !== null && GOOGLE_MAPS_API_KEY ? (
                           // Satellite previews come from a dynamic Google endpoint; keeping a native img avoids extra loader setup.
@@ -826,9 +826,9 @@ export default function DiscoverPage() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-              <SummaryStat label="Google" value={activeCandidate.rating ? `${activeCandidate.rating}★` : '—'} />
-              <SummaryStat label="Reviews" value={activeCandidate.reviews ? String(activeCandidate.reviews) : '—'} />
-              <SummaryStat label="Type" value={activeCandidate.primaryType || activeCandidate.types[0] || '—'} />
+              <SummaryStat label="Google" value={activeCandidate.rating ? `${activeCandidate.rating}★` : '-'} />
+              <SummaryStat label="Reviews" value={activeCandidate.reviews ? String(activeCandidate.reviews) : '-'} />
+              <SummaryStat label="Type" value={activeCandidate.primaryType || activeCandidate.types[0] || '-'} />
             </div>
 
             {activeCandidate.openingHours && activeCandidate.openingHours.length > 0 && (
@@ -1235,7 +1235,7 @@ async function searchByExactName(query: string, apiKey: string): Promise<Candida
   if (!response.ok) {
     let detail = '';
     try { const e = await response.json(); detail = JSON.stringify(e); } catch { detail = await response.text().catch(() => ''); }
-    throw new Error(`Google Places: HTTP ${response.status} — ${detail.slice(0, 200)}`);
+    throw new Error(`Google Places: HTTP ${response.status} - ${detail.slice(0, 200)}`);
   }
 
   const data: GooglePlacesResponse = await response.json();
@@ -1383,7 +1383,7 @@ function generateCandidateSummary(item: ScoredCandidate): string {
     parts.push(`It holds a ${item.rating}\u2605 Google rating.`);
   }
 
-  // Campervan — prefer real review quotes, fall back to website snippets
+  // Campervan - prefer real review quotes, fall back to website snippets
   const campervanKeywords = ['campervan', 'motorhome', 'overnight', 'camper', ' rv ', 'night stop',
     'stopover', 'stay the night', 'park up', 'park overnight', 'van overnight'];
 
@@ -1406,7 +1406,7 @@ function generateCandidateSummary(item: ScoredCandidate): string {
       : campervanWebSnippets[0];
     parts.push(`Their website says: "${snippet}"`);
     if (campervanWebSnippets.length > 1) {
-      parts.push('Their site has additional content referencing campervan or overnight use — worth a look.');
+      parts.push('Their site has additional content referencing campervan or overnight use - worth a look.');
     }
   } else if (item.siteAnalysis?.campervanPriority && item.siteAnalysis.campervanPriority >= 15) {
     parts.push('Their website references campervan or overnight activity, though no specific passage was extracted.');

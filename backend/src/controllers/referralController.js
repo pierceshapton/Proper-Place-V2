@@ -145,7 +145,7 @@ const completeReferral = async (hostEmail) => {
           amount: BONUS_AMOUNT,
           currency: 'gbp',
           destination: referrer.stripe_account_id,
-          description: `Referral bonus – ${hostEmail} first booking`,
+          description: `Referral bonus - ${hostEmail} first booking`,
         });
 
         await db.query(
@@ -179,7 +179,7 @@ const completeReferral = async (hostEmail) => {
         } catch (e) { /* ignore */ }
       }
     } else {
-      // No Stripe account — mark as payout_pending
+      // No Stripe account - mark as payout_pending
       await db.query(
         `UPDATE referrals SET status = 'payout_pending' WHERE id = $1`,
         [referral.id]
@@ -255,7 +255,7 @@ const adminCompleteReferral = async (req, res) => {
       return res.status(404).json({ error: 'Referral not found or already completed' });
     }
 
-    return res.json({ referral: result.rows[0], message: 'Referral marked as completed — £25 bonus due' });
+    return res.json({ referral: result.rows[0], message: 'Referral marked as completed - £25 bonus due' });
   } catch (err) {
     console.error('[REFERRAL] Admin complete error:', err.message);
     return res.status(500).json({ error: 'Failed to complete referral' });
@@ -297,7 +297,7 @@ const createConnectAccount = async (req, res) => {
         business_profile: {
           name: fullName,
           mcc: '7033',
-          product_description: 'Host on Proper Place – renting out a camping/glamping site to guests via the Proper Place platform.',
+          product_description: 'Host on Proper Place - renting out a camping/glamping site to guests via the Proper Place platform.',
         },
         metadata: { proper_place_user_id: String(userId) },
       };
@@ -321,7 +321,7 @@ const createConnectAccount = async (req, res) => {
           await db.query('UPDATE users SET stripe_account_id = NULL WHERE id = $1', [userId]);
         }
       } catch (stripeErr) {
-        // Account deleted or invalid — clear and recreate
+        // Account deleted or invalid - clear and recreate
         console.warn(`[STRIPE] Account ${accountId} invalid: ${stripeErr.message}, will recreate`);
         accountId = null;
         await db.query('UPDATE users SET stripe_account_id = NULL WHERE id = $1', [userId]);
@@ -334,7 +334,7 @@ const createConnectAccount = async (req, res) => {
       await db.query('UPDATE users SET stripe_account_id = $1 WHERE id = $2', [accountId, userId]);
     }
 
-    // Create onboarding link — redirect back to the app via custom URL scheme
+    // Create onboarding link - redirect back to the app via custom URL scheme
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: 'properplace://stripe-connect/refresh',
@@ -371,7 +371,7 @@ const getConnectStatus = async (req, res) => {
     } catch (stripeErr) {
       // If the Stripe account was deleted or doesn't exist, clear the stale reference
       if (stripeErr.code === 'account_invalid' || stripeErr.statusCode === 404 || stripeErr.type === 'StripeInvalidRequestError') {
-        console.warn(`[STRIPE] Account ${accountId} no longer exists on Stripe — clearing DB reference`);
+        console.warn(`[STRIPE] Account ${accountId} no longer exists on Stripe - clearing DB reference`);
         await db.query('UPDATE users SET stripe_account_id = NULL WHERE id = $1', [userId]);
         return res.json({ connected: false, payouts_enabled: false, details_submitted: false });
       }
@@ -428,7 +428,7 @@ const retryPendingPayouts = async (req, res) => {
           amount: BONUS_AMOUNT,
           currency: 'gbp',
           destination: accountId,
-          description: `Referral bonus – ${referral.referred_email} first booking`,
+          description: `Referral bonus - ${referral.referred_email} first booking`,
         });
 
         await db.query(

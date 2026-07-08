@@ -139,7 +139,7 @@ async function deleteAccount(req, res, next) {
 
     const user = userResult.rows[0];
 
-    // Hosts: send admin notification and defer deletion — don't delete immediately
+    // Hosts: send admin notification and defer deletion - don't delete immediately
     if (user.role === 'host') {
       sendHostDeletionRequestEmail(user).catch((err) => {
         logger.error('Failed to send host deletion request email', { userId: user.id, error: err.message });

@@ -144,7 +144,7 @@ export default function PrivacyPage() {
             <h2 className="text-2xl font-bold mt-8 mb-4">5. Data Sharing</h2>
             <p className="text-gray-600 mb-4">We share your data with the following third parties:</p>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-6">
-              <li><strong>Stripe:</strong> Payment processing, fund holding, and host payouts via Stripe Connect Express (PCI-DSS compliant). Hosts who list on Proper Place are required to complete Stripe Connect onboarding; Stripe collects and processes identity and payout information for this purpose. All customer funds are held by Stripe — Proper Place never holds or has custody of user funds.</li>
+              <li><strong>Stripe:</strong> Payment processing, fund holding, and host payouts via Stripe Connect Express (PCI-DSS compliant). Hosts who list on Proper Place are required to complete Stripe Connect onboarding; Stripe collects and processes identity and payout information for this purpose. All customer funds are held by Stripe - Proper Place never holds or has custody of user funds.</li>
               <li><strong>DigitalOcean:</strong> Cloud hosting and database services (EU/UK data centres)</li>
               <li><strong>Google Maps:</strong> Location and mapping services</li>
               <li><strong>Email service providers:</strong> For transactional emails</li>

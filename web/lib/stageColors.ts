@@ -1,5 +1,5 @@
 /**
- * Stage color definitions — all Tailwind class strings are written out
+ * Stage color definitions - all Tailwind class strings are written out
  * explicitly so the JIT compiler includes them in the build.
  */
 
@@ -44,7 +44,7 @@ export const COLOR_GROUPS: Array<{ label: string; shades: [string, string, strin
   { label: 'Zinc',    shades: ['zinc-300',    'zinc',    'zinc-700']    },
 ];
 
-// Hex values for every color key — used for inline styles to avoid Tailwind JIT purging
+// Hex values for every color key - used for inline styles to avoid Tailwind JIT purging
 export const COLOR_HEX: Record<string, string> = {
   // 500 (medium)
   blue:       '#3b82f6', sky:     '#0ea5e9', cyan:    '#06b6d4', teal:    '#14b8a6',

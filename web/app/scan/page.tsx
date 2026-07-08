@@ -81,7 +81,7 @@ export default function ScanPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
             {[
               { step: '1', title: 'Download the App', desc: 'Free on iOS and Android' },
-              { step: '2', title: 'Create an Account', desc: 'Quick sign up — takes 30 seconds' },
+              { step: '2', title: 'Create an Account', desc: 'Quick sign up - takes 30 seconds' },
               { step: '3', title: 'Book & Stay', desc: 'Find this location and book your stay' },
             ].map((item, i) => (
               <div key={i} className="text-center">

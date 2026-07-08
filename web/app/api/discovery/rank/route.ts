@@ -129,16 +129,16 @@ function buildPrompt(
   const parts: string[] = [];
 
   parts.push(
-    'Score each candidate venue 0–100 for how good a fit they are for Proper Place campervan overnight parking partnerships.',
+    'Score each candidate venue 0-100 for how good a fit they are for Proper Place campervan overnight parking partnerships.',
     'Proper Place partners with pubs, inns, hotels, country pubs, gastropubs, farms, vineyards and similar hospitality venues that have OUTDOOR SPACE and CAR PARKS where campervans can stay overnight.',
     '',
-    'SCORING BANDS — apply these strictly:',
-    '80–100: Clear match — rural/country pub, inn, or hotel with a car park; mentions camping, campervans, or overnight stays; good reviews; away from town centres.',
-    '50–79: Possible match — hospitality venue with parking but no specific campervan signal; decent reviews; room to negotiate.',
-    '20–49: Weak match — venue type could work but urban, no parking signals, or heavily chain-branded.',
-    '0–19: Not suitable — fast food, retail, supermarkets, petrol stations, gyms, offices, schools, chains (e.g. McDonald\'s, Tesco, Costa, Greggs), urban venues with no outdoor space.',
+    'SCORING BANDS - apply these strictly:',
+    '80-100: Clear match - rural/country pub, inn, or hotel with a car park; mentions camping, campervans, or overnight stays; good reviews; away from town centres.',
+    '50-79: Possible match - hospitality venue with parking but no specific campervan signal; decent reviews; room to negotiate.',
+    '20-49: Weak match - venue type could work but urban, no parking signals, or heavily chain-branded.',
+    '0-19: Not suitable - fast food, retail, supermarkets, petrol stations, gyms, offices, schools, chains (e.g. McDonald\'s, Tesco, Costa, Greggs), urban venues with no outdoor space.',
     '',
-    'BE STRICT. Most results from a broad Google search will score 20–50. Only score 80+ if there is real evidence of rural location + parking + hospitality.',
+    'BE STRICT. Most results from a broad Google search will score 20-50. Only score 80+ if there is real evidence of rural location + parking + hospitality.',
     'Do NOT give a venue 60+ just because it is a pub. It must have evidence of parking space suitable for campervans.',
     '',
   );
@@ -151,12 +151,12 @@ function buildPrompt(
     const highRated = feedback.filter(f => f.stars >= 4);
     const lowRated = feedback.filter(f => f.stars <= 2);
 
-    parts.push('== MY PAST RATINGS — THIS IS THE MOST IMPORTANT SIGNAL ==');
+    parts.push('== MY PAST RATINGS - THIS IS THE MOST IMPORTANT SIGNAL ==');
     parts.push('Use these as your primary training data. Venues similar to the 4-5★ ones should score higher. Venues similar to the 1-2★ ones should score lower.');
     parts.push('');
 
     if (highRated.length > 0) {
-      parts.push('✅ GOOD FITS (4-5 stars) — find more like these:');
+      parts.push('✅ GOOD FITS (4-5 stars) - find more like these:');
       highRated.forEach(f => {
         const line = `  - "${f.name}", ${f.address} → ${f.stars}/5★${f.note ? ` | Note: "${f.note}"` : ''}`;
         parts.push(line);
@@ -165,7 +165,7 @@ function buildPrompt(
     }
 
     if (lowRated.length > 0) {
-      parts.push('❌ POOR FITS (1-2 stars) — avoid venues like these:');
+      parts.push('❌ POOR FITS (1-2 stars) - avoid venues like these:');
       lowRated.forEach(f => {
         const line = `  - "${f.name}", ${f.address} → ${f.stars}/5★${f.note ? ` | Reason: "${f.note}"` : ''}`;
         parts.push(line);
@@ -194,7 +194,7 @@ function buildPrompt(
 
   parts.push('== CANDIDATES TO SCORE ==');
   candidates.forEach((c, i) => {
-    const lines: string[] = [`${i + 1}. ID: ${c.id} | "${c.name}" — ${c.address}`];
+    const lines: string[] = [`${i + 1}. ID: ${c.id} | "${c.name}" - ${c.address}`];
     if (c.primaryType) lines.push(`   Type: ${c.primaryType}`);
     if (c.rating !== null) lines.push(`   Google: ${c.rating}★ (${c.reviews ?? 0} reviews)`);
     if (c.editorialSummary) lines.push(`   Description: ${c.editorialSummary}`);
@@ -213,7 +213,7 @@ function buildPrompt(
     }
 
     if (c.reviewsText && c.reviewsText.length > 0) {
-      // Only include reviews that explicitly mention campervan/overnight — whole-word match, no loose "van"
+      // Only include reviews that explicitly mention campervan/overnight - whole-word match, no loose "van"
       const relevant = c.reviewsText.filter(r =>
         /\b(campervan|camper\s*van|motorhome|motor\s*home|overnight\s*stay|overnight\s*park|park\s*up)\b/i.test(r),
       );
@@ -229,7 +229,7 @@ function buildPrompt(
   parts.push(
     'Respond with JSON in this exact format (no other keys):',
     '{"results": [{"id": "...", "score": 75, "reasoning": "One sentence why.", "criteriaChecks": [{"label": "Parking", "met": true, "detail": "free lot"}, {"label": "Rural location", "met": false, "detail": "town centre"}]}, ...]}',
-    'Include one entry per candidate. Scores must be integers 0–100.',
+    'Include one entry per candidate. Scores must be integers 0-100.',
     'If no criteria were provided, return criteriaChecks as an empty array [].',
   );
 
