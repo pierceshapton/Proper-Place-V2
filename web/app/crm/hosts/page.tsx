@@ -460,6 +460,39 @@ function generateSiteDescription(lead: CRMLead): string {
   return parts.join(' ');
 }
 
+// Warm, evocative “about the business” copy in the same voice as the site
+// description. Focuses on the character of the venue — the welcome, the pace,
+// the kind of experience a guest can expect — without inventing specifics.
+function generateBusinessDescription(lead: CRMLead): string {
+  const nameRaw = lead.business_name?.trim() || '';
+  const name = nameRaw || 'This venue';
+  const type = mapLeadPropertyTypeToPlaceType(lead.property_type);
+  const templates: Record<string, string> = {
+    pub: `${name} is a proper country pub at heart — a warm, dog-friendly welcome, real ales at the bar, and the kind of relaxed atmosphere where locals and travellers happily share the same tables. Whether you're stopping in for a quick pint, a hearty meal by the fire or a long, easy evening, it's the sort of place that makes you feel at home the moment you walk through the door.`,
+    farm: `${name} is a working farm that has quietly opened its gates to campervan travellers looking for real countryside and open skies. Expect a genuine welcome, honest surroundings, and — where the season allows — farm-fresh eggs, meat or produce straight from the gate.`,
+    vineyard: `${name} is a working vineyard that welcomes travellers to walk among the vines, learn a little about the wine, and — depending on the day — join a tasting or a tour. Expect a warm, informal welcome from a team that clearly loves what they do.`,
+    campsite: `${name} is a family-run campsite built around what campervan and motorhome travellers actually need: level pitches, clean facilities, unhurried check-ins, and a proper welcome. It's the kind of place run by people who understand life on the road.`,
+    coastal: `${name} is a coastal spot with a genuine welcome and an easy pace — the sort of place where locals know each other and travellers get treated the same. Perfect for anyone who wants sea air, calm evenings and a good honest night's rest.`,
+    woodland: `${name} is a quiet retreat tucked in among the trees, run by hosts who value the peace as much as their guests do. No fuss, no crowds — just a well-cared-for setting and a warm, low-key welcome.`,
+    garden: `${name} is a beautifully kept private setting, opened up to campervan travellers by hosts who love sharing the place they've built. Expect thoughtful touches, a warm welcome, and the feeling of being somewhere a little special.`,
+    private_land: `${name} is a piece of private land offered by hosts who understand the appeal of a genuinely quiet overnight stop. It's calm, unfussy and honest — no pretence, just a proper night away from it all.`,
+    other: `${name} is a welcoming stopover run by hosts who understand what campervan and motorhome travellers are after: somewhere safe, straightforward and warm to spend the night.`,
+  };
+  return templates[type] || templates.other;
+}
+
+// Menu copy — only for venue types where food is a core part of the offering.
+// Returns an empty string when the venue doesn’t typically serve food, so we
+// don’t clobber the host’s own menu text.
+function generateFoodMenuDescription(lead: CRMLead): string {
+  const type = mapLeadPropertyTypeToPlaceType(lead.property_type);
+  const templates: Record<string, string> = {
+    pub: `Expect classic pub fare done properly: hearty home-cooked mains, seasonal specials from the blackboard, and traditional favourites like Sunday roasts, fish and chips and pub pies. Local real ales and a well-chosen wine list sit alongside the food, with something lighter for a lunchtime stop or a full plate for a proper evening meal. Please confirm the current menu and serving times directly with the venue before you arrive.`,
+    vineyard: `Expect a menu built around the estate: sharing boards of local cheese and charcuterie, seasonal small plates, and dishes designed to pair with the vineyard's own wines. Tastings and flights are often available alongside food service. Please confirm the current menu, serving times and any tasting bookings directly with the venue.`,
+  };
+  return templates[type] || '';
+}
+
 function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; ownerName: string; leadPrefill?: CRMLead | null }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -480,6 +513,7 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
     const prefillName = leadPrefill?.business_name
       || `${leadPrefill?.first_name || ''} ${leadPrefill?.last_name || ''}`.trim()
       || '';
+    const menuCopy = leadPrefill ? generateFoodMenuDescription(leadPrefill) : '';
     return {
       name: prefillName,
       description: leadPrefill ? generateSiteDescription(leadPrefill) : '',
@@ -493,13 +527,13 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
       capacity: leadPrefill?.parking_spaces != null ? String(leadPrefill.parking_spaces) : '',
       place_type: mapLeadPropertyTypeToPlaceType(leadPrefill?.property_type),
       opening_hours: compactOpeningHours(leadPrefill?.opening_hours_text),
-      business_description: '',
+      business_description: leadPrefill ? generateBusinessDescription(leadPrefill) : '',
       access_route_description: '',
       max_vehicle_height_m: '',
       max_vehicle_width_m: '',
       max_vehicle_length_m: '',
-      serves_food: false,
-      food_menu_description: '',
+      serves_food: menuCopy ? true : false,
+      food_menu_description: menuCopy,
       max_nights_per_stay: '',
       // Lead-sourced sites default to pending so the auto-generated description
       // is reviewed before the listing goes live. Manual creates stay 'approved'.
@@ -536,10 +570,13 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
     const prefillName = lead.business_name
       || `${lead.first_name || ''} ${lead.last_name || ''}`.trim()
       || '';
+    const menuCopy = generateFoodMenuDescription(lead);
     setForm(prev => ({
       ...prev,
       name: prefillName || prev.name,
       description: generateSiteDescription(lead),
+      business_description: generateBusinessDescription(lead),
+      ...(menuCopy ? { food_menu_description: menuCopy, serves_food: true } : {}),
       latitude: lead.latitude != null ? String(lead.latitude) : prev.latitude,
       longitude: lead.longitude != null ? String(lead.longitude) : prev.longitude,
       capacity: lead.parking_spaces != null ? String(lead.parking_spaces) : prev.capacity,
