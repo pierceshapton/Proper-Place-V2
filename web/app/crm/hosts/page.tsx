@@ -490,8 +490,60 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
   const [duplicate, setDuplicate] = useState<Place | null>(null);
   const [duplicateDismissed, setDuplicateDismissed] = useState(false);
 
+  // The lead this site will be linked to on save. Starts from the URL-driven
+  // prefill and can also be set by picking a suggestion from the dropdown
+  // under the Place Name field.
+  const [linkedLead, setLinkedLead] = useState<CRMLead | null>(leadPrefill ?? null);
+  useEffect(() => { setLinkedLead(leadPrefill ?? null); }, [leadPrefill]);
+
+  // Suggestions dropdown: search existing CRM leads by name so the admin can
+  // manually link this site to one. Picking a suggestion fills the description
+  // and other fields the same way create-from-map does for URL-prefilled leads.
+  const [leadSuggestions, setLeadSuggestions] = useState<CRMLead[]>([]);
+  const [leadSuggestOpen, setLeadSuggestOpen] = useState(false);
+  const [leadSuggestLoading, setLeadSuggestLoading] = useState(false);
+
   const f = (field: keyof typeof form, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
+
+  const applyLeadFill = (lead: CRMLead) => {
+    const prefillName = lead.business_name
+      || `${lead.first_name || ''} ${lead.last_name || ''}`.trim()
+      || '';
+    setForm(prev => ({
+      ...prev,
+      name: prefillName || prev.name,
+      description: generateSiteDescription(lead),
+      latitude: lead.latitude != null ? String(lead.latitude) : prev.latitude,
+      longitude: lead.longitude != null ? String(lead.longitude) : prev.longitude,
+      capacity: lead.parking_spaces != null ? String(lead.parking_spaces) : prev.capacity,
+      place_type: mapLeadPropertyTypeToPlaceType(lead.property_type),
+      opening_hours: compactOpeningHours(lead.opening_hours_text) || prev.opening_hours,
+      approval_status: 'pending',
+    }));
+    if (lead.latitude != null && lead.longitude != null) {
+      setMarkerPos({ lat: Number(lead.latitude), lng: Number(lead.longitude) });
+    }
+    setLinkedLead(lead);
+    setLeadSuggestOpen(false);
+    setLeadSuggestions([]);
+  };
+
+  // Debounced lead search whenever the user types a name and no lead is linked.
+  useEffect(() => {
+    if (linkedLead) { setLeadSuggestions([]); return; }
+    const q = form.name.trim();
+    if (q.length < 2) { setLeadSuggestions([]); return; }
+    let cancelled = false;
+    setLeadSuggestLoading(true);
+    const timer = setTimeout(() => {
+      crmApi.getLeads({ search: q, limit: '8' })
+        .then(r => { if (!cancelled) setLeadSuggestions(r.leads || []); })
+        .catch(() => { if (!cancelled) setLeadSuggestions([]); })
+        .finally(() => { if (!cancelled) setLeadSuggestLoading(false); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [form.name, linkedLead]);
 
   // Google Places Autocomplete on map search
   useEffect(() => {
@@ -520,11 +572,12 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
     return () => window.google.maps.event.clearInstanceListeners(ac);
   }, [isLoaded]);
 
-  // Auto-lookup address details from the lead when pre-filling. Prefers the
-  // lead's google_place_id (unambiguous); falls back to a text search combining
-  // business name + location.
+  // Auto-lookup address details from the linked lead. Prefers the lead's
+  // google_place_id (unambiguous); falls back to a text search combining
+  // business name + location. Runs both for URL-driven prefill and for leads
+  // linked manually via the dropdown under Place Name.
   useEffect(() => {
-    if (!isLoaded || !leadPrefill) return;
+    if (!isLoaded || !linkedLead) return;
 
     const service = new window.google.maps.places.PlacesService(document.createElement('div'));
     const fields = ['address_components', 'geometry', 'formatted_address', 'name'];
@@ -547,9 +600,9 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
       }));
     };
 
-    if (leadPrefill.google_place_id) {
+    if (linkedLead.google_place_id) {
       service.getDetails(
-        { placeId: leadPrefill.google_place_id, fields },
+        { placeId: linkedLead.google_place_id, fields },
         (place, status) => {
           if (status === window.google.maps.places.PlacesServiceStatus.OK) applyPlace(place);
         }
@@ -557,9 +610,9 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
       return;
     }
 
-    const businessName = leadPrefill.business_name
-      || `${leadPrefill.first_name || ''} ${leadPrefill.last_name || ''}`.trim();
-    const query = [businessName, leadPrefill.location].filter(Boolean).join(', ');
+    const businessName = linkedLead.business_name
+      || `${linkedLead.first_name || ''} ${linkedLead.last_name || ''}`.trim();
+    const query = [businessName, linkedLead.location].filter(Boolean).join(', ');
     if (!query) return;
 
     service.findPlaceFromQuery(
@@ -574,7 +627,7 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
         );
       }
     );
-  }, [isLoaded, leadPrefill]);
+  }, [isLoaded, linkedLead]);
 
   // Duplicate-site guard: whenever we have a name + coordinates, ask the admin
   // API for places matching the name and check whether any are within ~200m.
@@ -682,11 +735,11 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
       //   pending   → negotiating (Listing process — awaiting approval)
       //   draft     → negotiating (Listing process — draft)
       let leadStageMessage = '';
-      if (leadPrefill?.id && placeId) {
+      if (linkedLead?.id && placeId) {
         const nextStage = form.approval_status === 'approved' ? 'converted' : 'negotiating';
         const stageLabel = nextStage === 'converted' ? 'Live' : 'Listing process';
         try {
-          await crmApi.updateLead(leadPrefill.id, {
+          await crmApi.updateLead(linkedLead.id, {
             pipeline_stage: nextStage,
             place_id: placeId,
           } as Partial<CRMLead>);
@@ -695,7 +748,7 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
           leadStageMessage = ' (Site created, but the lead could not be updated automatically.)';
         }
         try {
-          await crmApi.createActivity(leadPrefill.id, {
+          await crmApi.createActivity(linkedLead.id, {
             activity_type: 'note',
             title: `Site created: ${form.name}`,
             description: `Linked site #${placeId} to this lead (${form.approval_status}).`,
@@ -720,6 +773,9 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
       setMainImagePreview(null);
       setMarkerPos(null);
       setAvailableDays([1, 2, 3, 4, 5, 6, 7]);
+      setLinkedLead(null);
+      setLeadSuggestions([]);
+      setLeadSuggestOpen(false);
       if (mapSearchRef.current) mapSearchRef.current.value = '';
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to create site');
@@ -760,12 +816,66 @@ function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; owner
         <h2 className="text-base font-semibold text-slate-200">Basic Information</h2>
 
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Place Name *</label>
-          <input
-            type="text" value={form.name} onChange={e => f('name', e.target.value)} required
-            placeholder="e.g. The Crown Car Park"
-            className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
-          />
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-medium text-slate-400">Place Name *</label>
+            {linkedLead && (
+              <div className="flex items-center gap-2 text-[11px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-full px-2.5 py-0.5">
+                <span>Linked to lead: <span className="font-semibold">{linkedLead.business_name || `${linkedLead.first_name || ''} ${linkedLead.last_name || ''}`.trim() || `#${linkedLead.id}`}</span></span>
+                <button
+                  type="button"
+                  onClick={() => setLinkedLead(null)}
+                  className="text-emerald-400/70 hover:text-emerald-200"
+                  title="Unlink lead"
+                >✕</button>
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <input
+              type="text" value={form.name} onChange={e => f('name', e.target.value)} required
+              placeholder="e.g. The Crown Car Park"
+              onFocus={() => setLeadSuggestOpen(true)}
+              onBlur={() => setTimeout(() => setLeadSuggestOpen(false), 150)}
+              autoComplete="off"
+              className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600"
+            />
+            {!linkedLead && leadSuggestOpen && form.name.trim().length >= 2 && (leadSuggestLoading || leadSuggestions.length > 0) && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden">
+                <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-slate-500 border-b border-slate-700">
+                  {leadSuggestLoading ? 'Searching leads…' : 'Link to an existing CRM lead'}
+                </div>
+                <ul className="max-h-64 overflow-y-auto">
+                  {leadSuggestions.map(lead => {
+                    const label = lead.business_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || `Lead #${lead.id}`;
+                    const alreadyLinked = lead.place_id != null;
+                    return (
+                      <li key={lead.id}>
+                        <button
+                          type="button"
+                          onMouseDown={e => { e.preventDefault(); applyLeadFill(lead); }}
+                          className="w-full text-left px-3 py-2 hover:bg-slate-700 flex items-start justify-between gap-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm text-slate-100 truncate">{label}</p>
+                            <p className="text-[11px] text-slate-500 truncate">
+                              {lead.location || '—'}
+                              {lead.google_rating != null && <span className="ml-1.5 text-amber-400">{lead.google_rating}★</span>}
+                            </p>
+                          </div>
+                          {alreadyLinked && (
+                            <span className="text-[10px] uppercase tracking-wide text-amber-400/80 flex-shrink-0 mt-0.5">already linked</span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="px-3 py-1.5 text-[10px] text-slate-500 border-t border-slate-700 bg-slate-900/40">
+                  Picking a lead fills the description and other details, and links the lead on save.
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div>
