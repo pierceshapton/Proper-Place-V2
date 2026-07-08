@@ -398,40 +398,66 @@ function compactOpeningHours(text: string | null | undefined): string {
     .join(', ');
 }
 
-// Human-sounding site description tailored to motorhome guests. Deliberately
-// avoids generic marketing words; leaves the copy in draft so it gets reviewed
-// before it goes live.
+// Warmer, more evocative site description in the style of a travel writeup:
+// a scene-setting hook, a nod to what makes it special for campervan
+// travellers, and a cosy close balancing adventure with peace. Uses only
+// fields we have on the lead — never invents specific features. Copy stays
+// in draft so a human can add local colour before it goes live.
 function generateSiteDescription(lead: CRMLead): string {
   const nameRaw = lead.business_name?.trim() || '';
-  const name = nameRaw || 'This spot';
-  const city = lead.location?.split(',')[0]?.trim() || '';
-  const cityBit = city ? ` in ${city}` : '';
+  const name = nameRaw || 'this spot';
+  const locParts = (lead.location || '').split(',').map(s => s.trim()).filter(Boolean);
+  const city = locParts[0] || '';
+  const region = locParts.slice(1).join(', ');
+  const placeBit = city && region ? ` in ${city}, ${region}` : city ? ` in ${city}` : region ? ` in ${region}` : '';
+  const regionOnly = region || city;
+
   const type = mapLeadPropertyTypeToPlaceType(lead.property_type);
   const parking = lead.parking_spaces;
-  const parkingBit = parking && parking >= 2
-    ? ` There's room for around ${parking} motorhomes.`
-    : parking === 1
-      ? ' One motorhome fits comfortably.'
-      : '';
-  const ratingBit = lead.google_rating && lead.google_reviews_count
-    ? ` Locals rate it ${lead.google_rating}★ on Google (${lead.google_reviews_count} reviews).`
-    : lead.google_rating
-      ? ` Locals rate it ${lead.google_rating}★ on Google.`
-      : '';
+  const rating = lead.google_rating;
+  const reviews = lead.google_reviews_count;
 
-  const intros: Record<string, string> = {
-    pub: `${name} is a proper country pub${cityBit} that opens its car park to motorhomes for the night. Pop in for a pint or a bite to eat, then head back to the van for a quiet, secure stop before you carry on in the morning.`,
-    farm: `A working farm${cityBit} with plenty of level ground for motorhomes. Wake up to open fields and fresh air, well away from the noise of the road.`,
-    vineyard: `${name} welcomes motorhomes to park among the vines overnight${cityBit}. Cellar tours and tastings are usually available — just ask when you arrive.`,
-    campsite: `A relaxed campsite${cityBit} set up for motorhomes of every size. Level pitches, clean facilities, and a proper welcome from the owners.`,
-    coastal: `A cracking spot right by the coast${cityBit}, perfect for waking up to a sea view from your motorhome. Level parking, easy access, and stunning sunsets.`,
-    woodland: `A quiet woodland setting${cityBit} where motorhomes can park up for the night, tucked away from the noise of the road. Bring a book and enjoy the peace.`,
-    garden: `A private garden${cityBit} opening its gates to motorhomes for overnight stays. Beautiful surroundings and a warm host.`,
-    private_land: `Private land${cityBit} with generous space for motorhomes. A calm, out-of-the-way place to spend the night.`,
-    other: `${name}${cityBit} is a welcoming stop-off for motorhomes needing a safe place to park up for the night.`,
+  const opening: Record<string, string> = {
+    pub: `Experience a warm and welcoming pub stopover at ${name}${placeBit}. Perfect for campervan travellers, this proper country inn opens its car park to motorhomes looking for a peaceful, secure spot for the night — ideal for breaking up a longer trip or settling in for a quiet evening away from the road.`,
+    farm: `Escape to open countryside with a farm stay at ${name}${placeBit}. Perfect for campervan travellers, this working farm offers plenty of level ground, wide skies and the kind of quiet you can only find well away from the main road — wake up to birdsong and the smell of fresh air.`,
+    vineyard: `Discover a memorable vineyard stopover at ${name}${placeBit}. Perfect for campervan travellers, this welcoming estate opens its grounds to motorhomes for the night — wander the vines, and where the season allows, join a cellar tour or a tasting before settling in for a peaceful evening.`,
+    campsite: `Settle in for the night at ${name}, a relaxed campsite${placeBit} tailored for campervan travellers and motorhomes of every size. Level pitches, clean facilities and a genuine welcome from owners who know life on the road — an easy, comfortable base whether you're staying one night or several.`,
+    coastal: `Wake up to the sea at ${name}, a cracking coastal stopover${placeBit}. Perfect for campervan travellers, this spot combines level parking and easy access with the kind of coastal views that alone make it worth the detour — sunset from the van window is hard to beat.`,
+    woodland: `Tuck yourself away for the night at ${name}, a peaceful woodland setting${placeBit}. Perfect for campervan travellers, this quiet spot lets you park up among the trees, well shielded from the noise of the road — the sort of place where an evening slips by with a book and a boiled kettle.`,
+    garden: `Enjoy a private garden stay at ${name}${placeBit}. Perfect for campervan travellers, this beautifully kept spot offers a warm host and the rare pleasure of parking somewhere that feels more like a hideaway than a stopover — an unusual and memorable place to spend the night.`,
+    private_land: `Find a slice of quiet at ${name}, private land${placeBit} with generous room for motorhomes. Perfect for campervan travellers, it's calm, out-of-the-way and unfussy — the kind of overnight spot you seek out when you want a proper night away from everything.`,
+    other: `Discover a welcoming stopover at ${name}${placeBit}. Perfect for campervan and motorhome travellers, this is a safe, comfortable place to park up for the night, whether you're mid-adventure or breaking up a longer drive.`,
   };
 
-  return `${intros[type] || intros.other}${parkingBit}${ratingBit}`.trim();
+  const parts: string[] = [opening[type] || opening.other];
+
+  if (parking && parking >= 2) {
+    parts.push(`There's room for around ${parking} motorhomes, with plenty of space to level up and settle in.`);
+  } else if (parking === 1) {
+    parts.push(`One motorhome fits comfortably, with plenty of space to level up and settle in.`);
+  }
+
+  if (rating != null && reviews != null && reviews > 0) {
+    parts.push(`Locals rate it ${rating}★ on Google from ${reviews.toLocaleString()} reviews.`);
+  } else if (rating != null) {
+    parts.push(`Locals rate it ${rating}★ on Google.`);
+  }
+
+  const closingRegion = regionOnly ? ` around ${regionOnly}` : '';
+  const closing: Record<string, string> = {
+    pub: `Whether you're chasing local walks and hearty pub food or simply looking for a peaceful overnight escape${closingRegion}, ${name} is an unforgettable place to park up and relax.`,
+    farm: `Whether you're taking in the countryside${closingRegion} or simply looking for a peaceful overnight reset before the next leg of the trip, ${name} is an unforgettable place to park up and relax.`,
+    vineyard: `Whether you're touring the region's food and drink scene${closingRegion} or simply looking for a peaceful overnight escape, ${name} is an unforgettable place to park up and relax.`,
+    campsite: `Whether you're exploring the local area${closingRegion} or simply looking for an easy overnight base, ${name} is a comfortable, welcoming place to park up and relax.`,
+    coastal: `Whether you're chasing coastal walks, seaside suppers and slow sunrises${closingRegion} or simply looking for a peaceful overnight escape, ${name} is an unforgettable place to park up and relax.`,
+    woodland: `Whether you're chasing forest walks${closingRegion} or simply looking for a peaceful overnight escape surrounded by trees, ${name} is an unforgettable place to park up and relax.`,
+    garden: `Whether you're exploring the area${closingRegion} or simply looking for a peaceful overnight escape in beautiful surroundings, ${name} is an unforgettable place to park up and relax.`,
+    private_land: `Whether you're breaking up a long drive${closingRegion} or simply looking for a proper night away from it all, ${name} is a calm, unfussy place to park up and relax.`,
+    other: `Whether you're mid-adventure${closingRegion} or simply looking for a peaceful overnight escape, ${name} is a comfortable place to park up and relax.`,
+  };
+  parts.push(closing[type] || closing.other);
+
+  return parts.join(' ');
 }
 
 function PlaceForm({ ownerId, ownerName, leadPrefill }: { ownerId: number; ownerName: string; leadPrefill?: CRMLead | null }) {
