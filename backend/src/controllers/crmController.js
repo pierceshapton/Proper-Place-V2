@@ -684,9 +684,10 @@ async function sendEmail(req, res, next) {
     const interpolated = interpolateTemplate(body, lead);
     const interpolatedSubject = interpolateTemplate(subject, lead);
 
-    // Send via existing working SMTP (no-reply), with Pierce as display name and reply-to
-    const emailUtil = require('../utils/email');
+    // Send via mailer (Resend if configured, SMTP fallback), with Pierce as display name and reply-to
+    const mailer = require('../utils/mailer');
     const crmFromName = process.env.CRM_FROM_NAME || 'Pierce Shapton';
+    const fromAddr = process.env.MAIL_FROM_ADDRESS || process.env.SMTP_USER;
 
     const CRM_SIGNATURE_TEXT = `\n\n--\nPierce Shapton\nProper Place\n+44 7585 227180\npierce.shapton@proper-place.co.uk\nwww.proper-place.co.uk`;
 
@@ -706,13 +707,14 @@ async function sendEmail(req, res, next) {
       + `<a href="https://www.proper-place.co.uk" style="color:#1976D2;text-decoration:none;">www.proper-place.co.uk</a>`
       + `</p></div>`;
 
-    await emailUtil.transporter.sendMail({
-      from: `"${crmFromName}" <${process.env.SMTP_USER}>`,
+    await mailer.sendMail({
+      from: `"${crmFromName}" <${fromAddr}>`,
       replyTo: 'pierce.shapton@proper-place.co.uk',
       to: recipient,
       subject: interpolatedSubject,
       text: bodyText + CRM_SIGNATURE_TEXT,
       html: htmlEmail,
+      tag: 'crm_manual',
     });
 
     // Log to email log

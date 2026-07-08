@@ -1,20 +1,14 @@
-const nodemailer = require('nodemailer');
 const path = require('path');
 const logger = require('./logger');
+const mailer = require('./mailer');
 
 const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo.png');
 const LOGO_CID = 'proper-place-logo';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp-relay.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: false,
-  requireTLS: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Backward-compat export: some callers still reach for the raw SMTP transporter.
+const transporter = mailer.smtpTransporter;
+
+const FROM_ADDR = mailer.MAIL_FROM_ADDRESS;
 
 /**
  * Send an email verification link.
@@ -46,14 +40,15 @@ async function sendVerificationEmail(to, token) {
     </div>
   `;
 
-  const info = await transporter.sendMail({
-    from: `"Proper Place" <${process.env.SMTP_USER}>`,
+  const info = await mailer.sendMail({
+    from: `"Proper Place" <${FROM_ADDR}>`,
     to,
     subject: 'Verify your Proper Place email',
     html,
+    tag: 'verification',
   });
 
-  logger.info('Verification email sent', { to, messageId: info.messageId });
+  logger.info('Verification email sent', { to, messageId: info.id, provider: info.provider });
   return info;
 }
 
@@ -88,14 +83,15 @@ async function sendPasswordResetEmail(to, token) {
     </div>
   `;
 
-  const info = await transporter.sendMail({
-    from: `"Proper Place" <${process.env.SMTP_USER}>`,
+  const info = await mailer.sendMail({
+    from: `"Proper Place" <${FROM_ADDR}>`,
     to,
     subject: 'Reset your Proper Place password',
     html,
+    tag: 'password_reset',
   });
 
-  logger.info('Password reset email sent', { to, messageId: info.messageId });
+  logger.info('Password reset email sent', { to, messageId: info.id, provider: info.provider });
   return info;
 }
 
@@ -169,11 +165,12 @@ async function sendInviteEmail(to, name, token, username) {
     </div>
   `;
 
-  const info = await transporter.sendMail({
-    from: `"Proper Place" <${process.env.SMTP_USER}>`,
+  const info = await mailer.sendMail({
+    from: `"Proper Place" <${FROM_ADDR}>`,
     to,
     subject: 'Welcome to Proper Place - set your password',
     html,
+    tag: 'invite',
     attachments: [
       {
         filename: 'logo.png',
@@ -184,7 +181,7 @@ async function sendInviteEmail(to, name, token, username) {
     ],
   });
 
-  logger.info('Invite email sent', { to, messageId: info.messageId });
+  logger.info('Invite email sent', { to, messageId: info.id, provider: info.provider });
   return info;
 }
 
@@ -213,14 +210,15 @@ async function sendSupportReplyEmail(to, subject, originalMessage, replyBody) {
     </div>
   `;
 
-  const info = await transporter.sendMail({
-    from: `"Proper Place Support" <${process.env.SMTP_USER}>`,
+  const info = await mailer.sendMail({
+    from: `"Proper Place Support" <${FROM_ADDR}>`,
     to,
     subject: `Re: ${subject}`,
     html,
+    tag: 'support_reply',
   });
 
-  logger.info('Support reply email sent', { to, subject: `Re: ${subject}`, messageId: info.messageId });
+  logger.info('Support reply email sent', { to, subject: `Re: ${subject}`, messageId: info.id, provider: info.provider });
   return info;
 }
 
@@ -246,14 +244,15 @@ async function sendHostDeletionRequestEmail(user) {
     </div>
   `;
 
-  const info = await transporter.sendMail({
-    from: `"Proper Place" <${process.env.SMTP_USER}>`,
-    to: 'pierce.shapton@gmail.com',
+  const info = await mailer.sendMail({
+    from: `"Proper Place" <${FROM_ADDR}>`,
+    to: process.env.EMAIL_ADMIN_ALERT || 'pierce.shapton@proper-place.co.uk',
     subject: `Host deletion request - ${user.name} (${user.email})`,
     html,
+    tag: 'host_deletion_request',
   });
 
-  logger.info('Host deletion request email sent', { userId: user.id, email: user.email, messageId: info.messageId });
+  logger.info('Host deletion request email sent', { userId: user.id, email: user.email, messageId: info.id, provider: info.provider });
   return info;
 }
 
@@ -331,12 +330,13 @@ function emailShell({ headerBg = '#059669', title, intro, body, ctaHref, ctaLabe
   `;
 }
 
-async function sendBookingMail(to, subject, html) {
-  const info = await transporter.sendMail({
-    from: `"Proper Place" <${process.env.SMTP_USER}>`,
+async function sendBookingMail(to, subject, html, tag = 'booking') {
+  const info = await mailer.sendMail({
+    from: `"Proper Place" <${FROM_ADDR}>`,
     to,
     subject,
     html,
+    tag,
     attachments: [
       {
         filename: 'logo.png',
@@ -346,7 +346,7 @@ async function sendBookingMail(to, subject, html) {
       },
     ],
   });
-  logger.info('Booking email sent', { to, subject, messageId: info.messageId });
+  logger.info('Booking email sent', { to, subject, messageId: info.id, provider: info.provider });
   return info;
 }
 
@@ -365,7 +365,7 @@ async function sendHostNewBookingEmail({ hostEmail, hostName, guestName, booking
     ctaLabel: 'Review booking',
     footer: 'Payment is held (not taken) until you accept the request.',
   });
-  return sendBookingMail(hostEmail, `New booking request - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(hostEmail, `New booking request - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html, 'booking_new_host');
 }
 
 /**
@@ -383,7 +383,7 @@ async function sendGuestBookingSubmittedEmail({ guestEmail, guestName, booking }
     ctaLabel: 'View booking',
     footer: 'You&rsquo;ll get another email as soon as the host confirms or declines.',
   });
-  return sendBookingMail(guestEmail, `Booking request received - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(guestEmail, `Booking request received - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html, 'booking_submitted_guest');
 }
 
 /**
@@ -401,7 +401,7 @@ async function sendGuestBookingConfirmedEmail({ guestEmail, guestName, booking }
     ctaLabel: 'View booking',
     footer: 'Have a great stay!',
   });
-  return sendBookingMail(guestEmail, `Booking confirmed - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(guestEmail, `Booking confirmed - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html, 'booking_confirmed_guest');
 }
 
 /**
@@ -418,7 +418,7 @@ async function sendGuestBookingRejectedEmail({ guestEmail, guestName, booking })
     ctaLabel: 'Find another site',
     footer: 'Try booking a nearby alternative - plenty of hosts are available.',
   });
-  return sendBookingMail(guestEmail, `Booking not approved - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(guestEmail, `Booking not approved - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html, 'booking_rejected_guest');
 }
 
 /**
@@ -450,7 +450,7 @@ async function sendBookingCancelledEmail({ recipientEmail, recipientName, recipi
     ctaHref: `${APP_URL}/dashboard`,
     ctaLabel: 'View bookings',
   });
-  return sendBookingMail(recipientEmail, `Booking cancelled - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html);
+  return sendBookingMail(recipientEmail, `Booking cancelled - ${booking.place_name || 'Proper Place'} (${booking.booking_ref || '#' + booking.id})`, html, 'booking_cancelled');
 }
 
 module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendInviteEmail, sendSupportReplyEmail, sendHostDeletionRequestEmail, sendHostNewBookingEmail, sendGuestBookingSubmittedEmail, sendGuestBookingConfirmedEmail, sendGuestBookingRejectedEmail, sendBookingCancelledEmail, transporter };

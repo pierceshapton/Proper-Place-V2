@@ -137,4 +137,95 @@ router.post('/stripe', async (req, res) => {
   }
 });
 
+/**
+ * POST /webhooks/resend
+ * Resend sends email delivery events here (delivered, bounced, complained, etc).
+ * Signature verification uses Svix (Resend's webhook infrastructure).
+ * The raw body is required for signature verification.
+ */
+const RESEND_WEBHOOK_SECRET = process.env.RESEND_WEBHOOK_SECRET;
+
+router.post('/resend', async (req, res) => {
+  let event;
+  const rawBody = req.body; // Buffer, thanks to express.raw() middleware in server.js
+
+  if (RESEND_WEBHOOK_SECRET) {
+    try {
+      const { Webhook } = require('svix');
+      const wh = new Webhook(RESEND_WEBHOOK_SECRET);
+      const bodyStr = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody);
+      const headers = {
+        'svix-id': req.headers['svix-id'],
+        'svix-timestamp': req.headers['svix-timestamp'],
+        'svix-signature': req.headers['svix-signature'],
+      };
+      event = wh.verify(bodyStr, headers);
+    } catch (err) {
+      logger.error('Resend webhook signature verification failed', { error: err.message });
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+  } else {
+    logger.warn('Resend webhook signature verification skipped (no RESEND_WEBHOOK_SECRET set)');
+    try {
+      const bodyStr = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody);
+      event = typeof rawBody === 'string' ? JSON.parse(rawBody) : (rawBody && typeof rawBody === 'object' && !Buffer.isBuffer(rawBody) ? rawBody : JSON.parse(bodyStr));
+    } catch (err) {
+      logger.error('Resend webhook body parse failed', { error: err.message });
+      return res.status(400).json({ error: 'Invalid body' });
+    }
+  }
+
+  const type = event.type || 'unknown';
+  const data = event.data || {};
+  const emailId = data.email_id || data.id;
+  const to = Array.isArray(data.to) ? data.to[0] : data.to;
+  const tag = (data.tags && data.tags.find && data.tags.find((t) => t.name === 'category')?.value) || null;
+
+  logger.info('Resend webhook received', { type, emailId, to, tag });
+
+  try {
+    await db.query(
+      `INSERT INTO email_events (provider_id, recipient, tag, event_type, detail, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [emailId || null, to ? String(to).slice(0, 255) : null, tag || null, type, JSON.stringify(data)]
+    );
+  } catch (err) {
+    logger.error('Failed to record resend webhook event', { error: err.message, type });
+  }
+
+  // Alert admin on delivery failures
+  const alertTypes = new Set(['email.bounced', 'email.complained', 'email.delivery_delayed', 'email.failed']);
+  if (alertTypes.has(type)) {
+    try {
+      const mailer = require('../utils/mailer');
+      const bounce = data.bounce || data.reason || {};
+      const bounceMsg = typeof bounce === 'string' ? bounce : (bounce.message || JSON.stringify(bounce));
+      const label = type.replace('email.', '');
+      const html = `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:20px;max-width:560px;">
+          <h2 style="color:#b91c1c;margin:0 0 12px;">Email delivery ${label}</h2>
+          <p style="color:#374151;line-height:1.5;">Recipient <strong>${escapeHtml(String(to || 'unknown'))}</strong> did not receive their ${tag ? `<strong>${escapeHtml(tag)}</strong> ` : ''}email.</p>
+          <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
+            <tr><td style="padding:6px 12px;color:#6b7280;">Event</td><td style="padding:6px 12px;color:#111827;font-family:monospace;">${escapeHtml(type)}</td></tr>
+            <tr><td style="padding:6px 12px;color:#6b7280;">Subject</td><td style="padding:6px 12px;color:#111827;">${escapeHtml(String(data.subject || ''))}</td></tr>
+            <tr><td style="padding:6px 12px;color:#6b7280;">Provider email id</td><td style="padding:6px 12px;font-family:monospace;font-size:12px;">${escapeHtml(String(emailId || ''))}</td></tr>
+            <tr><td style="padding:6px 12px;color:#6b7280;vertical-align:top;">Reason</td><td style="padding:6px 12px;color:#b91c1c;font-family:monospace;font-size:12px;white-space:pre-wrap;">${escapeHtml(bounceMsg || 'not provided')}</td></tr>
+            <tr><td style="padding:6px 12px;color:#6b7280;">Time</td><td style="padding:6px 12px;color:#111827;">${new Date().toISOString()}</td></tr>
+          </table>
+          <p style="color:#6b7280;font-size:12px;">Full event details are stored in email_events table.</p>
+        </div>
+      `;
+      mailer.sendAdminAlert({ subject: `${label}: ${tag || 'email'} to ${to || 'unknown'}`, html }).catch(() => {});
+    } catch (err) {
+      logger.error('Failed to send admin alert for resend event', { error: err.message });
+    }
+  }
+
+  res.json({ received: true });
+});
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 module.exports = router;

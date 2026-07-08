@@ -964,6 +964,29 @@ async function initializeDatabase() {
       console.error('[SERVER] Migration 43 error:', err.message);
     }
 
+    // Migration 44: email_events table for delivery tracking (Resend webhooks + send failures)
+    try {
+      console.log('[SERVER] Running migration 44: email_events table...');
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS email_events (
+          id SERIAL PRIMARY KEY,
+          provider_id VARCHAR(255),
+          recipient VARCHAR(255),
+          tag VARCHAR(64),
+          event_type VARCHAR(64) NOT NULL,
+          detail JSONB,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_email_events_recipient ON email_events(recipient);
+        CREATE INDEX IF NOT EXISTS idx_email_events_provider_id ON email_events(provider_id);
+        CREATE INDEX IF NOT EXISTS idx_email_events_type ON email_events(event_type);
+        CREATE INDEX IF NOT EXISTS idx_email_events_created ON email_events(created_at DESC);
+      `);
+      console.log('[SERVER] ✅ Migration 44 completed');
+    } catch (err) {
+      console.error('[SERVER] Migration 44 error:', err.message);
+    }
+
     // Always try to seed admin user if it doesn't exist
     try {
       const { hashPassword } = require('./utils/hash'); // Use same bcryptjs as auth controller
